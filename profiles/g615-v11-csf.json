@@ -14,12 +14,21 @@
   "nodeMode": "crw-rw-rw- system graphics",
   "android": "16 (SDK 36, HyperOS OS3.0.6.0.WNLMIXM)",
   "kernel": "6.1.170-GKID/v26.05.08-r326/94924f211",
-  "kbaseUapi": "OBSERVED-PENDING-P2-PROBE",
+  "kbaseUapi": "pending-ioctl-discovery (open-path proven; version ioctl needs reference-tree headers, P3)",
+  "nodeSeLabel": "u:object_r:gpu_device:s0",
+  "selinuxEnforcing": true,
+  "probeLog": "validation/g615-v11-csf/kbase-probe-2026-09-18.txt",
+  "probeResult": {
+    "rootShellUid0": {"O_RDONLY": "OK", "O_RDWR": "OK"},
+    "nobodyUid9999": {"O_RDONLY": "OK", "O_RDWR": "OK"},
+    "trueAppUid": "pending-P13-loader-APK"
+  },
+  "coreMask": "0x130013",
   "selectionKey": {
     "pan_arch": 11,
-    "gpu_id": "0xB8A3 (to be confirmed by probe)",
+    "gpu_id": "0xB8A3",
     "frontend": "CSF",
-    "kbase_uapi": "to be filled by tests/kbase-probe on device"
+    "kbase_uapi": "pending-ioctl-discovery"
   },
   "status": "primary bring-up target"
 }
