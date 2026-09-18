@@ -1,0 +1,7 @@
+#version 450
+layout(local_size_x = 1) in;
+layout(set = 0, binding = 0) buffer INB { float v[]; };
+layout(set = 0, binding = 1) buffer OUTB { float o[]; };
+void main() {
+  o[0] = v[0]; o[1] = v[1]; o[2] = v[2]; o[3] = v[3]; o[4] = v[4]; o[5] = v[5];
+}
