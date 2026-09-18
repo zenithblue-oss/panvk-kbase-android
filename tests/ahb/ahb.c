@@ -145,8 +145,7 @@ main(int argc, char **argv)
                                 .layers = 1,
                                 .format = AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
                                 .usage = gpu_write ?
-                                   (AHARDWAREBUFFER_USAGE_GPU_COLOR_OUTPUT |
-                                    AHARDWAREBUFFER_USAGE_CPU_READ_RARELY) :
+                                   AHARDWAREBUFFER_USAGE_GPU_COLOR_OUTPUT :
                                    (AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE |
                                     AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN),
                                 .stride = 0};

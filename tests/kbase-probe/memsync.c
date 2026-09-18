@@ -27,17 +27,20 @@ const native_handle_t *AHardwareBuffer_getNativeHandle(const AHardwareBuffer *b)
 int
 main(int argc, char **argv)
 {
+   setvbuf(stdout, NULL, _IONBF, 0);
    int src_fd = -1;
    AHardwareBuffer *ahb = NULL;
    if (argc > 1 && !strcmp(argv[1], "ahb")) {
+      uint64_t uw = AHARDWAREBUFFER_USAGE_GPU_COLOR_OUTPUT |
+                    AHARDWAREBUFFER_USAGE_CPU_READ_RARELY;
+      if (argc > 2 && !strcmp(argv[2], "cached"))
+         uw |= AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN;
       AHardwareBuffer_Desc d = {.width = 64,
                                 .height = 64,
                                 .layers = 1,
                                 .format =
                                    AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
-                                .usage =
-                                   AHARDWAREBUFFER_USAGE_GPU_COLOR_OUTPUT |
-                                   AHARDWAREBUFFER_USAGE_CPU_READ_RARELY};
+                                .usage = uw};
       if (AHardwareBuffer_allocate(&d, &ahb) || !ahb) {
          printf("S-FAIL AHB allocate\n");
          return 1;
@@ -78,6 +81,55 @@ main(int argc, char **argv)
 
    int dfd = fcntl(src_fd, F_DUPFD_CLOEXEC, 3);
    if (ahb) {
+      /* touch-first variant: fault pages in via dmabuf mmap BEFORE import,
+       * testing whether kbase snapshots an empty SGT for lazy heaps */
+      const native_handle_t *hh0 = AHardwareBuffer_getNativeHandle(ahb);
+      int tfd = fcntl(hh0->data[1], F_DUPFD_CLOEXEC, 3);
+      void *pre = mmap(NULL, 16384, PROT_READ | PROT_WRITE, MAP_SHARED, tfd,
+                       0);
+      if (pre != MAP_FAILED) {
+         for (int i = 0; i < 16384; i += 4096)
+            ((volatile uint8_t *)pre)[i] = (uint8_t)(i >> 12);
+         printf("S-touched %p\n", pre);
+         union kbase_ioctl_mem_import tq;
+         memset(&tq, 0, sizeof(tq));
+         tq.in.flags = BASE_MEM_PROT_CPU_RD | BASE_MEM_PROT_CPU_WR |
+                       BASE_MEM_PROT_GPU_RD | BASE_MEM_PROT_GPU_WR |
+                       BASE_MEM_IMPORT_SHARED | BASE_MEM_COHERENT_SYSTEM;
+         tq.in.phandle = (uintptr_t)&tfd;
+         tq.in.type = BASE_MEM_IMPORT_TYPE_UMM;
+         int tr = ioctl(kfd, KBASE_IOCTL_MEM_IMPORT, &tq);
+         printf("S-touch-import r=%d %s va=0x%llx pages=%llu\n", tr,
+                tr ? strerror(errno) : "ok",
+                (unsigned long long)tq.out.gpu_va,
+                (unsigned long long)tq.out.va_pages);
+         if (!tr) {
+            struct kbase_ioctl_mem_commit cm;
+            memset(&cm, 0, sizeof(cm));
+            cm.gpu_addr = tq.out.gpu_va;
+            cm.pages = tq.out.va_pages;
+            int cr = ioctl(kfd, KBASE_IOCTL_MEM_COMMIT, &cm);
+            printf("S-touch commit r=%d %s\n", cr,
+                   cr ? strerror(errno) : "ok");
+            void *gm = mmap(NULL, tq.out.va_pages * 4096,
+                            PROT_READ | PROT_WRITE, MAP_SHARED, kfd,
+                            tq.out.gpu_va);
+            printf("S-touch kbase-mmap %s\n",
+                   gm == MAP_FAILED ? strerror(errno) : "OK");
+            if (gm != MAP_FAILED) {
+               /* NOTE: writing here SIGBUSes for MTK imports (no pages);
+                * writability is the signal under test, attempted last */
+               munmap(gm, tq.out.va_pages * 4096);
+            }
+            struct kbase_ioctl_mem_free fr = {.gpu_addr = tq.out.gpu_va};
+            ioctl(kfd, KBASE_IOCTL_MEM_FREE, &fr);
+         }
+         munmap(pre, 16384);
+      }
+      close(dfd);
+      dfd = fcntl(hh0->data[1], F_DUPFD_CLOEXEC, 3);
+   }
+   if (ahb) {
       /* the data buffer is fd index 1 on this gralloc (fd0/fd2 are not
        * importable); use it for the query section below */
       const native_handle_t *hh0 = AHardwareBuffer_getNativeHandle(ahb);
@@ -85,11 +137,12 @@ main(int argc, char **argv)
       dfd = fcntl(hh0->data[1], F_DUPFD_CLOEXEC, 3);
       /* try import flag variants for the uncached heap */
       static const struct { const char *n; uint64_t clear; uint64_t set; } vs[] = {
+         {"cached-cpu", 0, (1ull << 12)},
          {"base", 0, 0},
          {"no-coherent", BASE_MEM_COHERENT_SYSTEM, 0},
          {"uncached-gpu", BASE_MEM_COHERENT_SYSTEM, (1ull << 21)},
       };
-      for (unsigned vi = 0; vi < 3; vi++) {
+      for (unsigned vi = 0; vi < 4; vi++) {
          int tfd = fcntl(hh0->data[1], F_DUPFD_CLOEXEC, 3);
          union kbase_ioctl_mem_import tq;
          memset(&tq, 0, sizeof(tq));
@@ -110,17 +163,19 @@ main(int argc, char **argv)
          if (!tr) {
             void *gm = mmap(NULL, tq.out.va_pages * 4096, PROT_READ | PROT_WRITE,
                             MAP_SHARED, kfd, tq.out.gpu_va);
-            printf("S-var %s kbase-mmap %s\n", vs[vi].n,
-                   gm == MAP_FAILED ? strerror(errno) : "OK");
-            if (gm != MAP_FAILED) {
-               union kbase_ioctl_mem_query q;
-               memset(&q, 0, sizeof(q));
-               q.in.gpu_addr = tq.out.gpu_va;
-               q.in.query = 2;
-               int qr = ioctl(kfd, KBASE_IOCTL_MEM_QUERY, &q);
-               printf("S-var %s query-va-size r=%d %s value=0x%llx\n",
-                      vs[vi].n, qr, qr ? strerror(errno) : "ok",
-                      (unsigned long long)q.out.value);
+            int mok = (gm != MAP_FAILED);
+            union kbase_ioctl_mem_query q;
+            memset(&q, 0, sizeof(q));
+            q.in.gpu_addr = tq.out.gpu_va;
+            q.in.query = 2;
+            int qr = ioctl(kfd, KBASE_IOCTL_MEM_QUERY, &q);
+            printf("S-var %s mmap=%s query-va-size r=%d value=0x%llx\n",
+                   vs[vi].n, mok ? "OK" : strerror(errno), qr,
+                   (unsigned long long)q.out.value);
+            if (mok) {
+               /* writability probe LAST (may SIGBUS) */
+               *(volatile uint32_t *)gm = 0x12345678u;
+               printf("S-var %s kbase-write OK\n", vs[vi].n);
                munmap(gm, tq.out.va_pages * 4096);
             }
             struct kbase_ioctl_mem_free fr = {.gpu_addr = tq.out.gpu_va};
@@ -168,6 +223,13 @@ main(int argc, char **argv)
           (unsigned long long)req.out.gpu_va,
           (unsigned long long)req.out.va_pages,
           (unsigned long long)req.out.flags);
+   {
+      struct kbase_ioctl_mem_free fr;
+      memset(&fr, 0, sizeof(fr));
+      fr.gpu_addr = req.out.gpu_va;
+      int fr2 = ioctl(kfd, KBASE_IOCTL_MEM_FREE, &fr);
+      printf("S-probe free r=%d %s\n", fr2, fr2 ? strerror(errno) : "ok");
+   }
    for (int qi = 1; qi <= 3; qi++) {
       union kbase_ioctl_mem_query q;
       memset(&q, 0, sizeof(q));
