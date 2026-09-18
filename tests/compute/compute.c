@@ -178,9 +178,10 @@ main(int argc, char **argv)
    VkQueue queue;
    vkGetDeviceQueue(dev, qi, 0, &queue);
 
-   /* storage buffer 4 bytes */
+   /* storage buffer; argv[2]=="big" uses 16KB like the AHB test */
+   VkDeviceSize bufsize = (argc > 2 && !strcmp(argv[2], "big")) ? 16384 : 4;
    VkBufferCreateInfo bci = {.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-                             .size = 4,
+                             .size = bufsize,
                              .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                              .sharingMode = VK_SHARING_MODE_EXCLUSIVE};
    VkBuffer buf;

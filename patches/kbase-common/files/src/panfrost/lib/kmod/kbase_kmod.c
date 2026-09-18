@@ -1456,6 +1456,16 @@ kbase_kmod_import_dmabuf(struct pan_kmod_dev *dev,
    if (kmod_flags & PAN_KMOD_BO_FLAG_WB_MMAP)
       import_flags |= BASE_MEM_CACHED_CPU;
 
+   /* Bring-up escape hatch: PANVK_KBASE_IMPORT_CLEAR/SET adjust the
+    * MEM_IMPORT flag word (hex masks) to probe DDK-specific import
+    * behavior without rebuilding. */
+   const char *clear_env = getenv("PANVK_KBASE_IMPORT_CLEAR");
+   const char *set_env = getenv("PANVK_KBASE_IMPORT_SET");
+   if (clear_env && clear_env[0])
+      import_flags &= ~strtoull(clear_env, NULL, 0);
+   if (set_env && set_env[0])
+      import_flags |= strtoull(set_env, NULL, 0);
+
    int import_fd = kbase_bo->dmabuf_fd;
    union kbase_ioctl_mem_import req = {
       .in = {
@@ -1518,6 +1528,11 @@ kbase_kmod_import_dmabuf(struct pan_kmod_dev *dev,
    pan_kmod_bo_init(&kbase_bo->base, dev, exclusive_vm, bo_size, flags,
                     handle);
    mesa_logi("kbase_kmod_bo_alloc_dmabuf: succeeded for %d, bo_size=%lu, handle=%u", kbase_bo->dmabuf_fd, bo_size, handle);
+   mesa_logi("kbase: import flags=0x%llx -> va=0x%llx pages=%llu outflags=0x%llx",
+             (unsigned long long)import_flags,
+             (unsigned long long)req.out.gpu_va,
+             (unsigned long long)req.out.va_pages,
+             (unsigned long long)req.out.flags);
    return &kbase_bo->base;
 
 err_unmap_gpu:

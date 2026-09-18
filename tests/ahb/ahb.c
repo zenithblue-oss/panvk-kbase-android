@@ -134,14 +134,21 @@ main(int argc, char **argv)
    CK(vkCreateDevice(phys, &dci, NULL, &dev), "CreateDevice");
    VkQueue queue;
    vkGetDeviceQueue(dev, qi, 0, &queue);
+   /* mode: default GPU-clear; argv[2]=="read" means CPU-fill then
+    * GPU copy image->staging buffer (tests GPU read of the AHB). */
+   int gpu_write = !(argc > 2 && !strcmp(argv[2], "read"));
+   int gpu_read = (argc > 2 && !strcmp(argv[2], "read"));
 
    /* real AHB */
    AHardwareBuffer_Desc desc = {.width = 64,
                                 .height = 64,
                                 .layers = 1,
                                 .format = AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
-                                .usage = AHARDWAREBUFFER_USAGE_GPU_COLOR_OUTPUT |
-                                         AHARDWAREBUFFER_USAGE_CPU_READ_RARELY,
+                                .usage = gpu_write ?
+                                   (AHARDWAREBUFFER_USAGE_GPU_COLOR_OUTPUT |
+                                    AHARDWAREBUFFER_USAGE_CPU_READ_RARELY) :
+                                   (AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE |
+                                    AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN),
                                 .stride = 0};
    AHardwareBuffer *ahb = NULL;
    int ar = AHardwareBuffer_allocate(&desc, &ahb);
@@ -168,8 +175,11 @@ main(int argc, char **argv)
                            .arrayLayers = 1,
                            .samples = VK_SAMPLE_COUNT_1_BIT,
                            .tiling = VK_IMAGE_TILING_OPTIMAL,
-                           .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-                                    VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                           .usage = gpu_write ?
+                              (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                               VK_IMAGE_USAGE_TRANSFER_DST_BIT) :
+                              (VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+                               VK_IMAGE_USAGE_SAMPLED_BIT),
                            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
                            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED};
    VkImage img;
@@ -280,12 +290,24 @@ main(int argc, char **argv)
    VkSubmitInfo si = {.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
                       .commandBufferCount = 1,
                       .pCommandBuffers = &cmd};
+   /* fault-in backing pages via CPU before GPU access (lazy-heap test) */
+   {
+      void *pre = NULL;
+      if (AHardwareBuffer_lock(ahb, AHARDWAREBUFFER_USAGE_CPU_READ_RARELY,
+                               -1, NULL, &pre) == 0 && pre) {
+         volatile uint8_t x = ((volatile uint8_t *)pre)[0];
+         ((volatile uint8_t *)pre)[0] = x;
+         AHardwareBuffer_unlock(ahb, NULL);
+         printf("G-prefault done\n");
+      }
+   }
    CK(vkQueueSubmit(queue, 1, &si, fence), "Submit");
-   CK(vkWaitForFences(dev, 1, &fence, VK_TRUE, 30 * 1000 * 1000 * 1000ULL),
-      "Wait");
-   printf("G-GPU clear done\n");
+   VkResult wr = vkWaitForFences(dev, 1, &fence, VK_TRUE,
+                                 30 * 1000 * 1000 * 1000ULL);
+   printf("G-wait r=%d\n", wr);
 
-   /* CPU readback via AHB lock */
+   /* CPU readback via AHB lock (always attempt: shows pre-existing bytes
+    * even when the GPU job faulted) */
    void *data = NULL;
    int32_t lock_r = AHardwareBuffer_lock(ahb, AHARDWAREBUFFER_USAGE_CPU_READ_RARELY,
                                          -1, NULL, &data);
@@ -309,7 +331,7 @@ main(int argc, char **argv)
    vkDestroyImage(dev, img, NULL);
    vkDestroyDevice(dev, NULL);
    vkDestroyInstance(inst, NULL);
-   if (ok) {
+   if (ok && wr == VK_SUCCESS) {
       printf("G-PASS\n");
       return 0;
    }
