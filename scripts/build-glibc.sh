@@ -10,7 +10,7 @@ MESA="$ROOT/work/mesa"; BDIR="$ROOT/build/linux-glibc"; DDIR="$ROOT/dist/glibc-$
 mkdir -p "$BDIR" "$DDIR"
 meson setup "$BDIR" "$MESA" --native-file "$ROOT/meson/linux-aarch64-native.ini" \
   -Dbuildtype=release -Dplatforms=x11,wayland -Dgallium-drivers= -Dvulkan-drivers=panfrost 2>&1 | tail -n 5
-ninja -C "$BDIR" 2>&1 | tail -n 5
+ninja -j"$(nproc)" -C "$BDIR" 2>&1 | tail -n 5
 SO="$(find "$BDIR" -name libvulkan_panfrost.so | head -n1)"
 [ -n "$SO" ] || { echo "BUILD-FAIL" >&2; exit 1; }
 cp "$SO" "$DDIR/"
