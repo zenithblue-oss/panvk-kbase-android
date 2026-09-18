@@ -25,5 +25,9 @@ for fam in $SERIES; do
     git -C "$MESA" apply "$p"
     APPLIED=$((APPLIED+1))
   done
+  if [ -d "$ROOT/patches/$fam/files" ]; then
+    echo "COPY [$fam] files/ -> mesa tree"
+    (cd "$ROOT/patches/$fam/files" && find . -type f ! -name README -print0 | tar --null -cf - -T -) | (cd "$MESA" && tar -xf -)
+  fi
 done
 echo "OK applied=$APPLIED profile=$PROFILE"

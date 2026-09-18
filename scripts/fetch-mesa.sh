@@ -13,6 +13,8 @@ if [ ! -d "$MESA_DIR/.git" ]; then
 fi
 git -C "$MESA_DIR" fetch origin "$COMMIT" --depth 1
 git -C "$MESA_DIR" checkout --detach "$COMMIT"
+git -C "$MESA_DIR" reset --hard "$COMMIT"
+git -C "$MESA_DIR" clean -fdq -- src/ meson.build meson.options || true
 git -C "$MESA_DIR" rev-parse HEAD
 git -C "$MESA_DIR" describe --tags 2>/dev/null || true
 echo "OK mesa=$COMMIT dir=$MESA_DIR"
