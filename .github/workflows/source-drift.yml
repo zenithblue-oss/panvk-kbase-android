@@ -1,0 +1,16 @@
+name: source-drift
+on:
+  schedule: [{cron: '0 6 * * 1'}]
+  workflow_dispatch:
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check pinned Mesa vs upstream main + patch applicability
+        run: |
+          PIN=$(python3 -c "import json;print(json.load(open('sources.lock'))['mesaCommit'])")
+          HEAD=$(git ls-remote https://gitlab.freedesktop.org/mesa/mesa.git HEAD | cut -f1)
+          echo "pinned=$PIN upstream=$HEAD"
+          ./scripts/fetch-mesa.sh
+          ./scripts/apply-patches.sh --profile g615-v11-csf && echo "PATCHES-APPLY-CLEAN" || echo "PATCH-DRIFT detected"

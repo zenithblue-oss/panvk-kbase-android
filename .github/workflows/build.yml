@@ -1,0 +1,21 @@
+name: build
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify sources.lock pinned
+        run: python3 -c "import json;d=json.load(open('sources.lock'));assert len(d['mesaCommit'])==40,d"
+      - name: Fetch exact Mesa
+        run: ./scripts/fetch-mesa.sh
+      - name: Verify patch applicability (g615-v11-csf)
+        run: ./scripts/apply-patches.sh --profile g615-v11-csf
+      - name: Capture upstream matrix
+        run: python3 scripts/capture-matrix.py --mesa work/mesa --out dist/matrix-g615-v11-csf
+      - name: Static validate later (device gates run on Poco)
+        run: echo "CI produces dev artifact only; hardware validation on Poco required for beta+"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: matrix
+          path: dist/matrix-g615-v11-csf/

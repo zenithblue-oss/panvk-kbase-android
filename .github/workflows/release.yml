@@ -1,0 +1,17 @@
+name: release
+on:
+  push:
+    tags: ['*-v*']
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Refuse release without hardware evidence
+        run: |
+          echo "Attach VALIDATION.json with Poco/device evidence before publishing beta/rc/stable."
+          echo "CI alone may only publish dev artifacts."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-stage
+          path: dist/
