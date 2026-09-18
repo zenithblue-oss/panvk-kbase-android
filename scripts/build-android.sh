@@ -39,7 +39,8 @@ meson setup "$BDIR" "$MESA" --cross-file "$BDIR.cross.ini" \
   -Dgallium-drivers= -Dvulkan-drivers=panfrost -Dpanfrost-kmds=kbase \
   -Dmesa-clc=system -Dprecomp-compiler=system \
   -Degl=disabled -Dgles1=disabled -Dgles2=disabled -Dopengl=false \
-  -Dglx=disabled -Dgbm=disabled -Dlibunwind=disabled -Dzstd=disabled 2>&1 | tail -n 5
+  -Dglx=disabled -Dgbm=disabled -Dlibunwind=disabled -Dzstd=disabled \
+  -Dcpp_link_args=-static-libstdc++ 2>&1 | tail -n 5
 ninja -j"$(nproc)" -C "$BDIR" 2>&1 | tail -n 5
 SO="$(find "$BDIR" -name libvulkan_panfrost.so | head -n1)"
 [ -n "$SO" ] || { echo "BUILD-FAIL: libvulkan_panfrost.so not produced" >&2; exit 1; }
