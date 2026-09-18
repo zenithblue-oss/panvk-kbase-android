@@ -837,7 +837,7 @@ Validation test: build with kbase; DRM enumeration unchanged.
  float
  panvk_get_gpu_system_timestamp_period(const struct panvk_physical_device *device)
  {
-@@ -509,6 +1311,142 @@
+@@ -509,6 +1311,143 @@
     return result;
  }
  
@@ -853,12 +853,18 @@ Validation test: build with kbase; DRM enumeration unchanged.
 +   if (result != VK_SUCCESS)
 +      return result;
 +
++   device->model = pan_get_model(device->kmod.dev->props.gpu_id,
++                                 device->kmod.dev->props.gpu_variant);
++
 +   unsigned arch = pan_arch(device->kmod.dev->props.gpu_id);
 +
-+   bool unknown_gpu;
-+   result = get_gpu_model(device, instance, &unknown_gpu);
-+   if (result != VK_SUCCESS)
++   if (!device->model) {
++      result = panvk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER,
++                            "Unknown gpu_id (%#" PRIx64 ") or variant (%#x)",
++                            device->kmod.dev->props.gpu_id,
++                            device->kmod.dev->props.gpu_variant);
 +      goto fail_kbase;
++   }
 +
 +   switch (arch) {
 +   case 6:
@@ -895,12 +901,7 @@ Validation test: build with kbase; DRM enumeration unchanged.
 +      pan_query_core_count(&device->kmod.dev->props);
 +
 +   memset(device->name, 0, sizeof(device->name));
-+   if (unknown_gpu)
-+      snprintf(device->name, sizeof(device->name),
-+               "Mali unknown 0x%" PRIx64 " MC%u",
-+               device->kmod.dev->props.gpu_id, core_count);
-+   else
-+      sprintf(device->name, "%s MC%u", device->model->name, core_count);
++   sprintf(device->name, "%s MC%u", device->model->name, core_count);
 +
 +   result = get_core_masks(device, instance);
 +   if (result != VK_SUCCESS)
@@ -980,3 +981,23 @@ Validation test: build with kbase; DRM enumeration unchanged.
  static void
  panvk_fill_global_priority(const struct panvk_physical_device *physical_device,
                             uint32_t family_idx,
+--- a/src/panfrost/vulkan/panvk_physical_device.c
++++ b/src/panfrost/vulkan/panvk_physical_device.c
+@@ -14,7 +14,17 @@
+
+ #include <sys/stat.h>
+
++#if defined(HAVE_PAN_KMOD_KBASE)
++#include <errno.h>
++#include <fcntl.h>
++#include <poll.h>
++#include <string.h>
++#include <sys/ioctl.h>
++#include <unistd.h>
++#include "util/timespec.h"
++#endif
++
+ #include "util/disk_cache.h"
+ #include "util/os_misc.h"
+ #include "util/u_atomic.h"
+ #include "git_sha1.h"

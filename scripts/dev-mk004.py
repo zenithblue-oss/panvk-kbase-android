@@ -16,7 +16,48 @@ h = [('--- a/src/panfrost/vulkan/panvk_physical_device.h\n'
       if l.startswith('--- ') else
       ('+++ b/src/panfrost/vulkan/panvk_physical_device.h\n'
        if l.startswith('+++ ') else l)) for l in h]
-c = open('/tmp/pdev-kbase.diff').read().splitlines(keepends=True)
+c = open('/tmp/pdev-kbase.diff').read()
+# Adaptation 1: beta calls get_gpu_model(), which upstream pinned removed
+# (model is resolved inline in panvk_physical_device_init). Resolve inline
+# here too, strict like the DRM path (no fallback model).
+old_call = """+   unsigned arch = pan_arch(device->kmod.dev->props.gpu_id);
++
++   bool unknown_gpu;
++   result = get_gpu_model(device, instance, &unknown_gpu);
++   if (result != VK_SUCCESS)
++      goto fail_kbase;
++"""
+new_call = """+   device->model = pan_get_model(device->kmod.dev->props.gpu_id,
++                                 device->kmod.dev->props.gpu_variant);
++
++   unsigned arch = pan_arch(device->kmod.dev->props.gpu_id);
++
++   if (!device->model) {
++      result = panvk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER,
++                            "Unknown gpu_id (%#" PRIx64 ") or variant (%#x)",
++                            device->kmod.dev->props.gpu_id,
++                            device->kmod.dev->props.gpu_variant);
++      goto fail_kbase;
++   }
++"""
+assert old_call in c, 'get_gpu_model hunk not found'
+c = c.replace(old_call, new_call)
+old_name = """+   memset(device->name, 0, sizeof(device->name));
++   if (unknown_gpu)
++      snprintf(device->name, sizeof(device->name),
++               "Mali unknown 0x%" PRIx64 " MC%u",
++               device->kmod.dev->props.gpu_id, core_count);
++   else
++      sprintf(device->name, "%s MC%u", device->model->name, core_count);
++"""
+new_name = """+   memset(device->name, 0, sizeof(device->name));
++   sprintf(device->name, "%s MC%u", device->model->name, core_count);
++"""
+assert old_name in c, 'unknown_gpu name hunk not found'
+c = c.replace(old_name, new_name)
+# surgery net effect on the init_kbase hunk: +1 added line
+c = c.replace('@@ -509,6 +1311,142 @@', '@@ -509,6 +1311,143 @@')
+c = c.splitlines(keepends=True)
 c = [('--- a/src/panfrost/vulkan/panvk_physical_device.c\n'
       if l.startswith('--- ') else
       ('+++ b/src/panfrost/vulkan/panvk_physical_device.c\n'
@@ -41,5 +82,25 @@ Validation test: build with kbase; DRM enumeration unchanged.
 
 """
 open('patches/kbase-common/004-physical-device-kbase.patch', 'w').write(
-    header + ''.join(h) + ''.join(c))
+    header + ''.join(h) + ''.join(c) + """--- a/src/panfrost/vulkan/panvk_physical_device.c
++++ b/src/panfrost/vulkan/panvk_physical_device.c
+@@ -14,7 +14,17 @@
+
+ #include <sys/stat.h>
+
++#if defined(HAVE_PAN_KMOD_KBASE)
++#include <errno.h>
++#include <fcntl.h>
++#include <poll.h>
++#include <string.h>
++#include <sys/ioctl.h>
++#include <unistd.h>
++#include "util/timespec.h"
++#endif
++
+ #include "util/disk_cache.h"
+ #include "util/os_misc.h"
+ #include "util/u_atomic.h"
+ #include "git_sha1.h"
+""")
 print('wrote 004')

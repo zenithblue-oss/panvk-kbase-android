@@ -15,6 +15,10 @@ Tested GPU: none yet (compile-level).
 Tested Kbase UAPI: n/a.
 Mesa base range: 26.3.0-devel (pinned 5a07217f).
 Dependencies: 003/004/005.
+Sync-scope note: upstream pinned removed the cmdbuf->sync_scope member
+ beta threads through draw/buffer sync sites; that hunk is dropped here
+ and SYSTEM-scope selection for kbase moves to queue-local logic (007).
+ Until then, intra-stream syncs use CSG scope.
 Validation test: build with kbase; DRM path unchanged.
 
 --- a/src/panfrost/vulkan/panvk_device.h
@@ -257,7 +261,7 @@ Validation test: build with kbase; DRM path unchanged.
  #include "vk_util.h"
  #include "wsi_common.h"
  
-@@ -45,17 +52,57 @@
+@@ -45,17 +52,55 @@
  {
     struct panvk_instance *instance =
        to_panvk_instance(physical_device->vk.instance);
@@ -292,8 +296,6 @@ Validation test: build with kbase; DRM path unchanged.
 -                            &(struct wsi_device_options){.sw_device = false});
 +                            &(struct wsi_device_options){
 +                               .sw_device = uses_kbase && !kbase_dmabuf,
-+                               .wait_present_before_queue = kbase_dmabuf,
-+                               .x11_use_raw_fd_modifier =
 +                                  kbase_dmabuf && kbase_raw_dri3,
 +                            });
     if (result != VK_SUCCESS)
@@ -467,21 +469,6 @@ Validation test: build with kbase; DRM path unchanged.
     cs_end(&cmdbuf->state.cs[subqueue].builder);
  }
  
-@@ -900,6 +900,14 @@
-       return result;
-    }
- 
-+   cmdbuf->sync_scope = MALI_CS_SYNC_SCOPE_CSG;
-+#ifdef HAVE_PAN_KMOD_KBASE
-+   const struct panvk_physical_device *phys_dev =
-+      to_panvk_physical_device(device->vk.physical);
-+   if (phys_dev->kbase_node_path[0])
-+      cmdbuf->sync_scope = MALI_CS_SYNC_SCOPE_SYSTEM;
-+#endif
-+
-    list_inithead(&cmdbuf->push_sets);
-    cmdbuf->vk.dynamic_graphics_state.vi = &cmdbuf->state.gfx.dynamic.vi;
-    cmdbuf->vk.dynamic_graphics_state.ms.sample_locations =
 --- a/src/panfrost/vulkan/csf/panvk_vX_cmd_dispatch.c
 +++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_dispatch.c
 @@ -215,6 +215,9 @@

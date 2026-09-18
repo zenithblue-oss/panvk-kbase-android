@@ -10,11 +10,54 @@ def udiff(a, b):
     assert p.returncode in (0, 1), p.stderr
     return p.stdout
 
+def kept_hunks_excl_sync_scope(diff_text):
+    """kbase hunks, minus the create_cmdbuf sync_scope hunk: upstream pinned
+    removed the cmdbuf->sync_scope member (CS scope is now per-op); the
+    kbase SYSTEM-scope threading is deferred to queue-local logic in 007."""
+    out = []
+    for h in kept_hunks(diff_text):
+        if 'sync_scope = MALI_CS_SYNC_SCOPE' in h:
+            continue
+        out.append(h)
+    return out
+
 def kept_hunks(diff_text, pattern='kbase'):
     lines = diff_text.splitlines(keepends=True)
     body = ''.join(l for l in lines if not l.startswith(('--- ', '+++ ')))
     hunks = [h for h in re.split(r'(?=@@ )', body) if h.strip()]
     return [h for h in hunks if re.search(pattern, h, re.I)]
+
+def adapt_wsi_hunks(hunks):
+    """Upstream pinned removed wsi_device_options.wait_present_before_queue
+    and .x11_use_raw_fd_modifier (WSI refactor Sep 2026). Drop those two
+    option assignments; keep sw_device gating, disable_unordered_submits
+    and supports_modifiers. X11-on-kbase refinements deferred (Android
+    surface is the P12 gate); kbase_dmabuf vars stay for modifier logic."""
+    out = []
+    for h in hunks:
+        lines = []
+        for l in h.splitlines(keepends=True):
+            s = l.strip()
+            if s.startswith(('+', ' ')) and (
+                    '.wait_present_before_queue =' in s
+                    or '.x11_use_raw_fd_modifier =' in s):
+                if s.startswith(' '):
+                    lines.append(l)  # keep context, must not happen here
+                continue  # drop added option lines
+            lines.append(l)
+        out.append(''.join(lines))
+    # recount @@ headers after line drops (counts are normative)
+    fixed = []
+    for h in out:
+        ls = h.splitlines(keepends=True)
+        old = sum(1 for l in ls[1:] if l.startswith((' ', '-')))
+        new = sum(1 for l in ls[1:] if l.startswith((' ', '+')))
+        m = re.match(r'@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@(.*)',
+                     ls[0].rstrip('\n'))
+        assert m, ls[0]
+        ls[0] = f'@@ -{m.group(1)},{old} +{m.group(2)},{new} @@{m.group(3)}\n'
+        fixed.append(''.join(ls))
+    return fixed
 
 def sectioned(path, hunks):
     out = [f'--- a/{path}\n', f'+++ b/{path}\n']
@@ -32,7 +75,12 @@ FILES = [
 parts = []
 for f in FILES:
     d = udiff(f'{M}/{f}', f'{B}/{f}')
-    k = kept_hunks(d)
+    if f.endswith('panvk_vX_cmd_buffer.c'):
+        k = kept_hunks_excl_sync_scope(d)
+    elif f.endswith('panvk_wsi.c'):
+        k = adapt_wsi_hunks(kept_hunks(d))
+    else:
+        k = kept_hunks(d)
     assert k, f
     parts += sectioned(f, k)
 
@@ -94,6 +142,10 @@ Tested GPU: none yet (compile-level).
 Tested Kbase UAPI: n/a.
 Mesa base range: 26.3.0-devel (pinned 5a07217f).
 Dependencies: 003/004/005.
+Sync-scope note: upstream pinned removed the cmdbuf->sync_scope member
+ beta threads through draw/buffer sync sites; that hunk is dropped here
+ and SYSTEM-scope selection for kbase moves to queue-local logic (007).
+ Until then, intra-stream syncs use CSG scope.
 Validation test: build with kbase; DRM path unchanged.
 
 """
