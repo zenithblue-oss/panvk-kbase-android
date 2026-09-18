@@ -123,7 +123,8 @@ struct kbase_kmod_bo {
 
    /* GPU virtual address.  For SAME_VA allocations this equals the CPU
     * mapping address; for EXEC_VA-zone allocations it is the address
-    * returned by KBASE_IOCTL_MEM_ALLOC. */
+    * returned by KBASE_IOCTL_MEM_ALLOC; for NEED_MMAP (non-SAME_VA)
+    * dma-heap imports it is req.out.gpu_va with a separate CPU mapping. */
    uint64_t gpu_va;
 
    /* CPU mapping established at allocation time, valid for the whole BO
@@ -147,6 +148,12 @@ struct kbase_kmod_bo {
    /* Whether this is a SAME_VA region (freed by munmap()) or a zone
     * region (freed by KBASE_IOCTL_MEM_FREE). */
    bool same_va;
+
+   /* Whether the kernel reported BASE_MEM_COHERENT_SYSTEM for this region.
+    * Coherent regions need no KBASE_IOCTL_MEM_SYNC (which this DDK rejects
+    * for dma-heap imports with EINVAL); the kernel keeps CPU/GPU coherent.
+    */
+   bool cpu_gpu_coherent;
 };
 
 bool
@@ -1464,8 +1471,15 @@ kbase_kmod_import_dmabuf(struct pan_kmod_dev *dev,
    }
 
    const uint64_t bo_size = req.out.va_pages * page_size;
+   /* SAME_VA and NEED_MMAP are different contracts (UAPI: SAME_VA regions
+    * return a mmap cookie and the mmap return address becomes both VAs;
+    * NEED_MMAP regions return a real GPU VA with a separate CPU mapping).
+    * Older DDKs report SAME_VA for dma-heap imports; this DDK (MediaTek,
+    * CSF uAPI 1.21) reports NEED_MMAP, so the cases must not be lumped. */
    kbase_bo->same_va =
-      (req.out.flags & (BASE_MEM_SAME_VA | BASE_MEM_NEED_MMAP)) != 0;
+      (req.out.flags & BASE_MEM_SAME_VA) != 0;
+   kbase_bo->cpu_gpu_coherent =
+      (req.out.flags & BASE_MEM_COHERENT_SYSTEM) != 0;
 
    kbase_bo->gpu_mapping =
       mmap(NULL, bo_size, PROT_READ | PROT_WRITE, MAP_SHARED, dev->fd,
@@ -1492,7 +1506,10 @@ kbase_kmod_import_dmabuf(struct pan_kmod_dev *dev,
       kbase_bo->owns_cpu_mapping = true;
    }
 
-   kbase_bo->gpu_va = (uintptr_t)kbase_bo->gpu_mapping;
+   /* SAME_VA: the kbase mmap return address is both VAs. NEED_MMAP:
+    * req.out.gpu_va is the real GPU VA; the CPU mapping lives elsewhere. */
+   kbase_bo->gpu_va = kbase_bo->same_va ? (uintptr_t)kbase_bo->gpu_mapping
+                                         : req.out.gpu_va;
    uint32_t handle = p_atomic_inc_return(&kbase_dev->next_handle);
    uint32_t flags = kmod_flags;
    if (external_import)
@@ -1619,6 +1636,8 @@ kbase_kmod_bo_alloc(struct pan_kmod_dev *dev,
    }
 
    kbase_bo->same_va = (alloc_flags & BASE_MEM_SAME_VA) != 0;
+   kbase_bo->cpu_gpu_coherent =
+      (alloc_flags & BASE_MEM_COHERENT_SYSTEM) != 0;
 
    /* Establish the CPU mapping right away:
     *  - for SAME_VA regions out.gpu_va is a cookie, and this mmap() is what
@@ -1793,6 +1812,12 @@ kbase_kmod_flush_bo_map_syncs(struct pan_kmod_dev *dev)
                          struct pan_kmod_deferred_bo_sync, sync) {
       struct kbase_kmod_bo *kbase_bo =
          container_of(sync->bo, struct kbase_kmod_bo, base);
+
+      /* System-coherent regions (dma-heap imports on DDKs that report
+       * BASE_MEM_COHERENT_SYSTEM) need no MEM_SYNC; the ioctl rejects
+       * them with EINVAL. */
+      if (kbase_bo->cpu_gpu_coherent)
+         continue;
 
       struct kbase_ioctl_mem_sync req = {
          .handle = kbase_bo->gpu_va,
