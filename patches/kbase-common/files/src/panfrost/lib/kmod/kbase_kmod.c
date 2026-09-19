@@ -1487,7 +1487,7 @@ kbase_kmod_import_dmabuf(struct pan_kmod_dev *dev,
     * Older DDKs report SAME_VA for dma-heap imports; this DDK (MediaTek,
     * CSF uAPI 1.21) reports NEED_MMAP, so the cases must not be lumped. */
    kbase_bo->same_va =
-      (req.out.flags & BASE_MEM_SAME_VA) != 0;
+      (req.out.flags & (BASE_MEM_SAME_VA | BASE_MEM_NEED_MMAP)) != 0;
    kbase_bo->cpu_gpu_coherent =
       (req.out.flags & BASE_MEM_COHERENT_SYSTEM) != 0;
 
@@ -1516,10 +1516,7 @@ kbase_kmod_import_dmabuf(struct pan_kmod_dev *dev,
       kbase_bo->owns_cpu_mapping = true;
    }
 
-   /* SAME_VA: the kbase mmap return address is both VAs. NEED_MMAP:
-    * req.out.gpu_va is the real GPU VA; the CPU mapping lives elsewhere. */
-   kbase_bo->gpu_va = kbase_bo->same_va ? (uintptr_t)kbase_bo->gpu_mapping
-                                         : req.out.gpu_va;
+   kbase_bo->gpu_va = (uintptr_t)kbase_bo->gpu_mapping;
    uint32_t handle = p_atomic_inc_return(&kbase_dev->next_handle);
    uint32_t flags = kmod_flags;
    if (external_import)

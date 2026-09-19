@@ -80,6 +80,16 @@ main(int argc, char **argv)
    }
 
    int dfd = fcntl(src_fd, F_DUPFD_CLOEXEC, 3);
+   if (!ahb) {
+      /* dma_heap touch-first: populate pages via dmabuf mmap BEFORE import */
+      void *pre0 = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, dfd,
+                        0);
+      if (pre0 != MAP_FAILED) {
+         *(volatile uint32_t *)pre0 = 0x11111111u;
+         printf("S-dma-touched %p\n", pre0);
+         munmap(pre0, 4096);
+      }
+   }
    if (ahb) {
       /* touch-first variant: fault pages in via dmabuf mmap BEFORE import,
        * testing whether kbase snapshots an empty SGT for lazy heaps */
@@ -223,13 +233,6 @@ main(int argc, char **argv)
           (unsigned long long)req.out.gpu_va,
           (unsigned long long)req.out.va_pages,
           (unsigned long long)req.out.flags);
-   {
-      struct kbase_ioctl_mem_free fr;
-      memset(&fr, 0, sizeof(fr));
-      fr.gpu_addr = req.out.gpu_va;
-      int fr2 = ioctl(kfd, KBASE_IOCTL_MEM_FREE, &fr);
-      printf("S-probe free r=%d %s\n", fr2, fr2 ? strerror(errno) : "ok");
-   }
    for (int qi = 1; qi <= 3; qi++) {
       union kbase_ioctl_mem_query q;
       memset(&q, 0, sizeof(q));
