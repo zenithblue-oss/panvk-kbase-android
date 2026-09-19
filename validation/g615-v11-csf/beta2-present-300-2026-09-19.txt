@@ -1,0 +1,59 @@
+device=Poco X6 Pro serial=Y5WWBMJVOZSK4HU8 uid=10266
+driver=/data/local/tmp/libvulkan_panfrost.so
+test=org.panvk.loadertest Gate H Vulkan WSI
+date=2026-09-19
+
+PRESENT_FRAMES=300/300
+ACQUIRE=300/300
+GPU_RENDER_TO_SWAPCHAIN=300/300
+QUEUE_PRESENT=300/300
+DEVICE_LOST=0
+HANG=0
+OUT_OF_DATE=0
+SUBOPTIMAL=0
+Gate H: PASS Vulkan WSI 300/300
+RESULT=PASS
+
+sync:
+ACQUIRE_SEMAPHORE=pass (vkAcquireNextImageKHR signals, vkQueueSubmit waits COLOR_ATTACHMENT_OUTPUT)
+RENDER_FINISHED_SEMAPHORE=pass (submit signals, vkQueuePresentKHR waits)
+FENCE=pass (per-frame in-flight fence wait/reset)
+DeviceWaitIdle used only after the 300-frame loop as extra safety, not as the only present sync.
+
+full log:
+--------- beginning of main
+09-19 09:26:38.554 25871 25923 I PanVKLoaderApp: Starting runPanvkTest with zip=/data/local/tmp/PanVK-Kbase-Android-g615-v11-csf-v0.1.0-beta.1-5a07217f.adpkg.zip
+09-19 09:26:38.555 25871 25923 I PanVKLoaderApp: App UID=10266 running tests. appDir=/data/user/0/org.panvk.loadertest/files zipPath=/data/local/tmp/PanVK-Kbase-Android-g615-v11-csf-v0.1.0-beta.1-5a07217f.adpkg.zip
+09-19 09:26:38.622 25871 25923 I PanVKLoaderApp: Loading driver from /data/user/0/org.panvk.loadertest/files/libvulkan_panfrost.so
+09-19 09:26:38.634 25871 25923 I PanVKLoaderApp: Device 0: Mali-G615 MC6 (vendor=0x13b5 api=0x40416b)
+09-19 09:26:38.634 25871 25923 I PanVKLoaderApp: Gate C: PASS
+09-19 09:26:38.641 25871 25923 I PanVKLoaderApp: Gate D: PASS
+09-19 09:26:38.648 25871 25923 I PanVKLoaderApp: Gate E: PASS (10/10 exact magic 0x12345678)
+09-19 09:26:38.653 25871 25923 I PanVKLoaderApp: Gate G: interior RGBA=255 0 0 255, clear RGBA=0 0 255 255
+09-19 09:26:38.653 25871 25923 I PanVKLoaderApp: Gate G: PASS
+09-19 09:26:38.653 25871 25923 I PanVKLoaderApp: vkCreateAndroidSurfaceKHR=0x7194a1c0d0 DestroySurface=0x7194dddf80 CreateSwapchain=0x7194d7c018 Acquire=0x7194d7c030 Present=0x7194d7c038
+09-19 09:26:38.653 25871 25923 I PanVKLoaderApp: ANDROID_SURFACE=pass
+09-19 09:26:38.653 25871 25923 I PanVKLoaderApp: PRESENT_QUEUE_SUPPORT=pass qf=0
+09-19 09:26:38.653 25871 25923 I PanVKLoaderApp: SURFACE_CAPS minImages=2 maxImages=4 extent=1220x2558
+09-19 09:26:38.653 25871 25923 I PanVKLoaderApp: SURFACE_FORMATS=3 chosen=0x25
+09-19 09:26:38.653 25871 25923 I PanVKLoaderApp: PRESENT_MODES=3 chosen=2
+09-19 09:26:38.655 25871 25923 I PanVKLoaderApp: SWAPCHAIN=pass
+09-19 09:26:38.655 25871 25923 I PanVKLoaderApp: SWAPCHAIN_IMAGES=2
+09-19 09:26:38.655 25871 25923 I PanVKLoaderApp: GPU_RENDER_TO_SWAPCHAIN start frames=300 extent=1220x2558
+09-19 09:26:38.665 25871 25923 I PanVKLoaderApp: PRESENT_FRAMES=1/300
+09-19 09:26:39.155 25871 25923 I PanVKLoaderApp: PRESENT_FRAMES=51/300
+09-19 09:26:39.975 25871 25923 I PanVKLoaderApp: PRESENT_FRAMES=101/300
+09-19 09:26:40.925 25871 25923 I PanVKLoaderApp: PRESENT_FRAMES=151/300
+09-19 09:26:41.877 25871 25923 I PanVKLoaderApp: PRESENT_FRAMES=201/300
+09-19 09:26:42.891 25871 25923 I PanVKLoaderApp: PRESENT_FRAMES=251/300
+09-19 09:26:43.889 25871 25923 I PanVKLoaderApp: ACQUIRE=300/300 GPU_RENDER_TO_SWAPCHAIN=300/300 QUEUE_PRESENT=300/300 PRESENT_FRAMES=300/300 DEVICE_LOST=0 HANG=0 OUT_OF_DATE=0 SUBOPTIMAL=0
+09-19 09:26:43.892 25871 25923 I PanVKLoaderApp: Gate H: PASS Vulkan WSI 300/300
+09-19 09:26:43.903 25871 25923 I PanVKLoaderApp: All gates PASS inside Android app UID=10266
+09-19 09:26:43.904 25871 25923 I PanVKLoaderApp: runPanvkTest completed: PANVK LOADER APP TEST RESULTS:
+09-19 09:26:43.904 25871 25923 I PanVKLoaderApp: - App UID: 10266 (non-root)
+09-19 09:26:43.904 25871 25923 I PanVKLoaderApp: - Gate C (ICD / Enum): PASS (Mali-G615)
+09-19 09:26:43.904 25871 25923 I PanVKLoaderApp: - Gate D (Device Create): PASS
+09-19 09:26:43.904 25871 25923 I PanVKLoaderApp: - Gate E (Compute): PASS (10/10 exact)
+09-19 09:26:43.904 25871 25923 I PanVKLoaderApp: - Gate G (AHB Import/Render): PASS
+09-19 09:26:43.904 25871 25923 I PanVKLoaderApp: - Gate H (Vulkan WSI 300): PASS
+09-19 09:26:43.904 25871 25923 I PanVKLoaderApp: STATUS: ALL GATES PASS

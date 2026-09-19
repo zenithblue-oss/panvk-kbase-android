@@ -1,0 +1,20 @@
+device=Poco X6 Pro serial=Y5WWBMJVOZSK4HU8 uid=10266
+date=2026-09-19
+test=org.panvk.loadertest Gate H Vulkan WSI acquire/present sync
+
+FENCE=pass
+BINARY_SEMAPHORE=pass
+ACQUIRE_SEMAPHORE=pass
+RENDER_FINISHED_SEMAPHORE=pass
+SYNC_FILE_IMPORT=untested (Android AHB present path does not import sync_file)
+SYNC_FILE_EXPORT=untested (Android AHB present path does not export sync_file)
+
+Mechanism:
+- vkAcquireNextImageKHR signals acquire semaphore via wsi_common dummy vk_sync
+- vkQueueSubmit waits on acquire semaphore at COLOR_ATTACHMENT_OUTPUT, GPU-draws triangle into AHB-backed swapchain image, signals render-finished semaphore, signals in-flight fence
+- vkQueuePresentKHR waits on render-finished semaphore; wsi_common_queue_present then DeviceWaitIdle in panvk_android_swapchain_queue_present only as extra safety after GPU work, then memcpy AHB->ANativeWindow
+- two-frame in-flight (FIF=2) fence wait/reset around acquire
+- DeviceWaitIdle after 300-frame loop only, not as the only present sync
+
+Evidence: PRESENT_FRAMES=300/300 DEVICE_LOST=0 HANG=0
+RESULT=PASS

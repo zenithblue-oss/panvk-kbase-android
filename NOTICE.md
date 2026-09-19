@@ -1,22 +1,69 @@
 # NOTICE
 
-## This repository
+This repository mixes several license regimes. Do not treat the tree as
+single-license MIT. Do not relicense upstream code.
 
-Build/patch/test scaffolding authored for `panvk-kbase-android` is
-MIT-licensed unless a file header states otherwise (see `LICENSES/`).
+## 1. MIT repository scaffolding
 
-## Upstream Mesa
+Build/patch/test/packaging authored for `panvk-kbase-android` is MIT-licensed
+unless a file header states otherwise. See `LICENSES/MIT.txt`.
 
-All Mesa source code fetched by `scripts/fetch-mesa.sh` and any patch derived
-from it remain under their upstream licenses (predominantly MIT/X11 with
-Khronos SGI/X11 portions — see the Mesa checkout's `LICENSES/` directory after
-fetch).
+This covers scripts, profiles, compatibility data, CI workflows, tests, and
+docs written in this repository.
 
-This repository does not vendor Mesa. `sources.lock` pins the exact upstream
-commit; release manifests (`SOURCE.json`) record the Mesa SHA, patch series
-hash, compiler, NDK, and build host for every binary.
+## 2. Mesa upstream (not vendored as a git subtree)
 
-## Reference Kbase work studied (not vendored)
+All Mesa source fetched by `scripts/fetch-mesa.sh` remains under Mesa's
+upstream licenses (predominantly MIT/X11 with Khronos SGI/X11 portions — see
+the Mesa checkout's `LICENSES/` after fetch).
+
+This repository does not vendor the Mesa tree. `sources.lock` pins the exact
+upstream commit; release manifests (`SOURCE.json`) record the Mesa SHA, patch
+series hash, compiler, NDK, and build host for every binary.
+
+Patches under `patches/**/*.patch` are derived modifications of Mesa and keep
+Mesa's upstream license. They are not a grant of a new license.
+
+## 3. Linux / Arm kbase UAPI headers — VENDORED
+
+The following committed files are Arm Mali kbase kernel UAPI / register
+headers, SPDX `GPL-2.0 WITH Linux-syscall-note`:
+
+- `patches/kbase-common/files/include/drm-uapi/mali_kbase_ioctl.h`
+- `patches/kbase-common/files/src/panfrost/lib/kmod/kbase_uapi.h`
+- `patches/kbase-common/files/src/panfrost/lib/kmod/kbase_csf_uapi.h`
+- `patches/kbase-common/files/src/panfrost/lib/kmod/mali_kbase_csf_registers.h`
+- `patches/kbase-common/files/src/panfrost/lib/kmod/mali_base_kernel.h`
+
+These **are vendored** into this tree (copied into the Mesa build via
+`patches/*/files/`). They are **not** "studied, not vendored".
+
+License texts:
+
+- `LICENSES/GPL-2.0.txt`
+- `LICENSES/Linux-syscall-note.txt`
+
+The Linux-syscall-note exception is the kernel UAPI exception: including these
+headers from userspace via normal ioctl/syscall use does not make the
+userspace program a derived work of the kernel. The headers themselves remain
+GPL-2.0 WITH Linux-syscall-note. This project does not relicense them.
+
+Copyright on those headers remains with ARM Limited (and other upstream
+authors named in the file headers).
+
+## 4. Userspace kmod backend (this project's / Mesa-style MIT)
+
+- `patches/kbase-common/files/src/panfrost/lib/kmod/kbase_kmod.c`
+- `patches/kbase-common/files/src/panfrost/lib/kmod/kbase_kmod.h`
+
+File SPDX is MIT. These implement a pan_kmod backend against the UAPI above.
+They are not kernel code and are not the UAPI headers.
+
+## 5. Reference Kbase work studied (not copied as a project)
+
+The following repositories were studied as implementation references. Their
+trees are **not** vendored here. Individual patches that learned from them
+must still carry provenance in the patch header.
 
 - https://github.com/wonderkast02/panvk-g720-kbase-csf (CSF primary)
 - https://github.com/nangitagamer777-art/PanVK-kbase (history)

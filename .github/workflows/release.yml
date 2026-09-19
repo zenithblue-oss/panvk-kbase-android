@@ -2,16 +2,78 @@ name: release
 on:
   push:
     tags: ['*-v*']
+permissions:
+  contents: write
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Refuse release without hardware evidence
+      - name: Classify tag
+        id: meta
         run: |
-          echo "Attach VALIDATION.json with Poco/device evidence before publishing beta/rc/stable."
-          echo "CI alone may only publish dev artifacts."
-      - uses: actions/upload-artifact@v4
-        with:
-          name: release-stage
-          path: dist/
+          set -eu
+          TAG="${GITHUB_REF_NAME}"
+          TIER=stable
+          PRE=false
+          case "$TAG" in
+            *-dev*)   TIER=dev;   PRE=true ;;
+            *-alpha*) TIER=alpha; PRE=true ;;
+            *-beta*)  TIER=beta;  PRE=true ;;
+            *-rc*)    TIER=rc;    PRE=true ;;
+          esac
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "tier=$TIER" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRE" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG tier=$TIER prerelease=$PRE"
+      - name: Require evidence for beta/rc/stable
+        if: ${{ steps.meta.outputs.tier == 'beta' || steps.meta.outputs.tier == 'rc' || steps.meta.outputs.tier == 'stable' }}
+        run: |
+          set -eu
+          missing=0
+          for f in VALIDATION.json SOURCE.json runtime-feature-matrix.json SHA256SUMS.txt; do
+            if [ ! -d dist ] || ! find dist -name "$f" -type f | grep -q .; then
+              echo "FAIL: beta/rc/stable release input lacks $f" >&2
+              missing=1
+            else
+              echo "OK $f"
+            fi
+          done
+          if [ "$missing" != 0 ]; then
+            echo "CI must not publish beta/rc/stable without provenance + validation evidence." >&2
+            exit 1
+          fi
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          TIER: ${{ steps.meta.outputs.tier }}
+          PRE: ${{ steps.meta.outputs.prerelease }}
+        run: |
+          set -eu
+          PRE_FLAG=""
+          TITLE_EXTRA=""
+          if [ "$PRE" = "true" ]; then
+            PRE_FLAG="--prerelease"
+            TITLE_EXTRA=" (prerelease)"
+          fi
+          NOTES="$(mktemp)"
+          {
+            echo "Hardware-qualified on one Poco X6 Pro configuration."
+            echo "Not Vulkan-conformant."
+            echo "Not universal Mali support."
+            echo "Not validated yet in Samba S3/Bachata/Winlator/GameHub unless those tests are actually run."
+            echo
+            echo "tier=$TIER prerelease=$PRE"
+          } > "$NOTES"
+          ASSETS=()
+          if [ -d dist ]; then
+            while IFS= read -r f; do
+              [ -n "$f" ] && ASSETS+=("$f")
+            done < <(find dist -maxdepth 1 -type f || true)
+          fi
+          gh release create "$TAG" \
+            --title "PanVK Kbase ${TAG}${TITLE_EXTRA}" \
+            --notes-file "$NOTES" \
+            $PRE_FLAG \
+            "${ASSETS[@]}"

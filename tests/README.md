@@ -17,6 +17,8 @@
   acquire/present sync, 300-frame soak, second run.
 - `android-loader-app/` — tiny APK proving the release ZIP hot-loads from an
   ordinary app UID (generic dlopen path + AdrenoTools-compat path).
+- `runtime-features/` — P10/P11: on-device ICD dump → runtime-feature-matrix.json
+  with upstreamImplemented / runtimeExposed / runtimeTested. Parser tests here.
 
 Fault safety for all: hard timeout, small allocations, tiny images, single
 queue first, bounded frames, one change per run.

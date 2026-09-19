@@ -1,0 +1,15 @@
+device=Poco X6 Pro serial=Y5WWBMJVOZSK4HU8 uid=10266
+date=2026-09-19
+test=Android ICD hot-load + Mali-G615 enumeration
+driver=/data/local/tmp/libvulkan_panfrost.so
+sha256=2366a5c392286553b156057f15840b22428eb501953b224ed0c215436df4f301
+note=Android so SHA bit-identical to pre-wipe; P18 skipped device re-run. Evidence from beta2-present-300-2026-09-19.txt and gateC-enumerate-2026-09-18.txt.
+
+C-OK dlopen
+C-OK negotiate r=0 ver=5
+C-CreateInstance r=0
+C-Enumerate count=1 r=0
+C-DEV 0: Mali-G615 MC6 id=0xb8a31030 vendor=0x13b5 api=0x40416b
+C-PASS
+Gate C: PASS
+RESULT=PASS

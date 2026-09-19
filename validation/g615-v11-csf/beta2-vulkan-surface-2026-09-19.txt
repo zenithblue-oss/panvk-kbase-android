@@ -1,0 +1,24 @@
+device=Poco X6 Pro serial=Y5WWBMJVOZSK4HU8 uid=10266
+driver=/data/local/tmp/libvulkan_panfrost.so
+test=org.panvk.loadertest Gate H Vulkan WSI
+date=2026-09-19
+
+ANDROID_SURFACE=pass
+vkCreateAndroidSurfaceKHR=non-null (ICD GetInstanceProcAddr after instance with VK_KHR_surface+VK_KHR_android_surface)
+PRESENT_QUEUE_SUPPORT=pass qf=0
+SURFACE_CAPS minImages=2 maxImages=4 extent=1220x2558
+SURFACE_FORMATS=3 chosen=VK_FORMAT_R8G8B8A8_UNORM (0x25)
+PRESENT_MODES=3 chosen=VK_PRESENT_MODE_FIFO_KHR (2)
+RESULT=PASS
+
+log:
+09-19 09:26:38.634 25871 25923 I PanVKLoaderApp: Gate C: PASS
+09-19 09:26:38.641 25871 25923 I PanVKLoaderApp: Gate D: PASS
+09-19 09:26:38.653 25871 25923 I PanVKLoaderApp: vkCreateAndroidSurfaceKHR=0x7194a1c0d0 DestroySurface=0x7194dddf80 CreateSwapchain=0x7194d7c018 Acquire=0x7194d7c030 Present=0x7194d7c038
+09-19 09:26:38.653 25871 25923 I PanVKLoaderApp: ANDROID_SURFACE=pass
+09-19 09:26:38.653 25871 25923 I PanVKLoaderApp: PRESENT_QUEUE_SUPPORT=pass qf=0
+09-19 09:26:38.653 25871 25923 I PanVKLoaderApp: SURFACE_CAPS minImages=2 maxImages=4 extent=1220x2558
+09-19 09:26:38.653 25871 25923 I PanVKLoaderApp: SURFACE_FORMATS=3 chosen=0x25
+09-19 09:26:38.653 25871 25923 I PanVKLoaderApp: PRESENT_MODES=3 chosen=2
+09-19 09:26:43.904 25871 25923 I PanVKLoaderApp: - Gate C (ICD / Enum): PASS (Mali-G615)
+09-19 09:26:43.904 25871 25923 I PanVKLoaderApp: - Gate D (Device Create): PASS

@@ -6,7 +6,8 @@
   "soc": "MediaTek Dimensity 8300-Ultra",
   "socId": "MT6897",
   "gpu": "Mali-G615 MC6",
-  "gpuIdString": "Mali-G615 6 cores r1p3 0xB8A3",
+  "gpuId": "0xb8a31030",
+  "gpuIdString": "Mali-G615 6 cores r1p3 0xb8a31030",
   "panArch": 11,
   "frontend": "CSF",
   "kernelInterface": "mali_kbase",
@@ -14,21 +15,24 @@
   "nodeMode": "crw-rw-rw- system graphics",
   "android": "16 (SDK 36, HyperOS OS3.0.6.0.WNLMIXM)",
   "kernel": "6.1.170-GKID/v26.05.08-r326/94924f211",
-  "kbaseUapi": "pending-ioctl-discovery (open-path proven; version ioctl needs reference-tree headers, P3)",
+  "kbaseUapi": "1.21",
   "nodeSeLabel": "u:object_r:gpu_device:s0",
   "selinuxEnforcing": true,
   "probeLog": "validation/g615-v11-csf/kbase-probe-2026-09-18.txt",
   "probeResult": {
-    "rootShellUid0": {"O_RDONLY": "OK", "O_RDWR": "OK"},
-    "nobodyUid9999": {"O_RDONLY": "OK", "O_RDWR": "OK"},
-    "trueAppUid": "pending-P13-loader-APK"
+    "rootShellUid0": { "O_RDONLY": "OK", "O_RDWR": "OK" },
+    "nobodyUid9999": { "O_RDONLY": "OK", "O_RDWR": "OK" },
+    "trueAppUid": { "UID": 10266, "O_RDONLY": "OK", "O_RDWR": "OK" }
   },
   "coreMask": "0x130013",
   "selectionKey": {
     "pan_arch": 11,
-    "gpu_id": "0xB8A3",
+    "gpu_id": "0xb8a31030",
     "frontend": "CSF",
-    "kbase_uapi": "pending-ioctl-discovery"
+    "kbase_uapi": "1.21"
   },
+  "androidLoader": "pass",
+  "androidWsi": "pass",
+  "glibc": "pass",
   "status": "primary bring-up target"
 }

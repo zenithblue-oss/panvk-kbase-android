@@ -44,22 +44,27 @@ JNIEXPORT jstring JNICALL
 Java_org_panvk_loadertest_MainActivity_runPanvkTest(JNIEnv *env, jobject thiz, jobject surface, jstring jAppDir, jstring jZipPath) {
    const char *appDir = (*env)->GetStringUTFChars(env, jAppDir, NULL);
    const char *zipPath = (*env)->GetStringUTFChars(env, jZipPath, NULL);
-   char report[4096];
+    char report[8192];
    snprintf(report, sizeof(report), "Starting tests...\n");
 
-   LOGI("App UID=%d running tests. appDir=%s zipPath=%s", getuid(), appDir, zipPath);
+   LOGI("PID_SELF=%d COLD_LAUNCH_PROCESS=start uid=%d appDir=%s zipPath=%s",
+        getpid(), getuid(), appDir, zipPath);
 
    char so_path[512];
    snprintf(so_path, sizeof(so_path), "%s/libvulkan_panfrost.so", appDir);
 
-   /* 1. Extract or copy driver library to app private directory */
-   if (access(so_path, R_OK) != 0) {
-      /* Extract from zip or copy from /data/local/tmp */
-      char cmd[1024];
-      snprintf(cmd, sizeof(cmd), "unzip -p '%s' libvulkan_panfrost.so > '%s' 2>/dev/null || cp /data/local/tmp/libvulkan_panfrost.so '%s'", zipPath, so_path, so_path);
-      system(cmd);
-      chmod(so_path, 0755);
-   }
+    /* Prefer the ICD just pushed to /data/local/tmp; zip is a fallback. */
+    if (access("/data/local/tmp/libvulkan_panfrost.so", R_OK) == 0) {
+       char cmd[1024];
+       snprintf(cmd, sizeof(cmd), "cp /data/local/tmp/libvulkan_panfrost.so '%s'", so_path);
+       system(cmd);
+       chmod(so_path, 0755);
+    } else if (access(so_path, R_OK) != 0) {
+       char cmd[1024];
+       snprintf(cmd, sizeof(cmd), "unzip -p '%s' libvulkan_panfrost.so > '%s' 2>/dev/null", zipPath, so_path);
+       system(cmd);
+       chmod(so_path, 0755);
+    }
 
    if (access(so_path, R_OK) != 0) {
       LOGE("Failed to find driver at %s", so_path);
@@ -83,11 +88,13 @@ Java_org_panvk_loadertest_MainActivity_runPanvkTest(JNIEnv *env, jobject thiz, j
    /* Gate C: loader negotiation and physical device enum */
    PFN_vkCreateInstance ci = (PFN_vkCreateInstance)gipa(NULL, "vkCreateInstance");
    VkApplicationInfo app_info = {.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO, .apiVersion = VK_API_VERSION_1_3};
-   const char *inst_exts[] = {
-      VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME,
-      VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
-   };
-   VkInstanceCreateInfo ici = {.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, .pApplicationInfo = &app_info, .enabledExtensionCount = 2, .ppEnabledExtensionNames = inst_exts};
+    const char *inst_exts[] = {
+       VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME,
+       VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
+       VK_KHR_SURFACE_EXTENSION_NAME,
+       VK_KHR_ANDROID_SURFACE_EXTENSION_NAME,
+    };
+    VkInstanceCreateInfo ici = {.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, .pApplicationInfo = &app_info, .enabledExtensionCount = 4, .ppEnabledExtensionNames = inst_exts};
    VkInstance inst;
    if (ci(&ici, NULL, &inst) != VK_SUCCESS) {
       LOGE("FAIL vkCreateInstance");
@@ -128,15 +135,16 @@ Java_org_panvk_loadertest_MainActivity_runPanvkTest(JNIEnv *env, jobject thiz, j
 
    float prio = 1.0f;
    VkDeviceQueueCreateInfo qci = {.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, .queueFamilyIndex = qi, .queueCount = 1, .pQueuePriorities = &prio};
-   const char *dev_exts[] = {
-      VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,
-      VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
-      VK_ANDROID_EXTERNAL_MEMORY_ANDROID_HARDWARE_BUFFER_EXTENSION_NAME,
-      VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,
-      VK_KHR_MAINTENANCE1_EXTENSION_NAME,
-      VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME,
-   };
-   VkDeviceCreateInfo dci = {.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO, .queueCreateInfoCount = 1, .pQueueCreateInfos = &qci, .enabledExtensionCount = 6, .ppEnabledExtensionNames = dev_exts};
+    const char *dev_exts[] = {
+       VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,
+       VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
+       VK_ANDROID_EXTERNAL_MEMORY_ANDROID_HARDWARE_BUFFER_EXTENSION_NAME,
+       VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,
+       VK_KHR_MAINTENANCE1_EXTENSION_NAME,
+       VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME,
+       VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+    };
+    VkDeviceCreateInfo dci = {.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO, .queueCreateInfoCount = 1, .pQueueCreateInfos = &qci, .enabledExtensionCount = 7, .ppEnabledExtensionNames = dev_exts};
    PFN_vkCreateDevice cd = (PFN_vkCreateDevice)gipa(inst, "vkCreateDevice");
    VkDevice dev;
    if (cd(phys, &dci, NULL, &dev) != VK_SUCCESS) return (*env)->NewStringUTF(env, "FAIL vkCreateDevice");
@@ -167,10 +175,14 @@ Java_org_panvk_loadertest_MainActivity_runPanvkTest(JNIEnv *env, jobject thiz, j
    PFN_vkCmdBindDescriptorSets cbds = (PFN_vkCmdBindDescriptorSets)gipa(inst, "vkCmdBindDescriptorSets");
    PFN_vkCmdDispatch cd_ = (PFN_vkCmdDispatch)gipa(inst, "vkCmdDispatch");
    PFN_vkEndCommandBuffer ecb = (PFN_vkEndCommandBuffer)gipa(inst, "vkEndCommandBuffer");
-   PFN_vkCreateFence cf = (PFN_vkCreateFence)gipa(inst, "vkCreateFence");
-   PFN_vkQueueSubmit qs = (PFN_vkQueueSubmit)gipa(inst, "vkQueueSubmit");
-   PFN_vkWaitForFences wff = (PFN_vkWaitForFences)gipa(inst, "vkWaitForFences");
-   PFN_vkResetFences rf = (PFN_vkResetFences)gipa(inst, "vkResetFences");
+    PFN_vkCreateFence cf = (PFN_vkCreateFence)gipa(inst, "vkCreateFence");
+    PFN_vkQueueSubmit qs = (PFN_vkQueueSubmit)gipa(inst, "vkQueueSubmit");
+    PFN_vkWaitForFences wff = (PFN_vkWaitForFences)gipa(inst, "vkWaitForFences");
+    PFN_vkResetFences rf = (PFN_vkResetFences)gipa(inst, "vkResetFences");
+    PFN_vkCreateSemaphore csem = (PFN_vkCreateSemaphore)gipa(inst, "vkCreateSemaphore");
+    PFN_vkDestroySemaphore dsem = (PFN_vkDestroySemaphore)gipa(inst, "vkDestroySemaphore");
+    PFN_vkResetCommandBuffer rcb = (PFN_vkResetCommandBuffer)gipa(inst, "vkResetCommandBuffer");
+    PFN_vkDeviceWaitIdle dwi = (PFN_vkDeviceWaitIdle)gipa(inst, "vkDeviceWaitIdle");
 
    VkBufferCreateInfo bci = {.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, .size = 4096, .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT};
    VkBuffer cbuf;
@@ -378,45 +390,316 @@ Java_org_panvk_loadertest_MainActivity_runPanvkTest(JNIEnv *env, jobject thiz, j
    if (in_p[0] < 200 || cl_p[2] < 200) return (*env)->NewStringUTF(env, "FAIL AHB pixel check");
    LOGI("Gate G: PASS");
 
-   /* Gate H / P12: ANativeWindow presentation 300 frames */
-   ANativeWindow *win = ANativeWindow_fromSurface(env, surface);
-   if (!win) return (*env)->NewStringUTF(env, "FAIL ANativeWindow_fromSurface");
-   int win_w = 64, win_h = 64;
-   ANativeWindow_setBuffersGeometry(win, win_w, win_h, WINDOW_FORMAT_RGBA_8888);
+     /* Gate H / P6-P8: real Vulkan Android WSI, GPU render, 300 frames */
+     ANativeWindow *win = NULL;
+     for (int t = 0; t < 50 && !win; t++) {
+        win = ANativeWindow_fromSurface(env, surface);
+        if (win && ANativeWindow_getWidth(win) > 0 && ANativeWindow_getHeight(win) > 0)
+           break;
+        if (win) {
+           ANativeWindow_release(win);
+           win = NULL;
+        }
+        usleep(100000);
+     }
+     if (!win) return (*env)->NewStringUTF(env, "FAIL ANativeWindow_fromSurface");
 
-   LOGI("Gate H: Presenting 300 frames on ANativeWindow...");
-   for (int frame = 0; frame < 300; frame++) {
-      ANativeWindow_Buffer win_buf;
-      if (ANativeWindow_lock(win, &win_buf, NULL) != 0) {
-         LOGE("ANativeWindow_lock failed at frame %d", frame);
-         break;
-      }
-      /* Animate colors: dynamic color sweep */
-      uint8_t r = (uint8_t)((frame * 5) % 256);
-      uint8_t g = (uint8_t)((frame * 3) % 256);
-      uint8_t b = (uint8_t)((frame * 7) % 256);
-      uint32_t color = (0xFF << 24) | (b << 16) | (g << 8) | r;
-      uint32_t *dst = (uint32_t *)win_buf.bits;
-      for (int y = 0; y < win_buf.height; y++) {
-         for (int x = 0; x < win_buf.width; x++) {
-            dst[y * win_buf.stride + x] = color;
-         }
-      }
-      ANativeWindow_unlockAndPost(win);
-      if (frame % 50 == 0) LOGI("Presented frame %d/300", frame);
-      usleep(4000); /* ~240 fps */
-   }
-   LOGI("Gate H: 300 frames presented successfully!");
+    PFN_vkCreateAndroidSurfaceKHR cas = (PFN_vkCreateAndroidSurfaceKHR)gipa(inst, "vkCreateAndroidSurfaceKHR");
+    PFN_vkDestroySurfaceKHR dsurf = (PFN_vkDestroySurfaceKHR)gipa(inst, "vkDestroySurfaceKHR");
+    PFN_vkGetPhysicalDeviceSurfaceSupportKHR gpss = (PFN_vkGetPhysicalDeviceSurfaceSupportKHR)gipa(inst, "vkGetPhysicalDeviceSurfaceSupportKHR");
+    PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR gpsc = (PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR)gipa(inst, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
+    PFN_vkGetPhysicalDeviceSurfaceFormatsKHR gpsf = (PFN_vkGetPhysicalDeviceSurfaceFormatsKHR)gipa(inst, "vkGetPhysicalDeviceSurfaceFormatsKHR");
+    PFN_vkGetPhysicalDeviceSurfacePresentModesKHR gpspm = (PFN_vkGetPhysicalDeviceSurfacePresentModesKHR)gipa(inst, "vkGetPhysicalDeviceSurfacePresentModesKHR");
+    PFN_vkCreateSwapchainKHR csc = (PFN_vkCreateSwapchainKHR)gipa(inst, "vkCreateSwapchainKHR");
+    PFN_vkDestroySwapchainKHR dsc = (PFN_vkDestroySwapchainKHR)gipa(inst, "vkDestroySwapchainKHR");
+    PFN_vkGetSwapchainImagesKHR gsi = (PFN_vkGetSwapchainImagesKHR)gipa(inst, "vkGetSwapchainImagesKHR");
+    PFN_vkAcquireNextImageKHR ani = (PFN_vkAcquireNextImageKHR)gipa(inst, "vkAcquireNextImageKHR");
+    PFN_vkQueuePresentKHR qp = (PFN_vkQueuePresentKHR)gipa(inst, "vkQueuePresentKHR");
+    LOGI("vkCreateAndroidSurfaceKHR=%p DestroySurface=%p CreateSwapchain=%p Acquire=%p Present=%p",
+         (void *)cas, (void *)dsurf, (void *)csc, (void *)ani, (void *)qp);
+    if (!cas) {
+       LOGE("ANDROID_SURFACE=fail vkCreateAndroidSurfaceKHR=0x0 via ICD GetInstanceProcAddr");
+       ANativeWindow_release(win);
+       return (*env)->NewStringUTF(env, "FAIL ANDROID_SURFACE vkCreateAndroidSurfaceKHR=0");
+    }
 
-   /* Second run test (10 frames) to prove second consecutive launch */
-   for (int frame = 0; frame < 10; frame++) {
-      ANativeWindow_Buffer win_buf;
-      if (ANativeWindow_lock(win, &win_buf, NULL) == 0) {
-         ANativeWindow_unlockAndPost(win);
-      }
-   }
-   LOGI("Gate H: Second launch 10 frames passed!");
-   ANativeWindow_release(win);
+    VkAndroidSurfaceCreateInfoKHR asci = {
+       .sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,
+       .window = win,
+    };
+    VkSurfaceKHR vk_surf = VK_NULL_HANDLE;
+    if (cas(inst, &asci, NULL, &vk_surf) != VK_SUCCESS || vk_surf == VK_NULL_HANDLE) {
+       LOGE("ANDROID_SURFACE=fail vkCreateAndroidSurfaceKHR");
+       ANativeWindow_release(win);
+       return (*env)->NewStringUTF(env, "FAIL ANDROID_SURFACE create");
+    }
+    LOGI("ANDROID_SURFACE=pass");
+
+    VkBool32 present_support = VK_FALSE;
+    if (!gpss || gpss(phys, qi, vk_surf, &present_support) != VK_SUCCESS || !present_support) {
+       LOGE("PRESENT_QUEUE_SUPPORT=fail qf=%u supported=%u", qi, (unsigned)present_support);
+       return (*env)->NewStringUTF(env, "FAIL PRESENT_QUEUE_SUPPORT");
+    }
+    LOGI("PRESENT_QUEUE_SUPPORT=pass qf=%u", qi);
+
+    VkSurfaceCapabilitiesKHR scaps;
+    if (!gpsc || gpsc(phys, vk_surf, &scaps) != VK_SUCCESS) {
+       return (*env)->NewStringUTF(env, "FAIL SURFACE_CAPS");
+    }
+    uint32_t sw = scaps.currentExtent.width;
+    uint32_t sh = scaps.currentExtent.height;
+    if (sw == 0xffffffffu || sh == 0xffffffffu || sw == 0 || sh == 0) {
+       int nw = ANativeWindow_getWidth(win);
+       int nh = ANativeWindow_getHeight(win);
+       sw = nw > 0 ? (uint32_t)nw : 64;
+       sh = nh > 0 ? (uint32_t)nh : 64;
+    }
+    if (sw < scaps.minImageExtent.width) sw = scaps.minImageExtent.width;
+    if (sh < scaps.minImageExtent.height) sh = scaps.minImageExtent.height;
+    if (sw > scaps.maxImageExtent.width) sw = scaps.maxImageExtent.width;
+    if (sh > scaps.maxImageExtent.height) sh = scaps.maxImageExtent.height;
+    LOGI("SURFACE_CAPS minImages=%u maxImages=%u extent=%ux%u", scaps.minImageCount, scaps.maxImageCount, sw, sh);
+
+    uint32_t fmt_count = 0;
+    gpsf(phys, vk_surf, &fmt_count, NULL);
+    if (fmt_count == 0) return (*env)->NewStringUTF(env, "FAIL SURFACE_FORMATS empty");
+    VkSurfaceFormatKHR *sformats = malloc(fmt_count * sizeof(*sformats));
+    gpsf(phys, vk_surf, &fmt_count, sformats);
+    VkSurfaceFormatKHR chosen_fmt = sformats[0];
+    for (uint32_t i = 0; i < fmt_count; i++) {
+       if (sformats[i].format == VK_FORMAT_R8G8B8A8_UNORM) {
+          chosen_fmt = sformats[i];
+          break;
+       }
+    }
+    LOGI("SURFACE_FORMATS=%u chosen=0x%x", fmt_count, chosen_fmt.format);
+    free(sformats);
+
+    uint32_t pm_count = 0;
+    gpspm(phys, vk_surf, &pm_count, NULL);
+    if (pm_count == 0) return (*env)->NewStringUTF(env, "FAIL PRESENT_MODES empty");
+    VkPresentModeKHR *pmodes = malloc(pm_count * sizeof(*pmodes));
+    gpspm(phys, vk_surf, &pm_count, pmodes);
+    VkPresentModeKHR chosen_pm = pmodes[0];
+    for (uint32_t i = 0; i < pm_count; i++) {
+       if (pmodes[i] == VK_PRESENT_MODE_FIFO_KHR) {
+          chosen_pm = pmodes[i];
+          break;
+       }
+    }
+    LOGI("PRESENT_MODES=%u chosen=%d", pm_count, (int)chosen_pm);
+    free(pmodes);
+
+    uint32_t img_count = scaps.minImageCount < 2 ? 2 : scaps.minImageCount;
+    if (scaps.maxImageCount && img_count > scaps.maxImageCount) img_count = scaps.maxImageCount;
+    VkSwapchainCreateInfoKHR scci = {
+       .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+       .surface = vk_surf,
+       .minImageCount = img_count,
+       .imageFormat = chosen_fmt.format,
+       .imageColorSpace = chosen_fmt.colorSpace,
+       .imageExtent = {sw, sh},
+       .imageArrayLayers = 1,
+       .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+       .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+       .preTransform = scaps.currentTransform,
+       .compositeAlpha = (scaps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
+                            ? VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
+                            : VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
+       .presentMode = chosen_pm,
+       .clipped = VK_TRUE,
+    };
+    if (!csc) return (*env)->NewStringUTF(env, "FAIL CreateSwapchainKHR=0");
+    VkSwapchainKHR swapchain = VK_NULL_HANDLE;
+    if (csc(dev, &scci, NULL, &swapchain) != VK_SUCCESS || swapchain == VK_NULL_HANDLE) {
+       LOGE("SWAPCHAIN=fail");
+       return (*env)->NewStringUTF(env, "FAIL SWAPCHAIN");
+    }
+    LOGI("SWAPCHAIN=pass");
+
+    gsi(dev, swapchain, &img_count, NULL);
+    VkImage *sc_imgs = malloc(img_count * sizeof(*sc_imgs));
+    gsi(dev, swapchain, &img_count, sc_imgs);
+    LOGI("SWAPCHAIN_IMAGES=%u", img_count);
+
+    VkImageView *sc_views = malloc(img_count * sizeof(*sc_views));
+    VkFramebuffer *sc_fbs = malloc(img_count * sizeof(*sc_fbs));
+    VkAttachmentDescription wsi_att = {
+       .format = chosen_fmt.format, .samples = 1,
+       .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR, .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+       .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE, .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+       .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED, .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+    };
+    VkAttachmentReference wsi_ref = {.attachment = 0, .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+    VkSubpassDescription wsi_sp = {.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS, .colorAttachmentCount = 1, .pColorAttachments = &wsi_ref};
+    VkSubpassDependency wsi_dep = {
+       .srcSubpass = VK_SUBPASS_EXTERNAL, .dstSubpass = 0,
+       .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+       .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+       .srcAccessMask = 0, .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    };
+    VkRenderPassCreateInfo wsi_rpci = {
+       .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+       .attachmentCount = 1, .pAttachments = &wsi_att, .subpassCount = 1, .pSubpasses = &wsi_sp,
+       .dependencyCount = 1, .pDependencies = &wsi_dep,
+    };
+    VkRenderPass wsi_rp;
+    crp(dev, &wsi_rpci, NULL, &wsi_rp);
+    for (uint32_t i = 0; i < img_count; i++) {
+       VkImageViewCreateInfo ivci = {
+          .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, .image = sc_imgs[i],
+          .viewType = VK_IMAGE_VIEW_TYPE_2D, .format = chosen_fmt.format,
+          .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = 1, .layerCount = 1},
+       };
+       civ(dev, &ivci, NULL, &sc_views[i]);
+       VkFramebufferCreateInfo wsi_fbci = {
+          .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO, .renderPass = wsi_rp,
+          .attachmentCount = 1, .pAttachments = &sc_views[i], .width = sw, .height = sh, .layers = 1,
+       };
+       cfb(dev, &wsi_fbci, NULL, &sc_fbs[i]);
+    }
+
+    VkDynamicState dyn_states[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+    VkPipelineDynamicStateCreateInfo dynsi = {
+       .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+       .dynamicStateCount = 2, .pDynamicStates = dyn_states,
+    };
+    VkPipelineViewportStateCreateInfo wsi_pvsi = {
+       .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO, .viewportCount = 1, .scissorCount = 1,
+    };
+    VkGraphicsPipelineCreateInfo wsi_gpci = {
+       .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO, .stageCount = 2, .pStages = a_stages,
+       .pVertexInputState = &pvisi, .pInputAssemblyState = &piasi, .pViewportState = &wsi_pvsi,
+       .pRasterizationState = &prsi, .pMultisampleState = &pmsi, .pColorBlendState = &pcbsi,
+       .pDynamicState = &dynsi, .layout = a_layout, .renderPass = wsi_rp, .subpass = 0,
+    };
+    VkPipeline wsi_pipe;
+    cgp(dev, VK_NULL_HANDLE, 1, &wsi_gpci, NULL, &wsi_pipe);
+
+    enum { FIF = 2 };
+    VkSemaphore acquire_sem[FIF], render_sem[FIF];
+    VkFence wsi_fence[FIF];
+    VkCommandBuffer wsi_cmd[FIF];
+    VkSemaphoreCreateInfo semci = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+    VkFenceCreateInfo wsi_fci = {.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, .flags = VK_FENCE_CREATE_SIGNALED_BIT};
+    VkCommandBufferAllocateInfo wsi_cbai = {
+       .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO, .commandPool = c_cpool, .commandBufferCount = FIF,
+    };
+    acb(dev, &wsi_cbai, wsi_cmd);
+    for (int i = 0; i < FIF; i++) {
+       csem(dev, &semci, NULL, &acquire_sem[i]);
+       csem(dev, &semci, NULL, &render_sem[i]);
+       cf(dev, &wsi_fci, NULL, &wsi_fence[i]);
+    }
+
+    PFN_vkCmdSetViewport csvp = (PFN_vkCmdSetViewport)gipa(inst, "vkCmdSetViewport");
+    PFN_vkCmdSetScissor cssc = (PFN_vkCmdSetScissor)gipa(inst, "vkCmdSetScissor");
+    int acquired = 0, submitted = 0, presented = 0;
+    int device_lost = 0, hang = 0, out_of_date = 0, suboptimal = 0;
+    LOGI("GPU_RENDER_TO_SWAPCHAIN start frames=300 extent=%ux%u", sw, sh);
+    for (int frame = 0; frame < 300; frame++) {
+       int f = frame % FIF;
+       if (wff(dev, 1, &wsi_fence[f], VK_TRUE, 5000000000ULL) != VK_SUCCESS) {
+          hang = 1;
+          LOGE("HANG wait fence frame=%d", frame);
+          break;
+       }
+       rf(dev, 1, &wsi_fence[f]);
+       uint32_t img_idx = 0;
+       VkResult ar = ani(dev, swapchain, 5000000000ULL, acquire_sem[f], VK_NULL_HANDLE, &img_idx);
+       if (ar == VK_ERROR_OUT_OF_DATE_KHR) { out_of_date++; LOGE("ACQUIRE out_of_date frame=%d", frame); break; }
+       if (ar == VK_ERROR_DEVICE_LOST) { device_lost = 1; LOGE("DEVICE_LOST acquire frame=%d", frame); break; }
+       if (ar != VK_SUCCESS && ar != VK_SUBOPTIMAL_KHR) {
+          LOGE("ACQUIRE fail frame=%d vr=%d", frame, (int)ar);
+          break;
+       }
+       if (ar == VK_SUBOPTIMAL_KHR) suboptimal++;
+       acquired++;
+
+       rcb(wsi_cmd[f], 0);
+       VkCommandBufferBeginInfo wsi_bbi = {
+          .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+          .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+       };
+       bcb(wsi_cmd[f], &wsi_bbi);
+       float t = (float)(frame % 256) / 255.0f;
+       VkClearValue wsi_clear = {.color = {{t, 0.1f, 1.0f - t, 1.0f}}};
+       VkRenderPassBeginInfo wsi_rpbi = {
+          .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO, .renderPass = wsi_rp,
+          .framebuffer = sc_fbs[img_idx], .renderArea = {{0, 0}, {sw, sh}},
+          .clearValueCount = 1, .pClearValues = &wsi_clear,
+       };
+       cbrp(wsi_cmd[f], &wsi_rpbi, VK_SUBPASS_CONTENTS_INLINE);
+       VkViewport wsi_vp = {.x = 0, .y = 0, .width = (float)sw, .height = (float)sh, .minDepth = 0.0f, .maxDepth = 1.0f};
+       VkRect2D wsi_sc = {.offset = {0, 0}, .extent = {sw, sh}};
+       csvp(wsi_cmd[f], 0, 1, &wsi_vp);
+       cssc(wsi_cmd[f], 0, 1, &wsi_sc);
+       cbp(wsi_cmd[f], VK_PIPELINE_BIND_POINT_GRAPHICS, wsi_pipe);
+       VkDeviceSize wsi_voff = 0;
+       cbvb(wsi_cmd[f], 0, 1, &vbuf, &wsi_voff);
+       cdraw(wsi_cmd[f], 3, 1, 0, 0);
+       cerp(wsi_cmd[f]);
+       ecb(wsi_cmd[f]);
+
+       VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+       VkSubmitInfo wsi_si = {
+          .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+          .waitSemaphoreCount = 1, .pWaitSemaphores = &acquire_sem[f], .pWaitDstStageMask = &wait_stage,
+          .commandBufferCount = 1, .pCommandBuffers = &wsi_cmd[f],
+          .signalSemaphoreCount = 1, .pSignalSemaphores = &render_sem[f],
+       };
+       VkResult sr = qs(queue, 1, &wsi_si, wsi_fence[f]);
+       if (sr == VK_ERROR_DEVICE_LOST) { device_lost = 1; LOGE("DEVICE_LOST submit frame=%d", frame); break; }
+       if (sr != VK_SUCCESS) { LOGE("QUEUE_SUBMIT fail frame=%d vr=%d", frame, (int)sr); break; }
+       submitted++;
+
+       VkPresentInfoKHR pi = {
+          .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+          .waitSemaphoreCount = 1, .pWaitSemaphores = &render_sem[f],
+          .swapchainCount = 1, .pSwapchains = &swapchain, .pImageIndices = &img_idx,
+       };
+       VkResult pr = qp(queue, &pi);
+       if (pr == VK_ERROR_OUT_OF_DATE_KHR) { out_of_date++; LOGE("QUEUE_PRESENT out_of_date frame=%d", frame); break; }
+       if (pr == VK_ERROR_DEVICE_LOST) { device_lost = 1; LOGE("DEVICE_LOST present frame=%d", frame); break; }
+       if (pr != VK_SUCCESS && pr != VK_SUBOPTIMAL_KHR) {
+          LOGE("QUEUE_PRESENT fail frame=%d vr=%d", frame, (int)pr);
+          break;
+       }
+       if (pr == VK_SUBOPTIMAL_KHR) suboptimal++;
+       presented++;
+       if (frame % 50 == 0) LOGI("PRESENT_FRAMES=%d/300", presented);
+    }
+    LOGI("ACQUIRE=%d/300 GPU_RENDER_TO_SWAPCHAIN=%d/300 QUEUE_PRESENT=%d/300 PRESENT_FRAMES=%d/300 DEVICE_LOST=%d HANG=%d OUT_OF_DATE=%d SUBOPTIMAL=%d",
+         acquired, submitted, presented, presented, device_lost, hang, out_of_date, suboptimal);
+    if (dwi) dwi(dev);
+
+    PFN_vkDestroyImageView div_early = (PFN_vkDestroyImageView)gipa(inst, "vkDestroyImageView");
+    PFN_vkDestroyFramebuffer dfb_early = (PFN_vkDestroyFramebuffer)gipa(inst, "vkDestroyFramebuffer");
+    PFN_vkDestroyPipeline dp_early = (PFN_vkDestroyPipeline)gipa(inst, "vkDestroyPipeline");
+    PFN_vkDestroyRenderPass drp_early = (PFN_vkDestroyRenderPass)gipa(inst, "vkDestroyRenderPass");
+    PFN_vkDestroyFence df_early = (PFN_vkDestroyFence)gipa(inst, "vkDestroyFence");
+    for (int i = 0; i < FIF; i++) {
+       df_early(dev, wsi_fence[i], NULL);
+       dsem(dev, acquire_sem[i], NULL);
+       dsem(dev, render_sem[i], NULL);
+    }
+    dp_early(dev, wsi_pipe, NULL);
+    for (uint32_t i = 0; i < img_count; i++) {
+       dfb_early(dev, sc_fbs[i], NULL);
+       div_early(dev, sc_views[i], NULL);
+    }
+    drp_early(dev, wsi_rp, NULL);
+    dsc(dev, swapchain, NULL);
+    dsurf(inst, vk_surf, NULL);
+    free(sc_imgs);
+    free(sc_views);
+    free(sc_fbs);
+    ANativeWindow_release(win);
+    if (presented < 300 || device_lost || hang) {
+       LOGE("Gate H FAIL present=%d lost=%d hang=%d", presented, device_lost, hang);
+       return (*env)->NewStringUTF(env, "FAIL VULKAN_WSI 300");
+    }
+    LOGI("Gate H: PASS Vulkan WSI 300/300");
 
    /* Cleanup Vulkan */
    AHardwareBuffer_release(ahb);
@@ -455,7 +738,8 @@ Java_org_panvk_loadertest_MainActivity_runPanvkTest(JNIEnv *env, jobject thiz, j
    dd(dev, NULL);
    di_(inst, NULL);
 
-   LOGI("All gates PASS inside Android app UID=%d", getuid());
+   LOGI("All gates PASS inside Android app UID=%d PID_SELF=%d COLD_LAUNCH_PROCESS=done",
+        getuid(), getpid());
 
    snprintf(report, sizeof(report),
       "PANVK LOADER APP TEST RESULTS:\n"
@@ -464,9 +748,8 @@ Java_org_panvk_loadertest_MainActivity_runPanvkTest(JNIEnv *env, jobject thiz, j
       "- Gate D (Device Create): PASS\n"
       "- Gate E (Compute): PASS (10/10 exact)\n"
       "- Gate G (AHB Import/Render): PASS\n"
-      "- Gate H (300 Frames Present): PASS\n"
-      "- Second Launch: PASS\n"
-      "STATUS: ALL GATES PASS", getuid());
+       "- Gate H (Vulkan WSI 300): PASS\n"
+       "STATUS: ALL GATES PASS", getuid());
 
    return (*env)->NewStringUTF(env, report);
 }

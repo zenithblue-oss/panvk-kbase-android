@@ -1,0 +1,32 @@
+device=Poco X6 Pro serial=Y5WWBMJVOZSK4HU8
+date=2026-09-19
+test=glibc enumerate/compute/offscreen (P18 re-run; glibc SHA changed vs beta.1)
+kmd=-Dpanfrost-kmds=kbase
+so=/tmp/build-glibc/src/panfrost/vulkan/libvulkan_panfrost.so
+sha256=e6e826244c1c6e62b8f0fbd248ee2c8e92ea0792d22404c5bd2172fc3b36fd35
+host_sha256=e6e826244c1c6e62b8f0fbd248ee2c8e92ea0792d22404c5bd2172fc3b36fd35
+command=adb -s Y5WWBMJVOZSK4HU8 shell nativecode_chroot.sh sh --user root -- /tmp/tests/run_glibc_tests.sh
+proprietary_fallback=none (dlopen explicit PanVK ICD path)
+
+=== GLIBC ENUMERATE ===
+C-OK dlopen
+C-OK negotiate r=0 ver=5
+C-CreateInstance r=0
+C-Enumerate count=1 r=0
+C-DEV 0: Mali-G615 MC6 id=0xb8a31030 vendor=0x13b5 api=0x40416b
+C-PASS
+=== GLIBC COMPUTE ===
+D-OK physical device
+D-OK vkCreateDevice
+D-OK memory+bind (Gate D device side done)
+E-compute 10/10
+D+E-PASS
+=== GLIBC TRIANGLE ===
+F-device ready (family 0)
+F-pipeline ready
+F-submit complete
+F-interior RGBA=255 0 0 255
+F-clear    RGBA=0 0 255 255
+F-PASS
+
+RESULT=PASS

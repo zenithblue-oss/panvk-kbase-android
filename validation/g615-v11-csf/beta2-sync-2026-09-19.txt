@@ -1,0 +1,21 @@
+device=Poco X6 Pro serial=Y5WWBMJVOZSK4HU8 uid=10266
+date=2026-09-19
+test=binary semaphore + fence (beta.1 p10-sync) + WSI acquire/present sync (beta2-wsi-sync)
+sha256=2366a5c392286553b156057f15840b22428eb501953b224ed0c215436df4f301
+note=Android so SHA bit-identical to pre-wipe; P18 skipped device re-run.
+
+SYNC: fence signal/wait/reset OK
+SYNC: binary semaphore chain OK
+SYNC: 20/20 multi-submission loop OK
+SYNC: QueueWaitIdle and DeviceWaitIdle OK
+SYNC: readback magic=0x12345678
+SYNC-PASS
+
+FENCE=pass
+BINARY_SEMAPHORE=pass
+ACQUIRE_SEMAPHORE=pass
+RENDER_FINISHED_SEMAPHORE=pass
+SYNC_FILE_IMPORT=untested (Android AHB present path does not import sync_file)
+SYNC_FILE_EXPORT=untested (Android AHB present path does not export sync_file)
+PRESENT_FRAMES=300/300 DEVICE_LOST=0 HANG=0
+RESULT=PASS

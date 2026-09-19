@@ -5,9 +5,11 @@ stable. Tags like `g615-v11-csf-v0.1.0-beta.1`. Immutable: patch change = new
 release even if Mesa SHA unchanged.
 
 Android asset: `PanVK-Kbase-Android-<profile>-v<N>-<shortsha>.adpkg.zip`
-(flat: `libvulkan_panfrost.so + meta.json + MANIFEST.json`).
+(flat: `libvulkan_panfrost.so + meta.json + MANIFEST.json + SOURCE.json +
+VALIDATION.json + SHA256SUMS.txt + runtime-feature-matrix.json`).
 glibc asset: `PanVK-Kbase-<profile>-v<N>-<shortsha>-EMULATOR.zip`
-(+ `panfrost_icd.aarch64.json`).
+(+ `panfrost_icd.aarch64.json` and the same provenance files).
+`minApi` is 35 until an API 29 Bionic rebuild is proven. Do not advertise 29.
 
 Every release: `SHA256SUMS.txt + SOURCE.json + VALIDATION.json` with Mesa
 commit, patch hash, compiler/NDK/Meson, host, API, Build ID, SHAs, device,

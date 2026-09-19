@@ -5,8 +5,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include <vulkan/vulkan.h>
 #include <android/hardware_buffer.h>
+
+typedef struct native_handle {
+   int version;
+   int numFds;
+   int numInts;
+   int data[0];
+} native_handle_t;
+const native_handle_t *AHardwareBuffer_getNativeHandle(const AHardwareBuffer *b);
 
 typedef PFN_vkVoidFunction (*icd_gipa_fn)(VkInstance, const char *);
 
@@ -193,15 +202,61 @@ int main(int argc, char **argv)
    }
    AHardwareBuffer_Desc out_desc;
    AHardwareBuffer_describe(ahb, &out_desc);
-   printf("G-AHB allocated (stride=%u)\n", out_desc.stride);
+
+   const native_handle_t *nh = AHardwareBuffer_getNativeHandle(ahb);
+   int dmabuf_idx = -1;
+   uint64_t dmabuf_sz = 0;
+   if (nh) {
+      for (int i = 0; i < nh->numFds; i++) {
+         int fd = nh->data[i];
+         if (fd < 0) continue;
+         struct stat st;
+         if (fstat(fd, &st) == 0) {
+            off_t sz = lseek(fd, 0, SEEK_END);
+            if (sz > 0 && dmabuf_idx < 0) {
+               dmabuf_idx = i;
+               dmabuf_sz = (uint64_t)sz;
+            }
+         }
+      }
+   }
 
    /* 2. Query properties */
    VkAndroidHardwareBufferPropertiesANDROID ahb_props = {
       .sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID,
    };
    CK(vkGetAndroidHardwareBufferPropertiesANDROID(dev, ahb, &ahb_props), "AHBProps");
-   printf("G-AHB props queried (size=%llu memTypeBits=0x%x)\n",
-          (unsigned long long)ahb_props.allocationSize, ahb_props.memoryTypeBits);
+
+   if (ahb_props.allocationSize == 0 ||
+       ahb_props.allocationSize == ~0ULL ||
+       ahb_props.allocationSize < (uint64_t)(W * H * 4) ||
+       ahb_props.allocationSize > 64 * 1024 * 1024ULL) {
+      printf("FAIL: invalid allocationSize=%llu\n", (unsigned long long)ahb_props.allocationSize);
+      return 1;
+   }
+   if (ahb_props.memoryTypeBits == 0) {
+      printf("FAIL: memoryTypeBits == 0\n");
+      return 1;
+   }
+
+   uint32_t chosen_mi = ~0u;
+   for (uint32_t i = 0; i < 32; i++) {
+      if (ahb_props.memoryTypeBits & (1u << i)) {
+         chosen_mi = i;
+         break;
+      }
+   }
+   if (chosen_mi == ~0u) {
+      printf("FAIL: no compatible memory type found\n");
+      return 1;
+   }
+
+   printf("G-AHB stride=%u\n", out_desc.stride);
+   printf("G-dmabuf-index=%d\n", dmabuf_idx);
+   printf("G-dmabuf-size=%llu\n", (unsigned long long)dmabuf_sz);
+   printf("G-vk-allocationSize=%llu\n", (unsigned long long)ahb_props.allocationSize);
+   printf("G-memoryTypeBits=0x%x\n", ahb_props.memoryTypeBits);
+   printf("G-chosenMemoryType=%u\n", chosen_mi);
 
    /* 3. Create Image */
    VkExternalMemoryImageCreateInfo emici = {
@@ -235,13 +290,6 @@ int main(int argc, char **argv)
       .pNext = &imp,
       .image = img,
    };
-   uint32_t chosen_mi = 0;
-   for (uint32_t i = 0; i < 32; i++) {
-      if (ahb_props.memoryTypeBits & (1u << i)) {
-         chosen_mi = i;
-         break;
-      }
-   }
    VkMemoryAllocateInfo mai = {
       .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
       .pNext = &dai,
@@ -250,7 +298,7 @@ int main(int argc, char **argv)
    };
    VkDeviceMemory imem;
    CK(vkAllocateMemory(dev, &mai, NULL, &imem), "AllocMemory(import)");
-   printf("G-memory imported\n");
+   printf("G-import=PASS\n");
 
    /* 5. Bind Image */
    VkBindImageMemoryInfo bmi = {
@@ -399,6 +447,7 @@ int main(int argc, char **argv)
    CK(vkQueueSubmit(queue, 1, &si, fence), "Submit");
    CK(vkWaitForFences(dev, 1, &fence, VK_TRUE, 30 * 1000 * 1000 * 1000ULL), "Wait");
    printf("G-GPU write complete\n");
+   printf("G-render=PASS\n");
 
    /* 7. CPU readback verification */
    void *data = NULL;
@@ -414,6 +463,8 @@ int main(int argc, char **argv)
    printf("G-clear    RGBA=%u %u %u %u\n", clear_px[0], clear_px[1], clear_px[2], clear_px[3]);
    int ok = (in_px[0] > 200 && in_px[1] < 60 && in_px[2] < 60) &&
             (clear_px[2] > 200 && clear_px[0] < 60 && clear_px[1] < 60);
+   if (ok)
+      printf("G-readback=PASS\n");
    AHardwareBuffer_unlock(ahb, NULL);
 
    /* 8. Release cleanly */
