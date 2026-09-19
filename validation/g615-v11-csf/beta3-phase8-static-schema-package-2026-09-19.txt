@@ -1,0 +1,94 @@
+PHASE8_STATIC_SCHEMA_PACKAGE
+patchSeriesId_run1=sha256:c0bbdeef591b206a2f3ae36dc6191c08854399039075f8d69f103e33c0eca2f8
+patchSeriesId_run2=sha256:c0bbdeef591b206a2f3ae36dc6191c08854399039075f8d69f103e33c0eca2f8
+== file ==
+dist/android-g615-v11-csf/libvulkan_panfrost.so: ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, for Android 35, built by NDK r30-beta1 (14904198), BuildID[sha1]=2ba551018ebc18b8990c7431e3c99b0523f87d15, with debug_info, not stripped
+== readelf -h ==
+ELF Header:
+  Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 
+  Class:                             ELF64
+  Data:                              2's complement, little endian
+  Version:                           1 (current)
+  OS/ABI:                            UNIX - System V
+  ABI Version:                       0
+  Type:                              DYN (Shared object file)
+== DT_NEEDED ==
+ 0x0000000000000001 (NEEDED)             Shared library: [liblog.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libnativewindow.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libsync.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libm.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libz.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libdl.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so]
+== ICD exports ==
+00000000009a64fc T vk_icdGetInstanceProcAddr
+0000000000d70fc0 T vk_icdNegotiateLoaderICDInterfaceVersion
+STATIC-VALIDATION: PASS (android)
+== file ==
+dist/glibc-g615-v11-csf/libvulkan_panfrost.so: ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=0a87f02d2a958b9a480f9a5e1303a73e65e683b5, with debug_info, not stripped
+== readelf -h ==
+ELF Header:
+  Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 
+  Class:                             ELF64
+  Data:                              2's complement, little endian
+  Version:                           1 (current)
+  OS/ABI:                            UNIX - System V
+  ABI Version:                       0
+  Type:                              DYN (Shared object file)
+== DT_NEEDED ==
+ 0x0000000000000001 (NEEDED)             Shared library: [libdrm.so.2]
+ 0x0000000000000001 (NEEDED)             Shared library: [libz.so.1]
+ 0x0000000000000001 (NEEDED)             Shared library: [libwayland-client.so.0]
+ 0x0000000000000001 (NEEDED)             Shared library: [libxcb.so.1]
+ 0x0000000000000001 (NEEDED)             Shared library: [libX11-xcb.so.1]
+ 0x0000000000000001 (NEEDED)             Shared library: [libxcb-dri3.so.0]
+ 0x0000000000000001 (NEEDED)             Shared library: [libxcb-present.so.0]
+ 0x0000000000000001 (NEEDED)             Shared library: [libxcb-xfixes.so.0]
+ 0x0000000000000001 (NEEDED)             Shared library: [libxcb-sync.so.1]
+ 0x0000000000000001 (NEEDED)             Shared library: [libxcb-randr.so.0]
+ 0x0000000000000001 (NEEDED)             Shared library: [libxcb-shm.so.0]
+ 0x0000000000000001 (NEEDED)             Shared library: [libxshmfence.so.1]
+ 0x0000000000000001 (NEEDED)             Shared library: [libSPIRV-Tools.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libexpat.so.1]
+ 0x0000000000000001 (NEEDED)             Shared library: [libstdc++.so.6]
+ 0x0000000000000001 (NEEDED)             Shared library: [libm.so.6]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+== ICD exports ==
+00000000000665a0 T vk_icdGetInstanceProcAddr
+00000000003ed780 T vk_icdNegotiateLoaderICDInterfaceVersion
+STATIC-VALIDATION: PASS (glibc)
+test_collect_real_profile_keys (__main__.CollectValidation.test_collect_real_profile_keys) ... ok
+test_pass_from_logs (__main__.CollectValidation.test_pass_from_logs) ... ok
+test_require_beta_gates_flags_untested (__main__.CollectValidation.test_require_beta_gates_flags_untested) ... ok
+test_counts_and_ids (__main__.ParseDump.test_counts_and_ids) ... ok
+test_exposed_vs_tested (__main__.ParseDump.test_exposed_vs_tested) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.119s
+
+OK
+test_beta2_counts_exact (__main__.TestExtensionAuditBeta2.test_beta2_counts_exact) ... ok
+test_candidates_breakdown (__main__.TestExtensionAuditBeta2.test_candidates_breakdown) ... ok
+test_markdown_generation (__main__.TestExtensionAuditBeta2.test_markdown_generation) ... ok
+test_platform_sensitivity (__main__.TestExtensionAuditBeta2.test_platform_sensitivity) ... ok
+test_schema_classifications_present (__main__.TestExtensionAuditBeta2.test_schema_classifications_present) ... ok
+test_section_8_schema_and_keys (__main__.TestExtensionAuditBeta2.test_section_8_schema_and_keys) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.011s
+
+OK
+OK android-beta-pass rc=0
+OK glibc-beta-pass rc=0
+OK missing-validation rc=1
+OK missing-matrix rc=1
+OK pending-psid rc=1
+OK wrong-commit rc=1
+OK untested-gate rc=1
+OK minapi-29 rc=1
+OK sha-mismatch rc=1
+SELFCHECK PASS
+PASS: BCn requirements complete; no unsupported PASS claims
+JSON_VALID=14
+
+RESULT=PASS

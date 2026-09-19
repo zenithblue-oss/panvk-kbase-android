@@ -8,6 +8,7 @@ This tree is **not** uniformly MIT. Do not relicense upstream files.
 | Mesa sources fetched into `work/mesa/` and Mesa-derived `patches/**/*.patch` | Upstream Mesa (mostly MIT/X11 + Khronos) | Not vendored in git; see Mesa `LICENSES/` after fetch |
 | Arm/Linux kbase **UAPI headers** committed under `patches/kbase-common/files/` | GPL-2.0 WITH Linux-syscall-note | `LICENSES/GPL-2.0.txt` + `LICENSES/Linux-syscall-note.txt` |
 | `kbase_kmod.c` / `kbase_kmod.h` (userspace kmod backend) | MIT | File SPDX; not a UAPI header |
+| `leegao/bcn_layer` reference checkout/build | MIT | Not vendored or packaged; exact text in `LICENSES/bcn_layer-MIT.txt` |
 
 Vendored UAPI headers (GPL-2.0 WITH Linux-syscall-note):
 

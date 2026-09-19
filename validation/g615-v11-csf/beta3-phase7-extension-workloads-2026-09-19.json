@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "phase": 7,
+  "recordedAt": "2026-09-19",
+  "target": {
+    "serial": "Y5WWBMJVOZSK4HU8",
+    "model": "2311DRK48I",
+    "gpu": "Mali-G615 MC6",
+    "icd": "/data/local/tmp/libvulkan_panfrost.so",
+    "icdSha256": "576e37de9a3b60dda9a972a6f91c3a50e09238bd31a9888e04215c7b554c803a"
+  },
+  "summary": {
+    "total": 19,
+    "pass": 16,
+    "disabled": 3,
+    "fail": 0,
+    "blocked": 0,
+    "phase8RemediationRequired": false
+  },
+  "results": [
+    {"extension":"VK_GOOGLE_user_type","status":"PASS","evidence":"SPV_GOOGLE_user_type decorated compute shader; pipeline, dispatch, readback=42"},
+    {"extension":"VK_KHR_compute_shader_derivatives","status":"PASS","evidence":"SPV_KHR_compute_shader_derivatives quads and linear pipelines; both dispatch readback=[3.0,3.0,3.0,3.0]"},
+    {"extension":"VK_KHR_copy_memory_indirect","status":"PASS","evidence":"vkCmdCopyMemoryIndirectKHR device-address command; readback=0x13579bdf"},
+    {"extension":"VK_KHR_depth_clamp_zero_one","status":"DISABLED","evidence":"Not exposed by final ICD because pixel-validation workload was not completed"},
+    {"extension":"VK_KHR_internally_synchronized_queues","status":"PASS","evidence":"Eight concurrent unsynchronized vkQueueSubmit calls on one queue; all VK_SUCCESS; queue idle"},
+    {"extension":"VK_KHR_maintenance7","status":"PASS","evidence":"Dynamic rendering command submitted with VK_RENDERING_CONTENTS_INLINE_BIT_KHR"},
+    {"extension":"VK_KHR_maintenance8","status":"PASS","evidence":"VkMemoryBarrierAccessFlags3KHR submitted through vkCmdPipelineBarrier2"},
+    {"extension":"VK_KHR_maintenance9","status":"PASS","evidence":"Zero-queue vkCreateDevice returned VK_SUCCESS"},
+    {"extension":"VK_KHR_pipeline_binary","status":"DISABLED","evidence":"Not exposed by final ICD because create/retrieve/recreate/execute workload was not completed"},
+    {"extension":"VK_KHR_present_id2","status":"PASS","evidence":"Real Android WSI vkQueuePresentKHR with VkPresentId2KHR presentId=1; 300/300 presents completed"},
+    {"extension":"VK_KHR_present_wait2","status":"PASS","evidence":"vkWaitForPresent2KHR returned VK_SUCCESS for completed presentId=1; 300/300 present/wait cycles completed"},
+    {"extension":"VK_KHR_robustness2","status":"DISABLED","evidence":"Not exposed by final ICD because robustBufferAccess2/nullDescriptor workload was not completed"},
+    {"extension":"VK_KHR_shader_constant_data","status":"PASS","evidence":"OpConstantDataKHR compute pipeline, dispatch, readback=42"},
+    {"extension":"VK_KHR_shader_fma","status":"PASS","evidence":"Actual SPIR-V GLSL.std.450 Fma compute pipeline, dispatch, readback=10.0"},
+    {"extension":"VK_KHR_shader_relaxed_extended_instruction","status":"PASS","evidence":"SPV_KHR_relaxed_extended_instruction module accepted, pipeline created and dispatched"},
+    {"extension":"VK_KHR_shader_untyped_pointers","status":"PASS","evidence":"OpUntypedVariableKHR and OpUntypedAccessChainKHR storage-buffer dispatch; readback=42"},
+    {"extension":"VK_KHR_surface_maintenance1","status":"PASS","evidence":"Real Android surface query returned VK_SUCCESS and compatibleModes=1 for FIFO"},
+    {"extension":"VK_KHR_swapchain_maintenance1","status":"PASS","evidence":"Real Android acquire/fence wait/vkReleaseSwapchainImagesKHR returned VK_SUCCESS; subsequent 300/300 acquire/present cycle passed"},
+    {"extension":"VK_KHR_unified_image_layouts","status":"PASS","evidence":"Real image transitioned to VK_IMAGE_LAYOUT_GENERAL and buffer-to-image copy completed"}
+  ],
+  "build": {
+    "androidAarch64Harness": "PASS",
+    "androidWsiApk": "PASS"
+  },
+  "regressions": {
+    "phase5ComputeAndSync": "PASS",
+    "staticUnitTests": {"status":"PASS","count":11},
+    "jsonValidation": "PASS",
+    "gitDiffCheck": "PASS"
+  },
+  "releaseBlockers": []
+}

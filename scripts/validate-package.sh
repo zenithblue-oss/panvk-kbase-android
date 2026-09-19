@@ -32,11 +32,18 @@ if "MANIFEST.json" not in names:
 
 meta = loadj("meta.json")
 manifest = loadj("MANIFEST.json")
+gap = loadj("extension-gap.json")
 for k in ("schemaVersion", "name", "libraryName", "abi", "backend", "profile", "sourceCommit"):
     if k not in meta:
         die(f"meta.json missing {k}")
 if meta["libraryName"] != "libvulkan_panfrost.so":
     die("canonical binary renamed")
+if meta.get("prerelease") is not True or meta.get("published") is not False:
+    die("candidate package must be marked prerelease=true and published=false")
+if meta.get("bcCompatibility", {}).get("included") is not False:
+    die("unproven BC compatibility must not be included")
+if gap.get("summary", gap.get("_meta", {})).get("runtimeExposed") != 194:
+    die("extension-gap.json is not the 194-extension beta.3 candidate report")
 
 abi = meta["abi"]
 if abi not in ("android-aarch64-bionic", "linux-aarch64-glibc"):
@@ -67,6 +74,7 @@ required = [
     "SOURCE.json",
     "VALIDATION.json",
     "SHA256SUMS.txt",
+    "extension-gap.json",
 ]
 if android:
     required.append("runtime-feature-matrix.json")

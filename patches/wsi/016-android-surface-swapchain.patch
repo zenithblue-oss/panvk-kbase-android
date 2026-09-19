@@ -69,6 +69,7 @@ diff --git a/src/panfrost/vulkan/panvk_wsi.c b/src/panfrost/vulkan/panvk_wsi.c
 +   struct wsi_swapchain base;
 +   ANativeWindow *window;
 +   uint32_t next_image;
++   uint64_t completed_present_id;
 +   struct panvk_android_swapchain_image images[4];
 +};
 +
@@ -110,6 +111,22 @@ diff --git a/src/panfrost/vulkan/panvk_wsi.c b/src/panfrost/vulkan/panvk_wsi.c
 +                             VK_IMAGE_USAGE_TRANSFER_DST_BIT |
 +                             VK_IMAGE_USAGE_SAMPLED_BIT,
 +   };
++
++   const VkSurfacePresentModeKHR *mode =
++      vk_find_struct_const(info_next, SURFACE_PRESENT_MODE_KHR);
++   vk_foreach_struct(sType, ext, pSurfaceCapabilities->pNext) {
++      if (sType == VK_STRUCTURE_TYPE_SURFACE_PRESENT_MODE_COMPATIBILITY_KHR) {
++         VkSurfacePresentModeCompatibilityKHR *compat = (void *)ext;
++         const VkPresentModeKHR present_mode =
++            mode ? mode->presentMode : VK_PRESENT_MODE_FIFO_KHR;
++         VK_OUTARRAY_MAKE_TYPED(VkPresentModeKHR, out,
++                                compat->pPresentModes,
++                                &compat->presentModeCount);
++         vk_outarray_append_typed(VkPresentModeKHR, &out, compatible_mode) {
++            *compatible_mode = present_mode;
++         }
++      }
++   }
 +   return VK_SUCCESS;
 +}
 +
@@ -218,6 +235,32 @@ diff --git a/src/panfrost/vulkan/panvk_wsi.c b/src/panfrost/vulkan/panvk_wsi.c
 +}
 +
 +static VkResult
++panvk_android_swapchain_release_images(struct wsi_swapchain *swapchain,
++                                       uint32_t count,
++                                       const uint32_t *indices)
++{
++   for (uint32_t i = 0; i < count; i++) {
++      if (indices[i] >= swapchain->image_count)
++         return VK_ERROR_OUT_OF_DATE_KHR;
++
++      swapchain->get_wsi_image(swapchain, indices[i])->acquired = false;
++   }
++
++   return VK_SUCCESS;
++}
++
++static VkResult
++panvk_android_swapchain_wait_for_present2(struct wsi_swapchain *swapchain,
++                                          uint64_t present_id,
++                                          uint64_t timeout)
++{
++   struct panvk_android_swapchain *chain =
++      (struct panvk_android_swapchain *)swapchain;
++
++   return present_id <= chain->completed_present_id ? VK_SUCCESS : VK_TIMEOUT;
++}
++
++static VkResult
 +panvk_android_swapchain_queue_present(
 +   struct wsi_swapchain *swapchain,
 +   uint32_t image_index,
@@ -251,6 +294,8 @@ diff --git a/src/panfrost/vulkan/panvk_wsi.c b/src/panfrost/vulkan/panvk_wsi.c
 +         ANativeWindow_unlockAndPost(chain->window);
 +      }
 +   }
++
++   chain->completed_present_id = MAX2(chain->completed_present_id, present_id);
 +
 +   return VK_SUCCESS;
 +}
@@ -306,6 +351,8 @@ diff --git a/src/panfrost/vulkan/panvk_wsi.c b/src/panfrost/vulkan/panvk_wsi.c
 +    chain->base.get_wsi_image = panvk_android_swapchain_get_wsi_image;
 +   chain->base.acquire_next_image = panvk_android_swapchain_acquire_next_image;
 +   chain->base.queue_present = panvk_android_swapchain_queue_present;
++   chain->base.wait_for_present2 = panvk_android_swapchain_wait_for_present2;
++   chain->base.release_images = panvk_android_swapchain_release_images;
 +   chain->base.image_count = num_images;
 +   chain->next_image = 0;
 +

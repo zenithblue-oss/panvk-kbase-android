@@ -71,14 +71,16 @@ Java_org_panvk_loadertest_MainActivity_runPanvkTest(JNIEnv *env, jobject thiz, j
       return (*env)->NewStringUTF(env, "FAIL: driver not found");
    }
 
-   LOGI("Loading driver from %s", so_path);
-   void *h = dlopen(so_path, RTLD_NOW | RTLD_LOCAL);
+   const int use_system_loader = access("/data/local/tmp/panvk-use-system-loader", R_OK) == 0;
+   const char *loader_path = use_system_loader ? "libvulkan.so" : so_path;
+   LOGI("Loading driver from %s", loader_path);
+   void *h = dlopen(loader_path, RTLD_NOW | RTLD_LOCAL);
    if (!h) {
       LOGE("FAIL dlopen: %s", dlerror());
       return (*env)->NewStringUTF(env, "FAIL dlopen");
    }
 
-   icd_gipa_fn gipa = (icd_gipa_fn)dlsym(h, "vk_icdGetInstanceProcAddr");
+   icd_gipa_fn gipa = use_system_loader ? NULL : (icd_gipa_fn)dlsym(h, "vk_icdGetInstanceProcAddr");
    if (!gipa) gipa = (icd_gipa_fn)dlsym(h, "vkGetInstanceProcAddr");
    if (!gipa) {
       LOGE("FAIL gipa");
@@ -93,8 +95,23 @@ Java_org_panvk_loadertest_MainActivity_runPanvkTest(JNIEnv *env, jobject thiz, j
        VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
        VK_KHR_SURFACE_EXTENSION_NAME,
        VK_KHR_ANDROID_SURFACE_EXTENSION_NAME,
+       VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME,
+       VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME,
     };
-    VkInstanceCreateInfo ici = {.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, .pApplicationInfo = &app_info, .enabledExtensionCount = 4, .ppEnabledExtensionNames = inst_exts};
+    const char *layers[] = {"VK_LAYER_BCN_BCnLayer"};
+    if (use_system_loader) {
+       PFN_vkEnumerateInstanceLayerProperties eilp =
+          (PFN_vkEnumerateInstanceLayerProperties)gipa(NULL, "vkEnumerateInstanceLayerProperties");
+       uint32_t layer_count = 0;
+       VkLayerProperties layer_props[16];
+       VkResult layer_res = eilp ? eilp(&layer_count, NULL) : VK_ERROR_INITIALIZATION_FAILED;
+       if (layer_res == VK_SUCCESS && layer_count <= 16)
+          layer_res = eilp(&layer_count, layer_props);
+       LOGI("BCN_LOADER layer_count=%u result=%d", layer_count, layer_res);
+       for (uint32_t i = 0; layer_res == VK_SUCCESS && i < layer_count; i++)
+          LOGI("BCN_LOADER layer[%u]=%s", i, layer_props[i].layerName);
+    }
+    VkInstanceCreateInfo ici = {.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, .pApplicationInfo = &app_info, .enabledLayerCount = use_system_loader ? 1 : 0, .ppEnabledLayerNames = use_system_loader ? layers : NULL, .enabledExtensionCount = 6, .ppEnabledExtensionNames = inst_exts};
    VkInstance inst;
    if (ci(&ici, NULL, &inst) != VK_SUCCESS) {
       LOGE("FAIL vkCreateInstance");
@@ -115,8 +132,34 @@ Java_org_panvk_loadertest_MainActivity_runPanvkTest(JNIEnv *env, jobject thiz, j
       if (strstr(p.deviceName, "Mali")) phys = devs[i];
    }
    free(devs);
-   if (phys == VK_NULL_HANDLE) return (*env)->NewStringUTF(env, "FAIL no Mali physical device");
-   LOGI("Gate C: PASS");
+    if (phys == VK_NULL_HANDLE) return (*env)->NewStringUTF(env, "FAIL no Mali physical device");
+    LOGI("Gate C: PASS");
+
+    if (use_system_loader) {
+       static const VkFormat bc_formats[] = {
+          VK_FORMAT_BC1_RGB_UNORM_BLOCK, VK_FORMAT_BC1_RGB_SRGB_BLOCK,
+          VK_FORMAT_BC1_RGBA_UNORM_BLOCK, VK_FORMAT_BC1_RGBA_SRGB_BLOCK,
+          VK_FORMAT_BC2_UNORM_BLOCK, VK_FORMAT_BC2_SRGB_BLOCK,
+          VK_FORMAT_BC3_UNORM_BLOCK, VK_FORMAT_BC3_SRGB_BLOCK,
+          VK_FORMAT_BC4_UNORM_BLOCK, VK_FORMAT_BC4_SNORM_BLOCK,
+          VK_FORMAT_BC5_UNORM_BLOCK, VK_FORMAT_BC5_SNORM_BLOCK,
+          VK_FORMAT_BC6H_UFLOAT_BLOCK, VK_FORMAT_BC6H_SFLOAT_BLOCK,
+          VK_FORMAT_BC7_UNORM_BLOCK, VK_FORMAT_BC7_SRGB_BLOCK,
+       };
+       PFN_vkGetPhysicalDeviceFormatProperties gpdfp =
+          (PFN_vkGetPhysicalDeviceFormatProperties)gipa(inst, "vkGetPhysicalDeviceFormatProperties");
+       PFN_vkGetPhysicalDeviceFeatures gpdf =
+          (PFN_vkGetPhysicalDeviceFeatures)gipa(inst, "vkGetPhysicalDeviceFeatures");
+       VkPhysicalDeviceFeatures features;
+       gpdf(phys, &features);
+       LOGI("BCN_FEATURE textureCompressionBC=%u", features.textureCompressionBC);
+       for (uint32_t i = 0; i < sizeof(bc_formats) / sizeof(bc_formats[0]); i++) {
+          VkFormatProperties fp;
+          gpdfp(phys, bc_formats[i], &fp);
+          LOGI("BCN_FORMAT format=%d linear=0x%x optimal=0x%x buffer=0x%x", bc_formats[i],
+               fp.linearTilingFeatures, fp.optimalTilingFeatures, fp.bufferFeatures);
+       }
+    }
 
    /* Gate D: device create */
    PFN_vkGetPhysicalDeviceQueueFamilyProperties gqfp = (PFN_vkGetPhysicalDeviceQueueFamilyProperties)gipa(inst, "vkGetPhysicalDeviceQueueFamilyProperties");
@@ -143,8 +186,23 @@ Java_org_panvk_loadertest_MainActivity_runPanvkTest(JNIEnv *env, jobject thiz, j
        VK_KHR_MAINTENANCE1_EXTENSION_NAME,
        VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME,
        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+       VK_KHR_PRESENT_ID_2_EXTENSION_NAME,
+       VK_KHR_PRESENT_WAIT_2_EXTENSION_NAME,
+       VK_KHR_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME,
     };
-    VkDeviceCreateInfo dci = {.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO, .queueCreateInfoCount = 1, .pQueueCreateInfos = &qci, .enabledExtensionCount = 7, .ppEnabledExtensionNames = dev_exts};
+    VkPhysicalDeviceSwapchainMaintenance1FeaturesKHR swapchain_maintenance = {
+       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR,
+       .swapchainMaintenance1 = VK_TRUE,
+    };
+    VkPhysicalDevicePresentWait2FeaturesKHR present_wait2 = {
+       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_2_FEATURES_KHR,
+       .pNext = &swapchain_maintenance, .presentWait2 = VK_TRUE,
+    };
+    VkPhysicalDevicePresentId2FeaturesKHR present_id2 = {
+       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_2_FEATURES_KHR,
+       .pNext = &present_wait2, .presentId2 = VK_TRUE,
+    };
+    VkDeviceCreateInfo dci = {.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO, .pNext = &present_id2, .queueCreateInfoCount = 1, .pQueueCreateInfos = &qci, .enabledExtensionCount = 10, .ppEnabledExtensionNames = dev_exts};
    PFN_vkCreateDevice cd = (PFN_vkCreateDevice)gipa(inst, "vkCreateDevice");
    VkDevice dev;
    if (cd(phys, &dci, NULL, &dev) != VK_SUCCESS) return (*env)->NewStringUTF(env, "FAIL vkCreateDevice");
@@ -415,6 +473,9 @@ Java_org_panvk_loadertest_MainActivity_runPanvkTest(JNIEnv *env, jobject thiz, j
     PFN_vkGetSwapchainImagesKHR gsi = (PFN_vkGetSwapchainImagesKHR)gipa(inst, "vkGetSwapchainImagesKHR");
     PFN_vkAcquireNextImageKHR ani = (PFN_vkAcquireNextImageKHR)gipa(inst, "vkAcquireNextImageKHR");
     PFN_vkQueuePresentKHR qp = (PFN_vkQueuePresentKHR)gipa(inst, "vkQueuePresentKHR");
+    PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR gpsc2 = (PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR)gipa(inst, "vkGetPhysicalDeviceSurfaceCapabilities2KHR");
+    PFN_vkWaitForPresent2KHR wait_present2 = (PFN_vkWaitForPresent2KHR)gipa(inst, "vkWaitForPresent2KHR");
+    PFN_vkReleaseSwapchainImagesKHR release_images = (PFN_vkReleaseSwapchainImagesKHR)gipa(inst, "vkReleaseSwapchainImagesKHR");
     LOGI("vkCreateAndroidSurfaceKHR=%p DestroySurface=%p CreateSwapchain=%p Acquire=%p Present=%p",
          (void *)cas, (void *)dsurf, (void *)csc, (void *)ani, (void *)qp);
     if (!cas) {
@@ -434,6 +495,18 @@ Java_org_panvk_loadertest_MainActivity_runPanvkTest(JNIEnv *env, jobject thiz, j
        return (*env)->NewStringUTF(env, "FAIL ANDROID_SURFACE create");
     }
     LOGI("ANDROID_SURFACE=pass");
+
+    VkSurfacePresentModeKHR surface_mode = {.sType = VK_STRUCTURE_TYPE_SURFACE_PRESENT_MODE_KHR,
+                                             .presentMode = VK_PRESENT_MODE_FIFO_KHR};
+    VkPhysicalDeviceSurfaceInfo2KHR surface_info = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR,
+                                                     .pNext = &surface_mode, .surface = vk_surf};
+    VkSurfacePresentModeCompatibilityKHR compatibility = {.sType = VK_STRUCTURE_TYPE_SURFACE_PRESENT_MODE_COMPATIBILITY_KHR};
+    VkSurfaceCapabilities2KHR caps2 = {.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR,
+                                       .pNext = &compatibility};
+    VkResult surface_maintenance_result = gpsc2 ? gpsc2(phys, &surface_info, &caps2) : VK_ERROR_EXTENSION_NOT_PRESENT;
+    LOGI("PHASE7 VK_KHR_surface_maintenance1 status=%s result=%d compatibleModes=%u",
+         surface_maintenance_result == VK_SUCCESS && compatibility.presentModeCount ? "PASS" : "FAIL",
+         surface_maintenance_result, compatibility.presentModeCount);
 
     VkBool32 present_support = VK_FALSE;
     if (!gpss || gpss(phys, qi, vk_surf, &present_support) != VK_SUCCESS || !present_support) {
@@ -508,6 +581,7 @@ Java_org_panvk_loadertest_MainActivity_runPanvkTest(JNIEnv *env, jobject thiz, j
                             : VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
        .presentMode = chosen_pm,
        .clipped = VK_TRUE,
+       .flags = VK_SWAPCHAIN_CREATE_PRESENT_WAIT_2_BIT_KHR,
     };
     if (!csc) return (*env)->NewStringUTF(env, "FAIL CreateSwapchainKHR=0");
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
@@ -516,6 +590,23 @@ Java_org_panvk_loadertest_MainActivity_runPanvkTest(JNIEnv *env, jobject thiz, j
        return (*env)->NewStringUTF(env, "FAIL SWAPCHAIN");
     }
     LOGI("SWAPCHAIN=pass");
+    LOGI("PHASE7 WSI functions waitForPresent2=%p releaseSwapchainImages=%p", (void *)wait_present2, (void *)release_images);
+
+    VkFence release_fence;
+    VkFenceCreateInfo release_fci = {.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+    cf(dev, &release_fci, NULL, &release_fence);
+    uint32_t release_index = 0;
+    LOGI("PHASE7 VK_KHR_swapchain_maintenance1 acquire-before-release start");
+    VkResult release_acquire = ani(dev, swapchain, 5000000000ULL, VK_NULL_HANDLE, release_fence, &release_index);
+    VkResult release_wait = wff(dev, 1, &release_fence, VK_TRUE, 5000000000ULL);
+    VkReleaseSwapchainImagesInfoKHR release_info = {.sType = VK_STRUCTURE_TYPE_RELEASE_SWAPCHAIN_IMAGES_INFO_KHR,
+       .swapchain = swapchain, .imageIndexCount = 1, .pImageIndices = &release_index};
+    VkResult release_result = release_images && release_acquire == VK_SUCCESS && release_wait == VK_SUCCESS
+       ? release_images(dev, &release_info) : VK_ERROR_EXTENSION_NOT_PRESENT;
+    LOGI("PHASE7 VK_KHR_swapchain_maintenance1 status=%s acquire=%d wait=%d release=%d",
+         release_result == VK_SUCCESS ? "PASS" : "FAIL", release_acquire, release_wait, release_result);
+    PFN_vkDestroyFence destroy_release_fence = (PFN_vkDestroyFence)gipa(inst, "vkDestroyFence");
+    destroy_release_fence(dev, release_fence, NULL);
 
     gsi(dev, swapchain, &img_count, NULL);
     VkImage *sc_imgs = malloc(img_count * sizeof(*sc_imgs));
@@ -658,6 +749,10 @@ Java_org_panvk_loadertest_MainActivity_runPanvkTest(JNIEnv *env, jobject thiz, j
           .waitSemaphoreCount = 1, .pWaitSemaphores = &render_sem[f],
           .swapchainCount = 1, .pSwapchains = &swapchain, .pImageIndices = &img_idx,
        };
+       uint64_t present_id = (uint64_t)frame + 1;
+       VkPresentId2KHR present_id_info = {.sType = VK_STRUCTURE_TYPE_PRESENT_ID_2_KHR,
+          .swapchainCount = 1, .pPresentIds = &present_id};
+       pi.pNext = &present_id_info;
        VkResult pr = qp(queue, &pi);
        if (pr == VK_ERROR_OUT_OF_DATE_KHR) { out_of_date++; LOGE("QUEUE_PRESENT out_of_date frame=%d", frame); break; }
        if (pr == VK_ERROR_DEVICE_LOST) { device_lost = 1; LOGE("DEVICE_LOST present frame=%d", frame); break; }
@@ -667,6 +762,17 @@ Java_org_panvk_loadertest_MainActivity_runPanvkTest(JNIEnv *env, jobject thiz, j
        }
        if (pr == VK_SUBOPTIMAL_KHR) suboptimal++;
        presented++;
+       VkPresentWait2InfoKHR wait_info = {.sType = VK_STRUCTURE_TYPE_PRESENT_WAIT_2_INFO_KHR,
+          .presentId = present_id, .timeout = 5000000000ULL};
+       VkResult present_wait_result = wait_present2 ? wait_present2(dev, swapchain, &wait_info) : VK_ERROR_EXTENSION_NOT_PRESENT;
+       if (present_wait_result != VK_SUCCESS) {
+          LOGE("PHASE7 VK_KHR_present_wait2 status=FAIL frame=%d result=%d", frame, present_wait_result);
+          break;
+       }
+       if (frame == 0) {
+          LOGI("PHASE7 VK_KHR_present_id2 status=PASS presentId=%llu", (unsigned long long)present_id);
+          LOGI("PHASE7 VK_KHR_present_wait2 status=PASS presentId=%llu", (unsigned long long)present_id);
+       }
        if (frame % 50 == 0) LOGI("PRESENT_FRAMES=%d/300", presented);
     }
     LOGI("ACQUIRE=%d/300 GPU_RENDER_TO_SWAPCHAIN=%d/300 QUEUE_PRESENT=%d/300 PRESENT_FRAMES=%d/300 DEVICE_LOST=%d HANG=%d OUT_OF_DATE=%d SUBOPTIMAL=%d",

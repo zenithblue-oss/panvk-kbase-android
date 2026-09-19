@@ -1,0 +1,41 @@
+; SPIR-V
+; Version: 1.3
+; Generator: panvk Phase 7
+; Bound: 24
+; Schema: 0
+OpCapability Shader
+OpCapability ComputeDerivativeGroupQuadsKHR
+OpExtension "SPV_KHR_compute_shader_derivatives"
+OpMemoryModel Logical GLSL450
+OpEntryPoint GLCompute %main "main" %id %buffer
+OpExecutionMode %main LocalSize 2 2 1
+OpExecutionMode %main DerivativeGroupQuadsKHR
+OpDecorate %id BuiltIn LocalInvocationIndex
+OpDecorate %array ArrayStride 4
+OpMemberDecorate %block 0 Offset 0
+OpDecorate %block Block
+OpDecorate %buffer DescriptorSet 0
+OpDecorate %buffer Binding 0
+%void = OpTypeVoid
+%fn = OpTypeFunction %void
+%uint = OpTypeInt 32 0
+%float = OpTypeFloat 32
+%ptr_input_uint = OpTypePointer Input %uint
+%id = OpVariable %ptr_input_uint Input
+%array = OpTypeRuntimeArray %float
+%block = OpTypeStruct %array
+%ptr_ssbo_block = OpTypePointer StorageBuffer %block
+%ptr_ssbo_float = OpTypePointer StorageBuffer %float
+%buffer = OpVariable %ptr_ssbo_block StorageBuffer
+%uint_0 = OpConstant %uint 0
+%main = OpFunction %void None %fn
+%entry = OpLabel
+%i = OpLoad %uint %id
+%x = OpConvertUToF %float %i
+%dx = OpDPdx %float %x
+%dy = OpDPdy %float %x
+%sum = OpFAdd %float %dx %dy
+%out = OpAccessChain %ptr_ssbo_float %buffer %uint_0 %i
+OpStore %out %sum
+OpReturn
+OpFunctionEnd

@@ -1,0 +1,39 @@
+Phase 6 BCn loader evidence
+Date: 2026-09-19
+Device: Poco X6 Pro (2311DRK48I), Android 16, Mali-G615 MC6
+Source: leegao/bcn_layer@50993a2d51772567de9c36de4d523652773f0899
+Artifact SHA-256: 08c49c398cf1fcb746593dbd07565fe51a5bb79a20af500656dd3285774c44a5
+
+The Android GPU debug-layer settings selected VK_LAYER_BCN_BCnLayer for
+org.panvk.loadertest. Relevant logcat lines:
+
+I/GraphicsEnvironment: Vulkan debug layer list: VK_LAYER_BCN_BCnLayer
+D/vulkan: added instance layer 'VK_LAYER_BCN_BCnLayer' from library '.../lib/arm64/libVkLayer_BCN_BCnLayer.so'
+I/PanVKLoaderApp: BCN_LOADER layer_count=1 result=0
+I/PanVKLoaderApp: BCN_LOADER layer[0]=VK_LAYER_BCN_BCnLayer
+I/vulkan: Loaded layer VK_LAYER_BCN_BCnLayer
+I/PanVKLoaderApp: Device 0: Mali-G615 MC6 (vendor=0x13b5 api=0x4030f7)
+I/PanVKLoaderApp: Gate C: PASS
+I/PanVKLoaderApp: BCN_FEATURE textureCompressionBC=1
+I/PanVKLoaderApp: BCN_FORMAT format=131 linear=0x0 optimal=0x9401 buffer=0x0
+I/PanVKLoaderApp: BCN_FORMAT format=132 linear=0x0 optimal=0x9401 buffer=0x0
+I/PanVKLoaderApp: BCN_FORMAT format=133 linear=0x0 optimal=0x9401 buffer=0x0
+I/PanVKLoaderApp: BCN_FORMAT format=134 linear=0x0 optimal=0x9401 buffer=0x0
+I/PanVKLoaderApp: BCN_FORMAT format=135 linear=0x0 optimal=0x9401 buffer=0x0
+I/PanVKLoaderApp: BCN_FORMAT format=136 linear=0x0 optimal=0x9401 buffer=0x0
+I/PanVKLoaderApp: BCN_FORMAT format=137 linear=0x0 optimal=0x9401 buffer=0x0
+I/PanVKLoaderApp: BCN_FORMAT format=138 linear=0x0 optimal=0x9401 buffer=0x0
+I/PanVKLoaderApp: BCN_FORMAT format=139 linear=0x0 optimal=0x9401 buffer=0x0
+I/PanVKLoaderApp: BCN_FORMAT format=140 linear=0x0 optimal=0x9401 buffer=0x0
+I/PanVKLoaderApp: BCN_FORMAT format=141 linear=0x0 optimal=0x9401 buffer=0x0
+I/PanVKLoaderApp: BCN_FORMAT format=142 linear=0x0 optimal=0x9401 buffer=0x0
+I/PanVKLoaderApp: BCN_FORMAT format=143 linear=0x0 optimal=0x9401 buffer=0x0
+I/PanVKLoaderApp: BCN_FORMAT format=144 linear=0x0 optimal=0x9401 buffer=0x0
+I/PanVKLoaderApp: BCN_FORMAT format=145 linear=0x0 optimal=0x9401 buffer=0x0
+I/PanVKLoaderApp: BCN_FORMAT format=146 linear=0x0 optimal=0x9401 buffer=0x0
+I/PanVKLoaderApp: runPanvkTest completed: FAIL vkCreateDevice
+
+Interpretation: layer load and BC format interception passed against Android's
+system Mali ICD. The staged PanVK ICD was not selected by this loader path.
+Direct PanVK loading cannot exercise Vulkan layers. No crash occurred. Device
+creation failed; known-block correctness and wider semantics remain untested.

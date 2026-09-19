@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "target": {
+    "serial": "Y5WWBMJVOZSK4HU8",
+    "model": "2311DRK48I",
+    "gpu": "Mali-G615 MC6",
+    "icd": "/data/local/tmp/libvulkan_panfrost.so",
+    "icdSha256": "8a17706b592d1540b129045062e07d2eca6cf521c32fdba28b9c0da193558305"
+  },
+  "suite": [
+    "tests/features/sync-features.c",
+    "tests/features/compute-features.c",
+    "tests/features/graphics-features.c",
+    "tests/features/texture-features.c"
+  ],
+  "results": [
+    {
+      "feature": "descriptorIndexing",
+      "status": "PASS",
+      "evidence": {"runtimeDescriptorArray": true, "descriptorBindingPartiallyBound": true, "descriptorBindingVariableDescriptorCount": 4, "sampledImageNonUniformIndex": 3, "storageBufferNonUniformIndex": 2, "checksum": 123}
+    },
+    {
+      "feature": "timelineSemaphore",
+      "status": "PASS",
+      "evidence": {"gpuChain": "1..64", "cpuWait": 64, "cpuSignal": 65, "cpuToGpuWait": 65, "gpuSignal": 66, "counter": 66}
+    },
+    {
+      "feature": "dynamicRendering",
+      "status": "PASS",
+      "evidence": {"vkCmdBeginRendering": true, "vkCmdEndRendering": true, "trianglePixels": 1154, "checksum": "0x9a7f1b8fec90af07"}
+    },
+    {
+      "feature": "synchronization2",
+      "status": "PASS",
+      "evidence": {"vkCmdPipelineBarrier2": true, "vkQueueSubmit2": true, "VkSemaphoreSubmitInfo": true, "VkCommandBufferSubmitInfo": true, "completionTimelineValue": 67}
+    },
+    {
+      "feature": "bufferDeviceAddress",
+      "status": "PASS",
+      "evidence": {"usage": "VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT", "shaderDereferenceIndex": 3, "readback": "0x2468ace0"}
+    },
+    {
+      "feature": "pushDescriptor",
+      "status": "PASS",
+      "evidence": {"api": "vkCmdPushDescriptorSetKHR", "resource": "storage buffers", "readback": "0xb791f3dd"}
+    },
+    {
+      "feature": "robustBufferAccess",
+      "status": "PASS",
+      "evidence": {"boundUintCount": 1, "shaderReadIndex": 64, "readback": "0x00000000"}
+    },
+    {
+      "feature": "samplerAnisotropy",
+      "status": "PASS",
+      "evidence": {"maxAnisotropy": 4, "sampledFormats": 9, "deterministicRuns": 2}
+    },
+    {
+      "feature": "wideLinesLargePoints",
+      "status": "PASS",
+      "evidence": {"lineWidth": 5, "greenPixels": 185, "pointSize": 11, "yellowPixels": 121, "lineWidthRange": [0.0, 8.0], "pointSizeRange": [0.1, 4095.9], "lineWidthGranularity": 0.008, "pointSizeGranularity": 0.062}
+    },
+    {
+      "feature": "ETC2",
+      "status": "PASS",
+      "evidence": {
+        "sampling": true, "linearFiltering": true, "mipLevel1": true,
+        "formats": {
+          "ETC2_RGB_UNORM": "0xf1cedb25", "ETC2_RGBA_UNORM": "0x7bcedb25",
+          "EAC_R11_UNORM": "0x8a3ef905", "EAC_R11_SNORM": "0xe96c9705",
+          "EAC_RG11_UNORM": "0xca6eb905", "EAC_RG11_SNORM": "0xa21f1705"
+        }
+      }
+    },
+    {
+      "feature": "ASTC_LDR",
+      "status": "PASS",
+      "evidence": {"sampling": true, "linearFiltering": true, "mipLevel1": true, "ASTC_4x4_UNORM": {"pixel": [0.25, 0.5, 0.75, 1.0], "checksum": "0xb0e91905"}, "ASTC_4x4_SRGB": {"pixel": [0.0512821, 0.215873, 0.527228, 1.0], "checksum": "0xc4f066ad"}}
+    },
+    {
+      "feature": "ASTC_HDR",
+      "status": "PASS",
+      "evidence": {"format": "VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK_EXT", "pixel": [1.0, 2.0, 3.0, 1.0], "checksum": "0xfee91905", "sampling": true, "linearFiltering": true, "mipLevel1": true}
+    }
+  ],
+  "commands": [
+    {"command": "tests/features/build-sync-features.sh", "result": "PASS: glslang SPIR-V generation; x86-64 host and Android 35 AArch64 binaries; -Werror"},
+    {"command": "adb -s Y5WWBMJVOZSK4HU8 push build/feature-tests/{compute,graphics,texture}-features-android /data/local/tmp/", "result": "PASS"},
+    {"command": "adb -s Y5WWBMJVOZSK4HU8 shell 'timeout 60 /data/local/tmp/panvk-<compute|graphics|texture>-features /data/local/tmp/libvulkan_panfrost.so'", "result": "PASS: all three exit 0; repeated twice; byte-identical JSON records"},
+    {"command": "adb -s Y5WWBMJVOZSK4HU8 shell 'timeout 30 /data/local/tmp/panvk-sync-features /data/local/tmp/libvulkan_panfrost.so'", "result": "PASS: exit 0"}
+  ]
+}

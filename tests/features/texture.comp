@@ -1,0 +1,11 @@
+#version 460
+layout(local_size_x = 1) in;
+layout(set = 0, binding = 0) uniform sampler2D input_image;
+layout(set = 0, binding = 1, std430) buffer Output { vec4 samples[4]; } output_data;
+void main()
+{
+   output_data.samples[0] = textureLod(input_image, vec2(0.125, 0.125), 0.0);
+   output_data.samples[1] = textureLod(input_image, vec2(0.875, 0.875), 0.0);
+   output_data.samples[2] = textureLod(input_image, vec2(0.5, 0.5), 0.0);
+   output_data.samples[3] = textureLod(input_image, vec2(0.5, 0.5), 1.0);
+}

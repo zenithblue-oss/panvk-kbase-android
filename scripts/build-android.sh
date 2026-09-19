@@ -35,7 +35,7 @@ mkdir -p "$DDIR"
 # export PATH with build/host-tools/bin (see bootstrap-host-tools.sh) or pass
 # --native-file with [binaries] mesa_clc/vtn_bindgen2 paths.
 meson setup "$BDIR" "$MESA" --cross-file "$BDIR.cross.ini" \
-  -Dbuildtype=release -Dplatforms=android -Dandroid-stub=true \
+  -Dbuildtype=release -Dplatforms=android -Dandroid-stub=true -Dandroid-strict=false \
   -Dgallium-drivers= -Dvulkan-drivers=panfrost -Dpanfrost-kmds=kbase \
   -Dmesa-clc=system -Dprecomp-compiler=system \
   -Degl=disabled -Dgles1=disabled -Dgles2=disabled -Dopengl=false \

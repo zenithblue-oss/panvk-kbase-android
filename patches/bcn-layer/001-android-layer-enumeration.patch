@@ -1,0 +1,76 @@
+From: panvk-kbase-android worker <panvk-worker@localhost>
+Subject: [PATCH bcn-layer 001] export Android layer enumeration entrypoints
+
+Purpose: Android's Vulkan loader discovers APK-packaged layers by opening
+ libVkLayer_*.so and requiring the standard instance layer and extension
+ enumeration exports. The pinned layer only exports custom proc-address
+ entrypoints named by its desktop JSON manifest, so Android rejects it.
+Source/Reference: local Android 16 loader log on Poco X6 Pro:
+ "missing some instance enumeration functions".
+Tested GPU: Poco X6 Pro / Mali-G615 MC6.
+Tested Kbase UAPI: CSF 1.21.
+bcn_layer base: 50993a2d51772567de9c36de4d523652773f0899.
+Dependencies: none.
+Validation test: APK layer enumeration must list VK_LAYER_BCN_BCnLayer.
+
+diff --git a/src/bcn_layer.cpp b/src/bcn_layer.cpp
+--- a/src/bcn_layer.cpp
++++ b/src/bcn_layer.cpp
+@@ -14,5 +14,41 @@ std::unordered_map<void *, VkPhysicalDeviceFeatures> featuresMap;
+ std::unordered_map<void *, VkPhysicalDeviceProperties2> propertiesMap;
+ std::unordered_map<void *, VkPhysicalDeviceDriverProperties> driverPropertiesMap;
+ std::unordered_map<void *, std::shared_ptr<struct device>> deviceMap;
+ 
++VK_LAYER_EXPORT VkResult VKAPI_CALL
++vkEnumerateInstanceLayerProperties(uint32_t *pPropertyCount,
++                                   VkLayerProperties *pProperties)
++{
++    static const VkLayerProperties properties = {
++        "VK_LAYER_BCN_BCnLayer",
++        VK_MAKE_API_VERSION(0, 1, 0, 0),
++        1,
++        "BCn Decompression Layer",
++    };
++
++    if (!pPropertyCount)
++        return VK_ERROR_INITIALIZATION_FAILED;
++    if (!pProperties) {
++        *pPropertyCount = 1;
++        return VK_SUCCESS;
++    }
++    if (*pPropertyCount == 0)
++        return VK_INCOMPLETE;
++    *pProperties = properties;
++    *pPropertyCount = 1;
++    return VK_SUCCESS;
++}
++
++VK_LAYER_EXPORT VkResult VKAPI_CALL
++vkEnumerateInstanceExtensionProperties(const char *pLayerName,
++                                       uint32_t *pPropertyCount,
++                                       VkExtensionProperties *pProperties)
++{
++    if (!pPropertyCount || !pLayerName ||
++        strcmp(pLayerName, "VK_LAYER_BCN_BCnLayer") != 0)
++        return VK_ERROR_LAYER_NOT_PRESENT;
++    *pPropertyCount = 0;
++    return VK_SUCCESS;
++}
++
+ bool bcn_compute_auto = false;
+@@ -1180,3 +1216,15 @@ BCnLayer_GetInstanceProcAddr(VkInstance instance,
+ 		return table.GetInstanceProcAddr(instance, pName);
+ 	}
+ }
++
++VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL
++vkGetInstanceProcAddr(VkInstance instance, const char *pName)
++{
++    return BCnLayer_GetInstanceProcAddr(instance, pName);
++}
++
++VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL
++vkGetDeviceProcAddr(VkDevice device, const char *pName)
++{
++    return BCnLayer_GetDeviceProcAddr(device, pName);
++}

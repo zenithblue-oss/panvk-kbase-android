@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-09-19",
+  "reference": {
+    "repo": "https://github.com/leegao/bcn_layer",
+    "commit": "50993a2d51772567de9c36de4d523652773f0899",
+    "license": "MIT",
+    "libGPUCountersCommit": "9fe9f4b3e9ee7d9ddb0274991ecf7ae9679be542"
+  },
+  "nativeTextureCompressionBC": false,
+  "baseIcdModified": false,
+  "component": "libbcn_layer.so",
+  "build": {
+    "target": "Android arm64-v8a API 26",
+    "status": "PASS",
+    "artifactProduced": true,
+    "sha256": "08c49c398cf1fcb746593dbd07565fe51a5bb79a20af500656dd3285774c44a5",
+    "shaderTool": "Slang 2026.10.2 from pinned-commit Android CI configuration",
+    "localPatch": "patches/bcn-layer/001-android-layer-enumeration.patch"
+  },
+  "load": {
+    "androidLoaderSystemIcd": "PASS",
+    "androidLoaderPanvkIcd": "BLOCKED",
+    "directIcd": "NOT_APPLICABLE",
+    "evidence": "validation/g615-v11-csf/beta3-phase6-bcn-loader.txt"
+  },
+  "integrationConclusion": "A",
+  "packagedByDefault": false,
+  "results": {
+    "formats": {
+      "BC1_RGB_UNORM": {"status": "NOT_RUN"}, "BC1_RGB_SRGB": {"status": "NOT_RUN"},
+      "BC1_RGBA_UNORM": {"status": "NOT_RUN"}, "BC1_RGBA_SRGB": {"status": "NOT_RUN"},
+      "BC2_UNORM": {"status": "NOT_RUN"}, "BC2_SRGB": {"status": "NOT_RUN"},
+      "BC3_UNORM": {"status": "NOT_RUN"}, "BC3_SRGB": {"status": "NOT_RUN"},
+      "BC4_UNORM": {"status": "NOT_RUN"}, "BC4_SNORM": {"status": "BLOCKED"},
+      "BC5_UNORM": {"status": "NOT_RUN"}, "BC5_SNORM": {"status": "BLOCKED"},
+      "BC6H_UFLOAT": {"status": "BLOCKED"}, "BC6H_SFLOAT": {"status": "BLOCKED"},
+      "BC7_UNORM": {"status": "NOT_RUN"}, "BC7_SRGB": {"status": "NOT_RUN"}
+    },
+    "cases": {
+      "known_encoded_block_cpu_reference": {"status": "NOT_RUN"}, "4x4": {"status": "NOT_RUN"},
+      "non_multiple_of_4": {"status": "NOT_RUN"}, "1x1": {"status": "NOT_RUN"},
+      "2x2": {"status": "NOT_RUN"}, "large_texture": {"status": "NOT_RUN"},
+      "multiple_mip_levels": {"status": "NOT_RUN"}, "2d_array": {"status": "NOT_RUN"},
+      "cube": {"status": "NOT_RUN"}, "partial_buffer_upload": {"status": "NOT_RUN"},
+      "nonzero_buffer_offset": {"status": "NOT_RUN"}, "buffer_row_length": {"status": "BLOCKED"},
+      "buffer_image_height": {"status": "BLOCKED"}, "multiple_copy_regions": {"status": "NOT_RUN"}
+    },
+    "operations": {
+      "upload": {"status": "NOT_RUN"}, "sample": {"status": "NOT_RUN"},
+      "nearest": {"status": "NOT_RUN"}, "linear": {"status": "NOT_RUN"},
+      "blit_source": {"status": "NOT_RUN"}, "copy_image": {"status": "BLOCKED"},
+      "copy_image2": {"status": "BLOCKED"}, "copy_buffer_to_image": {"status": "NOT_RUN"},
+      "copy_buffer_to_image2": {"status": "NOT_RUN"}, "destroy_recreate_1000": {"status": "NOT_RUN"}
+    },
+    "stress": {
+      "large_texture_stream": {"status": "NOT_RUN"}, "mip_streaming": {"status": "NOT_RUN"},
+      "multiple_command_buffers": {"status": "NOT_RUN"}, "multiple_queues_if_exposed": {"status": "NOT_RUN"},
+      "cold_process_restart": {"status": "NOT_RUN"}, "wsi_bc": {"status": "NOT_RUN"},
+      "ahb_bc": {"status": "NOT_RUN"}
+    }
+  },
+  "performance": {
+    "locallyMeasured": false,
+    "decodeMBps": null, "astcMBps": null, "endToEndMBps": null,
+    "uploadLatencyMs": null, "firstUseLatencyMs": null,
+    "vramExpansion": null, "cpuTimeMs": null, "gpuTimeMs": null,
+    "upstreamReportedG615": {"decodeMBps": 785.4, "astcMBps": 554.4, "endToEndMBps": 289.1}
+  },
+  "blockers": [
+    "Android loader path selected the system Mali ICD, not the staged PanVK ICD",
+    "Device creation failed after layer load and format queries; known-block correctness not run",
+    "Decoded BC source image copies unsupported",
+    "Padded buffer row and slice strides mishandled",
+    "ASTC/ETC2 paths violate BC4/5 SNORM and BC6H semantics",
+    "No target device correctness, stress, latency, memory, CPU, or GPU measurements"
+  ]
+}

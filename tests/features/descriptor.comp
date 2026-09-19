@@ -1,0 +1,13 @@
+#version 460
+#extension GL_EXT_nonuniform_qualifier : require
+layout(local_size_x = 1) in;
+layout(set = 0, binding = 0, std430) buffer Output { uint value; } output_data;
+layout(set = 0, binding = 1, std430) readonly buffer Input { uint value; } inputs[];
+layout(set = 0, binding = 2) uniform sampler2D images[];
+void main()
+{
+   uint i = 2u;
+   uint j = 3u;
+   output_data.value = inputs[nonuniformEXT(i)].value +
+      uint(texelFetch(images[nonuniformEXT(j)], ivec2(0), 0).r * 255.0 + 0.5);
+}

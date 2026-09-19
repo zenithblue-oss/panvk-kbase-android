@@ -14,21 +14,22 @@ PATCH_SERIES_ID="$(python3 "$ROOT/scripts/compute-patch-series-id.py" --profile 
 OUT="$ROOT/dist/PanVK-Kbase-Android-$PROFILE-$VER-${MESA_SHA:0:8}.adpkg.zip"
 STAGE="$(mktemp -d)"; trap 'rm -rf "$STAGE"' EXIT
 cp "$SRC" "$STAGE/libvulkan_panfrost.so"
-python3 - "$STAGE/meta.json" "$PROFILE" "$MESA_SHA" "$PATCH_SERIES_ID" "$ROOT" <<'EOF'
+python3 - "$STAGE/meta.json" "$PROFILE" "$MESA_SHA" "$PATCH_SERIES_ID" "$ROOT" "$VER" <<'EOF'
 import sys, json, pathlib
-out, profile, sha, psid, root = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
+out, profile, sha, psid, root, version = sys.argv[1:]
 prof = {}
 pp = pathlib.Path(root) / "profiles" / f"{profile}.json"
 if pp.is_file():
     prof = json.loads(pp.read_text())
 meta = {"schemaVersion":1,"name":"PanVK Kbase G615","author":"panvk-kbase-android",
- "packageVersion":"0.1.0-beta.2","vendor":"Mesa","driverVersion":"Mesa 26.3.0-devel","minApi":35,
+ "packageVersion":version.removeprefix("v"),"vendor":"Mesa","driverVersion":"Mesa 26.3.0-devel","minApi":35,
  "description":"Experimental PanVK Kbase driver for supported Mali devices. minApi=35 until API 29 rebuild is proven.",
  "libraryName":"libvulkan_panfrost.so","abi":"android-aarch64-bionic","backend":"panvk-kbase",
  "kernelInterface":"mali_kbase","profile":profile,
  "gpuId":prof.get("gpuId","0xb8a31030"),"panArch":prof.get("panArch",11),
  "frontend":prof.get("frontend","CSF"),"kbaseUapi":prof.get("kbaseUapi","1.21"),
- "sourceCommit":sha,"patchSeriesId":psid}
+ "sourceCommit":sha,"patchSeriesId":psid,"prerelease":True,"published":False,
+ "bcCompatibility":{"included":False,"reason":"Phase 6 direct-PanVK composition and correctness workloads blocked"}}
 json.dump(meta, open(out,'w'), indent=2)
 open(out,'a').write('\n')
 EOF
@@ -41,8 +42,9 @@ for c in \
 done
 [ -n "$MATRIX" ] || { echo "missing runtime-feature-matrix.json (P10/P13)" >&2; exit 1; }
 cp "$MATRIX" "$STAGE/runtime-feature-matrix.json"
+cp "$ROOT/dist/extension-gap.json" "$STAGE/extension-gap.json"
 (cd "$STAGE" && sha256sum libvulkan_panfrost.so > SHA256SUMS.txt)
 python3 "$ROOT/scripts/generate-release-manifest.py" --profile "$PROFILE" --abi android-aarch64-bionic --stage "$STAGE"
-(cd "$STAGE" && zip -q "$OUT" libvulkan_panfrost.so meta.json MANIFEST.json SHA256SUMS.txt SOURCE.json VALIDATION.json runtime-feature-matrix.json)
+(cd "$STAGE" && zip -q "$OUT" libvulkan_panfrost.so meta.json MANIFEST.json SHA256SUMS.txt SOURCE.json VALIDATION.json runtime-feature-matrix.json extension-gap.json)
 "$ROOT/scripts/validate-package.sh" "$OUT"
 echo "OK $OUT"

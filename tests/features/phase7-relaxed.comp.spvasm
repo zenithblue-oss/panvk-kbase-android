@@ -1,0 +1,17 @@
+; SPIR-V
+; Version: 1.6
+; Generator: panvk Phase 7
+; Bound: 8
+; Schema: 0
+OpCapability Shader
+OpExtension "SPV_KHR_relaxed_extended_instruction"
+%nonsemantic = OpExtInstImport "NonSemantic.DebugPrintf"
+OpMemoryModel Logical GLSL450
+OpEntryPoint GLCompute %main "main"
+OpExecutionMode %main LocalSize 1 1 1
+%void = OpTypeVoid
+%fn = OpTypeFunction %void
+%main = OpFunction %void None %fn
+%entry = OpLabel
+OpReturn
+OpFunctionEnd

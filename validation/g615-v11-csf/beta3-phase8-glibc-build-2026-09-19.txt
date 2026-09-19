@@ -1,0 +1,1505 @@
+PHASE8_GLIBC_CLEAN_BUILD
+COMMAND=ANDROID_SERIAL=Y5WWBMJVOZSK4HU8 ./scripts/build-glibc.sh --profile g615-v11-csf --clean
+Host is x86_64, dispatching clean glibc build on device chroot via ADB...
+Cleaning device /tmp/build-glibc...
+Syncing mesa tree to device chroot...
+Configuring and building in chroot...
+The Meson build system
+Version: 1.12.0
+Source dir: /tmp/mesa
+Build dir: /tmp/build-glibc
+Build type: native build
+Project name: mesa
+Project version: 26.3.0-devel
+C compiler for the host machine: cc (gcc 15.2.0 "cc (Alpaquita 15.2.0) 15.2.0")
+C linker for the host machine: cc ld.bfd 2.45.1
+C++ compiler for the host machine: c++ (gcc 15.2.0 "c++ (Alpaquita 15.2.0) 15.2.0")
+C++ linker for the host machine: c++ ld.bfd 2.45.1
+Host machine cpu family: aarch64
+Host machine cpu: aarch64
+Checking for size of "void*" : 8 
+Checking if "-mtls-dialect=gnu2" runs: DID NOT COMPILE
+Checking if "-mtls-dialect=desc" runs: YES
+Dependency libglvnd for host machine skipped: feature glvnd disabled
+Program glslangValidator found: NO
+Found pkg-config: YES (/usr/bin/pkg-config) 3.0.6
+Run-time dependency libdrm found: YES 2.4.134
+Dependency libva for host machine skipped: feature gallium-va disabled
+Program python3.16 found: NO
+Program python3.15 found: NO
+Program python3.14 found: YES 3.14.7 3.14.7 (/usr/bin/python3.14)
+Fetching value of define "ETIME" : 62 
+Compiler for C supports arguments -gsplit-dwarf: YES 
+Compiler for C supports link arguments -Wl,--gdb-index: NO 
+Checking for function "bswap32" : YES 
+Checking for function "bswap64" : YES 
+Checking for function "clz" : YES 
+Checking for function "clzll" : YES 
+Checking for function "ctz" : YES 
+Checking for function "expect" : YES 
+Checking for function "ffs" : YES 
+Checking for function "ffsll" : YES 
+Checking for function "popcount" : YES 
+Checking for function "popcountll" : YES 
+Checking for function "unreachable" : YES 
+Checking for function "types_compatible_p" : YES 
+Checking for function "__builtin_add_overflow" : YES 
+Checking for function "__builtin_add_overflow_p" : YES 
+Checking for function "__builtin_sub_overflow_p" : YES 
+Checking for function "__builtin_arm_get_fpscr" : NO 
+Checking for function "__builtin_arm_set_fpscr" : NO 
+Checking for function "__builtin_aarch64_get_fpcr" : YES 
+Checking for function "__builtin_aarch64_set_fpcr" : YES 
+Compiler for C supports function attribute const: YES 
+Compiler for C supports function attribute flatten: YES 
+Compiler for C supports function attribute malloc: YES 
+Compiler for C supports function attribute pure: YES 
+Compiler for C supports function attribute unused: YES 
+Compiler for C supports function attribute warn_unused_result: YES 
+Compiler for C supports function attribute weak: YES 
+Compiler for C supports function attribute format: YES 
+Compiler for C supports function attribute packed: YES 
+Compiler for C supports function attribute returns_nonnull: YES 
+Compiler for C supports function attribute alias: YES 
+Compiler for C supports function attribute noreturn: YES 
+Compiler for C supports function attribute optimize: YES 
+Compiler for C supports function attribute cold: YES 
+Compiler for C supports function attribute visibility:hidden: YES 
+Checking if "__uint128_t" compiles: YES 
+Checking for function "reallocarray" : YES 
+Checking for function "fmemopen" : YES 
+Checking if "gc-sections" links: YES 
+Compiler for C supports arguments -Werror=implicit-function-declaration: YES 
+Compiler for C supports arguments -Werror=missing-prototypes: YES 
+Compiler for C supports arguments -Werror=return-type: YES 
+Compiler for C supports arguments -Werror=empty-body: YES 
+Compiler for C supports arguments -Werror=incompatible-pointer-types: YES 
+Compiler for C supports arguments -Werror=int-conversion: YES 
+Compiler for C supports arguments -Wimplicit-fallthrough: YES 
+Compiler for C supports arguments -Wmisleading-indentation: YES 
+Compiler for C supports arguments -Wno-error=maybe-uninitialized: YES 
+Compiler for C supports arguments -Wno-missing-field-initializers: YES 
+Compiler for C supports arguments -Wno-format-truncation: YES 
+Compiler for C supports arguments -Wno-nonnull-compare: YES 
+Compiler for C supports arguments -fno-math-errno: YES 
+Compiler for C supports arguments -fno-trapping-math: YES 
+Compiler for C supports arguments -Qunused-arguments: NO 
+Compiler for C supports arguments -fno-common: YES 
+Compiler for C supports arguments -Wno-unknown-pragmas: YES 
+Compiler for C supports arguments -Wno-microsoft-enum-value: NO 
+Compiler for C supports arguments -Wno-unused-function: YES 
+Compiler for C supports arguments -Werror=format: YES 
+Compiler for C supports arguments -Wformat-security: YES 
+Compiler for C supports arguments -Werror=thread-safety: NO 
+Compiler for C supports arguments -ffunction-sections: YES 
+Compiler for C supports arguments -fdata-sections: YES 
+Compiler for C supports arguments -Wno-unused-variable: YES 
+Compiler for C supports arguments -Wno-unused-but-set-variable: YES 
+Compiler for C supports arguments /wd4189: NO 
+Compiler for C++ supports arguments -Werror=return-type: YES 
+Compiler for C++ supports arguments -Werror=empty-body: YES 
+Compiler for C++ supports arguments -Wmisleading-indentation: YES 
+Compiler for C++ supports arguments -Wno-error=maybe-uninitialized: YES 
+Compiler for C++ supports arguments -Wno-non-virtual-dtor: YES 
+Compiler for C++ supports arguments -Wno-missing-field-initializers: YES 
+Compiler for C++ supports arguments -Wno-format-truncation: YES 
+Compiler for C++ supports arguments -fno-math-errno: YES 
+Compiler for C++ supports arguments -fno-trapping-math: YES 
+Compiler for C++ supports arguments -Qunused-arguments: NO 
+Compiler for C++ supports arguments -flifetime-dse=1: YES 
+Compiler for C++ supports arguments -Wno-unknown-pragmas: YES 
+Compiler for C++ supports arguments -Wno-microsoft-enum-value: NO 
+Compiler for C++ supports arguments -Werror=format: YES 
+Compiler for C++ supports arguments -Wformat-security: YES 
+Compiler for C++ supports arguments -ffunction-sections: YES 
+Compiler for C++ supports arguments -fdata-sections: YES 
+Compiler for C++ supports arguments -Wno-unused-variable: YES 
+Compiler for C++ supports arguments -Wno-unused-but-set-variable: YES 
+Compiler for C++ supports arguments /wd4189: NO 
+Compiler for C supports arguments -Wno-override-init: YES 
+Compiler for C supports arguments -Wno-initializer-overrides: NO 
+Compiler for C supports arguments -Werror=pointer-arith: YES 
+Compiler for C supports arguments -Werror=vla: YES 
+Compiler for C supports arguments -Werror=gnu-empty-initializer: NO 
+Compiler for C supports arguments -Wgnu-pointer-arith: NO 
+Compiler for C++ supports arguments -Werror=pointer-arith: YES 
+Compiler for C++ supports arguments -Werror=vla: YES 
+Compiler for C++ supports arguments -Werror=gnu-empty-initializer: NO 
+Compiler for C++ supports arguments -Wgnu-pointer-arith: NO 
+Compiler for C supports arguments -Werror=date-time: YES 
+Compiler for C supports arguments -Werror=gnu-alignof-expression: NO 
+Compiler for C supports arguments -Werror=ignored-qualifiers: YES 
+Compiler for C supports arguments -Werror=implicit-fallthrough: YES 
+Compiler for C supports arguments -Werror=int-conversion: YES (cached)
+Compiler for C supports arguments -Werror=missing-prototypes: YES (cached)
+Compiler for C supports arguments -Werror=pragma-pack: NO 
+Compiler for C supports arguments -Werror=pragma-pack-suspicious-include: NO 
+Compiler for C supports arguments -Werror=sizeof-array-div: YES 
+Compiler for C supports arguments -Werror=string-plus-int: NO 
+Compiler for C supports arguments -Werror=unreachable-code-loop-increment: NO 
+Compiler for C++ supports arguments -D_LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS: YES 
+Compiler for C++ supports arguments -Werror=date-time: YES 
+Compiler for C++ supports arguments -Werror=gnu-alignof-expression: NO 
+Compiler for C++ supports arguments -Werror=ignored-qualifiers: YES 
+Compiler for C++ supports arguments -Werror=implicit-fallthrough: YES 
+Compiler for C++ supports arguments -Werror=pragma-pack: NO 
+Compiler for C++ supports arguments -Werror=pragma-pack-suspicious-include: NO 
+Compiler for C++ supports arguments -Werror=sizeof-array-div: YES 
+Compiler for C++ supports arguments -Werror=string-plus-int: NO 
+Compiler for C++ supports arguments -Werror=unreachable-code-loop-increment: NO 
+Compiler for C++ supports arguments -Werror=missing-declarations: YES 
+Checking for function "__builtin_ia32_clflushopt" : NO 
+Checking if "GCC atomic builtins" compiles: YES 
+Checking if "GCC atomic builtins required -latomic" links: YES 
+Checking if "GCC 64bit atomics" with dependency  links: YES 
+Library ws2_32 found: NO
+Header "sys/sysmacros.h" has symbol "major" : YES 
+Header "sys/sysmacros.h" has symbol "minor" : YES 
+Header "sys/sysmacros.h" has symbol "makedev" : YES 
+Header "sys/mkdev.h" has symbol "major" : NO 
+Check usable header "sched.h" : YES 
+Checking for function "sched_getaffinity" : YES 
+Check usable header "xlocale.h" : NO 
+Check usable header "linux/futex.h" : YES 
+Check usable header "endian.h" : YES 
+Check usable header "dlfcn.h" : YES 
+Check usable header "sys/shm.h" : YES 
+Check usable header "cet.h" : NO 
+Check usable header "pthread_np.h" : NO 
+Check usable header "poll.h" : YES 
+Check usable header "sys/inotify.h" : YES 
+Check usable header "linux/udmabuf.h" : YES 
+Checking for function "strtof" : YES 
+Checking for function "mkostemp" : YES 
+Checking for function "memfd_create" : YES 
+Checking for function "random_r" : YES 
+Checking for function "flock" : YES 
+Checking for function "strtok_r" : YES 
+Checking for function "getrandom" : YES 
+Checking for function "qsort_s" : NO 
+Checking for function "posix_fallocate" : YES 
+Checking for function "secure_getenv" : YES 
+Checking for function "sysconf" : YES 
+Checking if "GNU qsort_r" links: YES 
+Header "time.h" has symbol "struct timespec" : YES 
+Checking for function "thrd_create" : YES 
+Header "errno.h" has symbol "program_invocation_name" : YES 
+Header "math.h" has symbol "issignaling" : YES 
+Checking for function "posix_memalign" : YES 
+Checking whether type "struct dirent" has member "d_type" : YES 
+Checking if "strtod has locale support" links: YES 
+Checking if "Bsymbolic" links: YES 
+Checking if "version-script" links: YES 
+Checking if "dynamic-list" links: YES 
+Compiler for C supports link arguments -Wl,--build-id=sha1: YES 
+Checking for function "dlopen" : YES 
+Checking for function "dladdr" with dependency : YES 
+Checking for function "dl_iterate_phdr" : YES 
+Checking for function "clock_gettime" : YES 
+Run-time dependency zlib found: YES 1.3.2
+Found CMake: /usr/bin/cmake (4.3.4)
+Run-time dependency libdisplay-info found: NO  (tried pkg-config and cmake)
+Dependency libzstd for host machine skipped: feature zstd disabled
+Run-time dependency threads found: YES
+Checking for function "pthread_setaffinity_np" with dependency threads: YES 
+Run-time dependency expat found: YES 2.8.4
+Library m found: YES
+Run-time dependency libudev found: NO  (tried pkg-config and cmake)
+llvm-config found: YES (/usr/bin/llvm-config-22) 22.1.8
+Run-time dependency LLVM (modules: bitwriter, core, coverage, engine, executionengine, instcombine, irreader, libdriver, linker, lto, mcdisassembler, mcjit, native, option, scalaropts, target, transformutils, abi, all-targets, coroutines, frontenddriver, frontendhlsl, lto, windowsdriver) found: YES 22.1.8
+Run-time dependency llvmspirvlib found: YES 22.1.0.0
+Run-time dependency spirv-tools found: YES 2026.3.1
+Library clang-cpp found: YES
+Run-time dependency lua54 found: NO  (tried pkg-config and cmake)
+Run-time dependency lua5.4 found: NO  (tried pkg-config and cmake)
+Run-time dependency lua-5.4 found: NO  (tried pkg-config and cmake)
+Run-time dependency lua53 found: NO  (tried pkg-config and cmake)
+Run-time dependency lua5.3 found: NO  (tried pkg-config and cmake)
+Run-time dependency lua-5.3 found: NO  (tried pkg-config and cmake)
+Run-time dependency lua found: NO  (tried pkg-config)
+Run-time dependency libelf found: NO  (tried pkg-config and cmake)
+Library elf found: NO
+Run-time dependency valgrind found: NO  (tried pkg-config)
+Program bison found: YES (/usr/bin/bison)
+Program bison found: YES 3.8.2 3.8.2 (/usr/bin/bison)
+Program flex found: YES (/usr/bin/flex)
+Program ln found: YES (/usr/bin/ln)
+Dependency libunwind for host machine skipped: feature libunwind disabled
+Run-time dependency wayland-protocols found: YES 1.49
+Run-time dependency wayland-client found: YES 1.26.0
+Run-time dependency wayland-server found: YES 1.26.0
+Checking for function "wl_display_dispatch_queue_timeout" with dependency wayland-client: YES 
+Checking for function "wl_display_create_queue_with_name" with dependency wayland-client: YES 
+Run-time dependency xcb found: YES 1.17.0
+Run-time dependency xcb-randr found: YES 1.17.0
+Dependency xcb for host machine found: YES 1.17.0 (cached)
+Run-time dependency xcb-keysyms found: NO  (tried pkg-config and cmake)
+Run-time dependency x11-xcb found: YES 1.8.13
+Run-time dependency xcb-dri3 found: YES 1.17.0
+Run-time dependency xcb-present found: YES 1.17.0
+Run-time dependency xcb-shm found: YES 1.17.0
+Run-time dependency xcb-sync found: YES 1.17.0
+Run-time dependency xshmfence found: YES 1.3.3
+Run-time dependency xcb-xfixes found: YES 1.17.0
+Dependency xcb-dri3 for host machine found: YES 1.17.0 (cached)
+Dependency xcb-present for host machine found: YES 1.17.0 (cached)
+Dependency xcb-shm for host machine found: YES 1.17.0 (cached)
+Dependency xshmfence for host machine found: YES 1.3.3 (cached)
+Dependency xcb-randr for host machine found: YES 1.17.0 (cached)
+Run-time dependency xrandr found: YES 1.5.5
+Library sensors found: NO
+Program nm found: YES (/usr/bin/nm)
+Program symbols-check.py found: YES (/usr/bin/python3 /tmp/mesa/bin/symbols-check.py)
+Program install_megadrivers.py found: YES (/usr/bin/python3 /tmp/mesa/bin/install_megadrivers.py)
+Compiler for C supports arguments -Wno-error: YES 
+Dependency wayland-protocols for host machine found: YES 1.49 (cached)
+Dependency wayland-client for host machine found: YES 1.26.0 (cached)
+Run-time dependency wayland-scanner found: YES 1.26.0
+Program /usr/bin/wayland-scanner found: YES (/usr/bin/wayland-scanner)
+Compiler for C supports arguments -Wno-misleading-indentation: YES 
+Checking whether type "spvtools::LinkerOptions" has member "SetAllowPtrTypeMismatch(true)" with dependency SPIRV-Tools: YES 
+Compiler for C supports link arguments -fPIC: YES 
+Program decode.py found: YES (/tmp/mesa/src/compiler/isaspec/decode.py)
+Program encode.py found: YES (/tmp/mesa/src/compiler/isaspec/encode.py)
+Program sphinx-build skipped: feature html-docs disabled
+Build targets in project: 201
+NOTICE: Future-deprecated features used:
+ * 1.8.0: {'module wayland has been stabilized'}
+
+mesa 26.3.0-devel
+
+  Directories
+    prefix           : /usr/local
+    libdir           : lib64
+    includedir       : include
+
+  Common C and C++ arguments
+    c_cpp_args       : -mtls-dialect=desc
+
+  OpenGL
+    OpenGL           : NO
+    ES1              : NO
+    ES2              : NO
+    GLVND            : NO
+
+  DRI
+    Platform         : drm
+    Driver dir       : /usr/local/lib64/dri
+
+  GLX
+    Enabled          : NO
+    Provider         : None
+
+  EGL
+    Enabled          : NO
+
+  GBM
+    Enabled          : NO
+
+  Vulkan
+    Drivers          : panfrost
+    Platforms        : x11 wayland xcb
+    ICD dir          : share/vulkan/icd.d
+    Intel Ray tracing: NO
+
+  Video
+    Codecs           : all_free av1dec av1enc vp9dec mpeg12dec jpegdec
+    APIs             : vulkan
+    Encoding         : YES
+
+  LLVM
+    Required         : enabled
+    Version          : 22.1.8
+
+  Gallium
+    Enabled          : NO
+
+  Perfetto
+    Enabled          : NO
+
+  Teflon (TensorFlow Lite delegate)
+    Enabled          : NO
+
+  User defined options
+    buildtype        : release
+    egl              : disabled
+    gallium-drivers  : 
+    gbm              : disabled
+    gles1            : disabled
+    gles2            : disabled
+    glx              : disabled
+    libunwind        : disabled
+    opengl           : false
+    panfrost-kmds    : kbase
+    platforms        : x11,wayland
+    vulkan-drivers   : panfrost
+    zstd             : disabled
+
+Found ninja-1.9.0 at /usr/bin/ninja
+ninja: entering directory '/tmp/build-glibc'
+[1/1126] Generating src/panfrost/vulkan/panfrost_devenv_icd with a custom command
+[2/1126] Generating src/panfrost/vulkan/panfrost_icd with a custom command
+[3/1126] Generating src/loader/color-management-v1-protocol with a custom command
+[4/1126] Generating src/loader/linux-drm-syncobj-v1-protocol with a custom command
+[5/1126] Generating src/loader/tearing-control-v1-protocol with a custom command
+[6/1126] Generating src/loader/linux-dmabuf-unstable-v1-protocol with a custom command
+[7/1126] Generating src/loader/commit-timing-v1-protocol with a custom command
+[8/1126] Generating src/loader/tearing-control-v1-client-protocol with a custom command
+[9/1126] Generating src/loader/linux-drm-syncobj-v1-client-protocol with a custom command
+[10/1126] Generating src/loader/linux-dmabuf-unstable-v1-client-protocol with a custom command
+[11/1126] Generating src/loader/fifo-v1-client-protocol with a custom command
+[12/1126] Generating src/loader/commit-timing-v1-client-protocol with a custom command
+[13/1126] Generating src/loader/color-management-v1-client-protocol with a custom command
+[14/1126] Generating src/loader/fifo-v1-protocol with a custom command
+[15/1126] Generating src/vulkan/runtime/vk_synchronization_helpers with a custom command
+[16/1126] Generating src/vulkan/runtime/vk_physical_device_spirv_caps with a custom command
+[17/1126] Generating src/util/driconf_static.h with a custom command
+[18/1126] Generating src/loader/presentation-time-client-protocol with a custom command
+[19/1126] Generating src/loader/presentation-time-protocol with a custom command
+[20/1126] Generating src/vulkan/runtime/vk_format_info with a custom command
+[21/1126] Generating src/vulkan/runtime/vk_dispatch_trampolines with a custom command
+[22/1126] Generating src/vulkan/wsi/wsi_entrypoints with a custom command
+[23/1126] Generating src/vulkan/util/vk_struct_type_cast with a custom command
+[24/1126] Generating src/vulkan/util/vk_extensions with a custom command
+[25/1126] Generating src/vulkan/util/vk_enum_to_str with a custom command
+[26/1126] Generating src/vulkan/util/vk_dispatch_table with a custom command
+[27/1126] Generating src/vulkan/runtime/vk_physical_device_properties with a custom command
+[28/1126] Generating src/vulkan/runtime/vk_physical_device_features with a custom command
+[29/1126] Generating src/vulkan/runtime/vk_common_entrypoints with a custom command
+[30/1126] Generating src/vulkan/runtime/vk_cmd_queue with a custom command
+[31/1126] Generating src/vulkan/runtime/vk_cmd_enqueue_entrypoints with a custom command
+[32/1126] Generating src/panfrost/vulkan/panvk_tracepoints.[ch] with a custom command
+[33/1126] Generating src/panfrost/vulkan/panvk_entrypoints.[ch] with a custom command
+[34/1126] Generating src/panfrost/vulkan/panvk_drirc with a custom command
+[35/1126] Generating src/panfrost/perf/mali-perf-t880 with a custom command
+[36/1126] Generating src/panfrost/perf/mali-perf-t830 with a custom command
+[37/1126] Generating src/panfrost/perf/mali-perf-t760 with a custom command
+[38/1126] Generating src/panfrost/perf/mali-perf-t720 with a custom command
+[39/1126] Generating src/panfrost/perf/mali-perf-g78 with a custom command
+[40/1126] Generating src/panfrost/perf/mali-perf-g77 with a custom command
+[41/1126] Generating src/panfrost/perf/mali-perf-g76 with a custom command
+[42/1126] Generating src/panfrost/perf/mali-perf-g72 with a custom command
+[43/1126] Generating src/panfrost/perf/mali-perf-g725 with a custom command
+[44/1126] Generating src/panfrost/perf/mali-perf-g720 with a custom command
+[45/1126] Generating src/panfrost/perf/mali-perf-g71 with a custom command
+[46/1126] Generating src/panfrost/perf/mali-perf-g715 with a custom command
+[47/1126] Generating src/panfrost/perf/mali-perf-g710 with a custom command
+[48/1126] Generating src/panfrost/perf/mali-perf-g52 with a custom command
+[49/1126] Generating src/panfrost/perf/mali-perf-g51 with a custom command
+[50/1126] Generating src/panfrost/perf/mali-perf-g31 with a custom command
+[51/1126] Generating src/panfrost/perf/mali-perf-g1 with a custom command
+[52/1126] Compiling C object src/panfrost/model/libpanfrost_model_lib.a.p/pan_model.c.o
+[53/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard_disasm.a.p/midgard_print_constant.c.o
+[54/1126] Linking static target src/panfrost/model/libpanfrost_model_lib.a
+[55/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard_disasm.a.p/midgard_ops.c.o
+[56/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard_disasm.a.p/disassemble.c.o
+[57/1126] Generating src/panfrost/compiler/midgard/midgard_nir_algebraic.c with a custom command (wrapped by meson to capture output)
+[58/1126] Generating src/panfrost/compiler/bifrost/valhall/valhall_disasm_c with a custom command (wrapped by meson to capture output)
+[59/1126] Generating src/panfrost/compiler/bifrost/bifrost_gen_disasm.c with a custom command (wrapped by meson to capture output)
+[60/1126] Generating src/panfrost/compiler/bifrost/valhall/valhall_c with a custom command (wrapped by meson to capture output)
+[61/1126] Generating src/panfrost/compiler/bifrost/bifrost_nir_algebraic.c with a custom command (wrapped by meson to capture output)
+[62/1126] Generating src/panfrost/compiler/bifrost/bi_packer.c with a custom command (wrapped by meson to capture output)
+[63/1126] Generating src/panfrost/compiler/bifrost/bi_printer.c with a custom command (wrapped by meson to capture output)
+[64/1126] Generating src/panfrost/compiler/bifrost/bi_swizzles.c with a custom command (wrapped by meson to capture output)
+[65/1126] Generating src/panfrost/compiler/bifrost/valhall/valhall_enums.h with a custom command (wrapped by meson to capture output)
+[66/1126] Compiling C object src/panfrost/compiler/bifrost/valhall/libpanfrost_valhall_disasm.a.p/meson-generated_.._valhall_disasm.c.o
+[67/1126] Generating src/panfrost/compiler/bifrost/bi_opcodes.h with a custom command (wrapped by meson to capture output)
+[68/1126] Generating src/panfrost/compiler/bifrost/bi_builder.h with a custom command (wrapped by meson to capture output)
+[69/1126] Generating src/panfrost/compiler/bifrost/bi_opcodes.c with a custom command (wrapped by meson to capture output)
+[70/1126] Generating src/panfrost/genxml/v9_pack.h with a custom command (wrapped by meson to capture output)
+[71/1126] Generating src/panfrost/genxml/v7_pack.h with a custom command (wrapped by meson to capture output)
+[72/1126] Generating src/panfrost/genxml/v6_pack.h with a custom command (wrapped by meson to capture output)
+[73/1126] Generating src/panfrost/genxml/v5_pack.h with a custom command (wrapped by meson to capture output)
+[74/1126] Generating src/panfrost/genxml/v4_pack.h with a custom command (wrapped by meson to capture output)
+[75/1126] Generating src/panfrost/genxml/v14_pack.h with a custom command (wrapped by meson to capture output)
+[76/1126] Generating src/panfrost/genxml/v13_pack.h with a custom command (wrapped by meson to capture output)
+[77/1126] Generating src/panfrost/genxml/v12_pack.h with a custom command (wrapped by meson to capture output)
+[78/1126] Generating src/panfrost/genxml/v11_pack.h with a custom command (wrapped by meson to capture output)
+[79/1126] Generating src/panfrost/genxml/v10_pack.h with a custom command (wrapped by meson to capture output)
+[80/1126] Generating src/panfrost/genxml/common_pack.h with a custom command (wrapped by meson to capture output)
+[81/1126] Compiling C object src/compiler/clc/mesa_clc.p/mesa_clc.c.o
+[82/1126] Compiling C object src/util/libmesa_util_simd.a.p/streaming-load-memcpy.c.o
+[83/1126] Generating src/util/format_srgb with a custom command (wrapped by meson to capture output)
+[84/1126] Generating src/util/format/u_format_pack.h with a custom command (wrapped by meson to capture output)
+[85/1126] Generating src/util/format/u_format_table.c with a custom command (wrapped by meson to capture output)
+[86/1126] Compiling C object src/util/blake3/libblake3.a.p/blake3_neon.c.o
+[87/1126] Compiling C object src/util/blake3/libblake3.a.p/blake3_portable.c.o
+[88/1126] Linking static target src/util/libmesa_util_simd.a
+[89/1126] Compiling C object src/util/blake3/libblake3.a.p/blake3_dispatch.c.o
+[90/1126] Compiling C object src/util/blake3/libblake3.a.p/blake3.c.o
+[91/1126] Generating src/compiler/spirv/vtn_gather_types.c with a custom command
+[92/1126] Generating src/compiler/spirv/vtn_generator_ids.h with a custom command
+[93/1126] Generating src/compiler/nir/nir_intrinsic.c with a custom command
+[94/1126] Generating src/compiler/nir/nir_constant_expressions.c with a custom command (wrapped by meson to capture output)
+[95/1126] Generating src/compiler/nir/nir_opcodes.c with a custom command (wrapped by meson to capture output)
+[96/1126] Generating src/compiler/nir/nir_opt_algebraic with a custom command
+In function '[01m[Kcompress_parents_parallel[m[K',
+    inlined from '[01m[Kcompress_subtree_to_parent_node[m[K' at [01m[K../mesa/src/util/blake3/blake3.c:377:9[m[K,
+    inlined from '[01m[Kblake3_hasher_update_base[m[K' at [01m[K../mesa/src/util/blake3/blake3.c:562:7[m[K,
+    inlined from '[01m[Kblake3_hasher_update.part.0[m[K' at [01m[K../mesa/src/util/blake3/blake3.c:589:3[m[K:
+[01m[K../mesa/src/util/blake3/blake3.c:242:5:[m[K [01;35m[Kwarning: [m[K'[01m[Kmemcpy[m[K' offset [64, 95] is out of the bounds [0, 64] of object '[01m[Kout_array[m[K' with type '[01m[Kuint8_t[64][m[K' {aka [m[K'[01m[Kunsigned char[64][m[K'} [[01;35m[K-Warray-bounds=[m[K]
+  242 |     [01;35m[Kmemcpy(&out[parents_array_len * BLAKE3_OUT_LEN],[m[K
+      |     [01;35m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
+  243 | [01;35m[K           &child_chaining_values[2 * parents_array_len * BLAKE3_OUT_LEN],[m[K
+      |            [01;35m[K~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
+  244 | [01;35m[K           BLAKE3_OUT_LEN)[m[K;
+      |            [01;35m[K~~~~~~~~~~~~~~~[m[K
+[01m[K../mesa/src/util/blake3/blake3.c:[m[K In function '[01m[Kblake3_hasher_update.part.0[m[K':
+[01m[K../mesa/src/util/blake3/blake3.c:374:11:[m[K [01;36m[Knote: [m[K'[01m[Kout_array[m[K' declared here
+  374 |   uint8_t [01;36m[Kout_array[m[K[MAX_SIMD_DEGREE_OR_2 * BLAKE3_OUT_LEN / 2];
+      |           [01;36m[K^~~~~~~~~[m[K
+In function '[01m[Kcompress_subtree_to_parent_node[m[K',
+    inlined from '[01m[Kblake3_hasher_update_base[m[K' at [01m[K../mesa/src/util/blake3/blake3.c:562:7[m[K,
+    inlined from '[01m[Kblake3_hasher_update.part.0[m[K' at [01m[K../mesa/src/util/blake3/blake3.c:589:3[m[K:
+[01m[K../mesa/src/util/blake3/blake3.c:378:5:[m[K [01;35m[Kwarning: [m[K'[01m[Kmemcpy[m[K' forming offset [64, 95] is out of the bounds [0, 64] of object '[01m[Kout_array[m[K' with type '[01m[Kuint8_t[64][m[K' {aka [m[K'[01m[Kunsigned char[64][m[K'} [[01;35m[K-Warray-bounds=[m[K]
+  378 |     [01;35m[Kmemcpy(cv_array, out_array, num_cvs * BLAKE3_OUT_LEN)[m[K;
+      |     [01;35m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
+[01m[K../mesa/src/util/blake3/blake3.c:[m[K In function '[01m[Kblake3_hasher_update.part.0[m[K':
+[01m[K../mesa/src/util/blake3/blake3.c:374:11:[m[K [01;36m[Knote: [m[K'[01m[Kout_array[m[K' declared here
+  374 |   uint8_t [01;36m[Kout_array[m[K[MAX_SIMD_DEGREE_OR_2 * BLAKE3_OUT_LEN / 2];
+      |           [01;36m[K^~~~~~~~~[m[K
+[97/1126] Generating src/compiler/builtin_types.c with a custom command
+[98/1126] Compiling C object src/c11/impl/libmesa_util_c11.a.p/threads_posix.c.o
+[99/1126] Compiling C object src/c11/impl/libmesa_util_c11.a.p/time.c.o
+[100/1126] Generating src/util/shader_stats.h with a custom command (wrapped by meson to capture output)
+[101/1126] Generating src/compiler/spirv/spirv_info with a custom command
+[102/1126] Generating src/compiler/nir/nir_opcodes.h with a custom command (wrapped by meson to capture output)
+[103/1126] Generating src/compiler/nir/nir_intrinsics_indices.h with a custom command
+[104/1126] Linking static target src/c11/impl/libmesa_util_c11.a
+[105/1126] Generating src/compiler/nir/nir_intrinsics.h with a custom command
+[106/1126] Generating src/compiler/nir/nir_builder_opcodes.h with a custom command (wrapped by meson to capture output)
+[107/1126] Generating src/compiler/ir_expression_operation.h with a custom command (wrapped by meson to capture output)
+
+****
+lxml or rnc2rng missing, skipping validation
+If this script fails, install for diagnostics
+****
+
+
+[108/1126] Generating src/util/format/u_format_gen.h with a custom command (wrapped by meson to capture output)
+[109/1126] Generating src/git_sha1.h with a custom command
+[110/1126] Linking static target src/util/blake3/libblake3.a
+[111/1126] Compiling C object src/panfrost/lib/libpan-format-v14.a.p/pan_format.c.o
+[112/1126] Compiling C object src/panfrost/lib/libpan-format-v13.a.p/pan_format.c.o
+[113/1126] Compiling C object src/panfrost/lib/libpan-format-v12.a.p/pan_format.c.o
+[114/1126] Compiling C object src/panfrost/lib/libpan-format-v11.a.p/pan_format.c.o
+[115/1126] Compiling C object src/panfrost/lib/libpan-format-v10.a.p/pan_format.c.o
+[116/1126] Compiling C object src/panfrost/lib/libpan-format-v9.a.p/pan_format.c.o
+[117/1126] Linking static target src/panfrost/compiler/midgard/libpanfrost_midgard_disasm.a
+[118/1126] Compiling C object src/panfrost/lib/libpan-format-v7.a.p/pan_format.c.o
+[119/1126] Linking static target src/panfrost/lib/libpan-format-v14.a
+[120/1126] Compiling C object src/panfrost/lib/libpan-format-v6.a.p/pan_format.c.o
+[121/1126] Linking static target src/panfrost/lib/libpan-format-v7.a
+[122/1126] Compiling C object src/panfrost/lib/libpan-format-v5.a.p/pan_format.c.o
+[123/1126] Linking static target src/panfrost/lib/libpan-format-v11.a
+[124/1126] Compiling C object src/panfrost/lib/kmod/libpankmod_lib.a.p/kbase_kmod.c.o
+[125/1126] Linking static target src/panfrost/lib/libpan-format-v6.a
+[126/1126] Compiling C object src/panfrost/lib/kmod/libpankmod_lib.a.p/panthor_kmod.c.o
+[127/1126] Compiling C object src/util/libmesa_util.a.p/meson-generated_.._format_srgb.c.o
+[128/1126] Linking static target src/panfrost/lib/libpan-format-v5.a
+[129/1126] Compiling C object src/panfrost/lib/kmod/libpankmod_lib.a.p/panfrost_kmod.c.o
+[130/1126] Linking static target src/panfrost/lib/libpan-format-v9.a
+[131/1126] Compiling C object src/panfrost/lib/kmod/libpankmod_lib.a.p/pan_kmod.c.o
+[132/1126] Linking static target src/panfrost/lib/libpan-format-v12.a
+[133/1126] Compiling C object src/panfrost/genxml/libpanfrost_decode.a.p/decode_common.c.o
+[134/1126] Linking static target src/panfrost/lib/libpan-format-v13.a
+[135/1126] Linking static target src/panfrost/lib/libpan-format-v10.a
+[136/1126] Compiling C object src/panfrost/shared/libpanfrost_shared.a.p/pan_tiling.c.o
+[137/1126] Compiling C object src/panfrost/shared/libpanfrost_shared.a.p/pan_minmax_cache.c.o
+[138/1126] Compiling C object src/vulkan/wsi/libvulkan_wsi.a.p/wsi_common_display.c.o
+[139/1126] Compiling C object src/vulkan/wsi/libvulkan_wsi.a.p/wsi_common_headless.c.o
+[140/1126] Compiling C object src/vulkan/wsi/libvulkan_wsi.a.p/wsi_common_wayland.c.o
+[141/1126] Compiling C object src/vulkan/wsi/libvulkan_wsi.a.p/wsi_common_x11.c.o
+[142/1126] Compiling C object src/vulkan/wsi/libvulkan_wsi.a.p/wsi_common_drm.c.o
+[143/1126] Linking static target src/panfrost/genxml/libpanfrost_decode.a
+[144/1126] Compiling C object src/vulkan/wsi/libvulkan_wsi.a.p/wsi_common.c.o
+[145/1126] Compiling C object src/vulkan/wsi/libvulkan_wsi.a.p/meson-generated_.._wsi_common_entrypoints.c.o
+[146/1126] Linking static target src/panfrost/shared/libpanfrost_shared.a
+[147/1126] Compiling C object src/vulkan/wsi/libvulkan_wsi.a.p/meson-generated_.._.._.._loader_color-management-v1-protocol.c.o
+[148/1126] Linking static target src/panfrost/lib/kmod/libpankmod_lib.a
+[149/1126] Compiling C object src/vulkan/wsi/libvulkan_wsi.a.p/meson-generated_.._.._.._loader_linux-drm-syncobj-v1-protocol.c.o
+[150/1126] Compiling C object src/vulkan/wsi/libvulkan_wsi.a.p/meson-generated_.._.._.._loader_tearing-control-v1-protocol.c.o
+[151/1126] Compiling C object src/vulkan/wsi/libvulkan_wsi.a.p/meson-generated_.._.._.._loader_presentation-time-protocol.c.o
+[152/1126] Compiling C object src/vulkan/wsi/libvulkan_wsi.a.p/meson-generated_.._.._.._loader_linux-dmabuf-unstable-v1-protocol.c.o
+[153/1126] Compiling C object src/vulkan/wsi/libvulkan_wsi.a.p/meson-generated_.._.._.._loader_commit-timing-v1-protocol.c.o
+[154/1126] Compiling C object src/vulkan/wsi/libvulkan_wsi.a.p/meson-generated_.._.._.._loader_fifo-v1-protocol.c.o
+[155/1126] Generating src/compiler/builtin_types.h with a custom command
+[156/1126] Compiling C object src/loader/libloader.a.p/loader.c.o
+[157/1126] Compiling C object src/loader/libloader.a.p/loader_dri_helper.c.o
+[158/1126] Compiling C object src/loader/libloader_wayland_helper.a.p/loader_wayland_helper.c.o
+[159/1126] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/panvk_wsi.c.o
+[160/1126] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/panvk_utrace.c.o
+[161/1126] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/panvk_priv_bo.c.o
+[162/1126] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/panvk_physical_device.c.o
+[163/1126] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/panvk_nir_lower_tile_image.c.o
+[164/1126] Linking static target src/loader/libloader.a
+[165/1126] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/panvk_nir_lower_cooperative_matrix.c.o
+[166/1126] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/panvk_mempool.c.o
+[167/1126] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/panvk_instance.c.o
+[168/1126] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/panvk_image.c.o
+[169/1126] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/panvk_host_copy.c.o
+[170/1126] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/panvk_device_memory.c.o
+[171/1126] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/panvk_cmd_pool.c.o
+[172/1126] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/panvk_buffer.c.o
+[173/1126] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/panvk_bind_queue.c.o
+[174/1126] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/panvk_async_bind.c.o
+[175/1126] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/meson-generated_.._panvk_drirc.c.o
+[176/1126] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/meson-generated_.._panvk_tracepoints.c.o
+[177/1126] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/meson-generated_.._panvk_entrypoints.c.o
+[178/1126] Compiling C object src/panfrost/perf/libpanfrost_perf.a.p/pan_perf.c.o
+[179/1126] Compiling C object src/panfrost/perf/libpanfrost_perf.a.p/meson-generated_.._mali_perf_t880.c.o
+[180/1126] Compiling C object src/panfrost/perf/libpanfrost_perf.a.p/meson-generated_.._mali_perf_t830.c.o
+[181/1126] Compiling C object src/panfrost/perf/libpanfrost_perf.a.p/meson-generated_.._mali_perf_t760.c.o
+[182/1126] Compiling C object src/panfrost/perf/libpanfrost_perf.a.p/meson-generated_.._mali_perf_t720.c.o
+[183/1126] Compiling C object src/panfrost/perf/libpanfrost_perf.a.p/meson-generated_.._mali_perf_g78.c.o
+[184/1126] Compiling C object src/panfrost/perf/libpanfrost_perf.a.p/meson-generated_.._mali_perf_g77.c.o
+[185/1126] Compiling C object src/panfrost/perf/libpanfrost_perf.a.p/meson-generated_.._mali_perf_g76.c.o
+[186/1126] Compiling C object src/panfrost/perf/libpanfrost_perf.a.p/meson-generated_.._mali_perf_g72.c.o
+[187/1126] Compiling C object src/panfrost/perf/libpanfrost_perf.a.p/meson-generated_.._mali_perf_g725.c.o
+[188/1126] Compiling C object src/panfrost/perf/libpanfrost_perf.a.p/meson-generated_.._mali_perf_g720.c.o
+[189/1126] Linking static target src/vulkan/wsi/libvulkan_wsi.a
+[190/1126] Compiling C object src/panfrost/perf/libpanfrost_perf.a.p/meson-generated_.._mali_perf_g71.c.o
+[191/1126] Compiling C object src/panfrost/perf/libpanfrost_perf.a.p/meson-generated_.._mali_perf_g715.c.o
+[192/1126] Compiling C object src/panfrost/perf/libpanfrost_perf.a.p/meson-generated_.._mali_perf_g710.c.o
+[193/1126] Compiling C object src/panfrost/perf/libpanfrost_perf.a.p/meson-generated_.._mali_perf_g52.c.o
+[194/1126] Compiling C object src/panfrost/perf/libpanfrost_perf.a.p/meson-generated_.._mali_perf_g51.c.o
+[195/1126] Compiling C object src/panfrost/perf/libpanfrost_perf.a.p/meson-generated_.._mali_perf_g31.c.o
+[196/1126] Compiling C object src/panfrost/perf/libpanfrost_perf.a.p/meson-generated_.._mali_perf_g1.c.o
+[197/1126] Compiling C object src/panfrost/clc/panfrost_compile.p/pan_compile.c.o
+[198/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_xfb.c.o
+[199/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_resize_varying_io.c.o
+[200/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_opt_push_ubo.c.o
+[201/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_lower_vs_outputs.c.o
+[202/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_lower_vs_inputs.c.o
+[203/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_lower_vertex_id.c.o
+[204/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_lower_var_special.c.o
+[205/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_lower_tex.c.o
+[206/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_lower_sample_position.c.o
+[207/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_lower_noperspective.c.o
+[208/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_lower_mem_to_global.c.o
+[209/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_lower_image_ms.c.o
+[210/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_lower_image_64bit.c.o
+[211/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_lower_image.c.o
+[212/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_lower_helper_invocation.c.o
+[213/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_lower_fs_outputs.c.o
+[214/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_lower_fs_inputs.c.o
+[215/1126] Linking static target src/panfrost/perf/libpanfrost_perf.a
+[216/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_lower_framebuffer.c.o
+[217/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_lower_divergent_scratch.c.o
+[218/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_lower_bool_to_bitsize.c.o
+[219/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_fuse_io_cvt.c.o
+[220/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_nir_collect_varyings.c.o
+[221/1126] Compiling C object src/panfrost/compiler/libpanfrost_compiler.a.p/pan_compiler.c.o
+[222/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/nir_fuse_io_16.c.o
+[223/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_errata_lod.c.o
+[224/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_opt_prop.c.o
+[225/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_opt_perspective.c.o
+[226/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_opt_dce.c.o
+[227/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_opt_copy_prop.c.o
+[228/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_nir_type_csel.c.o
+[229/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_nir_lower_writeout.c.o
+[230/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_nir_lower_image_bitsize.c.o
+[231/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/mir_squeeze.c.o
+[232/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/mir_promote_uniforms.c.o
+[233/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_ops.c.o
+[234/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_liveness.c.o
+[235/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_ra_pipeline.c.o
+[236/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_ra.c.o
+[237/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_helper_invocations.c.o
+[238/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_emit.c.o
+[239/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_derivatives.c.o
+[240/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_schedule.c.o
+[241/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_print.c.o
+[242/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_address.c.o
+[243/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/mir.c.o
+[244/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/midgard_compile.c.o
+[245/1126] Compiling C object src/panfrost/compiler/midgard/libpanfrost_midgard.a.p/meson-generated_.._midgard_nir_algebraic.c.o
+[246/1126] Linking static target src/panfrost/compiler/libpanfrost_compiler.a
+[247/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/valhall_va_validate.c.o
+[248/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/valhall_va_perf.c.o
+[249/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/valhall_va_pack.c.o
+[250/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/valhall_va_merge_flow.c.o
+[251/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/valhall_va_mark_last.c.o
+[252/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/valhall_va_optimize.c.o
+[253/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/valhall_va_lower_split_64bit.c.o
+[254/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/valhall_va_lower_isel.c.o
+[255/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/valhall_va_lower_constants.c.o
+[256/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/valhall_va_insert_flow.c.o
+[257/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/valhall_va_gather_hsr_info.c.o
+[258/1126] Linking static target src/panfrost/compiler/bifrost/valhall/libpanfrost_valhall_disasm.a
+[259/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bifrost_bi_scoreboard.c.o
+[260/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bifrost_bi_schedule.c.o
+[261/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bifrost_bi_pack.c.o
+[262/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bifrost_bi_opt_message_preload.c.o
+[263/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bifrost_nir.c.o
+[264/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bifrost_compile.c.o
+[265/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bir.c.o
+[266/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_debug.c.o
+[267/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_dominance.c.o
+[268/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_validate.c.o
+[269/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_repair_ssa.c.o
+[270/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_reindex_ssa.c.o
+[271/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_spill_ssa.c.o
+[272/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_ra_ssa.c.o
+[273/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_ra.c.o
+[274/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_pressure_schedule.c.o
+[275/1126] Linking static target src/panfrost/compiler/midgard/libpanfrost_midgard.a
+[276/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_iterator_schedule.c.o
+[277/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_opt_dual_tex.c.o
+[278/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_opt_mod_props.c.o
+[279/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_opt_push_ubo.c.o
+[280/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_opt_cse.c.o
+[281/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_opt_dce.c.o
+[282/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_opt_copy_prop.c.o
+[283/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_opt_constant_fold.c.o
+[284/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_opt_control_flow.c.o
+[285/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_print.c.o
+[286/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_lower_swizzle.c.o
+[287/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_lower_spill.c.o
+[288/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_lower_mkvec_swz.c.o
+[289/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_lower_divergent_indirects.c.o
+[290/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_liveness.c.o
+[291/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_layout.c.o
+[292/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/bi_helper_invocations.c.o
+[293/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/meson-generated_.._valhall_valhall.c.o
+[294/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/meson-generated_.._bifrost_nir_algebraic.c.o
+[295/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/meson-generated_.._bi_packer.c.o
+[296/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/meson-generated_.._bi_printer.c.o
+[297/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/meson-generated_.._bi_swizzles.c.o
+[298/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost.a.p/meson-generated_.._bi_opcodes.c.o
+[299/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost_disasm.a.p/bi_print_common.c.o
+[300/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost_disasm.a.p/bifrost_disassemble.c.o
+[301/1126] Compiling C object src/panfrost/compiler/bifrost/libpanfrost_bifrost_disasm.a.p/meson-generated_.._bifrost_gen_disasm.c.o
+[302/1126] Compiling C object src/panfrost/lib/libpanfrost_lib.a.p/pan_afbc.c.o
+[303/1126] Compiling C object src/panfrost/lib/libpanfrost_lib.a.p/pan_util.c.o
+[304/1126] Compiling C object src/panfrost/lib/libpanfrost_lib.a.p/pan_props.c.o
+[305/1126] Compiling C object src/panfrost/lib/libpanfrost_lib.a.p/pan_trace.c.o
+[306/1126] Compiling C object src/panfrost/lib/libpanfrost_lib.a.p/pan_scratch.c.o
+[307/1126] Compiling C object src/panfrost/lib/libpanfrost_lib.a.p/pan_layout.c.o
+[308/1126] Compiling C object src/panfrost/lib/libpanfrost_lib.a.p/pan_tiler.c.o
+[309/1126] Compiling C object src/panfrost/lib/libpanfrost_lib.a.p/pan_samples.c.o
+[310/1126] Compiling C object src/panfrost/lib/libpanfrost_lib.a.p/pan_earlyzs.c.o
+[311/1126] Compiling C object src/panfrost/lib/libpanfrost_lib.a.p/pan_clear.c.o
+[312/1126] Compiling C object src/panfrost/lib/libpanfrost_lib.a.p/pan_blend.c.o
+[313/1126] Compiling C object src/panfrost/lib/libpan-arch-v14.a.p/pan_texture.c.o
+[314/1126] Compiling C object src/panfrost/lib/libpan-arch-v14.a.p/pan_mod.c.o
+[315/1126] Compiling C object src/panfrost/lib/libpan-arch-v14.a.p/pan_fb_nir.c.o
+[316/1126] Compiling C object src/panfrost/lib/libpan-arch-v14.a.p/pan_fb.c.o
+[317/1126] Linking static target src/panfrost/lib/libpanfrost_lib.a
+[318/1126] Compiling C object src/panfrost/lib/libpan-arch-v14.a.p/pan_desc.c.o
+[319/1126] Compiling C object src/panfrost/lib/libpan-arch-v14.a.p/pan_buffer.c.o
+[320/1126] Compiling C object src/panfrost/lib/libpan-arch-v14.a.p/pan_blend.c.o
+[321/1126] Compiling C object src/panfrost/lib/libpan-arch-v13.a.p/pan_texture.c.o
+[322/1126] Compiling C object src/panfrost/lib/libpan-arch-v13.a.p/pan_mod.c.o
+[323/1126] Compiling C object src/panfrost/lib/libpan-arch-v13.a.p/pan_fb_nir.c.o
+[324/1126] Compiling C object src/panfrost/lib/libpan-arch-v13.a.p/pan_fb.c.o
+[325/1126] Linking static target src/panfrost/lib/libpan-arch-v14.a
+[326/1126] Compiling C object src/panfrost/lib/libpan-arch-v13.a.p/pan_desc.c.o
+[327/1126] Compiling C object src/panfrost/lib/libpan-arch-v13.a.p/pan_buffer.c.o
+[328/1126] Compiling C object src/panfrost/lib/libpan-arch-v13.a.p/pan_blend.c.o
+[329/1126] Compiling C object src/panfrost/lib/libpan-arch-v12.a.p/pan_texture.c.o
+[330/1126] Compiling C object src/panfrost/lib/libpan-arch-v12.a.p/pan_mod.c.o
+[331/1126] Compiling C object src/panfrost/lib/libpan-arch-v12.a.p/pan_fb_nir.c.o
+[332/1126] Compiling C object src/panfrost/lib/libpan-arch-v12.a.p/pan_fb.c.o
+[333/1126] Compiling C object src/panfrost/lib/libpan-arch-v12.a.p/pan_desc.c.o
+[334/1126] Compiling C object src/panfrost/lib/libpan-arch-v12.a.p/pan_buffer.c.o
+[335/1126] Compiling C object src/panfrost/lib/libpan-arch-v12.a.p/pan_blend.c.o
+[336/1126] Compiling C object src/panfrost/lib/libpan-arch-v11.a.p/pan_texture.c.o
+[337/1126] Compiling C object src/panfrost/lib/libpan-arch-v11.a.p/pan_mod.c.o
+[338/1126] Linking static target src/panfrost/lib/libpan-arch-v13.a
+[339/1126] Compiling C object src/panfrost/lib/libpan-arch-v11.a.p/pan_fb_nir.c.o
+[340/1126] Compiling C object src/panfrost/lib/libpan-arch-v11.a.p/pan_fb.c.o
+[341/1126] Compiling C object src/panfrost/lib/libpan-arch-v11.a.p/pan_desc.c.o
+[342/1126] Linking static target src/panfrost/compiler/bifrost/libpanfrost_bifrost.a
+[343/1126] Compiling C object src/panfrost/lib/libpan-arch-v11.a.p/pan_buffer.c.o
+[344/1126] Compiling C object src/panfrost/lib/libpan-arch-v11.a.p/pan_blend.c.o
+[345/1126] Compiling C object src/panfrost/lib/libpan-arch-v10.a.p/pan_texture.c.o
+[346/1126] Compiling C object src/panfrost/lib/libpan-arch-v10.a.p/pan_mod.c.o
+[347/1126] Compiling C object src/panfrost/lib/libpan-arch-v10.a.p/pan_fb_nir.c.o
+[348/1126] Linking static target src/panfrost/lib/libpan-arch-v12.a
+[349/1126] Compiling C object src/panfrost/lib/libpan-arch-v10.a.p/pan_fb.c.o
+[350/1126] Compiling C object src/panfrost/lib/libpan-arch-v10.a.p/pan_desc.c.o
+[351/1126] Compiling C object src/panfrost/lib/libpan-arch-v10.a.p/pan_buffer.c.o
+[352/1126] Compiling C object src/panfrost/lib/libpan-arch-v10.a.p/pan_blend.c.o
+[353/1126] Linking static target src/panfrost/compiler/bifrost/libpanfrost_bifrost_disasm.a
+[354/1126] Compiling C object src/panfrost/lib/libpan-arch-v9.a.p/pan_texture.c.o
+[355/1126] Compiling C object src/panfrost/lib/libpan-arch-v9.a.p/pan_mod.c.o
+[356/1126] Compiling C object src/panfrost/lib/libpan-arch-v9.a.p/pan_fb_nir.c.o
+[357/1126] Compiling C object src/panfrost/lib/libpan-arch-v9.a.p/pan_fb.c.o
+[358/1126] Compiling C object src/panfrost/lib/libpan-arch-v9.a.p/pan_desc.c.o
+[359/1126] Linking static target src/panfrost/lib/libpan-arch-v11.a
+[360/1126] Compiling C object src/panfrost/lib/libpan-arch-v9.a.p/pan_buffer.c.o
+[361/1126] Compiling C object src/panfrost/lib/libpan-arch-v9.a.p/pan_blend.c.o
+[362/1126] Compiling C object src/panfrost/lib/libpan-arch-v7.a.p/pan_texture.c.o
+[363/1126] Compiling C object src/panfrost/lib/libpan-arch-v7.a.p/pan_mod.c.o
+[364/1126] Compiling C object src/panfrost/lib/libpan-arch-v7.a.p/pan_fb_nir.c.o
+[365/1126] Compiling C object src/panfrost/lib/libpan-arch-v7.a.p/pan_fb.c.o
+[366/1126] Compiling C object src/panfrost/lib/libpan-arch-v7.a.p/pan_desc.c.o
+[367/1126] Compiling C object src/panfrost/lib/libpan-arch-v7.a.p/pan_buffer.c.o
+[368/1126] Compiling C object src/panfrost/lib/libpan-arch-v7.a.p/pan_blend.c.o
+[369/1126] Compiling C object src/panfrost/lib/libpan-arch-v6.a.p/pan_texture.c.o
+[370/1126] Linking static target src/panfrost/lib/libpan-arch-v9.a
+[371/1126] Compiling C object src/panfrost/lib/libpan-arch-v6.a.p/pan_mod.c.o
+[372/1126] Compiling C object src/panfrost/lib/libpan-arch-v6.a.p/pan_fb_nir.c.o
+[373/1126] Compiling C object src/panfrost/lib/libpan-arch-v6.a.p/pan_fb.c.o
+[374/1126] Linking static target src/panfrost/lib/libpan-arch-v10.a
+[375/1126] Compiling C object src/panfrost/lib/libpan-arch-v6.a.p/pan_desc.c.o
+[376/1126] Compiling C object src/panfrost/lib/libpan-arch-v6.a.p/pan_buffer.c.o
+[377/1126] Compiling C object src/panfrost/lib/libpan-arch-v6.a.p/pan_blend.c.o
+[378/1126] Compiling C object src/panfrost/lib/libpan-arch-v5.a.p/pan_texture.c.o
+[379/1126] Compiling C object src/panfrost/lib/libpan-arch-v5.a.p/pan_mod.c.o
+[380/1126] Compiling C object src/panfrost/lib/libpan-arch-v5.a.p/pan_fb_nir.c.o
+[381/1126] Compiling C object src/panfrost/lib/libpan-arch-v5.a.p/pan_fb.c.o
+[382/1126] Compiling C object src/panfrost/lib/libpan-arch-v5.a.p/pan_desc.c.o
+[383/1126] Compiling C object src/panfrost/lib/libpan-arch-v5.a.p/pan_buffer.c.o
+[384/1126] Compiling C object src/panfrost/lib/libpan-arch-v5.a.p/pan_blend.c.o
+[385/1126] Compiling C object src/panfrost/lib/libpan-arch-v4.a.p/pan_texture.c.o
+[386/1126] Compiling C object src/panfrost/lib/libpan-arch-v4.a.p/pan_mod.c.o
+[387/1126] Linking static target src/panfrost/lib/libpan-arch-v6.a
+[388/1126] Compiling C object src/panfrost/lib/libpan-arch-v4.a.p/pan_fb_nir.c.o
+[389/1126] Linking static target src/panfrost/lib/libpan-arch-v7.a
+[390/1126] Compiling C object src/panfrost/lib/libpan-arch-v4.a.p/pan_fb.c.o
+[391/1126] Compiling C object src/panfrost/lib/libpan-arch-v4.a.p/pan_desc.c.o
+[392/1126] Compiling C object src/panfrost/lib/libpan-arch-v4.a.p/pan_buffer.c.o
+[393/1126] Compiling C object src/panfrost/lib/libpan-arch-v4.a.p/pan_blend.c.o
+[394/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v14.a.p/decode_csf.c.o
+[395/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v14.a.p/decode_jm.c.o
+[396/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v14.a.p/decode.c.o
+[397/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v13.a.p/decode_csf.c.o
+[398/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v13.a.p/decode_jm.c.o
+[399/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v13.a.p/decode.c.o
+[400/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v12.a.p/decode_csf.c.o
+[401/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v12.a.p/decode_jm.c.o
+[402/1126] Linking static target src/panfrost/lib/libpan-arch-v5.a
+[403/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v12.a.p/decode.c.o
+[404/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v11.a.p/decode_csf.c.o
+[405/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v11.a.p/decode_jm.c.o
+[406/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v11.a.p/decode.c.o
+[407/1126] Linking static target src/panfrost/lib/libpan-arch-v4.a
+[408/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v10.a.p/decode_csf.c.o
+[409/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v10.a.p/decode_jm.c.o
+[410/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v10.a.p/decode.c.o
+[411/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v9.a.p/decode_csf.c.o
+[412/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v9.a.p/decode_jm.c.o
+[413/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v9.a.p/decode.c.o
+[414/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v7.a.p/decode_csf.c.o
+[415/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v7.a.p/decode_jm.c.o
+[416/1126] Linking static target src/panfrost/genxml/libpandecode-arch-v14.a
+[417/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v7.a.p/decode.c.o
+[418/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v6.a.p/decode_csf.c.o
+[419/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v6.a.p/decode_jm.c.o
+[420/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v6.a.p/decode.c.o
+[421/1126] Linking static target src/panfrost/genxml/libpandecode-arch-v12.a
+[422/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v5.a.p/decode_csf.c.o
+[423/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v5.a.p/decode_jm.c.o
+[424/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v5.a.p/decode.c.o
+[425/1126] Linking static target src/panfrost/genxml/libpandecode-arch-v10.a
+[426/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v4.a.p/decode_csf.c.o
+[427/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v4.a.p/decode_jm.c.o
+[428/1126] Compiling C object src/panfrost/genxml/libpandecode-arch-v4.a.p/decode.c.o
+[429/1126] Linking static target src/panfrost/genxml/libpandecode-arch-v11.a
+[430/1126] Linking static target src/panfrost/genxml/libpandecode-arch-v9.a
+[431/1126] Compiling C object src/vulkan/runtime/libvulkan_instance.a.p/vk_instance.c.o
+[432/1126] Compiling C object src/vulkan/runtime/libvulkan_runtime.a.p/vk_texcompress_etc2.c.o
+[433/1126] Linking static target src/vulkan/runtime/libvulkan_instance.a
+[434/1126] Compiling C object src/vulkan/runtime/libvulkan_runtime.a.p/vk_shader_module.c.o
+[435/1126] Compiling C object src/vulkan/runtime/libvulkan_runtime.a.p/vk_shader.c.o
+[436/1126] Compiling C object src/vulkan/runtime/libvulkan_runtime.a.p/vk_pipeline_cache.c.o
+[437/1126] Compiling C object src/vulkan/runtime/libvulkan_runtime.a.p/vk_pipeline.c.o
+[438/1126] Linking static target src/panfrost/genxml/libpandecode-arch-v4.a
+[439/1126] Compiling C object src/vulkan/runtime/libvulkan_runtime.a.p/vk_nir_lower_descriptor_heaps.c.o
+[440/1126] Compiling C object src/vulkan/runtime/libvulkan_runtime.a.p/vk_nir_convert_ycbcr.c.o
+[441/1126] Linking static target src/panfrost/genxml/libpandecode-arch-v5.a
+[442/1126] Compiling C object src/vulkan/runtime/libvulkan_runtime.a.p/vk_nir.c.o
+[443/1126] Linking static target src/panfrost/genxml/libpandecode-arch-v6.a
+[444/1126] Compiling C object src/vulkan/runtime/libvulkan_runtime.a.p/vk_meta_draw_rects.c.o
+[445/1126] Linking static target src/panfrost/genxml/libpandecode-arch-v7.a
+[446/1126] Compiling C object src/vulkan/runtime/libvulkan_runtime.a.p/vk_meta_copy_fill_update.c.o
+[447/1126] Linking static target src/panfrost/genxml/libpandecode-arch-v13.a
+[448/1126] Compiling C object src/vulkan/runtime/libvulkan_runtime.a.p/vk_meta_clear.c.o
+[449/1126] Compiling C object src/vulkan/runtime/libvulkan_runtime.a.p/vk_meta_blit_resolve.c.o
+[450/1126] Compiling C object src/vulkan/runtime/libvulkan_runtime.a.p/vk_meta.c.o
+[451/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_drm_syncobj.c.o
+[452/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_ycbcr_conversion.c.o
+[453/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_video.c.o
+[454/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_synchronization.c.o
+[455/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_sync_timeline.c.o
+[456/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_sync_dummy.c.o
+[457/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_sync_binary.c.o
+[458/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_sync.c.o
+[459/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_standard_sample_locations.c.o
+[460/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_semaphore.c.o
+[461/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_sampler.c.o
+[462/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_render_pass.c.o
+[463/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_queue.c.o
+[464/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_query_pool.c.o
+[465/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_pipeline_layout.c.o
+[466/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_physical_device.c.o
+[467/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_object.c.o
+[468/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_meta_object_list.c.o
+[469/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_log.c.o
+[470/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_image.c.o
+[471/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_graphics_state.c.o
+[472/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_framebuffer.c.o
+[473/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_fence.c.o
+[474/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_device_memory.c.o
+[475/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_device_generated_commands.c.o
+[476/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_device.c.o
+[477/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_descriptor_update_template.c.o
+[478/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_descriptors.c.o
+[479/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_descriptor_set_layout.c.o
+[480/1126] Linking static target src/vulkan/runtime/libvulkan_runtime.a
+[481/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_deferred_operation.c.o
+[482/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_debug_utils.c.o
+[483/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_debug_report.c.o
+[484/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_command_pool.c.o
+[485/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_command_buffer.c.o
+[486/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_cmd_enqueue.c.o
+[487/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_cmd_copy.c.o
+[488/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_buffer_view.c.o
+[489/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_buffer.c.o
+[490/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/vk_blend.c.o
+[491/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/rmv_vk_rmv_exporter.c.o
+[492/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/rmv_vk_rmv_common.c.o
+[493/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/meson-generated_.._vk_synchronization_helpers.c.o
+[494/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/meson-generated_.._vk_physical_device_spirv_caps.c.o
+[495/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/meson-generated_.._vk_physical_device_properties.c.o
+[496/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/meson-generated_.._vk_physical_device_features.c.o
+[497/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/meson-generated_.._vk_format_info.c.o
+[498/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/meson-generated_.._vk_dispatch_trampolines.c.o
+[499/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/meson-generated_.._vk_common_entrypoints.c.o
+[500/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/meson-generated_.._vk_cmd_queue.c.o
+[501/1126] Compiling C object src/vulkan/runtime/libvulkan_lite_runtime.a.p/meson-generated_.._vk_cmd_enqueue_entrypoints.c.o
+[502/1126] Compiling C object src/vulkan/util/libvulkan_util.a.p/vk_util.c.o
+[503/1126] Compiling C object src/vulkan/util/libvulkan_util.a.p/vk_format.c.o
+[504/1126] Compiling C object src/vulkan/util/libvulkan_util.a.p/vk_alloc.c.o
+[505/1126] Compiling C object src/vulkan/util/libvulkan_util.a.p/meson-generated_.._vk_extensions.c.o
+[506/1126] Compiling C object src/vulkan/util/libvulkan_util.a.p/meson-generated_.._vk_enum_to_str.c.o
+[507/1126] Compiling C object src/vulkan/util/libvulkan_util.a.p/meson-generated_.._vk_dispatch_table.c.o
+[508/1126] Compiling C++ object src/compiler/clc/liblibmesaclc.a.p/clc_helpers.cpp.o
+[509/1126] Compiling C object src/compiler/clc/liblibmesaclc.a.p/clc.c.o
+[510/1126] Compiling C object src/compiler/spirv/vtn_bindgen2.p/vtn_bindgen2.c.o
+[511/1126] Compiling C object src/compiler/spirv/libvtn.a.p/vtn_variables.c.o
+[512/1126] Compiling C object src/compiler/spirv/libvtn.a.p/vtn_subgroup.c.o
+[513/1126] Compiling C object src/compiler/spirv/libvtn.a.p/vtn_structured_cfg.c.o
+[514/1126] Compiling C object src/compiler/spirv/libvtn.a.p/vtn_opencl.c.o
+[515/1126] Compiling C object src/compiler/spirv/libvtn.a.p/vtn_glsl450.c.o
+[516/1126] Compiling C object src/compiler/spirv/libvtn.a.p/vtn_debug.c.o
+[517/1126] Compiling C object src/compiler/spirv/libvtn.a.p/vtn_cmat.c.o
+[518/1126] Compiling C object src/compiler/spirv/libvtn.a.p/vtn_cfg.c.o
+[519/1126] Compiling C object src/compiler/spirv/libvtn.a.p/vtn_amd.c.o
+[520/1126] Compiling C object src/compiler/spirv/libvtn.a.p/vtn_alu.c.o
+[521/1126] Compiling C object src/compiler/spirv/libvtn.a.p/spirv_to_nir.c.o
+[522/1126] Compiling C object src/compiler/spirv/libvtn.a.p/gl_spirv.c.o
+[523/1126] Linking static target src/vulkan/util/libvulkan_util.a
+[524/1126] Compiling C object src/compiler/spirv/libvtn.a.p/meson-generated_.._vtn_gather_types.c.o
+[525/1126] Compiling C object src/compiler/spirv/libvtn.a.p/meson-generated_.._spirv_info.c.o
+[526/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_atomics.c.o
+[527/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_worklist.c.o
+[528/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_validate.c.o
+[529/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_use_dominance.c.o
+[530/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_unlower_io_to_vars.c.o
+[531/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_trivialize_registers.c.o
+[532/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_to_lcssa.c.o
+[533/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_sweep.c.o
+[534/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_split_vars.c.o
+[535/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_split_var_copies.c.o
+[536/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_split_per_member_structs.c.o
+[537/1126] Compiling C object src/compiler/nir/libnir.a.p/meson-generated_.._nir_opt_algebraic.c.o
+[538/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_split_conversions.c.o
+[539/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_split_64bit_vec3_and_vec4.c.o
+[540/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_shader_bisect.c.o
+[541/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_serialize.c.o
+[542/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_separate_merged_clip_cull_io.c.o
+[543/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_search.c.o
+[544/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_schedule.c.o
+[545/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_scale_fdiv.c.o
+[546/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_repair_ssa.c.o
+[547/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_remove_tex_shadow.c.o
+[548/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_remove_outputs.c.o
+[549/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_remove_dead_variables.c.o
+[550/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_recompute_io_bases.c.o
+[551/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_range_analysis.c.o
+[552/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_propagate_invariant.c.o
+[553/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_print.c.o
+[554/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_phi_builder.c.o
+[555/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_passthrough_tcs.c.o
+[556/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_passthrough_gs.c.o
+[557/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_vectorize_io_vars.c.o
+[558/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_vectorize_io.c.o
+[559/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_vectorize.c.o
+[560/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_varyings.c.o
+[561/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_uub.c.o
+[562/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_uniform_subgroup.c.o
+[563/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_uniform_atomics.c.o
+[564/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_undef.c.o
+[565/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_sink.c.o
+[566/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_shrink_vectors.c.o
+[567/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_shrink_stores.c.o
+[568/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_shared_vars_to_subgroup.c.o
+[569/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_scalar_array_vars_to_vec.c.o
+[570/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_remove_phis.c.o
+[571/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_rematerialize_compares.c.o
+[572/1126] Linking static target src/vulkan/runtime/libvulkan_lite_runtime.a
+[573/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_reassociate_bfi.c.o
+[574/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_reassociate.c.o
+[575/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_ray_queries.c.o
+[576/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_preamble.c.o
+[577/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_phi_to_bool.c.o
+[578/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_phi_precision.c.o
+[579/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_peephole_select.c.o
+[580/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_offsets.c.o
+[581/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_non_uniform_access.c.o
+[582/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_mqsad.c.o
+[583/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_move_to_top.c.o
+[584/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_move_discards_to_top.c.o
+[585/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_move.c.o
+[586/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_memcpy.c.o
+[587/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_loop_unroll.c.o
+[588/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_loop.c.o
+[589/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_load_store_vectorize.c.o
+[590/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_load_skip_helpers.c.o
+[591/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_licm.c.o
+[592/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_large_constants.c.o
+[593/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_intrinsics.c.o
+[594/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_if.c.o
+[595/1126] Linking static target src/compiler/spirv/libvtn.a
+[596/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_idiv_const.c.o
+[597/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_generate_bfi.c.o
+[598/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_gcm.c.o
+[599/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_fragdepth.c.o
+[600/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_frag_coord_to_pixel_coord.c.o
+[601/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_fp_math_ctrl.c.o
+[602/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_find_array_copies.c.o
+[603/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_dead_write_vars.c.o
+[604/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_dead_cf.c.o
+[605/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_dce.c.o
+[606/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_cse.c.o
+[607/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_copy_propagate.c.o
+[608/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_copy_prop_vars.c.o
+[609/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_constant_folding.c.o
+[610/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_comparison_pre.c.o
+[611/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_combine_stores.c.o
+[612/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_clip_cull_const.c.o
+[613/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_call.c.o
+[614/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_barycentric.c.o
+[615/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_barriers.c.o
+[616/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_access.c.o
+[617/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_normalize_sin_cos.c.o
+[618/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_normalize_cubemap_coords.c.o
+[619/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_move_vec_src_uses_to_dest.c.o
+[620/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_move_output_stores_to_end.c.o
+[621/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_mod_analysis.c.o
+[622/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_metadata.c.o
+[623/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_sysvals_to_varyings.c.o
+[624/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_workgroup_size.c.o
+[625/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_uniforms_to_ubo.c.o
+[626/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_ubo_vec4.c.o
+[627/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_bit_size.c.o
+[628/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_xfb_to_stores.c.o
+[629/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_wrmasks.c.o
+[630/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_wpos_ytransform.c.o
+[631/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_wpos_center.c.o
+[632/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_viewport_transform.c.o
+[633/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_view_index_to_device_index.c.o
+[634/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_vec3_to_vec4.c.o
+[635/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_vec_to_regs.c.o
+[636/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_var_copies.c.o
+[637/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_vars_to_ssa.c.o
+[638/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_undef_to_zero.c.o
+[639/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_two_sided_color.c.o
+[640/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_texcoord_replace_late.c.o
+[641/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_texcoord_replace.c.o
+[642/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_tex.c.o
+[643/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_tex_shadow.c.o
+[644/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_tess_coord_z.c.o
+[645/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_terminate_to_demote.c.o
+[646/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_task_shader.c.o
+[647/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_system_values.c.o
+[648/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_subgroups.c.o
+[649/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_ssbo.c.o
+[650/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_single_sampled.c.o
+[651/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_shader_calls.c.o
+[652/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_scratch_to_var.c.o
+[653/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_scratch.c.o
+[654/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_sample_shading.c.o
+[655/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_samplers.c.o
+[656/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_robust_access.c.o
+[657/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_returns.c.o
+[658/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_readonly_images_to_tex.c.o
+[659/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_reg_intrinsics_to_ssa.c.o
+[660/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_printf.c.o
+[661/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_poly_line_smooth.c.o
+[662/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_point_smooth.c.o
+[663/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_point_size.c.o
+[664/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_pntc_ytransform.c.o
+[665/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_phis_to_scalar.c.o
+[666/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_patch_vertices.c.o
+[667/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_passthrough_edgeflags.c.o
+[668/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_packing.c.o
+[669/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_non_uniform_access.c.o
+[670/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_memory_model.c.o
+[671/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_memcpy.c.o
+[672/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_mem_access_bit_sizes.c.o
+[673/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_mediump.c.o
+[674/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_multiview.c.o
+[675/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_is_helper_invocation.c.o
+[676/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_io_vars_to_scalar.c.o
+[677/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_io_to_scalar.c.o
+[678/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_io_vars_to_temporaries.c.o
+[679/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_io_indirect_loads.c.o
+[680/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_io_array_vars_to_elements.c.o
+[681/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_io.c.o
+[682/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_int_to_float.c.o
+[683/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_interpolation.c.o
+[684/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_int64.c.o
+[685/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_input_attachments.c.o
+[686/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_indirect_derefs_to_if_else_trees.c.o
+[687/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_image_atomics_to_global.c.o
+[688/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_image.c.o
+[689/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_idiv.c.o
+[690/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_locals_to_regs.c.o
+[691/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_load_const_to_scalar.c.o
+[692/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_helper_writes.c.o
+[693/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_halt_to_return.c.o
+[694/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_gs_intrinsics.c.o
+[695/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_goto_ifs.c.o
+[696/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_global_vars_to_local.c.o
+[697/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_frexp.c.o
+[698/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_fragcolor.c.o
+[699/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_frag_coord_to_pixel_coord.c.o
+[700/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_fragcoord_wtrans.c.o
+[701/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_fp16_conv.c.o
+[702/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_flrp.c.o
+[703/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_floats.c.o
+[704/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_flatshade.c.o
+[705/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_fb_read.c.o
+[706/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_explicit_io.c.o
+[707/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_double_ops.c.o
+[708/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_discard_if.c.o
+[709/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_variable_initializers.c.o
+[710/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_cooperative_matrix.c.o
+[711/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_convert_alu_types.c.o
+[712/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_continue_constructs.c.o
+[713/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_const_arrays_to_uniforms.c.o
+[714/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_clip_halfz.c.o
+[715/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_clip_disable.c.o
+[716/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_clip.c.o
+[717/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_clamp_color_outputs.c.o
+[718/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_cl_images.c.o
+[719/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_calls_to_builtins.c.o
+[720/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_bool_to_int32.c.o
+[721/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_bool_to_float.c.o
+[722/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_blend.c.o
+[723/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_bitmap.c.o
+[724/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_atomics_to_ssbo.c.o
+[725/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_array_deref_of_vec.c.o
+[726/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_amul.c.o
+[727/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_alpha.c.o
+[728/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_alu_width.c.o
+[729/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_alu.c.o
+[730/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_lower_abort.c.o
+[731/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_loop_analyze.c.o
+[732/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_liveness.c.o
+[733/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_linking_helpers.c.o
+[734/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_legacy.c.o
+[735/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_io_add_xfb_info.c.o
+[736/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_instr_set.c.o
+[737/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_inline_uniforms.c.o
+[738/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_inline_sysval.c.o
+[739/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_gs_count_vertices.c.o
+[740/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_opt_group_loads.c.o
+[741/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_gather_xfb_info.c.o
+[742/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_gather_types.c.o
+[743/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_gather_tcs_info.c.o
+[744/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_gather_output_deps.c.o
+[745/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_gather_info.c.o
+[746/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_functions.c.o
+[747/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_from_ssa.c.o
+[748/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_format_convert.c.o
+[749/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_fixup_is_exported.c.o
+[750/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_downgrade_pls_vars.c.o
+[751/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_dominance_lca.c.o
+[752/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_dominance.c.o
+[753/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_divergence_analysis.c.o
+[754/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_deref.c.o
+[755/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_control_flow.c.o
+[756/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_clone.c.o
+[757/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_clip_cull_distance_io_utils.c.o
+[758/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_convert_address_format.c.o
+[759/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_builtin_builder.c.o
+[760/1126] Compiling C object src/compiler/nir/libnir.a.p/nir_builder.c.o
+[761/1126] Compiling C object src/compiler/nir/libnir.a.p/nir.c.o
+[762/1126] Compiling C object src/compiler/nir/libnir.a.p/meson-generated_.._nir_intrinsics.c.o
+[763/1126] Compiling C object src/compiler/nir/libnir.a.p/meson-generated_.._nir_constant_expressions.c.o
+[764/1126] Compiling C object src/compiler/nir/libnir.a.p/meson-generated_.._nir_opcodes.c.o
+[765/1126] Compiling C object src/compiler/libcompiler.a.p/shader_enums.c.o
+[766/1126] Compiling C object src/compiler/libcompiler.a.p/glsl_types.c.o
+[767/1126] Compiling C object src/compiler/libcompiler.a.p/meson-generated_.._builtin_types.c.o
+[768/1126] Compiling C object src/loader/libloader_wayland_helper.a.p/meson-generated_.._presentation-time-protocol.c.o
+[769/1126] Compiling C object src/x11/libloader_x11.a.p/x11_dri3.c.o
+[770/1126] Linking static target src/loader/libloader_wayland_helper.a
+[771/1126] Compiling C object src/x11/libloader_x11.a.p/x11_display.c.o
+[772/1126] Compiling C object src/util/libxmlconfig.a.p/xmlconfig.c.o
+[773/1126] Linking static target src/x11/libloader_x11.a
+[774/1126] Compiling C object src/util/libmesa_util.a.p/u_debug_symbol.c.o
+[775/1126] Compiling C object src/util/libmesa_util.a.p/u_debug_stack.c.o
+[776/1126] Compiling C object src/util/libmesa_util.a.p/u_sync_provider.c.o
+[777/1126] Compiling C object src/util/libmesa_util.a.p/format_u_format_zs.c.o
+[778/1126] Compiling C object src/util/libmesa_util.a.p/format_u_format_yuv.c.o
+[779/1126] Compiling C object src/util/libmesa_util.a.p/format_u_format_unpack_neon.c.o
+[780/1126] Compiling C object src/util/libmesa_util.a.p/format_u_format_tests.c.o
+[781/1126] Linking static target src/util/libxmlconfig.a
+[782/1126] Compiling C object src/util/libmesa_util.a.p/format_u_format_s3tc.c.o
+[783/1126] Compiling C object src/util/libmesa_util.a.p/format_u_format_rgtc.c.o
+[784/1126] Compiling C object src/util/libmesa_util.a.p/format_u_format_other.c.o
+[785/1126] Compiling C object src/util/libmesa_util.a.p/format_u_format_latc.c.o
+[786/1126] Compiling C object src/util/libmesa_util.a.p/format_u_format_fxt1.c.o
+[787/1126] Compiling C object src/util/libmesa_util.a.p/format_u_format_etc.c.o
+[788/1126] Compiling C object src/util/libmesa_util.a.p/format_u_format_bptc.c.o
+[789/1126] Compiling C object src/util/libmesa_util.a.p/format_u_format.c.o
+[790/1126] Compiling C object src/util/libmesa_util.a.p/cache_ops_aarch64.c.o
+[791/1126] Compiling C object src/util/libmesa_util.a.p/mesa_cache_db_multipart.c.o
+[792/1126] Compiling C object src/util/libmesa_util.a.p/mesa_cache_db.c.o
+[793/1126] Compiling C object src/util/libmesa_util.a.p/vma.c.o
+[794/1126] Compiling C object src/util/libmesa_util.a.p/vl_zscan_data.c.o
+[795/1126] Compiling C object src/util/libmesa_util.a.p/u_worklist.c.o
+[796/1126] Compiling C object src/util/libmesa_util.a.p/u_printf.c.o
+[797/1126] Compiling C object src/util/libmesa_util.a.p/u_cpu_detect.c.o
+[798/1126] Compiling C object src/util/libmesa_util.a.p/u_debug_memory.c.o
+[799/1126] Linking static target src/compiler/clc/liblibmesaclc.a
+[800/1126] Compiling C object src/util/libmesa_util.a.p/u_debug.c.o
+[801/1126] Compiling C object src/util/libmesa_util.a.p/u_mm.c.o
+[802/1126] Compiling C object src/util/libmesa_util.a.p/u_math.c.o
+[803/1126] Compiling C object src/util/libmesa_util.a.p/u_vector.c.o
+[804/1126] Compiling C object src/util/libmesa_util.a.p/u_thread.c.o
+[805/1126] Compiling C object src/util/libmesa_util.a.p/u_string.c.o
+[806/1126] Compiling C object src/util/libmesa_util.a.p/u_shader_variant_cache.c.o
+[807/1126] Compiling C object src/util/libmesa_util.a.p/u_range_remap.c.o
+[808/1126] Compiling C object src/util/libmesa_util.a.p/u_queue.c.o
+[809/1126] Compiling C object src/util/libmesa_util.a.p/u_hash_table.c.o
+[810/1126] Compiling C object src/util/libmesa_util.a.p/u_dynarray.c.o
+[811/1126] Compiling C object src/util/libmesa_util.a.p/u_dl.c.o
+[812/1126] Compiling C object src/util/libmesa_util.a.p/u_call_once.c.o
+[813/1126] Compiling C object src/util/libmesa_util.a.p/u_atomic.c.o
+[814/1126] Compiling C++ object src/util/libmesa_util.a.p/texcompress_astc.cpp.o
+[815/1126] Compiling C++ object src/util/libmesa_util.a.p/texcompress_astc_luts_wrap.cpp.o
+[816/1126] Compiling C++ object src/util/libmesa_util.a.p/texcompress_astc_luts.cpp.o
+[817/1126] Compiling C object src/util/libmesa_util.a.p/strtod.c.o
+[818/1126] Compiling C object src/util/libmesa_util.a.p/strndup.c.o
+[819/1126] Compiling C object src/util/libmesa_util.a.p/string_buffer.c.o
+[820/1126] Compiling C object src/util/libmesa_util.a.p/sparse_array.c.o
+[821/1126] Compiling C object src/util/libmesa_util.a.p/softfloat.c.o
+[822/1126] Compiling C object src/util/libmesa_util.a.p/slab.c.o
+[823/1126] Compiling C object src/util/libmesa_util.a.p/simple_mtx.c.o
+[824/1126] Compiling C object src/util/libmesa_util.a.p/set.c.o
+[825/1126] Compiling C object src/util/libmesa_util.a.p/rgtc.c.o
+[826/1126] Compiling C object src/util/libmesa_util.a.p/register_allocate.c.o
+[827/1126] Compiling C object src/util/libmesa_util.a.p/rb_tree.c.o
+[828/1126] Compiling C object src/util/libmesa_util.a.p/range_minimum_query.c.o
+[829/1126] Compiling C object src/util/libmesa_util.a.p/rand_xor.c.o
+[830/1126] Compiling C object src/util/libmesa_util.a.p/ralloc.c.o
+[831/1126] Compiling C object src/util/libmesa_util.a.p/rwlock.c.o
+[832/1126] Compiling C++ object src/util/libmesa_util.a.p/u_qsort.cpp.o
+[833/1126] Compiling C object src/util/libmesa_util.a.p/u_process.c.o
+[834/1126] Compiling C object src/util/libmesa_util.a.p/perf_u_trace.c.o
+[835/1126] Compiling C object src/util/libmesa_util.a.p/pb_slab.c.o
+[836/1126] Compiling C object src/util/libmesa_util.a.p/os_socket.c.o
+[837/1126] Compiling C object src/util/libmesa_util.a.p/os_misc.c.o
+[838/1126] Compiling C object src/util/libmesa_util.a.p/os_memory_fd.c.o
+[839/1126] Compiling C object src/util/libmesa_util.a.p/os_file_notify.c.o
+[840/1126] Compiling C object src/util/libmesa_util.a.p/os_file.c.o
+[841/1126] Compiling C object src/util/libmesa_util.a.p/os_time.c.o
+[842/1126] Compiling C object src/util/libmesa_util.a.p/mesa-blake3.c.o
+[843/1126] Compiling C object src/util/libmesa_util.a.p/memstream.c.o
+[844/1126] Compiling C object src/util/libmesa_util.a.p/lut.c.o
+[845/1126] Compiling C object src/util/libmesa_util.a.p/log.c.o
+[846/1126] Compiling C object src/util/libmesa_util.a.p/u_idalloc.c.o
+[847/1126] Compiling C object src/util/libmesa_util.a.p/helpers.c.o
+[848/1126] Compiling C object src/util/libmesa_util.a.p/hash_table.c.o
+[849/1126] Compiling C object src/util/libmesa_util.a.p/half_float.c.o
+[850/1126] Compiling C object src/util/libmesa_util.a.p/futex.c.o
+[851/1126] Compiling C object src/util/libmesa_util.a.p/fossilize_db.c.o
+[852/1126] Compiling C object src/util/libmesa_util.a.p/float8.c.o
+[853/1126] Compiling C object src/util/libmesa_util.a.p/fast_idiv_by_const.c.o
+[854/1126] Compiling C object src/util/libmesa_util.a.p/double.c.o
+[855/1126] Compiling C object src/util/libmesa_util.a.p/disk_cache_os.c.o
+[856/1126] Compiling C object src/util/libmesa_util.a.p/disk_cache.c.o
+[857/1126] Compiling C object src/util/libmesa_util.a.p/dag.c.o
+[858/1126] Compiling C object src/util/libmesa_util.a.p/crc32.c.o
+[859/1126] Compiling C object src/util/libmesa_util.a.p/thread_sched.c.o
+[860/1126] Compiling C object src/util/libmesa_util.a.p/compress.c.o
+[861/1126] Compiling C object src/util/libmesa_util.a.p/cnd_monotonic.c.o
+[862/1126] Compiling C object src/util/libmesa_util.a.p/build_id.c.o
+[863/1126] Compiling C object src/util/libmesa_util.a.p/blob.c.o
+[864/1126] Compiling C object src/util/libmesa_util.a.p/bitscan.c.o
+[865/1126] Compiling C object src/util/libmesa_util.a.p/anon_file.c.o
+[866/1126] Compiling C object src/util/libmesa_util.a.p/meson-generated_.._format_u_format_table.c.o
+[867/1126] Linking static target src/compiler/libcompiler.a
+[868/1126] Linking static target src/compiler/nir/libnir.a
+[869/1126] Linking static target src/util/libmesa_util.a
+[870/1126] Linking target src/panfrost/clc/panfrost_compile
+[871/1126] Linking target src/compiler/clc/mesa_clc
+[872/1126] Linking target src/compiler/spirv/vtn_bindgen2
+[873/1126] Generating src/panfrost/libpan/libpan_v14.spv with a custom command
+[874/1126] Generating src/panfrost/libpan/libpan_v13.spv with a custom command
+[875/1126] Generating src/panfrost/libpan/libpan_v12.spv with a custom command
+[876/1126] Generating src/panfrost/libpan/libpan_v11.spv with a custom command
+[877/1126] Generating src/panfrost/libpan/libpan_v10.spv with a custom command
+[878/1126] Generating src/panfrost/libpan/libpan_v7.spv with a custom command
+[879/1126] Generating src/panfrost/libpan/libpan_v6.spv with a custom command
+[880/1126] Generating src/panfrost/libpan/libpan_shaders_v12.h with a custom command
+[881/1126] Generating src/panfrost/libpan/libpan_v12.cpp with a custom command
+[882/1126] Generating src/panfrost/libpan/libpan_shaders_v10.h with a custom command
+[883/1126] Generating src/panfrost/libpan/libpan_v10.cpp with a custom command
+[884/1126] Generating src/panfrost/libpan/libpan_shaders_v11.h with a custom command
+[885/1126] Generating src/panfrost/libpan/libpan_v11.cpp with a custom command
+[886/1126] Generating src/panfrost/libpan/libpan_shaders_v14.h with a custom command
+[887/1126] Generating src/panfrost/libpan/libpan_v14.cpp with a custom command
+[888/1126] Generating src/panfrost/libpan/libpan_shaders_v7.h with a custom command
+[889/1126] Generating src/panfrost/libpan/libpan_v7.cpp with a custom command
+[890/1126] Generating src/panfrost/libpan/libpan_shaders_v6.h with a custom command
+[891/1126] Generating src/panfrost/libpan/libpan_v6.cpp with a custom command
+[892/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/meson-generated_.._.._libpan_libpan_shaders_v14.c.o
+[893/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/csf_panvk_vX_utrace.c.o
+[894/1126] Generating src/panfrost/libpan/libpan_shaders_v13.h with a custom command
+[895/1126] Generating src/panfrost/libpan/libpan_v13.cpp with a custom command
+[896/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/csf_panvk_vX_instr.c.o
+[897/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/csf_panvk_vX_gpu_queue.c.o
+[898/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/meson-generated_.._.._libpan_libpan_shaders_v12.c.o
+[899/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/csf_panvk_vX_utrace.c.o
+[900/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/meson-generated_.._.._libpan_libpan_shaders_v10.c.o
+[901/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/csf_panvk_vX_utrace.c.o
+[902/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/csf_panvk_vX_instr.c.o
+[903/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/meson-generated_.._.._libpan_libpan_shaders_v11.c.o
+[904/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/csf_panvk_vX_utrace.c.o
+[905/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/meson-generated_.._.._libpan_libpan_shaders_v13.c.o
+[906/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/csf_panvk_vX_utrace.c.o
+[907/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/csf_panvk_vX_instr.c.o
+[908/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/csf_panvk_vX_gpu_queue.c.o
+[909/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/csf_panvk_vX_exception_handler.c.o
+[910/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/csf_panvk_vX_event.c.o
+[911/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/csf_panvk_vX_cmd_precomp.c.o
+[912/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/csf_panvk_vX_cmd_query.c.o
+[913/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/csf_panvk_vX_cmd_event.c.o
+[914/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/csf_panvk_vX_cmd_draw.c.o
+[915/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/meson-generated_.._.._libpan_libpan_shaders_v6.c.o
+[916/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/jm_panvk_vX_gpu_queue.c.o
+[917/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/meson-generated_.._.._libpan_libpan_shaders_v7.c.o
+[918/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/jm_panvk_vX_gpu_queue.c.o
+[919/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/jm_panvk_vX_event.c.o
+[920/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/jm_panvk_vX_cmd_precomp.c.o
+[921/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/jm_panvk_vX_cmd_query.c.o
+[922/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/jm_panvk_vX_cmd_event.c.o
+[923/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/jm_panvk_vX_cmd_draw.c.o
+[924/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/jm_panvk_vX_cmd_dispatch.c.o
+[925/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/jm_panvk_vX_cmd_buffer.c.o
+[926/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/bifrost_panvk_vX_meta_desc_copy.c.o
+[927/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_shader.c.o
+[928/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_sampler.c.o
+[929/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_nir_lower_input_attachment_loads.c.o
+[930/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_nir_lower_descriptors.c.o
+[931/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_image_view.c.o
+[932/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_query_pool.c.o
+[933/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_precomp_cache.c.o
+[934/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_physical_device.c.o
+[935/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_device.c.o
+[936/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_descriptor_set_layout.c.o
+[937/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_descriptor_set.c.o
+[938/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_cmd_push_constant.c.o
+[939/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_cmd_meta.c.o
+[940/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_cmd_frame_shaders.c.o
+[941/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_cmd_draw.c.o
+[942/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_cmd_dispatch.c.o
+[943/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_cmd_desc_state.c.o
+[944/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_buffer_view.c.o
+[945/1126] Compiling C object src/panfrost/vulkan/libpanvk_v7.a.p/panvk_vX_blend.c.o
+[946/1126] Compiling C++ object src/panfrost/vulkan/libpanvk_v7.a.p/meson-generated_.._.._libpan_libpan_v7.cpp.o
+[947/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/jm_panvk_vX_event.c.o
+[948/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/jm_panvk_vX_cmd_precomp.c.o
+[949/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/jm_panvk_vX_cmd_query.c.o
+[950/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/jm_panvk_vX_cmd_event.c.o
+[951/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/jm_panvk_vX_cmd_draw.c.o
+[952/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/jm_panvk_vX_cmd_dispatch.c.o
+[953/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/jm_panvk_vX_cmd_buffer.c.o
+[954/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/bifrost_panvk_vX_meta_desc_copy.c.o
+[955/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_shader.c.o
+[956/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_sampler.c.o
+[957/1126] Linking static target src/panfrost/vulkan/libpanvk_v7.a
+[958/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_nir_lower_input_attachment_loads.c.o
+[959/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_nir_lower_descriptors.c.o
+[960/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_image_view.c.o
+[961/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_query_pool.c.o
+[962/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_precomp_cache.c.o
+[963/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_physical_device.c.o
+[964/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_device.c.o
+[965/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_descriptor_set_layout.c.o
+[966/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_descriptor_set.c.o
+[967/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_cmd_push_constant.c.o
+[968/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_cmd_meta.c.o
+[969/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_cmd_frame_shaders.c.o
+[970/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_cmd_draw.c.o
+[971/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_cmd_dispatch.c.o
+[972/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_cmd_desc_state.c.o
+[973/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_buffer_view.c.o
+[974/1126] Compiling C object src/panfrost/vulkan/libpanvk_v6.a.p/panvk_vX_blend.c.o
+[975/1126] Compiling C++ object src/panfrost/vulkan/libpanvk_v6.a.p/meson-generated_.._.._libpan_libpan_v6.cpp.o
+[976/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/csf_panvk_vX_cmd_dispatch.c.o
+[977/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/csf_panvk_vX_cmd_cond_render.c.o
+[978/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/csf_panvk_vX_cmd_buffer.c.o
+[979/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_shader.c.o
+[980/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_sampler.c.o
+[981/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_nir_lower_input_attachment_loads.c.o
+[982/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_nir_lower_descriptors.c.o
+[983/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_image_view.c.o
+[984/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_query_pool.c.o
+[985/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_precomp_cache.c.o
+[986/1126] Linking static target src/panfrost/vulkan/libpanvk_v6.a
+[987/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_physical_device.c.o
+[988/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_device.c.o
+[989/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_descriptor_set_layout.c.o
+[990/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_descriptor_set.c.o
+[991/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_cmd_push_constant.c.o
+[992/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_cmd_meta.c.o
+[993/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_cmd_frame_shaders.c.o
+[994/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_cmd_draw.c.o
+[995/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_cmd_dispatch.c.o
+[996/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_cmd_desc_state.c.o
+[997/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_buffer_view.c.o
+[998/1126] Compiling C object src/panfrost/vulkan/libpanvk_v13.a.p/panvk_vX_blend.c.o
+[999/1126] Compiling C++ object src/panfrost/vulkan/libpanvk_v13.a.p/meson-generated_.._.._libpan_libpan_v13.cpp.o
+[1000/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/csf_panvk_vX_instr.c.o
+[1001/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/csf_panvk_vX_gpu_queue.c.o
+[1002/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/csf_panvk_vX_exception_handler.c.o
+[1003/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/csf_panvk_vX_event.c.o
+[1004/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/csf_panvk_vX_cmd_precomp.c.o
+[1005/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/csf_panvk_vX_cmd_query.c.o
+[1006/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/csf_panvk_vX_cmd_event.c.o
+[1007/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/csf_panvk_vX_cmd_draw.c.o
+[1008/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/csf_panvk_vX_cmd_dispatch.c.o
+[1009/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/csf_panvk_vX_cmd_cond_render.c.o
+[1010/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/csf_panvk_vX_cmd_buffer.c.o
+[1011/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_shader.c.o
+[1012/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_sampler.c.o
+[1013/1126] Linking static target src/panfrost/vulkan/libpanvk_v13.a
+[1014/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_nir_lower_input_attachment_loads.c.o
+[1015/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_nir_lower_descriptors.c.o
+[1016/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_image_view.c.o
+[1017/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_query_pool.c.o
+[1018/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_precomp_cache.c.o
+[1019/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_physical_device.c.o
+[1020/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_device.c.o
+[1021/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_descriptor_set_layout.c.o
+[1022/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_descriptor_set.c.o
+[1023/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_cmd_push_constant.c.o
+[1024/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_cmd_meta.c.o
+[1025/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_cmd_frame_shaders.c.o
+[1026/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_cmd_draw.c.o
+[1027/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_cmd_dispatch.c.o
+[1028/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_cmd_desc_state.c.o
+[1029/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_buffer_view.c.o
+[1030/1126] Compiling C object src/panfrost/vulkan/libpanvk_v11.a.p/panvk_vX_blend.c.o
+[1031/1126] Compiling C++ object src/panfrost/vulkan/libpanvk_v11.a.p/meson-generated_.._.._libpan_libpan_v11.cpp.o
+[1032/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/csf_panvk_vX_gpu_queue.c.o
+[1033/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/csf_panvk_vX_exception_handler.c.o
+[1034/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/csf_panvk_vX_event.c.o
+[1035/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/csf_panvk_vX_cmd_precomp.c.o
+[1036/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/csf_panvk_vX_cmd_query.c.o
+[1037/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/csf_panvk_vX_cmd_event.c.o
+[1038/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/csf_panvk_vX_cmd_draw.c.o
+[1039/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/csf_panvk_vX_cmd_dispatch.c.o
+[1040/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/csf_panvk_vX_cmd_cond_render.c.o
+[1041/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/csf_panvk_vX_cmd_buffer.c.o
+[1042/1126] Linking static target src/panfrost/vulkan/libpanvk_v11.a
+[1043/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_shader.c.o
+[1044/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_sampler.c.o
+[1045/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_nir_lower_input_attachment_loads.c.o
+[1046/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_nir_lower_descriptors.c.o
+[1047/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_image_view.c.o
+[1048/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_query_pool.c.o
+[1049/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_precomp_cache.c.o
+[1050/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_physical_device.c.o
+[1051/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_device.c.o
+[1052/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_descriptor_set_layout.c.o
+[1053/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_descriptor_set.c.o
+[1054/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_cmd_push_constant.c.o
+[1055/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_cmd_meta.c.o
+[1056/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_cmd_frame_shaders.c.o
+[1057/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_cmd_draw.c.o
+[1058/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_cmd_dispatch.c.o
+[1059/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_cmd_desc_state.c.o
+[1060/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_buffer_view.c.o
+[1061/1126] Compiling C object src/panfrost/vulkan/libpanvk_v10.a.p/panvk_vX_blend.c.o
+[1062/1126] Compiling C++ object src/panfrost/vulkan/libpanvk_v10.a.p/meson-generated_.._.._libpan_libpan_v10.cpp.o
+[1063/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/csf_panvk_vX_instr.c.o
+[1064/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/csf_panvk_vX_gpu_queue.c.o
+[1065/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/csf_panvk_vX_exception_handler.c.o
+[1066/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/csf_panvk_vX_event.c.o
+[1067/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/csf_panvk_vX_cmd_precomp.c.o
+[1068/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/csf_panvk_vX_cmd_query.c.o
+[1069/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/csf_panvk_vX_cmd_event.c.o
+[1070/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/csf_panvk_vX_cmd_draw.c.o
+[1071/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/csf_panvk_vX_cmd_dispatch.c.o
+[1072/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/csf_panvk_vX_cmd_cond_render.c.o
+[1073/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/csf_panvk_vX_cmd_buffer.c.o
+[1074/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_shader.c.o
+[1075/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_sampler.c.o
+[1076/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_nir_lower_input_attachment_loads.c.o
+[1077/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_nir_lower_descriptors.c.o
+[1078/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_image_view.c.o
+[1079/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_query_pool.c.o
+[1080/1126] Linking static target src/panfrost/vulkan/libpanvk_v10.a
+[1081/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_precomp_cache.c.o
+[1082/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_physical_device.c.o
+[1083/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_device.c.o
+[1084/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_descriptor_set_layout.c.o
+[1085/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_descriptor_set.c.o
+[1086/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_cmd_push_constant.c.o
+[1087/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_cmd_meta.c.o
+[1088/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_cmd_frame_shaders.c.o
+[1089/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_cmd_draw.c.o
+[1090/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_cmd_dispatch.c.o
+[1091/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_cmd_desc_state.c.o
+[1092/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_buffer_view.c.o
+[1093/1126] Compiling C object src/panfrost/vulkan/libpanvk_v12.a.p/panvk_vX_blend.c.o
+[1094/1126] Compiling C++ object src/panfrost/vulkan/libpanvk_v12.a.p/meson-generated_.._.._libpan_libpan_v12.cpp.o
+[1095/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/csf_panvk_vX_exception_handler.c.o
+[1096/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/csf_panvk_vX_event.c.o
+[1097/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/csf_panvk_vX_cmd_precomp.c.o
+[1098/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/csf_panvk_vX_cmd_query.c.o
+[1099/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/csf_panvk_vX_cmd_event.c.o
+[1100/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/csf_panvk_vX_cmd_draw.c.o
+[1101/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/csf_panvk_vX_cmd_dispatch.c.o
+[1102/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/csf_panvk_vX_cmd_cond_render.c.o
+[1103/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/csf_panvk_vX_cmd_buffer.c.o
+[1104/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_shader.c.o
+[1105/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_sampler.c.o
+[1106/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_nir_lower_input_attachment_loads.c.o
+[1107/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_nir_lower_descriptors.c.o
+[1108/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_image_view.c.o
+[1109/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_query_pool.c.o
+[1110/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_precomp_cache.c.o
+[1111/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_physical_device.c.o
+[1112/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_device.c.o
+[1113/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_descriptor_set_layout.c.o
+[1114/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_descriptor_set.c.o
+[1115/1126] Linking static target src/panfrost/vulkan/libpanvk_v12.a
+[1116/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_cmd_push_constant.c.o
+[1117/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_cmd_meta.c.o
+[1118/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_cmd_frame_shaders.c.o
+[1119/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_cmd_draw.c.o
+[1120/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_cmd_dispatch.c.o
+[1121/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_cmd_desc_state.c.o
+[1122/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_buffer_view.c.o
+[1123/1126] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/panvk_vX_blend.c.o
+[1124/1126] Compiling C++ object src/panfrost/vulkan/libpanvk_v14.a.p/meson-generated_.._.._libpan_libpan_v14.cpp.o
+[1125/1126] Linking static target src/panfrost/vulkan/libpanvk_v14.a
+[1126/1126] Linking target src/panfrost/vulkan/libvulkan_panfrost.so
+Pulling built glibc ICD...
+/data/local/tmp/chrootAlpine/tmp/build-glibc/src/panfrost/vulkan/libvulkan_panfrost.so: 1 file pulled, 0 skipped. 37.5 MB/s (19919056 bytes in 0.506s)
+VERIFIED: kbase_kmod_ops present in /home/abhaybyte/repos/panvk/dist/glibc-g615-v11-csf/libvulkan_panfrost.so
+OK glibc build complete: /home/abhaybyte/repos/panvk/dist/glibc-g615-v11-csf/libvulkan_panfrost.so
+95a019b21d42f9d91bf3ee697a4e84b09485fdd8f0c298dda4494356cb983ec0  dist/glibc-g615-v11-csf/libvulkan_panfrost.so
+dist/glibc-g615-v11-csf/libvulkan_panfrost.so: ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=0a87f02d2a958b9a480f9a5e1303a73e65e683b5, with debug_info, not stripped
+  panfrost-kmds                  [kbase]                          [panfrost, panthor, kbase]       List of kernel-mode drivers to enable for panfrost gallium   
+RESULT=PASS

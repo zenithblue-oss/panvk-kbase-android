@@ -26,7 +26,8 @@ def android_ok(**overrides):
         "schemaVersion": 1, "name": "PanVK", "libraryName": "libvulkan_panfrost.so",
         "abi": "android-aarch64-bionic", "backend": "panvk-kbase",
         "profile": "g615-v11-csf", "sourceCommit": PIN, "patchSeriesId": PSID,
-        "packageVersion": "0.1.0-beta.2", "minApi": 35,
+        "packageVersion": "0.1.0-beta.3", "minApi": 35, "prerelease": True,
+        "published": False, "bcCompatibility": {"included": False},
     }
     meta.update(overrides.get("meta", {}))
     man = {"profile": "g615-v11-csf", "abi": "android-aarch64-bionic", "binarySha256": sha}
@@ -47,6 +48,7 @@ def android_ok(**overrides):
         "VALIDATION.json": json.dumps(valid),
         "SHA256SUMS.txt": f"{sha}  libvulkan_panfrost.so\n",
         "runtime-feature-matrix.json": json.dumps({"gpuId": "0xb8a31030"}),
+        "extension-gap.json": json.dumps({"summary": {"runtimeExposed": 194}}),
     }
     files.update(overrides.get("files", {}))
     for k in overrides.get("drop", ()):
@@ -62,13 +64,15 @@ def glibc_ok():
             "schemaVersion": 1, "name": "PanVK", "libraryName": "libvulkan_panfrost.so",
             "abi": "linux-aarch64-glibc", "backend": "panvk-kbase",
             "profile": "g615-v11-csf", "sourceCommit": PIN, "patchSeriesId": PSID,
-            "packageVersion": "0.1.0-beta.2",
+            "packageVersion": "0.1.0-beta.3", "prerelease": True,
+            "published": False, "bcCompatibility": {"included": False},
         }),
         "MANIFEST.json": json.dumps({"profile": "g615-v11-csf", "abi": "linux-aarch64-glibc", "binarySha256": sha}),
         "SOURCE.json": json.dumps({"mesaCommit": PIN, "patchSeriesId": PSID}),
         "VALIDATION.json": json.dumps({"glibc": {"enumeration": "pass", "compute10": "pass", "offscreen": "pass"}}),
         "SHA256SUMS.txt": f"{sha}  libvulkan_panfrost.so\n",
         "runtime-feature-matrix.json": json.dumps({"gpuId": "0xb8a31030"}),
+        "extension-gap.json": json.dumps({"summary": {"runtimeExposed": 194}}),
     }
 
 def expect(name, files, want_ok):

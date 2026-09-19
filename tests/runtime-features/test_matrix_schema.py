@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import pathlib
 import tempfile
 import unittest
@@ -94,6 +95,24 @@ class ParseDump(unittest.TestCase):
         self.assertTrue(f["computeShader"]["runtimeTested"])
         self.assertFalse(f["textureCompressionBC"]["runtimeExposed"])
         self.assertFalse(f["textureCompressionBC"]["runtimeTested"])
+
+    def test_beta3_canonical_extension_and_compat_schema(self):
+        m = json.loads(
+            (ROOT / "validation/g615-v11-csf/runtime-feature-matrix.json").read_text()
+        )
+        self.assertEqual(m["totalExtensionCount"], 194)
+        self.assertEqual(len(m["extensions"]), 194)
+        self.assertEqual(
+            sum(v["runtimeTested"] for v in m["extensions"].values()), 16
+        )
+        bc = m["features"]["textureCompressionBC"]
+        self.assertFalse(bc["nativeHardware"])
+        self.assertFalse(bc["nativeDriverExposed"])
+        self.assertFalse(bc["nativeVulkanFeatureBit"])
+        self.assertTrue(bc["compatAvailable"])
+        self.assertTrue(bc["compatLoadTested"])
+        self.assertFalse(bc["compatTested"])
+        self.assertFalse(bc["compatComposesWithPanvk"])
 
 
 class CollectValidation(unittest.TestCase):

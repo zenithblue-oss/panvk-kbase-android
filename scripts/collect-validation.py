@@ -35,21 +35,21 @@ ANDROID_GATES = (
 GLIBC_GATES = ("enumeration", "compute10", "offscreen")
 
 # (gate, kind) -> ordered evidence filename globs, first match with a PASS token wins.
-# Prefer beta2 logs over older gate/p16 files so packaging cites current SHA evidence.
+# Prefer final beta.3 regressions; retain beta.2 fallbacks for old packages.
 ANDROID_EVIDENCE = {
-    "enumeration": ["beta2-enumeration*.txt", "gateC-enumerate*.txt"],
-    "deviceCreate": ["beta2-compute*.txt", "gateDE-compute*.txt"],
-    "compute10": ["beta2-compute*.txt", "gateDE-compute*.txt"],
-    "offscreen": ["beta2-offscreen*.txt", "gateF-triangle*.txt"],
-    "ahb": ["beta2-ahb*.txt", "gateG-ahb*.txt"],
-    "vulkanSurface": ["beta2-vulkan-surface*.txt"],
-    "swapchain300": ["beta2-present-300*.txt", "beta2-swapchain*.txt"],
-    "coldSecondLaunch": ["beta2-cold-second-launch*.txt"],
+    "enumeration": ["beta3-phase8-android-shell-gates*.txt", "beta2-enumeration*.txt", "gateC-enumerate*.txt"],
+    "deviceCreate": ["beta3-phase8-android-shell-gates*.txt", "beta2-compute*.txt", "gateDE-compute*.txt"],
+    "compute10": ["beta3-phase8-android-shell-gates*.txt", "beta2-compute*.txt", "gateDE-compute*.txt"],
+    "offscreen": ["beta3-phase8-android-shell-gates*.txt", "beta2-offscreen*.txt", "gateF-triangle*.txt"],
+    "ahb": ["beta3-phase8-ahb-allocation*.txt", "beta2-ahb*.txt", "gateG-ahb*.txt"],
+    "vulkanSurface": ["beta3-phase8-wsi*.txt", "beta2-vulkan-surface*.txt"],
+    "swapchain300": ["beta3-phase8-wsi*.txt", "beta2-present-300*.txt", "beta2-swapchain*.txt"],
+    "coldSecondLaunch": ["beta3-phase8-cold-second-launch*.txt", "beta2-cold-second-launch*.txt"],
 }
 GLIBC_EVIDENCE = {
-    "enumeration": ["beta2-glibc*.txt", "p16-glibc*.txt"],
-    "compute10": ["beta2-glibc*.txt", "p16-glibc*.txt"],
-    "offscreen": ["beta2-glibc*.txt", "p16-glibc*.txt"],
+    "enumeration": ["beta3-phase8-glibc-runtime*.txt", "beta2-glibc*.txt", "p16-glibc*.txt"],
+    "compute10": ["beta3-phase8-glibc-runtime*.txt", "beta2-glibc*.txt", "p16-glibc*.txt"],
+    "offscreen": ["beta3-phase8-glibc-runtime*.txt", "beta2-glibc*.txt", "p16-glibc*.txt"],
 }
 UINT64_MAX = "18446744073709551615"
 
@@ -140,10 +140,10 @@ def evidence(
 
 def find_matrix(profile: str) -> pathlib.Path | None:
     vdir = ROOT / "validation" / profile
-    cands = list(vdir.glob("beta2-runtime-features-*.json")) + [
+    cands = [
         ROOT / "dist" / "runtime-feature-matrix.json",
         ROOT / "dist" / f"android-{profile}" / "runtime-feature-matrix.json",
-    ]
+    ] + list(vdir.glob("beta3-phase8-runtime-feature-matrix.json")) + list(vdir.glob("beta2-runtime-features-*.json"))
     return newest(cands)
 
 

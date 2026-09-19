@@ -76,3 +76,15 @@ Each patch under `patches/` must carry `purpose / source-reference /
 tested-GPU / tested-Kbase-UAPI / Mesa-base-range / dependencies /
 validation-test` in its header. Never ship a binary without exact source
 provenance (`SOURCE.json` + `VALIDATION.json` + `SHA256SUMS.txt`).
+
+## 6. BCn compatibility reference (not vendored)
+
+`https://github.com/leegao/bcn_layer` at commit
+`50993a2d51772567de9c36de4d523652773f0899` was inspected and built as the
+optional BC1-BC7 Vulkan-layer reference. It is MIT-licensed, copyright (c)
+2025 Pipetto-crypto. The exact notice is preserved in
+`LICENSES/bcn_layer-MIT.txt`.
+
+No `bcn_layer` source or binary is vendored or packaged by this repository.
+If a later change copies or derives source, that file must retain this notice
+and identify the pinned commit.

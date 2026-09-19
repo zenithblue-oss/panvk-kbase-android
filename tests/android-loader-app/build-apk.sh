@@ -12,6 +12,7 @@ export PATH="$NDK_BIN:$SDK_BUILD_TOOLS:$PATH"
 echo "=== 1. Building native shared library ==="
 mkdir -p lib/arm64-v8a
 aarch64-linux-android35-clang -O2 -shared -fPIC -w \
+  -I../../work/mesa/include \
   -o lib/arm64-v8a/libpanvk_loader_test.so \
   jni/panvk_loader_test.c \
   -landroid -llog
@@ -43,6 +44,10 @@ d8 --output build-temp/ build-temp/obj/org/panvk/loadertest/*.class
 echo "=== 5. Packaging APK ==="
 (cd build-temp && zip -u base.apk classes.dex)
 zip -u -r build-temp/base.apk lib/arm64-v8a/libpanvk_loader_test.so
+if [ -f ../../build/bcn-layer-android/libbcn_layer.so ]; then
+  cp ../../build/bcn-layer-android/libbcn_layer.so lib/arm64-v8a/libVkLayer_BCN_BCnLayer.so
+  zip -u build-temp/base.apk lib/arm64-v8a/libVkLayer_BCN_BCnLayer.so
+fi
 
 echo "=== 6. Signing APK ==="
 apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android \

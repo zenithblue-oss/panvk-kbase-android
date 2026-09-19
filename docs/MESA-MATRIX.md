@@ -1,22 +1,33 @@
-# Mesa Matrix (upstream truth, not runtime truth)
+# Mesa Matrix and Runtime Gap
 
-Source of truth: `docs/features.txt` of the exact Mesa checkout, captured by
-`scripts/capture-matrix.py` into `dist/<build>/upstream-feature-matrix.{json,md}`.
+Mesa Matrix is source truth, not target-device runtime truth. The exact pinned
+checkout reports 207 PanVK `DONE` entries. The unpublished beta.3 candidate
+retains Mesa `5a07217f034b3e50d8c7c7794f97a2df1742613b` (`26.3.0-devel`).
 
-Baseline 2026-09-18: PanVK Vulkan 1.4, 210/303 extensions, 69.3% coverage;
-1.0/1.2/1.3/1.4 version rows complete upstream. Recent entries include
-maintenance5-8, shader_constant_data, shader_atomic_int64,
-descriptor_indexing, maximal_reconvergence, quad_control,
-subgroup_uniform_control_flow, astc_decode_mode, calibrated_timestamps,
-present_timing.
+## Runtime comparison
 
-Device runtime matrix (`runtime-feature-matrix.json` from on-device
-vulkaninfo/probe) is stored separately. Release manifests distinguish
-`matrix_implemented / runtime_exposed / runtime_tested`. Emulator-relevant
-captures: apiVersion, robustBufferAccess, geometry/tessellation shaders,
-multiViewport, clip/cull distance, float64, depthBounds, wideLines,
-largePoints, anisotropy, BC/ETC2/ASTC_LDR, descriptorIndexing,
-timelineSemaphore, dynamicRendering, synchronization2, bufferDeviceAddress,
-pushDescriptor, swapchain, android_surface, external memory/semaphore.
-Feature states: `native / emulated / lowered / unsupported` — never set true
-to satisfy an app.
+| Runtime | Instance | Device | Total |
+|---|---:|---:|---:|
+| beta.2 tag | 12 | 166 | 178 |
+| beta.3 candidate | 13 | 181 | 194 |
+
+The candidate overlaps 193 Matrix entries and adds Android-specific
+`VK_KHR_android_surface`. Fourteen Matrix entries are absent:
+
+- 10 `platform-inapplicable`: Android excludes desktop/display WSI.
+- 3 `source-supported-not-exposed`: `VK_KHR_depth_clamp_zero_one`, `VK_KHR_pipeline_binary`, `VK_KHR_robustness2`; required workloads incomplete.
+- 1 `requires-wsi`: `VK_GOOGLE_display_timing`; no proven real Android timing path.
+
+Authoritative classifications: `dist/extension-gap.json` and
+`validation/g615-v11-csf/beta3-phase8-extension-gap.json`.
+
+## Mesa decision
+
+Candidate upstream Mesa `590bf21d918c86908d96d1f4590ecd25b9657171` was 28 commits
+ahead but had zero PanVK/WSI commits and no PanVK/WSI source diff. Rebasing the
+dirty Kbase integration offered no capability gain and required full
+requalification. Decision: retain pinned Mesa; no extension-only backport.
+
+The exposure gain uses Mesa's `-Dandroid-strict=false`, removing the generated
+Android allowlist filter while leaving PanVK's supported-extension tables
+authoritative. No local extension support bit was added.

@@ -1,0 +1,57 @@
+{
+  "phase": 4,
+  "sections": [5, 6, 7],
+  "recordedAt": "2026-09-19",
+  "mesaAssessment": {
+    "pinnedCommit": "5a07217f034b3e50d8c7c7794f97a2df1742613b",
+    "pinnedVersion": "26.3.0-devel",
+    "upstreamCandidateCommit": "590bf21d918c86908d96d1f4590ecd25b9657171",
+    "upstreamCandidateVersion": "26.3.0-devel",
+    "upstreamCandidateDate": "2026-09-18T20:00:52Z",
+    "pinnedIsAncestor": true,
+    "commitsAhead": 28,
+    "panvkOrWsiCommitsAhead": 0,
+    "panvkOrWsiDiff": false,
+    "rebased": false,
+    "selectedCommit": "5a07217f034b3e50d8c7c7794f97a2df1742613b",
+    "decision": "Retain pinned Mesa",
+    "blocker": "The fetched upstream candidate has no PanVK or Vulkan WSI commit and no PanVK/WSI source diff after the pinned commit. Rebasing the 44-file dirty Kbase integration would add no extension implementation or exposure change while requiring full regression qualification. No extension-only backport exists in this upstream range."
+  },
+  "exposureMethod": {
+    "mesaOption": "-Dandroid-strict=false",
+    "extensionFlagsAdded": false,
+    "description": "Disables Mesa's generated Android extension allowlist filter. The PanVK-supported extension tables remain authoritative; no local extension support bit was added."
+  },
+  "patchSeriesId": "sha256:b0573b926c81fb19e2ea67a9ab2465e3dcea4e8f0660db0012f8c98cce31bd4f",
+  "builds": {
+    "android": {
+      "result": "pass",
+      "clean": true,
+      "target": "ARM aarch64 Android 35",
+      "binarySha256": "336926ecd4d522746aadc7640971a604e9e80c8768d14bcf439c67c027ae1136"
+    },
+    "glibc": {
+      "result": "pass",
+      "clean": true,
+      "target": "ARM aarch64 glibc",
+      "kbaseKmodOpsPresent": true,
+      "binarySha256": "e6e826244c1c6e62b8f0fbd248ee2c8e92ea0792d22404c5bd2172fc3b36fd35"
+    }
+  },
+  "runtime": {
+    "device": "Poco X6 Pro / duchamp",
+    "serial": "Y5WWBMJVOZSK4HU8",
+    "enumerationResult": "pass",
+    "instanceExtensions": 13,
+    "deviceExtensions": 184,
+    "totalExtensions": 197,
+    "added": 19,
+    "removed": 0,
+    "changedSpecVersions": 0,
+    "workloadTestsRunForAddedExtensions": false
+  },
+  "remainingBlockers": [
+    "The 19 newly enumerated extensions still require extension-specific workloads before any runtimeTested claim.",
+    "Full beta.2 WSI, AHB, synchronization, compute, offscreen, present, and cold-launch regression gates were not rerun in Phase 4."
+  ]
+}

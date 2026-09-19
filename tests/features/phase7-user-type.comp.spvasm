@@ -1,0 +1,32 @@
+; SPIR-V
+; Version: 1.3
+; Generator: panvk Phase 7
+; Bound: 14
+; Schema: 0
+OpCapability Shader
+OpExtension "SPV_GOOGLE_user_type"
+OpMemoryModel Logical GLSL450
+OpEntryPoint GLCompute %main "main" %buffer
+OpExecutionMode %main LocalSize 1 1 1
+OpDecorate %block UserTypeGOOGLE "phase7_output"
+OpDecorate %array ArrayStride 4
+OpMemberDecorate %block 0 Offset 0
+OpDecorate %block Block
+OpDecorate %buffer DescriptorSet 0
+OpDecorate %buffer Binding 0
+%void = OpTypeVoid
+%fn = OpTypeFunction %void
+%uint = OpTypeInt 32 0
+%uint_0 = OpConstant %uint 0
+%uint_42 = OpConstant %uint 42
+%array = OpTypeRuntimeArray %uint
+%block = OpTypeStruct %array
+%ptr_block = OpTypePointer StorageBuffer %block
+%ptr_uint = OpTypePointer StorageBuffer %uint
+%buffer = OpVariable %ptr_block StorageBuffer
+%main = OpFunction %void None %fn
+%entry = OpLabel
+%out = OpAccessChain %ptr_uint %buffer %uint_0 %uint_0
+OpStore %out %uint_42
+OpReturn
+OpFunctionEnd

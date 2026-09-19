@@ -1,0 +1,31 @@
+; SPIR-V
+; Version: 1.6
+; Generator: panvk Phase 7
+; Bound: 16
+; Schema: 0
+OpCapability Shader
+OpCapability UntypedPointersKHR
+OpExtension "SPV_KHR_untyped_pointers"
+OpMemoryModel Logical GLSL450
+OpEntryPoint GLCompute %main "main" %buffer
+OpExecutionMode %main LocalSize 1 1 1
+OpDecorate %array ArrayStride 4
+OpMemberDecorate %block 0 Offset 0
+OpDecorate %block Block
+OpDecorate %buffer DescriptorSet 0
+OpDecorate %buffer Binding 0
+%void = OpTypeVoid
+%fn = OpTypeFunction %void
+%uint = OpTypeInt 32 0
+%uint_42 = OpConstant %uint 42
+%array = OpTypeRuntimeArray %uint
+%block = OpTypeStruct %array
+%ptr_ssbo = OpTypeUntypedPointerKHR StorageBuffer
+%buffer = OpUntypedVariableKHR %ptr_ssbo StorageBuffer %block
+%uint_0 = OpConstant %uint 0
+%main = OpFunction %void None %fn
+%entry = OpLabel
+%element = OpUntypedAccessChainKHR %ptr_ssbo %block %buffer %uint_0 %uint_0
+OpStore %element %uint_42
+OpReturn
+OpFunctionEnd

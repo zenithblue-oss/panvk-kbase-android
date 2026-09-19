@@ -1,0 +1,33 @@
+PHASE8_PHASE5_FEATURE_RERUN
+=== sync_features ===
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+{"feature":"timelineSemaphore","status":"PASS","gpu_chain":"1..64","cpu_wait":64,"cpu_signal":65,"counter":66}
+{"feature":"synchronization2","status":"PASS","barrier2":true,"submit2":true,"commandBufferSubmitInfo":true,"semaphoreSubmitInfo":true}
+sync_features=PASS
+=== compute_features ===
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+{"feature":"descriptorIndexing","status":"PASS","runtimeArray":true,"partiallyBound":true,"variableCount":4,"sampledNonUniformIndex":3,"storageNonUniformIndex":2,"checksum":123}
+{"feature":"bufferDeviceAddress","status":"PASS","address":"0x5fffe1e000","readback":"0x2468ace0"}
+{"feature":"pushDescriptor","status":"PASS","readback":"0xb791f3dd","expected":"0xb791f3dd"}
+{"feature":"robustBufferAccess","status":"PASS","readback":"0x00000000","expected":"0x00000000"}
+compute_features=PASS
+=== graphics_features ===
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+{"feature":"dynamicRendering","status":"PASS","beginEnd":true,"trianglePixels":1154,"checksum":"0x9a7f1b8fec90af07"}
+{"feature":"wideLinesLargePoints","status":"PASS","lineWidth":5,"greenPixels":185,"pointSize":11,"yellowPixels":121,"lineWidthRange":[0.0,8.0],"pointSizeRange":[0.1,4095.9],"lineWidthGranularity":0.008,"pointSizeGranularity":0.062}
+graphics_features=PASS
+=== texture_features ===
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+{"format":"ETC2_RGB_UNORM","status":"PASS","sampling":true,"linearFiltering":true,"mipLevel1":true,"anisotropy":4,"sample":[0.00784314,0.00784314,0.00784314,1],"checksum":"0xf1cedb25"}
+{"format":"ETC2_RGBA_UNORM","status":"PASS","sampling":true,"linearFiltering":true,"mipLevel1":true,"anisotropy":4,"sample":[0.00784314,0.00784314,0.00784314,0],"checksum":"0x7bcedb25"}
+{"format":"EAC_R11_UNORM","status":"PASS","sampling":true,"linearFiltering":true,"mipLevel1":true,"anisotropy":4,"sample":[0.000488289,0,0,1],"checksum":"0x8a3ef905"}
+{"format":"EAC_R11_SNORM","status":"PASS","sampling":true,"linearFiltering":true,"mipLevel1":true,"anisotropy":4,"sample":[-0.00292978,0,0,1],"checksum":"0xe96c9705"}
+{"format":"EAC_RG11_UNORM","status":"PASS","sampling":true,"linearFiltering":true,"mipLevel1":true,"anisotropy":4,"sample":[0.000488289,0.000488289,0,1],"checksum":"0xca6eb905"}
+{"format":"EAC_RG11_SNORM","status":"PASS","sampling":true,"linearFiltering":true,"mipLevel1":true,"anisotropy":4,"sample":[-0.00292978,-0.00292978,0,1],"checksum":"0xa21f1705"}
+{"format":"ASTC_4x4_UNORM","status":"PASS","sampling":true,"linearFiltering":true,"mipLevel1":true,"anisotropy":4,"sample":[0.25,0.5,0.75,1],"checksum":"0xb0e91905"}
+{"format":"ASTC_4x4_SRGB","status":"PASS","sampling":true,"linearFiltering":true,"mipLevel1":true,"anisotropy":4,"sample":[0.0512821,0.215873,0.527228,1],"checksum":"0xc4f066ad"}
+{"format":"ASTC_4x4_SFLOAT","status":"PASS","sampling":true,"linearFiltering":true,"mipLevel1":true,"anisotropy":4,"sample":[1,2,3,1],"checksum":"0xfee91905"}
+{"feature":"samplerAnisotropy","status":"PASS","maxAnisotropy":4,"deterministicTextureSamples":true}
+{"feature":"ASTC_HDR","status":"PASS","format":"VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK_EXT"}
+texture_features=PASS
+RESULT=PASS

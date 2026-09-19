@@ -1,0 +1,77 @@
+PHASE8_ANDROID_SHELL_GATES
+SERIAL=Y5WWBMJVOZSK4HU8
+576e37de9a3b60dda9a972a6f91c3a50e09238bd31a9888e04215c7b554c803a  /data/local/tmp/libvulkan_panfrost.so
+=== enumeration ===
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+C-OK dlopen
+C-OK negotiate r=0 ver=5
+C-CreateInstance r=0
+C-Enumerate count=1 r=0
+C-DEV 0: Mali-G615 MC6 id=0xb8a31030 vendor=0x13b5 api=0x40416b
+C-PASS
+enumeration=PASS
+=== compute ===
+D-OK physical device
+T-after-CreateInstance
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+T-after-count n=1
+T-after-enum
+T-loop 0
+T-gpp 0: Mali-G615 MC6
+T-before-qfams
+T-after-qfams qn=1
+T-before-qfams2
+T-after-qfams2
+T-before-CreateDevice qi=0
+T-after-CreateDevice
+D-OK vkCreateDevice
+T-before-memprops
+T-after-memprops types=3 heaps=1
+T-before-AllocMem size=64 mi=1
+T-after-AllocMem
+T-after-Bind
+D-OK memory+bind (Gate D device side done)
+T-before-ShaderModule size=524
+T-after-ShaderModule
+T-before-ComputePipeline
+T-after-ComputePipeline
+T-mapped p=0x5fffe1e000
+T-mapped p=0x5fffe1e000
+T-mapped p=0x5fffe1e000
+T-mapped p=0x5fffe1e000
+T-mapped p=0x5fffe1e000
+T-mapped p=0x5fffe1e000
+T-mapped p=0x5fffe1e000
+T-mapped p=0x5fffe1e000
+T-mapped p=0x5fffe1e000
+T-mapped p=0x5fffe1e000
+E-compute 10/10
+D+E-PASS
+compute=PASS
+=== offscreen ===
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+F-device ready (family 0)
+F-pipeline ready
+F-submit complete
+F-interior RGBA=255 0 0 255
+F-clear    RGBA=0 0 255 255
+F-PASS
+offscreen=PASS
+=== ahb ===
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+Vulkan-RBuffer interior RGBA=255 0 0 255
+Vulkan-RBuffer clear    RGBA=0 0 255 255
+AHB-lock       interior RGBA=255 0 0 255
+AHB-lock non-zero: 16443
+AHB-lock       clear    RGBA=0 0 255 255
+ahb=PASS
+=== sync ===
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+SYNC: fence signal/wait/reset OK
+SYNC: binary semaphore chain OK
+SYNC: 20/20 multi-submission loop OK
+SYNC: QueueWaitIdle and DeviceWaitIdle OK
+SYNC: readback magic=0x12345678
+SYNC-PASS
+sync=PASS
+RESULT=PASS

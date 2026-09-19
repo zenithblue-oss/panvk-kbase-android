@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-09-19",
+  "target": {
+    "serial": "Y5WWBMJVOZSK4HU8",
+    "model": "2311DRK48I",
+    "device": "Poco X6 Pro",
+    "gpu": "Mali-G615 MC6",
+    "gpuId": "0xb8a31030",
+    "kbase": "CSF 1.21"
+  },
+  "candidateIcd": {
+    "path": "dist/android-g615-v11-csf/libvulkan_panfrost.so",
+    "sha256": "576e37de9a3b60dda9a972a6f91c3a50e09238bd31a9888e04215c7b554c803a"
+  },
+  "kbaseTextureFeatures": {
+    "rawEvidence": "validation/g615-v11-csf/beta3-final-kbase-texture-features-2026-09-19.txt",
+    "TF0": "0xc7fe001e",
+    "TF1": "0x00000000",
+    "TF2": "0x00000000",
+    "TF3": "0x00000000",
+    "compressedFormatMask": "0xc7fe001e",
+    "bcRequiredMask": "0x0001ff80",
+    "bcSupportedMask": "0x00000000",
+    "decode": {
+      "BC1_UNORM": false,
+      "BC2_UNORM": false,
+      "BC3_UNORM": false,
+      "BC4_UNORM": false,
+      "BC4_SNORM": false,
+      "BC5_UNORM": false,
+      "BC5_SNORM": false,
+      "BC6H_UF16": false,
+      "BC6H_SF16": false,
+      "BC7_UNORM": false,
+      "ETC2_RGB8": true,
+      "ETC2_R11_UNORM": true,
+      "ETC2_RGBA8": true,
+      "ETC2_RG11_UNORM": true,
+      "ETC2_R11_SNORM": true,
+      "ETC2_RG11_SNORM": true,
+      "ETC2_RGB8A1": true,
+      "ASTC_3D_LDR": true,
+      "ASTC_3D_HDR": true,
+      "ASTC_2D_LDR": true,
+      "ASTC_2D_HDR": true,
+      "ASTC_2D_NARROW": true,
+      "ASTC_3D_NARROW": true
+    }
+  },
+  "basePanvkFormatQueries": {
+    "rawEvidence": "validation/g615-v11-csf/beta3-final-bc-format-properties-2026-09-19.txt",
+    "formats": [
+      "VK_FORMAT_BC1_RGB_UNORM_BLOCK",
+      "VK_FORMAT_BC1_RGB_SRGB_BLOCK",
+      "VK_FORMAT_BC1_RGBA_UNORM_BLOCK",
+      "VK_FORMAT_BC1_RGBA_SRGB_BLOCK",
+      "VK_FORMAT_BC2_UNORM_BLOCK",
+      "VK_FORMAT_BC2_SRGB_BLOCK",
+      "VK_FORMAT_BC3_UNORM_BLOCK",
+      "VK_FORMAT_BC3_SRGB_BLOCK",
+      "VK_FORMAT_BC4_UNORM_BLOCK",
+      "VK_FORMAT_BC4_SNORM_BLOCK",
+      "VK_FORMAT_BC5_UNORM_BLOCK",
+      "VK_FORMAT_BC5_SNORM_BLOCK",
+      "VK_FORMAT_BC6H_UFLOAT_BLOCK",
+      "VK_FORMAT_BC6H_SFLOAT_BLOCK",
+      "VK_FORMAT_BC7_UNORM_BLOCK",
+      "VK_FORMAT_BC7_SRGB_BLOCK"
+    ],
+    "formatCount": 16,
+    "commonResultForEveryListedFormat": {
+      "legacy": { "linear": "0x00000000", "optimal": "0x00000000", "buffer": "0x00000000" },
+      "properties2": { "linear": "0x00000000", "optimal": "0x00000000", "buffer": "0x00000000" },
+      "properties3": { "linear": "0x0000000000000000", "optimal": "0x0000000000000000", "buffer": "0x0000000000000000" },
+      "imageFormatProperties2": { "result": "VK_ERROR_FORMAT_NOT_SUPPORTED", "resultCode": -11 }
+    },
+    "formatsWithFeatures": 0,
+    "controls": {
+      "VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK": "SUPPORTED",
+      "VK_FORMAT_ASTC_4x4_UNORM_BLOCK": "SUPPORTED"
+    }
+  },
+  "nativeBcDecision": {
+    "textureCompressionBC": false,
+    "nativeEligible": false,
+    "reason": "Kbase BC mask is zero and all 16 base-PanVK BC format queries are unsupported",
+    "bcCompatibilityComponent": "EXCLUDED"
+  }
+}

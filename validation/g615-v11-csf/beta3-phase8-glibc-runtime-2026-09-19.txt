@@ -1,0 +1,59 @@
+PHASE8_GLIBC_RUNTIME
+COMMAND=chroot /tmp/tests/run_glibc_tests.sh
+=== GLIBC ENUMERATE ===
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+C-OK dlopen
+C-OK negotiate r=0 ver=5
+C-CreateInstance r=0
+C-Enumerate count=1 r=0
+C-DEV 0: Mali-G615 MC6 id=0xb8a31030 vendor=0x13b5 api=0x40416b
+C-PASS
+=== GLIBC COMPUTE ===
+T-after-CreateInstance
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+T-after-count n=1
+T-after-enum
+T-loop 0
+T-gpp 0: Mali-G615 MC6
+D-OK physical device
+T-before-qfams
+T-after-qfams qn=1
+T-before-qfams2
+T-after-qfams2
+T-before-CreateDevice qi=0
+T-after-CreateDevice
+D-OK vkCreateDevice
+T-before-memprops
+T-after-memprops types=3 heaps=1
+T-before-AllocMem size=64 mi=1
+T-after-AllocMem
+T-after-Bind
+D-OK memory+bind (Gate D device side done)
+T-before-ShaderModule size=524
+T-after-ShaderModule
+T-before-ComputePipeline
+T-after-ComputePipeline
+T-mapped p=0x5fffe1e000
+T-mapped p=0x5fffe1e000
+T-mapped p=0x5fffe1e000
+T-mapped p=0x5fffe1e000
+T-mapped p=0x5fffe1e000
+T-mapped p=0x5fffe1e000
+T-mapped p=0x5fffe1e000
+T-mapped p=0x5fffe1e000
+T-mapped p=0x5fffe1e000
+T-mapped p=0x5fffe1e000
+E-compute 10/10
+MESA: info: kbase_queue_wait_current: wait completed successfully
+D+E-PASS
+=== GLIBC TRIANGLE ===
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+F-device ready (family 0)
+F-pipeline ready
+F-submit complete
+F-interior RGBA=255 0 0 255
+F-clear    RGBA=0 0 255 255
+MESA: info: kbase_queue_wait_current: wait completed successfully
+F-PASS
+95a019b21d42f9d91bf3ee697a4e84b09485fdd8f0c298dda4494356cb983ec0  /tmp/build-glibc/src/panfrost/vulkan/libvulkan_panfrost.so
+RESULT=PASS

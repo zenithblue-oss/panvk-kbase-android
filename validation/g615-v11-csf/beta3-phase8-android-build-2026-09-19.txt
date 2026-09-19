@@ -1,0 +1,17 @@
+PHASE8_ANDROID_CLEAN_BUILD
+COMMAND=rm -rf build/android-bionic build/android-bionic.cross.ini && ./scripts/build-android.sh --profile g615-v11-csf
+    vulkan-drivers   : panfrost
+    zstd             : disabled
+
+Found ninja-1.13.2 at /usr/bin/ninja
+Generating targets:   0%|          | 0/188 eta ?Generating targets:  18%|█▊        | 34/188 eta 00:00Generating targets:  55%|█████▌    | 104/188 eta 00:00Generating targets:  96%|█████████▌| 180/188 eta 00:00                                                      Writing build.ninja:   0%|          | 0/1170 eta ?                                                  [1107/1111] Compiling C object src/panfrost/vulkan/libvulkan_panfrost.so.p/panvk_physical_device.c.o
+[1108/1111] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/csf_panvk_vX_exception_handler.c.o
+[1109/1111] Compiling C object src/panfrost/vulkan/libpanvk_v14.a.p/csf_panvk_vX_cmd_draw.c.o
+[1110/1111] Linking static target src/panfrost/vulkan/libpanvk_v14.a
+[1111/1111] Linking target src/panfrost/vulkan/libvulkan_panfrost.so
+OK profile=g615-v11-csf so=/home/abhaybyte/repos/panvk/dist/android-g615-v11-csf/libvulkan_panfrost.so
+KMD_OPTION_CHECK:
+    "name": "panfrost-kmds",
+576e37de9a3b60dda9a972a6f91c3a50e09238bd31a9888e04215c7b554c803a  dist/android-g615-v11-csf/libvulkan_panfrost.so
+dist/android-g615-v11-csf/libvulkan_panfrost.so: ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, for Android 35, built by NDK r30-beta1 (14904198), BuildID[sha1]=2ba551018ebc18b8990c7431e3c99b0523f87d15, with debug_info, not stripped
+RESULT=PASS

@@ -54,6 +54,8 @@ source = {
     'sourceCommit': mesa_sha,
     'patchSeriesId': patch_series_id,
     'referenceRepos': lock.get('referenceRepos'),
+    'releaseStatus': {'prerelease': True, 'published': False},
+    'bcCompatibilityIncluded': False,
 }
 if matrix_name:
     source['runtimeFeatureMatrix'] = matrix_name

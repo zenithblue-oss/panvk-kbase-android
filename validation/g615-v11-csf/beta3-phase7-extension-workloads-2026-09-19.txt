@@ -1,0 +1,45 @@
+Phase 7 extension workload evidence
+Target: Poco X6 Pro / 2311DRK48I / Y5WWBMJVOZSK4HU8
+ICD: /data/local/tmp/libvulkan_panfrost.so
+ICD SHA-256: 576e37de9a3b60dda9a972a6f91c3a50e09238bd31a9888e04215c7b554c803a
+
+VK_KHR_compute_shader_derivatives quads: PASS readback=[1077936128,1077936128,1077936128,1077936128]
+VK_KHR_compute_shader_derivatives linear: PASS readback=[1077936128,1077936128,1077936128,1077936128]
+VK_KHR_shader_fma: PASS readback=[1092616192,3452816845,3452816845,3452816845]
+VK_KHR_shader_relaxed_extended_instruction: PASS readback=[3452816845,3452816845,3452816845,3452816845]
+VK_KHR_shader_untyped_pointers: PASS readback=[42,3452816845,3452816845,3452816845]
+VK_KHR_shader_constant_data: PASS readback=[42,3452816845,3452816845,3452816845]
+VK_GOOGLE_user_type: PASS readback=[42,3452816845,3452816845,3452816845]
+VK_KHR_copy_memory_indirect: PASS vkCmdCopyMemoryIndirectKHR readback=0x13579bdf
+VK_KHR_maintenance7: PASS dynamic rendering submitted with VK_RENDERING_CONTENTS_INLINE_BIT_KHR
+VK_KHR_maintenance8: PASS VkMemoryBarrierAccessFlags3KHR submitted via vkCmdPipelineBarrier2
+VK_KHR_maintenance9: PASS zero-queue vkCreateDevice=VK_SUCCESS
+VK_KHR_internally_synchronized_queues: PASS eight concurrent unsynchronized vkQueueSubmit calls completed
+VK_KHR_unified_image_layouts: PASS real image transitioned and copied in VK_IMAGE_LAYOUT_GENERAL
+
+Android WSI:
+ANDROID_SURFACE=pass
+VK_KHR_surface_maintenance1: PASS vkGetPhysicalDeviceSurfaceCapabilities2KHR=VK_SUCCESS, compatibleModes=1
+SWAPCHAIN=pass
+vkWaitForPresent2KHR=0x7194f54a1c
+vkReleaseSwapchainImagesKHR=0x7194f54b68
+VK_KHR_swapchain_maintenance1: PASS acquire=VK_SUCCESS, fence wait=VK_SUCCESS, release=VK_SUCCESS
+VK_KHR_present_id2: PASS VkPresentId2KHR presentId=1 and 300/300 presents
+VK_KHR_present_wait2: PASS vkWaitForPresent2KHR=VK_SUCCESS and 300/300 waits
+Baseline Android WSI: PASS acquire=300, submit=300, present=300, deviceLost=0, hang=0
+
+Disabled in final ICD; no query-only proof accepted:
+VK_KHR_depth_clamp_zero_one: DISABLED pixel-validation workload incomplete
+VK_KHR_pipeline_binary: DISABLED create/retrieve/recreate/execute workload incomplete
+VK_KHR_robustness2: DISABLED robustBufferAccess2/nullDescriptor workloads incomplete
+
+Regression:
+descriptorIndexing PASS checksum=123
+bufferDeviceAddress PASS readback=0x2468ace0
+pushDescriptor PASS readback=0xb791f3dd
+robustBufferAccess PASS readback=0x00000000
+timelineSemaphore PASS counter=66
+synchronization2 PASS
+static unittest: 11 PASS
+JSON validation: PASS
+git diff --check: PASS

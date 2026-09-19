@@ -1,99 +1,85 @@
 # Runtime Device Capabilities (Mali-G615 MC6)
 
-On-device query of the exact beta.2 ICD (`libvulkan_panfrost.so`), not Mesa Matrix.
+This page describes the unpublished beta.3 candidate tested on Poco X6 Pro on
+2026-09-19. The beta.2 tag remains the immutable 178-extension release.
 
-Schema for every capability:
+Normative file: `validation/g615-v11-csf/runtime-feature-matrix.json`.
 
-```json
-{
-  "geometryShader": {
-    "upstreamImplemented": false,
-    "runtimeExposed": false,
-    "runtimeTested": false
-  }
-}
-```
+## Status model
 
-- `upstreamImplemented` — Mesa PanVK source advertises/implements the path
-- `runtimeExposed` — `vkGetPhysicalDeviceFeatures2` / extension enumerate on this ICD
-- `runtimeTested` — a real workload on this tree exercised it (not merely a true bit)
+- **Native exposed**: reported by the base `libvulkan_panfrost.so`.
+- **Native tested**: a real target-device workload passed; enumeration alone is not a test.
+- **Compat/emulated**: implemented outside the base ICD and identified separately.
+- **Unsupported**: not exposed by the base ICD.
+- **Platform-inapplicable**: upstream desktop/display capability excluded from Android/Bionic.
 
-Normative file: `dist/runtime-feature-matrix.json`  
-Capture: `scripts/capture-runtime-features` / `scripts/capture-runtime-features.py`
+The matrix has per-extension `sourceImplemented`, `runtimeExposed`,
+`runtimeTested`, and `platform` fields. Emulated features add `nativeHardware`,
+`nativeDriverExposed`, `nativeVulkanFeatureBit`, `compatImplementation`,
+`compatAvailable`, and `compatTested`.
 
-## Capture (Poco X6 Pro, 2026-09-19)
+## Candidate capture
 
-| Field | Value |
-|---|---|
-| deviceName | Mali-G615 MC6 |
-| device | Poco X6 Pro / duchamp |
-| vendorID | 0x13b5 |
-| deviceID | 0xb8a31030 |
-| gpuId | 0xb8a31030 |
-| apiVersion | 1.4.363 |
-| instanceExtensionCount | 12 |
-| deviceExtensionCount | 166 |
-| totalExtensionCount | 178 |
-| mesaCommit | `5a07217f034b3e50d8c7c7794f97a2df1742613b` |
-| kbaseUapi | 1.21 |
+| Field | beta.2 tag | beta.3 candidate |
+|---|---:|---:|
+| Instance extensions | 12 | 13 |
+| Device extensions | 166 | 181 |
+| Total extensions | 178 | 194 |
+| Mesa | `5a07217f034b3e50d8c7c7794f97a2df1742613b` | same pinned commit |
+| Android ICD SHA-256 | `2366a5c392286553b156057f15840b22428eb501953b224ed0c215436df4f301` | `576e37de9a3b60dda9a972a6f91c3a50e09238bd31a9888e04215c7b554c803a` |
 
-Live dump counts supersede the beta.1 8/160 figures (WSI instance extensions are now advertised).
+Candidate: Vulkan 1.4.363, Mali-G615 MC6 `0xb8a31030`, CSF, Kbase UAPI 1.21.
 
-## Exposed vs tested (beta.2)
+## Native tested
 
-`runtimeTested=true` only when a real gate exists:
+Phase 5 passed `descriptorIndexing`, `timelineSemaphore`, `dynamicRendering`,
+`synchronization2`, `bufferDeviceAddress`, push descriptors,
+`robustBufferAccess`, `samplerAnisotropy`, `wideLines`, `largePoints`, ETC2,
+ASTC LDR, and ASTC HDR workloads. Beta.2 compute, graphics, allocation, AHB,
+sync, Android surface, swapchain, 300-present, cold-launch, and glibc gates also
+passed against the candidate.
 
-| Capability | upstream | exposed | tested | workload |
-|---|---|---|---|---|
-| computeShader | Y | Y | Y | Gate E compute 10/10 |
-| vertexShader | Y | Y | Y | Gate F / WSI triangle |
-| fragmentShader | Y | Y | Y | Gate F / WSI triangle |
-| bufferAllocation | Y | Y | Y | Gate D/E mapped buffer |
-| ahbImport | Y | Y | Y | Gate G AHB import |
-| colorAttachmentRendering | Y | Y | Y | Gate F + swapchain |
-| binarySemaphore | Y | Y | Y | sync_test + WSI acquire/present |
-| fence | Y | Y | Y | sync_test + WSI in-flight fences |
-| swapchainPresentation | Y | Y | Y | Gate H 300/300 present |
-| VK_KHR_swapchain | Y | Y | Y | Gate H |
-| VK_KHR_android_surface | Y | Y | Y | Gate H surface create |
-| externalMemory | Y | Y | Y | AHB / dma-buf import |
-| externalSemaphore | Y | Y | Y | WSI binary semaphores |
-| robustBufferAccess | Y | Y | N | bit only |
-| wideLines | Y | Y | N | bit only |
-| largePoints | Y | Y | N | bit only |
-| samplerAnisotropy | Y | Y | N | bit only |
-| textureCompressionETC2 | Y | Y | N | bit only |
-| textureCompressionASTC_LDR | Y | Y | N | bit only |
-| descriptorIndexing | Y | Y | N | bit only |
-| timelineSemaphore | Y | Y | N | bit only |
-| dynamicRendering | Y | Y | N | bit only |
-| synchronization2 | Y | Y | N | bit only |
-| bufferDeviceAddress | Y | Y | N | bit only |
-| VK_KHR_push_descriptor | Y | Y | N | extension listed only |
-| geometryShader | N | N | N | not advertised |
-| tessellationShader | N | N | N | not advertised |
-| multiViewport | N | N | N | not advertised |
-| shaderClipDistance | N | N | N | not advertised |
-| shaderCullDistance | N | N | N | not advertised |
-| shaderFloat64 | N | N | N | not advertised |
-| depthBounds | N | N | N | not advertised |
-| textureCompressionBC | Y (probe) | N | N | G615 BC formats not exposed |
+The 16 newly exposed and tested extensions are:
 
-Do not treat a true feature bit as a pass.
+`VK_GOOGLE_user_type`, `VK_KHR_compute_shader_derivatives`,
+`VK_KHR_copy_memory_indirect`, `VK_KHR_internally_synchronized_queues`,
+`VK_KHR_maintenance7`, `VK_KHR_maintenance8`, `VK_KHR_maintenance9`,
+`VK_KHR_present_id2`, `VK_KHR_present_wait2`,
+`VK_KHR_shader_constant_data`, `VK_KHR_shader_fma`,
+`VK_KHR_shader_relaxed_extended_instruction`,
+`VK_KHR_shader_untyped_pointers`, `VK_KHR_surface_maintenance1`,
+`VK_KHR_swapchain_maintenance1`, and `VK_KHR_unified_image_layouts`.
 
-## Instance extensions (12, live dump)
+Other enumerated extensions are **native exposed**, not automatically native tested.
 
-1. `VK_KHR_android_surface`
-2. `VK_KHR_device_group_creation`
-3. `VK_KHR_external_fence_capabilities`
-4. `VK_KHR_external_memory_capabilities`
-5. `VK_KHR_external_semaphore_capabilities`
-6. `VK_KHR_get_physical_device_properties2`
-7. `VK_KHR_get_surface_capabilities2`
-8. `VK_KHR_surface`
-9. `VK_EXT_debug_report`
-10. `VK_EXT_debug_utils`
-11. `VK_EXT_headless_surface`
-12. `VK_EXT_surface_maintenance1`
+## Unsupported
 
-Full device-extension list (166) is in `dist/runtime-feature-matrix.json`.
+`geometryShader`, `tessellationShader`, `multiViewport`, `shaderClipDistance`,
+`shaderCullDistance`, `shaderFloat64`, `depthBounds`, `fillModeNonSolid`, and
+native `textureCompressionBC` remain false. Three source-supported KHR
+extensions were deliberately disabled after required workloads were not
+completed: `VK_KHR_depth_clamp_zero_one`, `VK_KHR_pipeline_binary`, and
+`VK_KHR_robustness2`. `VK_GOOGLE_display_timing` remains blocked on a real
+Android timing implementation.
+
+## Compat/emulated
+
+The experimental `bcn_layer` Android binary built, was discovered, loaded, and
+intercepted 16 BC format queries through Android's Vulkan loader. That loader
+selected the system Mali ICD, not staged PanVK; device creation failed before
+known-block tests. Therefore `compatAvailable=true`, `compatLoadTested=true`,
+`compatTested=false`, and `compatComposesWithPanvk=false`. Native BC fields and
+the native Vulkan feature bit remain false. The layer is excluded from both
+candidate packages and is not enabled by default.
+
+## Platform-inapplicable
+
+Android excludes `VK_KHR_display`, `VK_KHR_get_display_properties2`,
+`VK_KHR_wayland_surface`, `VK_KHR_xcb_surface`, `VK_KHR_xlib_surface`,
+`VK_EXT_acquire_drm_display`, `VK_EXT_acquire_xlib_display`,
+`VK_EXT_direct_mode_display`, `VK_EXT_display_control`, and
+`VK_EXT_display_surface_counter`.
+
+Evidence: `validation/g615-v11-csf/beta3-phase5-features-2026-09-19.json`,
+`beta3-phase7-extension-workloads-2026-09-19.json`,
+`beta3-phase8-summary.json`, and `beta3-phase6-bcn.json` in the same directory.
