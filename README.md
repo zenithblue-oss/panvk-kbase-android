@@ -69,6 +69,52 @@ Two separate sets are stored per release: `UPSTREAM_MATRIX_CAPABILITIES`
 runtime-tested capabilities may be used for compatibility claims. No fake
 feature bits.
 
+## Runtime Features & Extensions (Mali-G615 MC6 / CSF uAPI 1.21)
+
+Full specification in [`docs/RUNTIME-FEATURES.md`](docs/RUNTIME-FEATURES.md).
+
+- **Vulkan API Version**: `1.4.363`
+- **Total Extensions Exposed**: `168` (8 Instance, 160 Device)
+- **Driver**: Mesa `26.3.0-devel` (Commit `5a07217f034b3e50d8c7c7794f97a2df1742613b`)
+- **GPU**: Mali-G615 MC6 (`0xb8a31030`)
+
+### Key Feature Matrix
+
+| Feature | Hardware Status |
+|---|---|
+| `descriptorIndexing` | **YES** |
+| `timelineSemaphore` | **YES** |
+| `bufferDeviceAddress` | **YES** |
+| `dynamicRendering` | **YES** |
+| `synchronization2` | **YES** |
+| `inlineUniformBlock` | **YES** |
+| `maintenance4` | **YES** |
+| `robustBufferAccess` | **YES** |
+| `samplerAnisotropy` | **YES** |
+| `textureCompressionETC2` | **YES** |
+| `textureCompressionASTC_LDR` | **YES** |
+| `shaderInt64` / `shaderInt16` | **YES** |
+| `geometryShader` | **NO** |
+| `tessellationShader` | **NO** |
+| `textureCompressionBC` | **NO** |
+
+<details>
+<summary><b>Click to expand full list of 168 extensions (8 instance + 160 device)</b></summary>
+
+#### Instance Extensions (8)
+- `VK_KHR_device_group_creation` (v1)
+- `VK_KHR_external_fence_capabilities` (v1)
+- `VK_KHR_external_memory_capabilities` (v1)
+- `VK_KHR_external_semaphore_capabilities` (v1)
+- `VK_KHR_get_physical_device_properties2` (v2)
+- `VK_EXT_debug_report` (v10)
+- `VK_EXT_debug_utils` (v2)
+- `VK_EXT_headless_surface` (v1)
+
+#### Device Extensions (160)
+`VK_KHR_8bit_storage`, `VK_KHR_16bit_storage`, `VK_KHR_bind_memory2`, `VK_KHR_buffer_device_address`, `VK_KHR_calibrated_timestamps`, `VK_KHR_cooperative_matrix`, `VK_KHR_copy_commands2`, `VK_KHR_create_renderpass2`, `VK_KHR_dedicated_allocation`, `VK_KHR_depth_stencil_resolve`, `VK_KHR_descriptor_update_template`, `VK_KHR_device_group`, `VK_KHR_draw_indirect_count`, `VK_KHR_driver_properties`, `VK_KHR_dynamic_rendering`, `VK_KHR_dynamic_rendering_local_read`, `VK_KHR_external_fence`, `VK_KHR_external_fence_fd`, `VK_KHR_external_memory`, `VK_KHR_external_memory_fd`, `VK_KHR_external_semaphore`, `VK_KHR_external_semaphore_fd`, `VK_KHR_format_feature_flags2`, `VK_KHR_get_memory_requirements2`, `VK_KHR_global_priority`, `VK_KHR_image_format_list`, `VK_KHR_imageless_framebuffer`, `VK_KHR_index_type_uint8`, `VK_KHR_line_rasterization`, `VK_KHR_load_store_op_none`, `VK_KHR_maintenance1`, `VK_KHR_maintenance2`, `VK_KHR_maintenance3`, `VK_KHR_maintenance4`, `VK_KHR_maintenance5`, `VK_KHR_maintenance6`, `VK_KHR_map_memory2`, `VK_KHR_multiview`, `VK_KHR_pipeline_executable_properties`, `VK_KHR_pipeline_library`, `VK_KHR_push_descriptor`, `VK_KHR_relaxed_block_layout`, `VK_KHR_sampler_mirror_clamp_to_edge`, `VK_KHR_sampler_ycbcr_conversion`, `VK_KHR_separate_depth_stencil_layouts`, `VK_KHR_shader_atomic_int64`, `VK_KHR_shader_clock`, `VK_KHR_shader_draw_parameters`, `VK_KHR_shader_expect_assume`, `VK_KHR_shader_float16_int8`, `VK_KHR_shader_float_controls`, `VK_KHR_shader_float_controls2`, `VK_KHR_shader_integer_dot_product`, `VK_KHR_shader_maximal_reconvergence`, `VK_KHR_shader_non_semantic_info`, `VK_KHR_shader_quad_control`, `VK_KHR_shader_subgroup_extended_types`, `VK_KHR_shader_subgroup_rotate`, `VK_KHR_shader_subgroup_uniform_control_flow`, `VK_KHR_shader_terminate_invocation`, `VK_KHR_spirv_1_4`, `VK_KHR_storage_buffer_storage_class`, `VK_KHR_synchronization2`, `VK_KHR_timeline_semaphore`, `VK_KHR_uniform_buffer_standard_layout`, `VK_KHR_variable_pointers`, `VK_KHR_vertex_attribute_divisor`, `VK_KHR_vulkan_memory_model`, `VK_KHR_workgroup_memory_explicit_layout`, `VK_KHR_zero_initialize_workgroup_memory`, `VK_EXT_4444_formats`, `VK_EXT_astc_decode_mode`, `VK_EXT_attachment_feedback_loop_dynamic_state`, `VK_EXT_attachment_feedback_loop_layout`, `VK_EXT_border_color_swizzle`, `VK_EXT_buffer_device_address`, `VK_EXT_calibrated_timestamps`, `VK_EXT_color_write_enable`, `VK_EXT_conditional_rendering`, `VK_EXT_conservative_rasterization`, `VK_EXT_custom_border_color`, `VK_EXT_debug_marker`, `VK_EXT_depth_bias_control`, `VK_EXT_depth_clamp_control`, `VK_EXT_depth_clamp_zero_one`, `VK_EXT_depth_clip_control`, `VK_EXT_depth_clip_enable`, `VK_EXT_descriptor_indexing`, `VK_EXT_device_address_binding_report`, `VK_EXT_device_memory_report`, `VK_EXT_dynamic_rendering_unused_attachments`, `VK_EXT_extended_dynamic_state`, `VK_EXT_extended_dynamic_state2`, `VK_EXT_extended_dynamic_state3`, `VK_EXT_external_memory_acquire_unmodified`, `VK_EXT_external_memory_dma_buf`, `VK_EXT_global_priority`, `VK_EXT_global_priority_query`, `VK_EXT_graphics_pipeline_library`, `VK_EXT_hdr_metadata`, `VK_EXT_host_image_copy`, `VK_EXT_host_query_reset`, `VK_EXT_image_2d_view_of_3d`, `VK_EXT_image_drm_format_modifier`, `VK_EXT_image_robustness`, `VK_EXT_image_sliced_view_of_3d`, `VK_EXT_image_view_min_lod`, `VK_EXT_index_type_uint8`, `VK_EXT_inline_uniform_block`, `VK_EXT_legacy_dithering`, `VK_EXT_line_rasterization`, `VK_EXT_load_store_op_none`, `VK_EXT_map_memory_placed`, `VK_EXT_memory_budget`, `VK_EXT_multisampled_render_to_single_sampled`, `VK_EXT_mutable_descriptor_type`, `VK_EXT_nested_command_buffer`, `VK_EXT_non_seamless_cube_map`, `VK_EXT_physical_device_drm`, `VK_EXT_pipeline_creation_cache_control`, `VK_EXT_pipeline_creation_feedback`, `VK_EXT_pipeline_robustness`, `VK_EXT_primitive_topology_list_restart`, `VK_EXT_private_data`, `VK_EXT_provoking_vertex`, `VK_EXT_queue_family_foreign`, `VK_EXT_rasterization_order_attachment_access`, `VK_EXT_rgba10x6_formats`, `VK_EXT_robustness2`, `VK_EXT_sampler_filter_minmax`, `VK_EXT_scalar_block_layout`, `VK_EXT_separate_stencil_usage`, `VK_EXT_shader_atomic_float`, `VK_EXT_shader_demote_to_helper_invocation`, `VK_EXT_shader_image_atomic_int64`, `VK_EXT_shader_module_identifier`, `VK_EXT_shader_replicated_composites`, `VK_EXT_shader_stencil_export`, `VK_EXT_shader_subgroup_ballot`, `VK_EXT_shader_subgroup_vote`, `VK_EXT_shader_tile_image`, `VK_EXT_shader_uniform_buffer_unsized_array`, `VK_EXT_subgroup_size_control`, `VK_EXT_texel_buffer_alignment`, `VK_EXT_texture_compression_astc_hdr`, `VK_EXT_tooling_info`, `VK_EXT_vertex_attribute_divisor`, `VK_EXT_vertex_input_dynamic_state`, `VK_EXT_ycbcr_2plane_444_formats`, `VK_EXT_ycbcr_image_arrays`, `VK_EXT_zero_initialize_device_memory`, `VK_ANDROID_external_memory_android_hardware_buffer`, `VK_ANDROID_native_buffer`, `VK_ARM_rasterization_order_attachment_access`, `VK_ARM_scheduling_controls`, `VK_ARM_shader_core_builtins`, `VK_ARM_shader_core_properties`, `VK_GOOGLE_decorate_string`, `VK_GOOGLE_hlsl_functionality1`, `VK_VALVE_mutable_descriptor_type`
+</details>
+
 ## License
 
 Mesa code remains under its upstream licenses (see `LICENSES/` and
