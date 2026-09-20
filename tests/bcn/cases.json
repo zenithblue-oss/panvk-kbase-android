@@ -6,19 +6,23 @@
     "BC6H_UFLOAT", "BC6H_SFLOAT", "BC7_UNORM", "BC7_SRGB"
   ],
   "cases": [
-    "known_encoded_block_cpu_reference", "4x4", "non_multiple_of_4", "1x1",
-    "2x2", "large_texture", "multiple_mip_levels", "2d_array", "cube",
-    "partial_buffer_upload", "nonzero_buffer_offset", "buffer_row_length",
-    "buffer_image_height", "multiple_copy_regions"
+    "known_encoded_block_cpu_reference", "1x1", "2x2", "3x3", "4x4",
+    "5x7", "non_multiple_of_4", "large_texture", "multiple_mip_levels",
+    "2d_array", "cube", "partial_buffer_upload", "nonzero_buffer_offset",
+    "nonzero_image_offset", "buffer_row_length", "buffer_image_height",
+    "multiple_copy_regions", "edge_blocks"
   ],
   "operations": [
-    "upload", "sample", "nearest", "linear", "blit_source", "copy_image",
-    "copy_image2", "copy_buffer_to_image", "copy_buffer_to_image2",
-    "destroy_recreate_1000"
+    "get_format_properties2", "get_format_properties3",
+    "get_image_format_properties2", "create_image",
+    "get_image_memory_requirements", "create_image_view", "upload", "sample",
+    "nearest", "linear", "blit_source", "copy_image", "copy_image2",
+    "copy_buffer_to_image", "copy_buffer_to_image2", "copy_image_to_buffer",
+    "copy_image_to_buffer2", "layout_transitions", "destroy_recreate_1000"
   ],
   "stress": [
     "large_texture_stream", "mip_streaming", "multiple_command_buffers",
     "multiple_queues_if_exposed", "cold_process_restart", "wsi_bc",
-    "ahb_bc"
+    "ahb_bc", "memory_pressure"
   ]
 }

@@ -38,8 +38,8 @@ for k in ("schemaVersion", "name", "libraryName", "abi", "backend", "profile", "
         die(f"meta.json missing {k}")
 if meta["libraryName"] != "libvulkan_panfrost.so":
     die("canonical binary renamed")
-if meta.get("prerelease") is not True or meta.get("published") is not False:
-    die("candidate package must be marked prerelease=true and published=false")
+if meta.get("prerelease") is not True or not isinstance(meta.get("published"), bool):
+    die("package must declare prerelease=true and a boolean published state")
 if meta.get("bcCompatibility", {}).get("included") is not False:
     die("unproven BC compatibility must not be included")
 if gap.get("summary", gap.get("_meta", {})).get("runtimeExposed") != 194:

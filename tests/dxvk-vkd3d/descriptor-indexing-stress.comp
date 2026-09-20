@@ -1,0 +1,41 @@
+#version 460
+#extension GL_EXT_nonuniform_qualifier : require
+
+layout(local_size_x = 2) in;
+layout(push_constant) uniform Push { uint index; } pc;
+layout(set = 0, binding = 0, std430) buffer Result { uint value; } result;
+
+#if KIND == 0
+layout(set = 0, binding = 2) uniform texture2D descriptors[];
+layout(set = 0, binding = 1) uniform sampler fixed_sampler;
+#elif KIND == 1
+layout(set = 0, binding = 1, rgba8) uniform image2D descriptors[];
+#elif KIND == 2
+layout(set = 0, binding = 1, std430) buffer Values { uint value; } descriptors[];
+#elif KIND == 3
+layout(set = 0, binding = 2) uniform sampler descriptors[];
+layout(set = 0, binding = 1) uniform texture2D fixed_image;
+#elif KIND == 4
+layout(set = 0, binding = 1) uniform usamplerBuffer descriptors[];
+#elif KIND == 5
+layout(set = 0, binding = 1, r32ui) uniform uimageBuffer descriptors[];
+#endif
+
+void main()
+{
+   uint i = nonuniformEXT(gl_LocalInvocationIndex == 0 ? 0 : pc.index);
+#if KIND == 0
+   atomicAdd(result.value, uint(texelFetch(sampler2D(descriptors[i], fixed_sampler), ivec2(0), 0).r * 255.0 + 0.5));
+#elif KIND == 1
+   imageStore(descriptors[i], ivec2(0), vec4(0.145, 0.0, 0.0, 1.0));
+   atomicAdd(result.value, uint(imageLoad(descriptors[i], ivec2(0)).r * 255.0 + 0.5));
+#elif KIND == 2
+   atomicAdd(result.value, descriptors[i].value);
+#elif KIND == 3
+   atomicAdd(result.value, uint(texelFetch(sampler2D(fixed_image, descriptors[i]), ivec2(0), 0).r * 255.0 + 0.5));
+#elif KIND == 4
+   atomicAdd(result.value, texelFetch(descriptors[i], 0).r);
+#elif KIND == 5
+   atomicAdd(result.value, imageAtomicAdd(descriptors[i], 0, 0));
+#endif
+}

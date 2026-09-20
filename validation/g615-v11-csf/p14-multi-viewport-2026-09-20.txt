@@ -1,0 +1,52 @@
+P14 multiViewport
+date=2026-09-20
+device=Poco X6 Pro / duchamp
+model=2311DRK48I
+serial=Y5WWBMJVOZSK4HU8
+gpu=Mali-G615 MC6
+gpu_id=0xb8a31030
+api=1.4.363
+driver=panvk
+mesa=5a07217f034b3e50d8c7c7794f97a2df1742613b
+upstream_audited=e1f3f372c4a661cd0e71a0cdafc4d469d56ecf35
+android_icd_sha256=576e37de9a3b60dda9a972a6f91c3a50e09238bd31a9888e04215c7b554c803a
+staged_icd_sha256=576e37de9a3b60dda9a972a6f91c3a50e09238bd31a9888e04215c7b554c803a
+
+multiViewport=NO
+maxViewports=1
+shaderOutputViewportIndex=NO
+multiview=YES
+note=multiview_is_not_multiViewport
+create_multiViewport_true=VK_ERROR_FEATURE_NOT_PRESENT
+create_multiViewport_rejected=PASS
+create_shaderOutputViewportIndex_true=VK_ERROR_FEATURE_NOT_PRESENT
+create_shaderOutputViewportIndex_rejected=PASS
+maxViewports_is_1=PASS
+
+two_viewports=NOT_RUN reason=multiViewport_disabled
+four_viewports=NOT_RUN reason=multiViewport_disabled
+maximum_supported=NOT_RUN reason=multiViewport_disabled
+different_origins=NOT_RUN reason=multiViewport_disabled
+different_sizes=NOT_RUN reason=multiViewport_disabled
+different_depth_ranges=NOT_RUN reason=multiViewport_disabled
+overlap=NOT_RUN reason=multiViewport_disabled
+dynamic_viewport=NOT_RUN reason=multiViewport_disabled
+dynamic_scissor=NOT_RUN reason=multiViewport_disabled
+viewport_index=NOT_RUN reason=multiViewport_disabled
+reason=No complete Valhall v11 viewport array, per-viewport VS transform, or ViewportIndex compiler path. Pipelines with viewportCount>1 are invalid while multiViewport is disabled.
+
+cts=BLOCKED
+cts_version=NOT_TESTED
+cts_test_list_sha256=NOT_TESTED
+cts_pass=NOT_TESTED
+cts_fail=NOT_TESTED
+cts_skip=NOT_TESTED
+cts_crash=NOT_TESTED
+cts_device_lost=NOT_TESTED
+cts_reason=no deqp-vk executable or matching CTS test list on host or device
+
+host_p14_guard=PASS (9/9)
+g615_identity=PASS (device=duchamp model=2311DRK48I)
+g615_probe=PASS (result=BLOCKED_SAFE_FALSE)
+result=BLOCKED_SAFE_FALSE
+P15_started=NO

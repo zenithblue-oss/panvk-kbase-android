@@ -1,0 +1,67 @@
+#version 460
+#extension GL_EXT_nonuniform_qualifier : require
+
+layout(local_size_x = 1) in;
+layout(push_constant) uniform Push { uint test; uint index; } pc;
+layout(set = 0, binding = 0, std430) buffer Results { uint value[17]; } results;
+layout(set = 0, binding = 1, std140) uniform UniformData { uint value[65]; } ubo;
+layout(set = 0, binding = 2, std430) buffer StorageData { uint value[]; } ssbo;
+layout(set = 0, binding = 3) uniform usamplerBuffer uniform_texel;
+layout(set = 0, binding = 4, r32ui) uniform uimageBuffer storage_texel;
+layout(set = 0, binding = 5) uniform utexture2D sampled_image;
+layout(set = 0, binding = 6) uniform sampler image_sampler;
+layout(set = 0, binding = 7, rgba32ui) uniform uimage2D storage_image;
+layout(set = 0, binding = 8) uniform utexture2D indexed_images[2];
+
+void main()
+{
+   switch (pc.test) {
+   case 0: results.value[0] = ubo.value[64]; break;
+   case 1: results.value[1] = ssbo.value[4]; break;
+   case 2:
+      ssbo.value[4] = 99;
+      results.value[2] = ssbo.value[0];
+      break;
+   case 3: results.value[3] = texelFetch(uniform_texel, 1).r; break;
+   case 4:
+      imageStore(storage_texel, 1, uvec4(99));
+      results.value[4] = imageLoad(storage_texel, 0).r;
+      break;
+   case 5:
+      imageStore(storage_image, ivec2(1, 0), uvec4(99));
+      results.value[5] = imageLoad(storage_image, ivec2(1, 0)).r;
+      results.value[15] = imageLoad(storage_image, ivec2(0, 0)).r;
+      break;
+   case 6:
+      results.value[6] = texelFetch(usampler2D(sampled_image, image_sampler), ivec2(0), 0).r;
+      break;
+   case 7:
+      imageStore(storage_image, ivec2(0), uvec4(99));
+      results.value[7] = imageLoad(storage_image, ivec2(0)).r;
+      break;
+   case 8:
+      results.value[8] = texelFetch(usampler2D(sampled_image, image_sampler), ivec2(0), 0).r;
+      break;
+   case 9: results.value[9] = ubo.value[0]; break;
+   case 10:
+      results.value[10] = ssbo.value[0];
+      break;
+   case 11: results.value[11] = texelFetch(uniform_texel, 0).r; break;
+   case 12:
+      imageStore(storage_texel, 0, uvec4(99));
+      results.value[12] = imageLoad(storage_texel, 0).r;
+      break;
+   case 13: {
+      uint i = nonuniformEXT(pc.index);
+      results.value[13] = texelFetch(usampler2D(indexed_images[i], image_sampler), ivec2(0), 0).r;
+      break;
+   }
+   case 14:
+      results.value[14] = texelFetch(usampler2D(sampled_image, image_sampler), ivec2(0), 0).r;
+      break;
+   case 15:
+      ssbo.value[0] = 99;
+      results.value[16] = 1;
+      break;
+   }
+}

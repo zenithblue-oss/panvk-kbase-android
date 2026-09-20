@@ -1,0 +1,4512 @@
+{
+  "provenance": {
+    "url": "https://raw.githubusercontent.com/doitsujin/dxvk/v2.7.1/VP_DXVK_requirements.json",
+    "tag": "v2.7.1",
+    "originalSha256": "1e219227adeba497e387fbad72847fef4d064667ede946f720d8e8a67bea6edf",
+    "normalizedSha256": "57e0a0e69aa2cb9515b8b9c65dabe9105fe2ff47de137cc6e33fce1696ed456c",
+    "normalization": {
+      "kind": "remove-trailing-commas-only",
+      "originalSha256": "1e219227adeba497e387fbad72847fef4d064667ede946f720d8e8a67bea6edf",
+      "normalizedSha256": "57e0a0e69aa2cb9515b8b9c65dabe9105fe2ff47de137cc6e33fce1696ed456c"
+    },
+    "importedAt": "2026-09-19T19:53:26.264651+00:00"
+  },
+  "document": {
+    "$schema": "https://schema.khronos.org/vulkan/profiles-0.8.1-224.json#",
+    "capabilities": {
+      "vulkan10requirements": {
+        "features": {
+          "VkPhysicalDeviceFeatures": {
+            "robustBufferAccess": true
+          }
+        }
+      },
+      "vulkan11requirements": {
+        "features": {
+          "VkPhysicalDeviceVulkan11Features": {
+            "multiview": true
+          }
+        },
+        "properties": {
+          "VkPhysicalDeviceVulkan11Properties": {
+            "maxMultiviewViewCount": 6,
+            "maxMultiviewInstanceIndex": 134217727
+          }
+        }
+      },
+      "vulkan12requirements": {
+        "features": {
+          "VkPhysicalDeviceVulkan12Features": {
+            "uniformBufferStandardLayout": true,
+            "subgroupBroadcastDynamicId": true,
+            "imagelessFramebuffer": true,
+            "separateDepthStencilLayouts": true,
+            "hostQueryReset": true,
+            "timelineSemaphore": true,
+            "shaderSubgroupExtendedTypes": true
+          }
+        },
+        "properties": {
+          "VkPhysicalDeviceVulkan12Properties": {
+            "maxTimelineSemaphoreValueDifference": 2147483647
+          }
+        }
+      },
+      "vulkan13requirements": {
+        "features": {
+          "VkPhysicalDeviceVulkan12Features": {
+            "vulkanMemoryModel": true,
+            "vulkanMemoryModelDeviceScope": true,
+            "bufferDeviceAddress": true
+          },
+          "VkPhysicalDeviceVulkan13Features": {
+            "robustImageAccess": true,
+            "shaderTerminateInvocation": true,
+            "shaderZeroInitializeWorkgroupMemory": true,
+            "synchronization2": true,
+            "shaderIntegerDotProduct": true,
+            "maintenance4": true,
+            "pipelineCreationCacheControl": true,
+            "subgroupSizeControl": true,
+            "computeFullSubgroups": true,
+            "shaderDemoteToHelperInvocation": true,
+            "inlineUniformBlock": true,
+            "dynamicRendering": true
+          }
+        },
+        "properties": {
+          "VkPhysicalDeviceVulkan13Properties": {
+            "maxBufferSize": 1073741824,
+            "maxInlineUniformBlockSize": 256,
+            "maxPerStageDescriptorInlineUniformBlocks": 4,
+            "maxPerStageDescriptorUpdateAfterBindInlineUniformBlocks": 4,
+            "maxDescriptorSetInlineUniformBlocks": 4,
+            "maxDescriptorSetUpdateAfterBindInlineUniformBlocks": 4,
+            "maxInlineUniformTotalSize": 4
+          }
+        }
+      },
+      "dxvk_common_required": {
+        "extensions": {
+          "VK_KHR_maintenance5": 1
+        },
+        "features": {
+          "VkPhysicalDeviceFeatures": {
+            "shaderSampledImageArrayDynamicIndexing": true
+          },
+          "VkPhysicalDeviceVulkan12Features": {
+            "descriptorIndexing": true,
+            "descriptorBindingSampledImageUpdateAfterBind": true,
+            "descriptorBindingUpdateUnusedWhilePending": true,
+            "descriptorBindingPartiallyBound": true,
+            "runtimeDescriptorArray": true
+          },
+          "VkPhysicalDeviceMaintenance5FeaturesKHR": {
+            "maintenance5": true
+          }
+        },
+        "properties": {
+          "VkPhysicalDeviceProperties": {
+            "maxPushConstantsSize": 256
+          }
+        }
+      },
+      "dxvk_common_optional": {
+        "extensions": {
+          "VK_KHR_load_store_op_none": 1,
+          "VK_KHR_maintenance6": 1,
+          "VK_KHR_maintenance7": 1,
+          "VK_KHR_present_id": 1,
+          "VK_KHR_present_wait": 1,
+          "VK_KHR_swapchain_mutable_format": 1,
+          "VK_EXT_line_rasterization": 1,
+          "VK_EXT_pageable_device_local_memory": 1,
+          "VK_EXT_swapchain_maintenance1": 1
+        },
+        "features": {
+          "VkPhysicalDeviceFeatures": {
+            "wideLines": true
+          },
+          "VkPhysicalDeviceVulkan11Features": {
+            "shaderInt16": true,
+            "storagePushConstant16": true
+          },
+          "VkPhysicalDeviceMaintenance6FeaturesKHR": {
+            "maintenance6": true
+          },
+          "VkPhysicalDeviceMaintenance7FeaturesKHR": {
+            "maintenance7": true
+          },
+          "VkPhysicalDevicePresentIdFeaturesKHR": {
+            "presentId": true
+          },
+          "VkPhysicalDevicePresentWaitFeaturesKHR": {
+            "presentWait": true
+          },
+          "VkPhysicalDeviceLineRasterizationFeaturesEXT": {
+            "rectangularLines": true,
+            "smoothLines": true
+          },
+          "VkPhysicalDevicePageableDeviceLocalMemoryFeaturesEXT": {
+            "pageableDeviceLocalMemory": true
+          },
+          "VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT": {
+            "swapchainMaintenance1": true
+          }
+        }
+      },
+      "d3d9_baseline": {
+        "extensions": {
+          "VK_EXT_robustness2": 1
+        },
+        "features": {
+          "VkPhysicalDeviceFeatures": {
+            "geometryShader": true,
+            "imageCubeArray": true,
+            "depthClamp": true,
+            "depthBiasClamp": true,
+            "fillModeNonSolid": true,
+            "sampleRateShading": true,
+            "shaderClipDistance": true,
+            "shaderCullDistance": true,
+            "textureCompressionBC": true,
+            "occlusionQueryPrecise": true,
+            "independentBlend": true,
+            "fullDrawIndexUint32": true,
+            "shaderImageGatherExtended": true
+          },
+          "VkPhysicalDeviceVulkan12Features": {
+            "samplerMirrorClampToEdge": true
+          },
+          "VkPhysicalDeviceRobustness2FeaturesEXT": {
+            "nullDescriptor": true,
+            "robustBufferAccess2": true
+          }
+        }
+      },
+      "d3d9_optional": {
+        "extensions": {
+          "VK_EXT_memory_priority": 1,
+          "VK_EXT_vertex_attribute_divisor": 1,
+          "VK_EXT_depth_bias_control": 1,
+          "VK_EXT_depth_clip_enable": 1,
+          "VK_EXT_custom_border_color": 1,
+          "VK_EXT_attachment_feedback_loop_layout": 1,
+          "VK_EXT_non_seamless_cube_map": 1
+        },
+        "features": {
+          "VkPhysicalDeviceFeatures": {
+            "depthBounds": true,
+            "vertexPipelineStoresAndAtomics": true,
+            "pipelineStatisticsQuery": true,
+            "samplerAnisotropy": true
+          },
+          "VkPhysicalDeviceMemoryPriorityFeaturesEXT": {
+            "memoryPriority": true
+          },
+          "VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT": {
+            "vertexAttributeInstanceRateDivisor": true,
+            "vertexAttributeInstanceRateZeroDivisor": true
+          },
+          "VkPhysicalDeviceDepthBiasControlFeaturesEXT": {
+            "depthBiasControl": true,
+            "leastRepresentableValueForceUnormRepresentation": true,
+            "floatRepresentation": true,
+            "depthBiasExact": true
+          },
+          "VkPhysicalDeviceDepthClipEnableFeaturesEXT": {
+            "depthClipEnable": true
+          },
+          "VkPhysicalDeviceCustomBorderColorFeaturesEXT": {
+            "customBorderColors": true,
+            "customBorderColorWithoutFormat": true
+          },
+          "VkPhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT": {
+            "attachmentFeedbackLoopLayout": true
+          },
+          "VkPhysicalDeviceNonSeamlessCubeMapFeaturesEXT": {
+            "nonSeamlessCubeMap": true
+          }
+        }
+      },
+      "d3d11_baseline": {
+        "extensions": {
+          "VK_EXT_robustness2": 1,
+          "VK_EXT_transform_feedback": 1
+        },
+        "features": {
+          "VkPhysicalDeviceFeatures": {
+            "depthBiasClamp": true,
+            "depthClamp": true,
+            "dualSrcBlend": true,
+            "fillModeNonSolid": true,
+            "fullDrawIndexUint32": true,
+            "geometryShader": true,
+            "imageCubeArray": true,
+            "independentBlend": true,
+            "multiViewport": true,
+            "occlusionQueryPrecise": true,
+            "sampleRateShading": true,
+            "shaderClipDistance": true,
+            "shaderCullDistance": true,
+            "shaderImageGatherExtended": true,
+            "textureCompressionBC": true
+          },
+          "VkPhysicalDeviceVulkan11Features": {
+            "shaderDrawParameters": true
+          },
+          "VkPhysicalDeviceVulkan12Features": {
+            "samplerMirrorClampToEdge": true
+          },
+          "VkPhysicalDeviceRobustness2FeaturesEXT": {
+            "nullDescriptor": true,
+            "robustBufferAccess2": true
+          },
+          "VkPhysicalDeviceTransformFeedbackFeaturesEXT": {
+            "transformFeedback": true,
+            "geometryStreams": true
+          }
+        }
+      },
+      "d3d11_baseline_optional": {
+        "extensions": {
+          "VK_EXT_memory_priority": 1,
+          "VK_EXT_multi_draw": 1,
+          "VK_EXT_vertex_attribute_divisor": 1,
+          "VK_EXT_custom_border_color": 1,
+          "VK_EXT_depth_bias_control": 1,
+          "VK_EXT_depth_clip_enable": 1,
+          "VK_EXT_swapchain_colorspace": 1,
+          "VK_EXT_hdr_metadata": 1
+        },
+        "features": {
+          "VkPhysicalDeviceFeatures": {
+            "depthBounds": true,
+            "pipelineStatisticsQuery": true,
+            "logicOp": true,
+            "samplerAnisotropy": true
+          },
+          "VkPhysicalDeviceMemoryPriorityFeaturesEXT": {
+            "memoryPriority": true
+          },
+          "VkPhysicalDeviceMultiDrawFeaturesEXT": {
+            "multiDraw": true
+          },
+          "VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT": {
+            "vertexAttributeInstanceRateDivisor": true,
+            "vertexAttributeInstanceRateZeroDivisor": true
+          },
+          "VkPhysicalDeviceCustomBorderColorFeaturesEXT": {
+            "customBorderColors": true,
+            "customBorderColorWithoutFormat": true
+          },
+          "VkPhysicalDeviceDepthBiasControlFeaturesEXT": {
+            "depthBiasControl": true,
+            "leastRepresentableValueForceUnormRepresentation": true,
+            "depthBiasExact": true
+          },
+          "VkPhysicalDeviceDepthClipEnableFeaturesEXT": {
+            "depthClipEnable": true
+          }
+        }
+      },
+      "d3d11_level11_0": {
+        "features": {
+          "VkPhysicalDeviceFeatures": {
+            "drawIndirectFirstInstance": true,
+            "fragmentStoresAndAtomics": true,
+            "multiDrawIndirect": true,
+            "tessellationShader": true
+          }
+        }
+      },
+      "d3d11_level11_0_optional": {
+        "features": {
+          "VkPhysicalDeviceFeatures": {
+            "shaderFloat64": true,
+            "shaderInt64": true
+          }
+        }
+      },
+      "d3d11_level11_1": {
+        "features": {
+          "VkPhysicalDeviceFeatures": {
+            "logicOp": true,
+            "vertexPipelineStoresAndAtomics": true
+          }
+        }
+      },
+      "d3d11_level12_0": {
+        "features": {
+          "VkPhysicalDeviceFeatures": {
+            "shaderResourceResidency": true,
+            "shaderResourceMinLod": true,
+            "sparseBinding": true,
+            "sparseResidencyBuffer": true,
+            "sparseResidencyAliased": true,
+            "sparseResidencyImage2D": true
+          },
+          "VkPhysicalDeviceVulkan12Features": {
+            "samplerFilterMinmax": true
+          }
+        },
+        "properties": {
+          "VkPhysicalDeviceProperties": {
+            "sparseProperties": {
+              "residencyStandard2DBlockShape": true,
+              "residencyAlignedMipSize": false,
+              "residencyNonResidentStrict": true
+            }
+          }
+        }
+      }
+    },
+    "profiles": {
+      "VP_DXVK_d3d9_baseline": {
+        "version": 1,
+        "api-version": "1.3.204",
+        "label": "DXVK D3D9 Baseline profile",
+        "description": "DXVK for D3D9 minimum requirements",
+        "capabilities": [
+          "vulkan10requirements",
+          "vulkan11requirements",
+          "vulkan12requirements",
+          "vulkan13requirements",
+          "dxvk_common_required",
+          "d3d9_baseline"
+        ]
+      },
+      "VP_DXVK_d3d9_optimal": {
+        "version": 1,
+        "api-version": "1.3.224",
+        "label": "DXVK D3D9 Optimal profile",
+        "description": "DXVK for D3D9 including optional capabilities",
+        "capabilities": [
+          "vulkan10requirements",
+          "vulkan11requirements",
+          "vulkan12requirements",
+          "vulkan13requirements",
+          "dxvk_common_required",
+          "dxvk_common_optional",
+          "d3d9_baseline",
+          "d3d9_optional"
+        ]
+      },
+      "VP_DXVK_d3d10_level_10_1_baseline": {
+        "version": 1,
+        "api-version": "1.3.204",
+        "label": "DXVK D3D10 Level 10.1 Baseline profile",
+        "description": "DXVK for D3D10 Feature Level 10.1 minimum requirements",
+        "capabilities": [
+          "vulkan10requirements",
+          "vulkan11requirements",
+          "vulkan12requirements",
+          "vulkan13requirements",
+          "dxvk_common_required",
+          "d3d11_baseline"
+        ]
+      },
+      "VP_DXVK_d3d11_level_11_0_baseline": {
+        "version": 1,
+        "api-version": "1.3.204",
+        "label": "DXVK D3D11 Level 11.0 Baseline profile",
+        "description": "DXVK for D3D11 Feature Level 11.0 minimum requirements",
+        "capabilities": [
+          "vulkan10requirements",
+          "vulkan11requirements",
+          "vulkan12requirements",
+          "vulkan13requirements",
+          "dxvk_common_required",
+          "d3d11_baseline",
+          "d3d11_level11_0"
+        ]
+      },
+      "VP_DXVK_d3d11_level_11_1_baseline": {
+        "version": 1,
+        "api-version": "1.3.204",
+        "label": "DXVK D3D11 Level 11.1 Baseline profile",
+        "description": "DXVK for D3D11 Feature Level 11.1 minimum requirements",
+        "capabilities": [
+          "vulkan10requirements",
+          "vulkan11requirements",
+          "vulkan12requirements",
+          "vulkan13requirements",
+          "dxvk_common_required",
+          "d3d11_baseline",
+          "d3d11_level11_0",
+          "d3d11_level11_1"
+        ]
+      },
+      "VP_DXVK_d3d11_level_11_1_optimal": {
+        "version": 1,
+        "api-version": "1.3.204",
+        "label": "DXVK D3D11 Level 11.1 Optimal profile",
+        "description": "DXVK for D3D11 Feature Level 11.1 including optional capabilities",
+        "capabilities": [
+          "vulkan10requirements",
+          "vulkan11requirements",
+          "vulkan12requirements",
+          "vulkan13requirements",
+          "dxvk_common_required",
+          "dxvk_common_optional",
+          "d3d11_baseline",
+          "d3d11_baseline_optional",
+          "d3d11_level11_0",
+          "d3d11_level11_0_optional",
+          "d3d11_level11_1"
+        ]
+      },
+      "VP_DXVK_d3d11_level_12_0_optimal": {
+        "version": 1,
+        "api-version": "1.3.204",
+        "label": "DXVK D3D11 Level 12.0 Optimal profile",
+        "description": "DXVK for D3D11 Feature Level 12.0 including optional capabilities",
+        "capabilities": [
+          "vulkan10requirements",
+          "vulkan11requirements",
+          "vulkan12requirements",
+          "vulkan13requirements",
+          "dxvk_common_required",
+          "dxvk_common_optional",
+          "d3d11_baseline",
+          "d3d11_baseline_optional",
+          "d3d11_level11_0",
+          "d3d11_level11_0_optional",
+          "d3d11_level11_1",
+          "d3d11_level12_0"
+        ]
+      }
+    },
+    "contributors": {
+      "Philip Rebohle": {
+        "company": "Valve"
+      },
+      "Joshua Ashton": {
+        "company": "Valve"
+      },
+      "Pierre-Loup A. Griffais": {
+        "company": "Valve"
+      },
+      "Georg Lehmann": {
+        "company": "DXVK"
+      },
+      "Christophe Riccio": {
+        "company": "LunarG"
+      }
+    },
+    "history": [
+      {
+        "revision": 6,
+        "date": "2025-03-24",
+        "author": "Philip Rebohle",
+        "comment": "Add maintenance5 to required extensions"
+      },
+      {
+        "revision": 5,
+        "date": "2025-03-16",
+        "author": "Philip Rebohle",
+        "comment": "Update profile with extensions used in 2.6"
+      },
+      {
+        "revision": 4,
+        "date": "2022-12-18",
+        "author": "Joshua Ashton",
+        "comment": "Add VK_EXT_swapchain_colorspace and VK_EXT_hdr_metadata to d3d11_baseline_optional"
+      },
+      {
+        "revision": 3,
+        "date": "2022-10-13",
+        "author": "Christophe Riccio",
+        "comment": "Factorize history and contributors sections using schema 0.8.1"
+      },
+      {
+        "revision": 2,
+        "date": "2022-08-30",
+        "author": "Philip Rebohle",
+        "comment": "Add VP_DXVK_d3d11_level_12_0_optimal profile"
+      },
+      {
+        "revision": 1,
+        "date": "2022-08-22",
+        "author": "Christophe Riccio",
+        "comment": "Initial revision"
+      }
+    ]
+  },
+  "evaluation": {
+    "schemaVersion": 1,
+    "profileSource": {
+      "url": "https://raw.githubusercontent.com/doitsujin/dxvk/v2.7.1/VP_DXVK_requirements.json",
+      "tag": "v2.7.1",
+      "originalSha256": "1e219227adeba497e387fbad72847fef4d064667ede946f720d8e8a67bea6edf",
+      "normalizedSha256": "57e0a0e69aa2cb9515b8b9c65dabe9105fe2ff47de137cc6e33fce1696ed456c",
+      "normalization": {
+        "kind": "remove-trailing-commas-only",
+        "originalSha256": "1e219227adeba497e387fbad72847fef4d064667ede946f720d8e8a67bea6edf",
+        "normalizedSha256": "57e0a0e69aa2cb9515b8b9c65dabe9105fe2ff47de137cc6e33fce1696ed456c"
+      },
+      "importedAt": "2026-09-19T19:53:26.264651+00:00"
+    },
+    "profiles": {
+      "VP_DXVK_d3d9_baseline": {
+        "status": "FAIL",
+        "pass": [
+          {
+            "capability": "profile",
+            "path": "api-version",
+            "required": "1.3.204",
+            "actual": 4211051,
+            "satisfied": true
+          },
+          {
+            "capability": "vulkan10requirements",
+            "path": "features.VkPhysicalDeviceFeatures.robustBufferAccess",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "features.VkPhysicalDeviceVulkan11Features.multiview",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "properties.VkPhysicalDeviceVulkan11Properties.maxMultiviewViewCount",
+            "required": 6,
+            "actual": 8
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "properties.VkPhysicalDeviceVulkan11Properties.maxMultiviewInstanceIndex",
+            "required": 134217727,
+            "actual": 4294967295
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.uniformBufferStandardLayout",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.subgroupBroadcastDynamicId",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.imagelessFramebuffer",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.separateDepthStencilLayouts",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.hostQueryReset",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.timelineSemaphore",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.shaderSubgroupExtendedTypes",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "properties.VkPhysicalDeviceVulkan12Properties.maxTimelineSemaphoreValueDifference",
+            "required": 2147483647,
+            "actual": 9223372036854775807
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.vulkanMemoryModel",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.vulkanMemoryModelDeviceScope",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.bufferDeviceAddress",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.robustImageAccess",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderTerminateInvocation",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderZeroInitializeWorkgroupMemory",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.synchronization2",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderIntegerDotProduct",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.maintenance4",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.pipelineCreationCacheControl",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.subgroupSizeControl",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.computeFullSubgroups",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderDemoteToHelperInvocation",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.inlineUniformBlock",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.dynamicRendering",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxBufferSize",
+            "required": 1073741824,
+            "actual": 4294967295
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxInlineUniformBlockSize",
+            "required": 256,
+            "actual": 65536
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxPerStageDescriptorInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxPerStageDescriptorUpdateAfterBindInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxDescriptorSetInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxDescriptorSetUpdateAfterBindInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxInlineUniformTotalSize",
+            "required": 4,
+            "actual": 1703936
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "extensions.VK_KHR_maintenance5",
+            "required": 1,
+            "actual": 1
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceFeatures.shaderSampledImageArrayDynamicIndexing",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorIndexing",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingSampledImageUpdateAfterBind",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingUpdateUnusedWhilePending",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingPartiallyBound",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.runtimeDescriptorArray",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceMaintenance5FeaturesKHR.maintenance5",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "properties.VkPhysicalDeviceProperties.maxPushConstantsSize",
+            "required": 256,
+            "actual": 256
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "extensions.VK_EXT_robustness2",
+            "required": 1,
+            "actual": 1
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.imageCubeArray",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.depthClamp",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.depthBiasClamp",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.sampleRateShading",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.occlusionQueryPrecise",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.independentBlend",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.fullDrawIndexUint32",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderImageGatherExtended",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceVulkan12Features.samplerMirrorClampToEdge",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceRobustness2FeaturesEXT.nullDescriptor",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceRobustness2FeaturesEXT.robustBufferAccess2",
+            "required": true,
+            "actual": true
+          }
+        ],
+        "fail": [
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.geometryShader",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.fillModeNonSolid",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderClipDistance",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderCullDistance",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.textureCompressionBC",
+            "required": true,
+            "actual": false
+          }
+        ],
+        "optional": [],
+        "featureLevel": {
+          "label": "DXVK D3D9 Baseline profile",
+          "capabilities": {}
+        }
+      },
+      "VP_DXVK_d3d9_optimal": {
+        "status": "FAIL",
+        "pass": [
+          {
+            "capability": "profile",
+            "path": "api-version",
+            "required": "1.3.224",
+            "actual": 4211051,
+            "satisfied": true
+          },
+          {
+            "capability": "vulkan10requirements",
+            "path": "features.VkPhysicalDeviceFeatures.robustBufferAccess",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "features.VkPhysicalDeviceVulkan11Features.multiview",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "properties.VkPhysicalDeviceVulkan11Properties.maxMultiviewViewCount",
+            "required": 6,
+            "actual": 8
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "properties.VkPhysicalDeviceVulkan11Properties.maxMultiviewInstanceIndex",
+            "required": 134217727,
+            "actual": 4294967295
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.uniformBufferStandardLayout",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.subgroupBroadcastDynamicId",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.imagelessFramebuffer",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.separateDepthStencilLayouts",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.hostQueryReset",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.timelineSemaphore",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.shaderSubgroupExtendedTypes",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "properties.VkPhysicalDeviceVulkan12Properties.maxTimelineSemaphoreValueDifference",
+            "required": 2147483647,
+            "actual": 9223372036854775807
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.vulkanMemoryModel",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.vulkanMemoryModelDeviceScope",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.bufferDeviceAddress",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.robustImageAccess",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderTerminateInvocation",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderZeroInitializeWorkgroupMemory",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.synchronization2",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderIntegerDotProduct",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.maintenance4",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.pipelineCreationCacheControl",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.subgroupSizeControl",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.computeFullSubgroups",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderDemoteToHelperInvocation",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.inlineUniformBlock",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.dynamicRendering",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxBufferSize",
+            "required": 1073741824,
+            "actual": 4294967295
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxInlineUniformBlockSize",
+            "required": 256,
+            "actual": 65536
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxPerStageDescriptorInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxPerStageDescriptorUpdateAfterBindInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxDescriptorSetInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxDescriptorSetUpdateAfterBindInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxInlineUniformTotalSize",
+            "required": 4,
+            "actual": 1703936
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "extensions.VK_KHR_maintenance5",
+            "required": 1,
+            "actual": 1
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceFeatures.shaderSampledImageArrayDynamicIndexing",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorIndexing",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingSampledImageUpdateAfterBind",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingUpdateUnusedWhilePending",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingPartiallyBound",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.runtimeDescriptorArray",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceMaintenance5FeaturesKHR.maintenance5",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "properties.VkPhysicalDeviceProperties.maxPushConstantsSize",
+            "required": 256,
+            "actual": 256
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "extensions.VK_EXT_robustness2",
+            "required": 1,
+            "actual": 1
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.imageCubeArray",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.depthClamp",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.depthBiasClamp",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.sampleRateShading",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.occlusionQueryPrecise",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.independentBlend",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.fullDrawIndexUint32",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderImageGatherExtended",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceVulkan12Features.samplerMirrorClampToEdge",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceRobustness2FeaturesEXT.nullDescriptor",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceRobustness2FeaturesEXT.robustBufferAccess2",
+            "required": true,
+            "actual": true
+          }
+        ],
+        "fail": [
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.geometryShader",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.fillModeNonSolid",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderClipDistance",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderCullDistance",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d9_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.textureCompressionBC",
+            "required": true,
+            "actual": false
+          }
+        ],
+        "optional": [
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_KHR_load_store_op_none",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_KHR_maintenance6",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_KHR_maintenance7",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_KHR_present_id",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_KHR_present_wait",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_KHR_swapchain_mutable_format",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_EXT_line_rasterization",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_EXT_pageable_device_local_memory",
+            "required": 1,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_EXT_swapchain_maintenance1",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceFeatures.wideLines",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceVulkan11Features.shaderInt16",
+            "required": true,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceVulkan11Features.storagePushConstant16",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceMaintenance6FeaturesKHR.maintenance6",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceMaintenance7FeaturesKHR.maintenance7",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDevicePresentIdFeaturesKHR.presentId",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDevicePresentWaitFeaturesKHR.presentWait",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceLineRasterizationFeaturesEXT.rectangularLines",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceLineRasterizationFeaturesEXT.smoothLines",
+            "required": true,
+            "actual": false,
+            "status": "FAIL"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDevicePageableDeviceLocalMemoryFeaturesEXT.pageableDeviceLocalMemory",
+            "required": true,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT.swapchainMaintenance1",
+            "required": true,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "extensions.VK_EXT_memory_priority",
+            "required": 1,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "extensions.VK_EXT_vertex_attribute_divisor",
+            "required": 1,
+            "actual": 3,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "extensions.VK_EXT_depth_bias_control",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "extensions.VK_EXT_depth_clip_enable",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "extensions.VK_EXT_custom_border_color",
+            "required": 1,
+            "actual": 12,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "extensions.VK_EXT_attachment_feedback_loop_layout",
+            "required": 1,
+            "actual": 2,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "extensions.VK_EXT_non_seamless_cube_map",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "features.VkPhysicalDeviceFeatures.depthBounds",
+            "required": true,
+            "actual": false,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "features.VkPhysicalDeviceFeatures.vertexPipelineStoresAndAtomics",
+            "required": true,
+            "actual": false,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "features.VkPhysicalDeviceFeatures.pipelineStatisticsQuery",
+            "required": true,
+            "actual": false,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "features.VkPhysicalDeviceFeatures.samplerAnisotropy",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "features.VkPhysicalDeviceMemoryPriorityFeaturesEXT.memoryPriority",
+            "required": true,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "features.VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT.vertexAttributeInstanceRateDivisor",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "features.VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT.vertexAttributeInstanceRateZeroDivisor",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "features.VkPhysicalDeviceDepthBiasControlFeaturesEXT.depthBiasControl",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "features.VkPhysicalDeviceDepthBiasControlFeaturesEXT.leastRepresentableValueForceUnormRepresentation",
+            "required": true,
+            "actual": false,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "features.VkPhysicalDeviceDepthBiasControlFeaturesEXT.floatRepresentation",
+            "required": true,
+            "actual": false,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "features.VkPhysicalDeviceDepthBiasControlFeaturesEXT.depthBiasExact",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "features.VkPhysicalDeviceDepthClipEnableFeaturesEXT.depthClipEnable",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "features.VkPhysicalDeviceCustomBorderColorFeaturesEXT.customBorderColors",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "features.VkPhysicalDeviceCustomBorderColorFeaturesEXT.customBorderColorWithoutFormat",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "features.VkPhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT.attachmentFeedbackLoopLayout",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d9_optional",
+            "path": "features.VkPhysicalDeviceNonSeamlessCubeMapFeaturesEXT.nonSeamlessCubeMap",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          }
+        ],
+        "featureLevel": {
+          "label": "DXVK D3D9 Optimal profile",
+          "capabilities": {}
+        }
+      },
+      "VP_DXVK_d3d10_level_10_1_baseline": {
+        "status": "FAIL",
+        "pass": [
+          {
+            "capability": "profile",
+            "path": "api-version",
+            "required": "1.3.204",
+            "actual": 4211051,
+            "satisfied": true
+          },
+          {
+            "capability": "vulkan10requirements",
+            "path": "features.VkPhysicalDeviceFeatures.robustBufferAccess",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "features.VkPhysicalDeviceVulkan11Features.multiview",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "properties.VkPhysicalDeviceVulkan11Properties.maxMultiviewViewCount",
+            "required": 6,
+            "actual": 8
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "properties.VkPhysicalDeviceVulkan11Properties.maxMultiviewInstanceIndex",
+            "required": 134217727,
+            "actual": 4294967295
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.uniformBufferStandardLayout",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.subgroupBroadcastDynamicId",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.imagelessFramebuffer",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.separateDepthStencilLayouts",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.hostQueryReset",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.timelineSemaphore",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.shaderSubgroupExtendedTypes",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "properties.VkPhysicalDeviceVulkan12Properties.maxTimelineSemaphoreValueDifference",
+            "required": 2147483647,
+            "actual": 9223372036854775807
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.vulkanMemoryModel",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.vulkanMemoryModelDeviceScope",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.bufferDeviceAddress",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.robustImageAccess",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderTerminateInvocation",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderZeroInitializeWorkgroupMemory",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.synchronization2",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderIntegerDotProduct",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.maintenance4",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.pipelineCreationCacheControl",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.subgroupSizeControl",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.computeFullSubgroups",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderDemoteToHelperInvocation",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.inlineUniformBlock",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.dynamicRendering",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxBufferSize",
+            "required": 1073741824,
+            "actual": 4294967295
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxInlineUniformBlockSize",
+            "required": 256,
+            "actual": 65536
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxPerStageDescriptorInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxPerStageDescriptorUpdateAfterBindInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxDescriptorSetInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxDescriptorSetUpdateAfterBindInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxInlineUniformTotalSize",
+            "required": 4,
+            "actual": 1703936
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "extensions.VK_KHR_maintenance5",
+            "required": 1,
+            "actual": 1
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceFeatures.shaderSampledImageArrayDynamicIndexing",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorIndexing",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingSampledImageUpdateAfterBind",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingUpdateUnusedWhilePending",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingPartiallyBound",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.runtimeDescriptorArray",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceMaintenance5FeaturesKHR.maintenance5",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "properties.VkPhysicalDeviceProperties.maxPushConstantsSize",
+            "required": 256,
+            "actual": 256
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "extensions.VK_EXT_robustness2",
+            "required": 1,
+            "actual": 1
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.depthBiasClamp",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.depthClamp",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.dualSrcBlend",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.fullDrawIndexUint32",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.imageCubeArray",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.independentBlend",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.occlusionQueryPrecise",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.sampleRateShading",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderImageGatherExtended",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceVulkan11Features.shaderDrawParameters",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceVulkan12Features.samplerMirrorClampToEdge",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceRobustness2FeaturesEXT.nullDescriptor",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceRobustness2FeaturesEXT.robustBufferAccess2",
+            "required": true,
+            "actual": true
+          }
+        ],
+        "fail": [
+          {
+            "capability": "d3d11_baseline",
+            "path": "extensions.VK_EXT_transform_feedback",
+            "required": 1,
+            "actual": null
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.fillModeNonSolid",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.geometryShader",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.multiViewport",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderClipDistance",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderCullDistance",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.textureCompressionBC",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceTransformFeedbackFeaturesEXT.transformFeedback",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceTransformFeedbackFeaturesEXT.geometryStreams",
+            "required": true,
+            "actual": false
+          }
+        ],
+        "optional": [],
+        "featureLevel": {
+          "label": "DXVK D3D10 Level 10.1 Baseline profile",
+          "capabilities": {}
+        }
+      },
+      "VP_DXVK_d3d11_level_11_0_baseline": {
+        "status": "FAIL",
+        "pass": [
+          {
+            "capability": "profile",
+            "path": "api-version",
+            "required": "1.3.204",
+            "actual": 4211051,
+            "satisfied": true
+          },
+          {
+            "capability": "vulkan10requirements",
+            "path": "features.VkPhysicalDeviceFeatures.robustBufferAccess",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "features.VkPhysicalDeviceVulkan11Features.multiview",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "properties.VkPhysicalDeviceVulkan11Properties.maxMultiviewViewCount",
+            "required": 6,
+            "actual": 8
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "properties.VkPhysicalDeviceVulkan11Properties.maxMultiviewInstanceIndex",
+            "required": 134217727,
+            "actual": 4294967295
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.uniformBufferStandardLayout",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.subgroupBroadcastDynamicId",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.imagelessFramebuffer",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.separateDepthStencilLayouts",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.hostQueryReset",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.timelineSemaphore",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.shaderSubgroupExtendedTypes",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "properties.VkPhysicalDeviceVulkan12Properties.maxTimelineSemaphoreValueDifference",
+            "required": 2147483647,
+            "actual": 9223372036854775807
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.vulkanMemoryModel",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.vulkanMemoryModelDeviceScope",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.bufferDeviceAddress",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.robustImageAccess",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderTerminateInvocation",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderZeroInitializeWorkgroupMemory",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.synchronization2",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderIntegerDotProduct",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.maintenance4",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.pipelineCreationCacheControl",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.subgroupSizeControl",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.computeFullSubgroups",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderDemoteToHelperInvocation",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.inlineUniformBlock",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.dynamicRendering",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxBufferSize",
+            "required": 1073741824,
+            "actual": 4294967295
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxInlineUniformBlockSize",
+            "required": 256,
+            "actual": 65536
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxPerStageDescriptorInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxPerStageDescriptorUpdateAfterBindInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxDescriptorSetInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxDescriptorSetUpdateAfterBindInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxInlineUniformTotalSize",
+            "required": 4,
+            "actual": 1703936
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "extensions.VK_KHR_maintenance5",
+            "required": 1,
+            "actual": 1
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceFeatures.shaderSampledImageArrayDynamicIndexing",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorIndexing",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingSampledImageUpdateAfterBind",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingUpdateUnusedWhilePending",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingPartiallyBound",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.runtimeDescriptorArray",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceMaintenance5FeaturesKHR.maintenance5",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "properties.VkPhysicalDeviceProperties.maxPushConstantsSize",
+            "required": 256,
+            "actual": 256
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "extensions.VK_EXT_robustness2",
+            "required": 1,
+            "actual": 1
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.depthBiasClamp",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.depthClamp",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.dualSrcBlend",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.fullDrawIndexUint32",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.imageCubeArray",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.independentBlend",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.occlusionQueryPrecise",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.sampleRateShading",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderImageGatherExtended",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceVulkan11Features.shaderDrawParameters",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceVulkan12Features.samplerMirrorClampToEdge",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceRobustness2FeaturesEXT.nullDescriptor",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceRobustness2FeaturesEXT.robustBufferAccess2",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_level11_0",
+            "path": "features.VkPhysicalDeviceFeatures.drawIndirectFirstInstance",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_level11_0",
+            "path": "features.VkPhysicalDeviceFeatures.fragmentStoresAndAtomics",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_level11_0",
+            "path": "features.VkPhysicalDeviceFeatures.multiDrawIndirect",
+            "required": true,
+            "actual": true
+          }
+        ],
+        "fail": [
+          {
+            "capability": "d3d11_baseline",
+            "path": "extensions.VK_EXT_transform_feedback",
+            "required": 1,
+            "actual": null
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.fillModeNonSolid",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.geometryShader",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.multiViewport",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderClipDistance",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderCullDistance",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.textureCompressionBC",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceTransformFeedbackFeaturesEXT.transformFeedback",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceTransformFeedbackFeaturesEXT.geometryStreams",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_level11_0",
+            "path": "features.VkPhysicalDeviceFeatures.tessellationShader",
+            "required": true,
+            "actual": false
+          }
+        ],
+        "optional": [],
+        "featureLevel": {
+          "label": "DXVK D3D11 Level 11.0 Baseline profile",
+          "capabilities": {
+            "d3d11_level11_0": "FAIL"
+          }
+        }
+      },
+      "VP_DXVK_d3d11_level_11_1_baseline": {
+        "status": "FAIL",
+        "pass": [
+          {
+            "capability": "profile",
+            "path": "api-version",
+            "required": "1.3.204",
+            "actual": 4211051,
+            "satisfied": true
+          },
+          {
+            "capability": "vulkan10requirements",
+            "path": "features.VkPhysicalDeviceFeatures.robustBufferAccess",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "features.VkPhysicalDeviceVulkan11Features.multiview",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "properties.VkPhysicalDeviceVulkan11Properties.maxMultiviewViewCount",
+            "required": 6,
+            "actual": 8
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "properties.VkPhysicalDeviceVulkan11Properties.maxMultiviewInstanceIndex",
+            "required": 134217727,
+            "actual": 4294967295
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.uniformBufferStandardLayout",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.subgroupBroadcastDynamicId",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.imagelessFramebuffer",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.separateDepthStencilLayouts",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.hostQueryReset",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.timelineSemaphore",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.shaderSubgroupExtendedTypes",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "properties.VkPhysicalDeviceVulkan12Properties.maxTimelineSemaphoreValueDifference",
+            "required": 2147483647,
+            "actual": 9223372036854775807
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.vulkanMemoryModel",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.vulkanMemoryModelDeviceScope",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.bufferDeviceAddress",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.robustImageAccess",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderTerminateInvocation",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderZeroInitializeWorkgroupMemory",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.synchronization2",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderIntegerDotProduct",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.maintenance4",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.pipelineCreationCacheControl",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.subgroupSizeControl",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.computeFullSubgroups",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderDemoteToHelperInvocation",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.inlineUniformBlock",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.dynamicRendering",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxBufferSize",
+            "required": 1073741824,
+            "actual": 4294967295
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxInlineUniformBlockSize",
+            "required": 256,
+            "actual": 65536
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxPerStageDescriptorInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxPerStageDescriptorUpdateAfterBindInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxDescriptorSetInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxDescriptorSetUpdateAfterBindInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxInlineUniformTotalSize",
+            "required": 4,
+            "actual": 1703936
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "extensions.VK_KHR_maintenance5",
+            "required": 1,
+            "actual": 1
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceFeatures.shaderSampledImageArrayDynamicIndexing",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorIndexing",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingSampledImageUpdateAfterBind",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingUpdateUnusedWhilePending",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingPartiallyBound",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.runtimeDescriptorArray",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceMaintenance5FeaturesKHR.maintenance5",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "properties.VkPhysicalDeviceProperties.maxPushConstantsSize",
+            "required": 256,
+            "actual": 256
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "extensions.VK_EXT_robustness2",
+            "required": 1,
+            "actual": 1
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.depthBiasClamp",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.depthClamp",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.dualSrcBlend",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.fullDrawIndexUint32",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.imageCubeArray",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.independentBlend",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.occlusionQueryPrecise",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.sampleRateShading",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderImageGatherExtended",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceVulkan11Features.shaderDrawParameters",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceVulkan12Features.samplerMirrorClampToEdge",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceRobustness2FeaturesEXT.nullDescriptor",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceRobustness2FeaturesEXT.robustBufferAccess2",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_level11_0",
+            "path": "features.VkPhysicalDeviceFeatures.drawIndirectFirstInstance",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_level11_0",
+            "path": "features.VkPhysicalDeviceFeatures.fragmentStoresAndAtomics",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_level11_0",
+            "path": "features.VkPhysicalDeviceFeatures.multiDrawIndirect",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_level11_1",
+            "path": "features.VkPhysicalDeviceFeatures.logicOp",
+            "required": true,
+            "actual": true
+          }
+        ],
+        "fail": [
+          {
+            "capability": "d3d11_baseline",
+            "path": "extensions.VK_EXT_transform_feedback",
+            "required": 1,
+            "actual": null
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.fillModeNonSolid",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.geometryShader",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.multiViewport",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderClipDistance",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderCullDistance",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.textureCompressionBC",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceTransformFeedbackFeaturesEXT.transformFeedback",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceTransformFeedbackFeaturesEXT.geometryStreams",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_level11_0",
+            "path": "features.VkPhysicalDeviceFeatures.tessellationShader",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_level11_1",
+            "path": "features.VkPhysicalDeviceFeatures.vertexPipelineStoresAndAtomics",
+            "required": true,
+            "actual": false
+          }
+        ],
+        "optional": [],
+        "featureLevel": {
+          "label": "DXVK D3D11 Level 11.1 Baseline profile",
+          "capabilities": {
+            "d3d11_level11_0": "FAIL",
+            "d3d11_level11_1": "FAIL"
+          }
+        }
+      },
+      "VP_DXVK_d3d11_level_11_1_optimal": {
+        "status": "FAIL",
+        "pass": [
+          {
+            "capability": "profile",
+            "path": "api-version",
+            "required": "1.3.204",
+            "actual": 4211051,
+            "satisfied": true
+          },
+          {
+            "capability": "vulkan10requirements",
+            "path": "features.VkPhysicalDeviceFeatures.robustBufferAccess",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "features.VkPhysicalDeviceVulkan11Features.multiview",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "properties.VkPhysicalDeviceVulkan11Properties.maxMultiviewViewCount",
+            "required": 6,
+            "actual": 8
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "properties.VkPhysicalDeviceVulkan11Properties.maxMultiviewInstanceIndex",
+            "required": 134217727,
+            "actual": 4294967295
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.uniformBufferStandardLayout",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.subgroupBroadcastDynamicId",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.imagelessFramebuffer",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.separateDepthStencilLayouts",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.hostQueryReset",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.timelineSemaphore",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.shaderSubgroupExtendedTypes",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "properties.VkPhysicalDeviceVulkan12Properties.maxTimelineSemaphoreValueDifference",
+            "required": 2147483647,
+            "actual": 9223372036854775807
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.vulkanMemoryModel",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.vulkanMemoryModelDeviceScope",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.bufferDeviceAddress",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.robustImageAccess",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderTerminateInvocation",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderZeroInitializeWorkgroupMemory",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.synchronization2",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderIntegerDotProduct",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.maintenance4",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.pipelineCreationCacheControl",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.subgroupSizeControl",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.computeFullSubgroups",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderDemoteToHelperInvocation",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.inlineUniformBlock",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.dynamicRendering",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxBufferSize",
+            "required": 1073741824,
+            "actual": 4294967295
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxInlineUniformBlockSize",
+            "required": 256,
+            "actual": 65536
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxPerStageDescriptorInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxPerStageDescriptorUpdateAfterBindInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxDescriptorSetInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxDescriptorSetUpdateAfterBindInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxInlineUniformTotalSize",
+            "required": 4,
+            "actual": 1703936
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "extensions.VK_KHR_maintenance5",
+            "required": 1,
+            "actual": 1
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceFeatures.shaderSampledImageArrayDynamicIndexing",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorIndexing",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingSampledImageUpdateAfterBind",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingUpdateUnusedWhilePending",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingPartiallyBound",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.runtimeDescriptorArray",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceMaintenance5FeaturesKHR.maintenance5",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "properties.VkPhysicalDeviceProperties.maxPushConstantsSize",
+            "required": 256,
+            "actual": 256
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "extensions.VK_EXT_robustness2",
+            "required": 1,
+            "actual": 1
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.depthBiasClamp",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.depthClamp",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.dualSrcBlend",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.fullDrawIndexUint32",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.imageCubeArray",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.independentBlend",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.occlusionQueryPrecise",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.sampleRateShading",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderImageGatherExtended",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceVulkan11Features.shaderDrawParameters",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceVulkan12Features.samplerMirrorClampToEdge",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceRobustness2FeaturesEXT.nullDescriptor",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceRobustness2FeaturesEXT.robustBufferAccess2",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_level11_0",
+            "path": "features.VkPhysicalDeviceFeatures.drawIndirectFirstInstance",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_level11_0",
+            "path": "features.VkPhysicalDeviceFeatures.fragmentStoresAndAtomics",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_level11_0",
+            "path": "features.VkPhysicalDeviceFeatures.multiDrawIndirect",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_level11_1",
+            "path": "features.VkPhysicalDeviceFeatures.logicOp",
+            "required": true,
+            "actual": true
+          }
+        ],
+        "fail": [
+          {
+            "capability": "d3d11_baseline",
+            "path": "extensions.VK_EXT_transform_feedback",
+            "required": 1,
+            "actual": null
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.fillModeNonSolid",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.geometryShader",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.multiViewport",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderClipDistance",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderCullDistance",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.textureCompressionBC",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceTransformFeedbackFeaturesEXT.transformFeedback",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceTransformFeedbackFeaturesEXT.geometryStreams",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_level11_0",
+            "path": "features.VkPhysicalDeviceFeatures.tessellationShader",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_level11_1",
+            "path": "features.VkPhysicalDeviceFeatures.vertexPipelineStoresAndAtomics",
+            "required": true,
+            "actual": false
+          }
+        ],
+        "optional": [
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_KHR_load_store_op_none",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_KHR_maintenance6",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_KHR_maintenance7",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_KHR_present_id",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_KHR_present_wait",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_KHR_swapchain_mutable_format",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_EXT_line_rasterization",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_EXT_pageable_device_local_memory",
+            "required": 1,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_EXT_swapchain_maintenance1",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceFeatures.wideLines",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceVulkan11Features.shaderInt16",
+            "required": true,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceVulkan11Features.storagePushConstant16",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceMaintenance6FeaturesKHR.maintenance6",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceMaintenance7FeaturesKHR.maintenance7",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDevicePresentIdFeaturesKHR.presentId",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDevicePresentWaitFeaturesKHR.presentWait",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceLineRasterizationFeaturesEXT.rectangularLines",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceLineRasterizationFeaturesEXT.smoothLines",
+            "required": true,
+            "actual": false,
+            "status": "FAIL"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDevicePageableDeviceLocalMemoryFeaturesEXT.pageableDeviceLocalMemory",
+            "required": true,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT.swapchainMaintenance1",
+            "required": true,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "extensions.VK_EXT_memory_priority",
+            "required": 1,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "extensions.VK_EXT_multi_draw",
+            "required": 1,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "extensions.VK_EXT_vertex_attribute_divisor",
+            "required": 1,
+            "actual": 3,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "extensions.VK_EXT_custom_border_color",
+            "required": 1,
+            "actual": 12,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "extensions.VK_EXT_depth_bias_control",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "extensions.VK_EXT_depth_clip_enable",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "extensions.VK_EXT_swapchain_colorspace",
+            "required": 1,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "extensions.VK_EXT_hdr_metadata",
+            "required": 1,
+            "actual": 3,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceFeatures.depthBounds",
+            "required": true,
+            "actual": false,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceFeatures.pipelineStatisticsQuery",
+            "required": true,
+            "actual": false,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceFeatures.logicOp",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceFeatures.samplerAnisotropy",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceMemoryPriorityFeaturesEXT.memoryPriority",
+            "required": true,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceMultiDrawFeaturesEXT.multiDraw",
+            "required": true,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT.vertexAttributeInstanceRateDivisor",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT.vertexAttributeInstanceRateZeroDivisor",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceCustomBorderColorFeaturesEXT.customBorderColors",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceCustomBorderColorFeaturesEXT.customBorderColorWithoutFormat",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceDepthBiasControlFeaturesEXT.depthBiasControl",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceDepthBiasControlFeaturesEXT.leastRepresentableValueForceUnormRepresentation",
+            "required": true,
+            "actual": false,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceDepthBiasControlFeaturesEXT.depthBiasExact",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceDepthClipEnableFeaturesEXT.depthClipEnable",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_level11_0_optional",
+            "path": "features.VkPhysicalDeviceFeatures.shaderFloat64",
+            "required": true,
+            "actual": false,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_level11_0_optional",
+            "path": "features.VkPhysicalDeviceFeatures.shaderInt64",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          }
+        ],
+        "featureLevel": {
+          "label": "DXVK D3D11 Level 11.1 Optimal profile",
+          "capabilities": {
+            "d3d11_level11_0": "FAIL",
+            "d3d11_level11_0_optional": "FAIL",
+            "d3d11_level11_1": "FAIL"
+          }
+        }
+      },
+      "VP_DXVK_d3d11_level_12_0_optimal": {
+        "status": "FAIL",
+        "pass": [
+          {
+            "capability": "profile",
+            "path": "api-version",
+            "required": "1.3.204",
+            "actual": 4211051,
+            "satisfied": true
+          },
+          {
+            "capability": "vulkan10requirements",
+            "path": "features.VkPhysicalDeviceFeatures.robustBufferAccess",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "features.VkPhysicalDeviceVulkan11Features.multiview",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "properties.VkPhysicalDeviceVulkan11Properties.maxMultiviewViewCount",
+            "required": 6,
+            "actual": 8
+          },
+          {
+            "capability": "vulkan11requirements",
+            "path": "properties.VkPhysicalDeviceVulkan11Properties.maxMultiviewInstanceIndex",
+            "required": 134217727,
+            "actual": 4294967295
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.uniformBufferStandardLayout",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.subgroupBroadcastDynamicId",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.imagelessFramebuffer",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.separateDepthStencilLayouts",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.hostQueryReset",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.timelineSemaphore",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.shaderSubgroupExtendedTypes",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan12requirements",
+            "path": "properties.VkPhysicalDeviceVulkan12Properties.maxTimelineSemaphoreValueDifference",
+            "required": 2147483647,
+            "actual": 9223372036854775807
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.vulkanMemoryModel",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.vulkanMemoryModelDeviceScope",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan12Features.bufferDeviceAddress",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.robustImageAccess",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderTerminateInvocation",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderZeroInitializeWorkgroupMemory",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.synchronization2",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderIntegerDotProduct",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.maintenance4",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.pipelineCreationCacheControl",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.subgroupSizeControl",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.computeFullSubgroups",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.shaderDemoteToHelperInvocation",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.inlineUniformBlock",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "features.VkPhysicalDeviceVulkan13Features.dynamicRendering",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxBufferSize",
+            "required": 1073741824,
+            "actual": 4294967295
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxInlineUniformBlockSize",
+            "required": 256,
+            "actual": 65536
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxPerStageDescriptorInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxPerStageDescriptorUpdateAfterBindInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxDescriptorSetInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxDescriptorSetUpdateAfterBindInlineUniformBlocks",
+            "required": 4,
+            "actual": 26
+          },
+          {
+            "capability": "vulkan13requirements",
+            "path": "properties.VkPhysicalDeviceVulkan13Properties.maxInlineUniformTotalSize",
+            "required": 4,
+            "actual": 1703936
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "extensions.VK_KHR_maintenance5",
+            "required": 1,
+            "actual": 1
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceFeatures.shaderSampledImageArrayDynamicIndexing",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorIndexing",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingSampledImageUpdateAfterBind",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingUpdateUnusedWhilePending",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.descriptorBindingPartiallyBound",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceVulkan12Features.runtimeDescriptorArray",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "features.VkPhysicalDeviceMaintenance5FeaturesKHR.maintenance5",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "dxvk_common_required",
+            "path": "properties.VkPhysicalDeviceProperties.maxPushConstantsSize",
+            "required": 256,
+            "actual": 256
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "extensions.VK_EXT_robustness2",
+            "required": 1,
+            "actual": 1
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.depthBiasClamp",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.depthClamp",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.dualSrcBlend",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.fullDrawIndexUint32",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.imageCubeArray",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.independentBlend",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.occlusionQueryPrecise",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.sampleRateShading",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderImageGatherExtended",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceVulkan11Features.shaderDrawParameters",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceVulkan12Features.samplerMirrorClampToEdge",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceRobustness2FeaturesEXT.nullDescriptor",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceRobustness2FeaturesEXT.robustBufferAccess2",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_level11_0",
+            "path": "features.VkPhysicalDeviceFeatures.drawIndirectFirstInstance",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_level11_0",
+            "path": "features.VkPhysicalDeviceFeatures.fragmentStoresAndAtomics",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_level11_0",
+            "path": "features.VkPhysicalDeviceFeatures.multiDrawIndirect",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_level11_1",
+            "path": "features.VkPhysicalDeviceFeatures.logicOp",
+            "required": true,
+            "actual": true
+          },
+          {
+            "capability": "d3d11_level12_0",
+            "path": "features.VkPhysicalDeviceVulkan12Features.samplerFilterMinmax",
+            "required": true,
+            "actual": true
+          }
+        ],
+        "fail": [
+          {
+            "capability": "d3d11_baseline",
+            "path": "extensions.VK_EXT_transform_feedback",
+            "required": 1,
+            "actual": null
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.fillModeNonSolid",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.geometryShader",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.multiViewport",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderClipDistance",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.shaderCullDistance",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceFeatures.textureCompressionBC",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceTransformFeedbackFeaturesEXT.transformFeedback",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_baseline",
+            "path": "features.VkPhysicalDeviceTransformFeedbackFeaturesEXT.geometryStreams",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_level11_0",
+            "path": "features.VkPhysicalDeviceFeatures.tessellationShader",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_level11_1",
+            "path": "features.VkPhysicalDeviceFeatures.vertexPipelineStoresAndAtomics",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_level12_0",
+            "path": "features.VkPhysicalDeviceFeatures.shaderResourceResidency",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_level12_0",
+            "path": "features.VkPhysicalDeviceFeatures.shaderResourceMinLod",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_level12_0",
+            "path": "features.VkPhysicalDeviceFeatures.sparseBinding",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_level12_0",
+            "path": "features.VkPhysicalDeviceFeatures.sparseResidencyBuffer",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_level12_0",
+            "path": "features.VkPhysicalDeviceFeatures.sparseResidencyAliased",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_level12_0",
+            "path": "features.VkPhysicalDeviceFeatures.sparseResidencyImage2D",
+            "required": true,
+            "actual": false
+          },
+          {
+            "capability": "d3d11_level12_0",
+            "path": "properties.VkPhysicalDeviceProperties.sparseProperties.residencyStandard2DBlockShape",
+            "required": true,
+            "actual": null
+          },
+          {
+            "capability": "d3d11_level12_0",
+            "path": "properties.VkPhysicalDeviceProperties.sparseProperties.residencyAlignedMipSize",
+            "required": false,
+            "actual": null
+          },
+          {
+            "capability": "d3d11_level12_0",
+            "path": "properties.VkPhysicalDeviceProperties.sparseProperties.residencyNonResidentStrict",
+            "required": true,
+            "actual": null
+          }
+        ],
+        "optional": [
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_KHR_load_store_op_none",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_KHR_maintenance6",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_KHR_maintenance7",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_KHR_present_id",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_KHR_present_wait",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_KHR_swapchain_mutable_format",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_EXT_line_rasterization",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_EXT_pageable_device_local_memory",
+            "required": 1,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "extensions.VK_EXT_swapchain_maintenance1",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceFeatures.wideLines",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceVulkan11Features.shaderInt16",
+            "required": true,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceVulkan11Features.storagePushConstant16",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceMaintenance6FeaturesKHR.maintenance6",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceMaintenance7FeaturesKHR.maintenance7",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDevicePresentIdFeaturesKHR.presentId",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDevicePresentWaitFeaturesKHR.presentWait",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceLineRasterizationFeaturesEXT.rectangularLines",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceLineRasterizationFeaturesEXT.smoothLines",
+            "required": true,
+            "actual": false,
+            "status": "FAIL"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDevicePageableDeviceLocalMemoryFeaturesEXT.pageableDeviceLocalMemory",
+            "required": true,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "dxvk_common_optional",
+            "path": "features.VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT.swapchainMaintenance1",
+            "required": true,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "extensions.VK_EXT_memory_priority",
+            "required": 1,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "extensions.VK_EXT_multi_draw",
+            "required": 1,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "extensions.VK_EXT_vertex_attribute_divisor",
+            "required": 1,
+            "actual": 3,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "extensions.VK_EXT_custom_border_color",
+            "required": 1,
+            "actual": 12,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "extensions.VK_EXT_depth_bias_control",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "extensions.VK_EXT_depth_clip_enable",
+            "required": 1,
+            "actual": 1,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "extensions.VK_EXT_swapchain_colorspace",
+            "required": 1,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "extensions.VK_EXT_hdr_metadata",
+            "required": 1,
+            "actual": 3,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceFeatures.depthBounds",
+            "required": true,
+            "actual": false,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceFeatures.pipelineStatisticsQuery",
+            "required": true,
+            "actual": false,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceFeatures.logicOp",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceFeatures.samplerAnisotropy",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceMemoryPriorityFeaturesEXT.memoryPriority",
+            "required": true,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceMultiDrawFeaturesEXT.multiDraw",
+            "required": true,
+            "actual": null,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT.vertexAttributeInstanceRateDivisor",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT.vertexAttributeInstanceRateZeroDivisor",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceCustomBorderColorFeaturesEXT.customBorderColors",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceCustomBorderColorFeaturesEXT.customBorderColorWithoutFormat",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceDepthBiasControlFeaturesEXT.depthBiasControl",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceDepthBiasControlFeaturesEXT.leastRepresentableValueForceUnormRepresentation",
+            "required": true,
+            "actual": false,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceDepthBiasControlFeaturesEXT.depthBiasExact",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_baseline_optional",
+            "path": "features.VkPhysicalDeviceDepthClipEnableFeaturesEXT.depthClipEnable",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          },
+          {
+            "capability": "d3d11_level11_0_optional",
+            "path": "features.VkPhysicalDeviceFeatures.shaderFloat64",
+            "required": true,
+            "actual": false,
+            "status": "FAIL"
+          },
+          {
+            "capability": "d3d11_level11_0_optional",
+            "path": "features.VkPhysicalDeviceFeatures.shaderInt64",
+            "required": true,
+            "actual": true,
+            "status": "PASS"
+          }
+        ],
+        "featureLevel": {
+          "label": "DXVK D3D11 Level 12.0 Optimal profile",
+          "capabilities": {
+            "d3d11_level11_0": "FAIL",
+            "d3d11_level11_0_optional": "FAIL",
+            "d3d11_level11_1": "FAIL",
+            "d3d11_level12_0": "FAIL"
+          }
+        }
+      }
+    }
+  }
+}

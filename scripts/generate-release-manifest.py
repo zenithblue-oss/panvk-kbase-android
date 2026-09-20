@@ -10,6 +10,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--profile', required=True)
 ap.add_argument('--abi', required=True)
 ap.add_argument('--stage', required=True)
+ap.add_argument('--published', action='store_true')
 a = ap.parse_args()
 stage = pathlib.Path(a.stage)
 root = pathlib.Path(__file__).resolve().parent.parent
@@ -54,7 +55,7 @@ source = {
     'sourceCommit': mesa_sha,
     'patchSeriesId': patch_series_id,
     'referenceRepos': lock.get('referenceRepos'),
-    'releaseStatus': {'prerelease': True, 'published': False},
+    'releaseStatus': {'prerelease': True, 'published': a.published},
     'bcCompatibilityIncluded': False,
 }
 if matrix_name:

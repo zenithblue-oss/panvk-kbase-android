@@ -1,0 +1,10 @@
+#version 460
+layout(local_size_x = 1) in;
+layout(set = 0, binding = 0, std430) buffer Out { uint value[4]; } outbuf;
+layout(set = 0, binding = 3) uniform sampler2D image_sampler;
+void main()
+{
+   vec4 left = texture(image_sampler, vec2(-0.75, 0.5));
+   vec4 right = texture(image_sampler, vec2(1.75, 0.5));
+   outbuf.value[1] = (left.r > 0.9 && right.r > 0.9) ? 0x4d434c45u : 0u;
+}

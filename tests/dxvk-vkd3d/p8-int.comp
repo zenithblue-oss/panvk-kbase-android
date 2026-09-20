@@ -1,0 +1,18 @@
+#version 460
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_16bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int16 : require
+layout(local_size_x = 1) in;
+layout(set = 0, binding = 0, std430) buffer Out { uint value[4]; } outbuf;
+layout(set = 0, binding = 1, std430) buffer B8 { int8_t v8[]; } b8;
+layout(set = 0, binding = 2, std430) buffer B16 { int16_t v16[]; } b16;
+layout(push_constant) uniform Push { uint addend; } push;
+void main()
+{
+   int8_t a = b8.v8[0];
+   int16_t b = b16.v16[0];
+   b8.v8[1] = int8_t(a + int8_t(5));
+   b16.v16[1] = int16_t(b + int16_t(9));
+   outbuf.value[0] = uint(int(a)) + uint(int(b)) + push.addend;
+}

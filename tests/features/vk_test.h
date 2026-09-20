@@ -10,7 +10,7 @@
 #include <vulkan/vulkan.h>
 
 #define VKF_LIST(X) \
-   X(EnumeratePhysicalDevices) X(GetPhysicalDeviceProperties) \
+   X(EnumeratePhysicalDevices) X(EnumerateDeviceExtensionProperties) X(GetPhysicalDeviceProperties) \
    X(GetPhysicalDeviceProperties2) X(GetPhysicalDeviceFeatures2) \
    X(GetPhysicalDeviceQueueFamilyProperties) X(GetPhysicalDeviceMemoryProperties) \
    X(GetPhysicalDeviceFormatProperties) X(CreateDevice) X(GetDeviceQueue) \
@@ -19,17 +19,20 @@
    X(CreateImage) X(GetImageMemoryRequirements) X(BindImageMemory) X(DestroyImage) \
    X(CreateImageView) X(DestroyImageView) X(CreateSampler) X(DestroySampler) \
    X(CreateDescriptorSetLayout) X(DestroyDescriptorSetLayout) \
-   X(CreateDescriptorPool) X(DestroyDescriptorPool) X(AllocateDescriptorSets) \
+   X(CreateDescriptorPool) X(DestroyDescriptorPool) X(ResetDescriptorPool) \
+   X(AllocateDescriptorSets) X(FreeDescriptorSets) \
    X(UpdateDescriptorSets) X(CreateShaderModule) X(DestroyShaderModule) \
    X(CreatePipelineLayout) X(DestroyPipelineLayout) X(CreateComputePipelines) \
    X(CreateGraphicsPipelines) X(DestroyPipeline) X(CreateCommandPool) \
    X(DestroyCommandPool) X(AllocateCommandBuffers) X(BeginCommandBuffer) \
-   X(EndCommandBuffer) X(CmdBindPipeline) X(CmdBindDescriptorSets) \
+   X(EndCommandBuffer) X(CmdBindPipeline) X(CmdBindDescriptorSets) X(CmdBindDescriptorSets2) \
+   X(CmdPushConstants2) X(CmdClearColorImage) \
    X(CmdPushConstants) X(CmdDispatch) X(CmdPipelineBarrier) X(CmdCopyBufferToImage) \
    X(CmdCopyImageToBuffer) X(CmdDraw) X(CmdSetLineWidth) X(CreateFence) \
    X(DestroyFence) X(QueueSubmit) X(WaitForFences) X(QueueWaitIdle) \
    X(GetBufferDeviceAddress) X(CmdBeginRendering) X(CmdEndRendering) X(DestroyDevice) \
-   X(DestroyInstance)
+   X(CreateBufferView) X(DestroyBufferView) X(CreateEvent) X(DestroyEvent) \
+   X(SetEvent) X(CmdWaitEvents) X(DestroyInstance)
 
 #define DECL(name) static PFN_vk##name vk##name __attribute__((unused));
 VKF_LIST(DECL)

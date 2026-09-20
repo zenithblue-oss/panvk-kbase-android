@@ -1,0 +1,16 @@
+P16 DXVK D3D10 / D3D11 FL10.x re-evaluation
+result=FAIL
+adapter=Mali-G615 MC6
+driver=panvk Mesa 26.3.0-devel (git-5a07217f03)
+api=1.4.363
+icd=576e37de9a3b60dda9a972a6f91c3a50e09238bd31a9888e04215c7b554c803a
+dxvk-1.10.3 D3D10=FAIL D3D11_FL10_1=FAIL smoke=BLOCKED fail=9 blockers=geometryShader,fillModeNonSolid,shaderClipDistance,shaderCullDistance,textureCompressionBC,multiViewport,transformFeedback,geometryStreams,VK_EXT_transform_feedback
+  feature_level=NOT_AVAILABLE
+  Stock DXVK v1.10.3 enables required D3D10 / D3D11 FL10.x VkPhysicalDeviceFeatures and VK_EXT_transform_feedback at vkCreateDevice. G615 reports those features false and omits the extension, so device creation is illegal and init cannot complete. No stock DXVK binary was launched.
+dxvk-2.7.1 D3D10=FAIL D3D11_FL10_1=FAIL smoke=BLOCKED fail=9 blockers=VK_EXT_transform_feedback,fillModeNonSolid,geometryShader,multiViewport,shaderClipDistance,shaderCullDistance,textureCompressionBC,transformFeedback,geometryStreams
+  feature_level=NOT_AVAILABLE
+  Stock DXVK v2.7.1 D3D10 Level 10.1 / D3D11 FL10.x baseline requires VK_EXT_transform_feedback, fillModeNonSolid, geometryShader, multiViewport, shaderClipDistance, shaderCullDistance, textureCompressionBC, transformFeedback, geometryStreams. G615 reports those features false or the extension absent, so vkCreateDevice with the stock feature set is illegal. No stock DXVK binary was launched.
+dxvk-3.1.1 D3D10=FAIL D3D11_FL10_1=FAIL smoke=BLOCKED fail=9 blockers=VK_EXT_transform_feedback,fillModeNonSolid,geometryShader,multiViewport,shaderClipDistance,shaderCullDistance,textureCompressionBC,transformFeedback,geometryStreams
+  feature_level=NOT_AVAILABLE
+  Stock DXVK v3.1.1 D3D10 Level 10.1 / D3D11 FL10.x baseline requires VK_EXT_transform_feedback, fillModeNonSolid, geometryShader, multiViewport, shaderClipDistance, shaderCullDistance, textureCompressionBC, transformFeedback, geometryStreams. G615 reports those features false or the extension absent, so vkCreateDevice with the stock feature set is illegal. No stock DXVK binary was launched.
+P16_EXIT=FAIL

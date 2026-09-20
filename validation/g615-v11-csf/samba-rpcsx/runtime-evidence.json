@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "samba-s3@8c95cb5b27a54d72328b993cd27fd8d5947c794d rpcsx@657b26a0d197c29d42cdcf3b3f6e8ad5c6765bbc libadrenotools@8fae8ce254dfc1344527e05301e43f37dea2df80",
+  "builtBinaryPath": "/home/abhaybyte/repos/samba-s3/app/build/outputs/apk/standard/release/samba-s3-standard-release.apk",
+  "builtBinarySha256": "3bafe890309a92c023b588eaeba2f71817bda3c5d9b439eb37f6d867bc69b19f",
+  "androidIcdSha256": "576e37de9a3b60dda9a972a6f91c3a50e09238bd31a9888e04215c7b554c803a",
+  "target": "Poco X6 Pro / duchamp / Mali-G615 MC6 / Y5WWBMJVOZSK4HU8",
+  "timestamp": "2026-09-19T20:42:00Z",
+  "command": "Install fresh Standard release; Settings > Custom GPU Driver > IMPORT ADPKG; select frozen beta.3 PanVK package",
+  "status": "PARTIAL",
+  "results": {
+    "archiveAcceptance": {"status": "PASS", "evidence": "Frozen ADPKG e94945ad928881919bdd8ce2273de097f0d385c3ba57e87ef959e4cf40442561 imported and appeared as PanVK Kbase G615-v0.1.0-beta.3"},
+    "elfAcceptance": {"status": "PASS", "evidence": "GpuDriverHelper validation accepted libvulkan_panfrost.so and exposed selectable installed driver"},
+    "customSelection": {"status": "PASS", "evidence": "PanVK card changed to SELECTED on Poco X6 Pro"},
+    "rpcsxSetCustomDriver": {"status": "PASS", "evidence": "Selection persists only after GpuDriverSelection receives true from RPCSX.setCustomDriver"},
+    "libadrenotoolsLoad": {"status": "PASS", "evidence": "RPCSX.setCustomDriver returns true only after non-null adrenotools_open_libvulkan(ADRENOTOOLS_DRIVER_CUSTOM) result"},
+    "exactIcdLoaded": {"status": "NOT_TESTED", "evidence": "Imported archive hash is exact, but runtime loaded-object hash was not observable"},
+    "systemMaliAbsent": {"status": "NOT_TESTED", "evidence": "RPCSX Vulkan initialization was not reached; system-driver exclusion cannot be proven"},
+    "g615Enumeration": {"status": "BLOCKED", "evidence": "Samba reports firmware not installed and PPU failed; direct Packet 2 capture independently confirms device 0xb8a31030"},
+    "vkDevice": {"status": "BLOCKED", "evidence": "Firmware not installed and PPU preparation failed before title boot"},
+    "androidSurface": {"status": "BLOCKED", "evidence": "Firmware not installed and PPU preparation failed before title boot"},
+    "swapchain": {"status": "BLOCKED", "evidence": "Firmware not installed and PPU preparation failed before title boot"},
+    "rpcsxVulkanInitialization": {"status": "BLOCKED", "evidence": "Firmware not installed and PPU preparation failed before title boot"}
+  },
+  "bcTruth": {
+    "status": "PASS",
+    "textureCompressionBC": false,
+    "method": "VkPhysicalDeviceFeatures plus vkGetPhysicalDeviceFormatProperties for required BC1-BC3 formats",
+    "panvkNameInference": false
+  }
+}

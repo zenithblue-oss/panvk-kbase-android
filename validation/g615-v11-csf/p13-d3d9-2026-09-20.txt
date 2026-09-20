@@ -1,0 +1,16 @@
+P13 DXVK D3D9 re-evaluation
+result=FAIL
+adapter=Mali-G615 MC6
+driver=panvk Mesa 26.3.0-devel (git-5a07217f03)
+api=1.4.363
+icd=576e37de9a3b60dda9a972a6f91c3a50e09238bd31a9888e04215c7b554c803a
+dxvk-1.10.3 D3D9=FAIL smoke=BLOCKED fail=6 blockers=geometryShader,fillModeNonSolid,shaderClipDistance,shaderCullDistance,textureCompressionBC,multiViewport
+  feature_level=NOT_AVAILABLE
+  Stock DXVK v1.10.3 enables required D3D9 VkPhysicalDeviceFeatures at vkCreateDevice. G615 reports them false, so device creation is illegal and init cannot complete. No stock DXVK binary was launched.
+dxvk-2.7.1 D3D9=FAIL smoke=BLOCKED fail=5 blockers=geometryShader,fillModeNonSolid,shaderClipDistance,shaderCullDistance,textureCompressionBC
+  feature_level=NOT_AVAILABLE
+  Stock DXVK v2.7.1 D3D9 baseline requires geometryShader, fillModeNonSolid, shaderClipDistance, shaderCullDistance, textureCompressionBC. G615 reports those features false, so vkCreateDevice with the stock feature set is illegal. No stock DXVK binary was launched.
+dxvk-3.1.1 D3D9=FAIL smoke=BLOCKED fail=5 blockers=geometryShader,fillModeNonSolid,shaderClipDistance,shaderCullDistance,textureCompressionBC
+  feature_level=NOT_AVAILABLE
+  Stock DXVK v3.1.1 D3D9 baseline requires geometryShader, fillModeNonSolid, shaderClipDistance, shaderCullDistance, textureCompressionBC. G615 reports those features false, so vkCreateDevice with the stock feature set is illegal. No stock DXVK binary was launched.
+P13_EXIT=FAIL

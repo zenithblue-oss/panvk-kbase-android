@@ -1,0 +1,25 @@
+P21 D3D12 feature/profile analysis
+result=FAIL
+adapter=Mali-G615 MC6
+driver=panvk Mesa 26.3.0-devel (git-5a07217f03)
+api=1.4.363
+icd=576e37de9a3b60dda9a972a6f91c3a50e09238bd31a9888e04215c7b554c803a
+vkd3d-2.0 HARD=PASS BASELINE=NOT_APPLICABLE DEVICE=PASS FEATURE_LEVEL=NOT_AVAILABLE IMPLIED=D3D_FEATURE_LEVEL_11_0 smoke=BLOCKED
+  HARD fail=0 blockers=none
+  BASELINE fail=0 blockers=NOT_APPLICABLE
+  DEVICE fail=0 blockers=none
+  IMPLIED=D3D_FEATURE_LEVEL_11_0 tiled=D3D12_TILED_RESOURCES_TIER_NOT_SUPPORTED blockers=vertexPipelineStoresAndAtomics,sparseBinding,sparseResidencyBuffer,sparseResidencyImage2D,sparseResidencyAliased,shaderResourceResidency,shaderResourceMinLod,VK_QUEUE_SPARSE_BINDING_BIT,VK_EXT_fragment_shader_interlock,VK_EXT_mesh_shader,VK_KHR_ray_tracing_pipeline,VK_KHR_fragment_shading_rate
+  Stock vkd3d-proton v2.0 is a Windows D3D12-on-Vulkan layer. This Android ICD is not a legal host for the tagged binaries. No stock vkd3d binary was launched. vkd3d_init_device_caps would not return E_INVALIDARG on the captured timeline semaphore bit, but that is not a stock smoke PASS.
+vkd3d-2.14.1 HARD=PASS BASELINE=FAIL DEVICE=FAIL FEATURE_LEVEL=NOT_AVAILABLE IMPLIED=D3D_FEATURE_LEVEL_11_0 smoke=BLOCKED
+  HARD fail=0 blockers=none
+  BASELINE fail=15 blockers=VK_EXT_transform_feedback,robustImageAccess2,transformFeedback,geometryStreams,geometryShader,tessellationShader,fillModeNonSolid,multiViewport,textureCompressionBC,pipelineStatisticsQuery,shaderClipDistance,shaderCullDistance,transformFeedbackQueries,bufferImageGranularity,subgroupSupportedOperations[0]
+  DEVICE fail=2 blockers=transformFeedbackQueries,robustImageAccess2
+  IMPLIED=D3D_FEATURE_LEVEL_11_0 tiled=D3D12_TILED_RESOURCES_TIER_NOT_SUPPORTED blockers=vertexPipelineStoresAndAtomics,sparseBinding,sparseResidencyBuffer,sparseResidencyImage2D,sparseResidencyAliased,shaderResourceResidency,shaderResourceMinLod,VK_QUEUE_SPARSE_BINDING_BIT,VK_EXT_fragment_shader_interlock,VK_EXT_mesh_shader,VK_KHR_ray_tracing_pipeline,VK_KHR_fragment_shading_rate
+  Stock vkd3d-proton v2.14.1 vkd3d_init_device_caps returns E_INVALIDARG when robustImageAccess2 or transformFeedbackQueries is false. G615 reports both false. Stock vkd3d-proton is a Windows D3D12-on-Vulkan layer; this Android ICD is not a legal host for the tagged binaries. No stock vkd3d binary was launched.
+vkd3d-3.0.1 HARD=PASS BASELINE=FAIL DEVICE=FAIL FEATURE_LEVEL=NOT_AVAILABLE IMPLIED=D3D_FEATURE_LEVEL_11_0 smoke=BLOCKED
+  HARD fail=0 blockers=none
+  BASELINE fail=15 blockers=VK_EXT_transform_feedback,robustImageAccess2,transformFeedback,geometryStreams,geometryShader,tessellationShader,fillModeNonSolid,multiViewport,textureCompressionBC,pipelineStatisticsQuery,shaderClipDistance,shaderCullDistance,transformFeedbackQueries,bufferImageGranularity,subgroupSupportedOperations[0]
+  DEVICE fail=2 blockers=transformFeedbackQueries,robustImageAccess2
+  IMPLIED=D3D_FEATURE_LEVEL_11_0 tiled=D3D12_TILED_RESOURCES_TIER_NOT_SUPPORTED blockers=vertexPipelineStoresAndAtomics,sparseBinding,sparseResidencyBuffer,sparseResidencyImage2D,sparseResidencyAliased,shaderResourceResidency,shaderResourceMinLod,VK_QUEUE_SPARSE_BINDING_BIT,VK_EXT_fragment_shader_interlock,VK_EXT_mesh_shader,VK_KHR_ray_tracing_pipeline,VK_KHR_fragment_shading_rate
+  Stock vkd3d-proton v3.0.1 vkd3d_init_device_caps returns E_INVALIDARG when robustImageAccess2 or transformFeedbackQueries is false. G615 reports both false. Stock vkd3d-proton is a Windows D3D12-on-Vulkan layer; this Android ICD is not a legal host for the tagged binaries. No stock vkd3d binary was launched.
+P21_EXIT=FAIL

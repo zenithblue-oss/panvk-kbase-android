@@ -21,8 +21,9 @@
   with upstreamImplemented / runtimeExposed / runtimeTested. Parser tests here.
 - `features/` — focused advertised-feature workloads. `sync-features.c` covers
   timeline semaphore values/chains and synchronization2 submission/barriers.
-- `bcn/` — BC1-BC7 compatibility requirements and result-schema self-check.
-  Device operations remain `NOT_RUN` until a loadable experimental layer exists.
+- `bcn/` — complete BC1-BC7 compatibility contract and evidence self-check.
+  Advertisement is rejected unless every required format, operation, edge case,
+  and stress case has `PASS` evidence.
 
 Fault safety for all: hard timeout, small allocations, tiny images, single
 queue first, bounded frames, one change per run.

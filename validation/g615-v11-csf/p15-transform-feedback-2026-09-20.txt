@@ -1,0 +1,71 @@
+P15 VK_EXT_transform_feedback
+date=2026-09-20
+device=Poco X6 Pro / duchamp
+model=2311DRK48I
+serial=Y5WWBMJVOZSK4HU8
+gpu=Mali-G615 MC6
+gpu_id=0xb8a31030
+api=1.4.363
+driver=panvk
+mesa=5a07217f034b3e50d8c7c7794f97a2df1742613b
+upstream_audited=e1f3f372c4a661cd0e71a0cdafc4d469d56ecf35
+android_icd_sha256=576e37de9a3b60dda9a972a6f91c3a50e09238bd31a9888e04215c7b554c803a
+staged_icd_sha256=576e37de9a3b60dda9a972a6f91c3a50e09238bd31a9888e04215c7b554c803a
+
+VK_EXT_transform_feedback=NO
+transformFeedback=NO
+geometryStreams=NO
+transformFeedbackQueries=NO
+transformFeedbackDraw=NO
+transformFeedbackRasterizationStreamSelect=NO
+transformFeedbackStreamsLinesTriangles=NO
+maxTransformFeedbackStreams=0
+maxTransformFeedbackBuffers=0
+vertexPipelineStoresAndAtomics=NO
+geometryShader=NO
+create_VK_EXT_transform_feedback=VK_ERROR_EXTENSION_NOT_PRESENT
+create_extension_rejected=PASS
+create_transformFeedback_true=VK_SUCCESS
+create_transformFeedback_pnext_without_ext=PASS
+note=pnext_ignored_unless_extension_enabled
+create_geometryStreams_true=VK_SUCCESS
+create_geometryStreams_pnext_without_ext=PASS
+extra_xfb_properties_off=PASS
+
+vkCmdBindTransformFeedbackBuffersEXT=NOT_IMPLEMENTED
+vkCmdBeginTransformFeedbackEXT=NOT_IMPLEMENTED
+vkCmdEndTransformFeedbackEXT=NOT_IMPLEMENTED
+vkCmdDrawIndirectByteCountEXT=NOT_IMPLEMENTED
+
+single_buffer=NOT_RUN reason=transformFeedback_disabled
+multiple_buffers=NOT_RUN reason=transformFeedback_disabled
+offset=NOT_RUN reason=transformFeedback_disabled
+size=NOT_RUN reason=transformFeedback_disabled
+counter_buffer=NOT_RUN reason=transformFeedback_disabled
+resume=NOT_RUN reason=transformFeedback_disabled
+pause_end=NOT_RUN reason=transformFeedback_disabled
+draw=NOT_RUN reason=transformFeedback_disabled
+indexed_draw=NOT_RUN reason=transformFeedback_disabled
+instanced_draw=NOT_RUN reason=transformFeedback_disabled
+indirect_draw=NOT_RUN reason=transformFeedback_disabled
+overflow=NOT_RUN reason=transformFeedback_disabled
+barriers=NOT_RUN reason=transformFeedback_disabled
+queries=NOT_RUN reason=transformFeedback_disabled
+multiple_command_buffers=NOT_RUN reason=transformFeedback_disabled
+reason=No PanVK XFB entrypoints, no-IDVS capture variant, counters, or GS streams. Gallium stream output is OpenGL-only and incomplete vs Vulkan.
+
+cts=BLOCKED
+cts_version=NOT_TESTED
+cts_test_list_sha256=NOT_TESTED
+cts_pass=NOT_TESTED
+cts_fail=NOT_TESTED
+cts_skip=NOT_TESTED
+cts_crash=NOT_TESTED
+cts_device_lost=NOT_TESTED
+cts_reason=no deqp-vk executable or matching CTS test list on host or device
+
+host_p15_guard=PASS (10/10)
+g615_identity=PASS (device=duchamp model=2311DRK48I)
+g615_probe=PASS (result=BLOCKED_SAFE_FALSE)
+result=BLOCKED_SAFE_FALSE
+P16_started=NO

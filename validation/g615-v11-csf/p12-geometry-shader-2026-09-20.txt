@@ -1,0 +1,60 @@
+P12 geometryShader
+date=2026-09-20
+device=Poco X6 Pro / duchamp
+model=2311DRK48I
+serial=Y5WWBMJVOZSK4HU8
+gpu=Mali-G615 MC6
+gpu_id=0xb8a31030
+api=1.4.363
+driver=panvk
+mesa=5a07217f034b3e50d8c7c7794f97a2df1742613b
+upstream_audited=e1f3f372c4a661cd0e71a0cdafc4d469d56ecf35
+android_icd_sha256=576e37de9a3b60dda9a972a6f91c3a50e09238bd31a9888e04215c7b554c803a
+staged_icd_sha256=576e37de9a3b60dda9a972a6f91c3a50e09238bd31a9888e04215c7b554c803a
+
+geometryShader=NO
+shaderTessellationAndGeometryPointSize=NO
+maxGeometryShaderInvocations=0
+maxGeometryInputComponents=0
+maxGeometryOutputComponents=0
+maxGeometryOutputVertices=0
+maxGeometryTotalOutputComponents=0
+create_geometryShader_true=NOT_RUN
+create_geometryShader_rejected=NOT_RUN
+reason_live_probe=ADB serial Y5WWBMJVOZSK4HU8 disconnected after getprop identity (2311DRK48I/duchamp) and before panvk-p12 executed. No ICD was rebuilt. Same SHA-256 ICD capture in consumer-capabilities.json and P11 same-day probe remains authoritative for the false bit.
+
+source_capture=validation/g615-v11-csf/consumer-capabilities.json
+source_capture_geometryShader=false
+source_capture_shaderTessellationAndGeometryPointSize=false
+source_capture_geometry_limits=0
+
+points_to_points=NOT_RUN
+points_to_lines=NOT_RUN
+points_to_triangles=NOT_RUN
+lines=NOT_RUN
+triangles=NOT_RUN
+adjacency=NOT_RUN
+multiple_emits=NOT_RUN
+layer_output=NOT_RUN
+viewport_output=NOT_RUN
+primitive_id=NOT_RUN
+end_primitive=NOT_RUN
+restart_strip=NOT_RUN
+streams=NOT_RUN
+reason=No native Valhall v11 GS stage and no complete PanVK GS lowering. Pipelines with geometry shaders are invalid while geometryShader is disabled.
+
+cts=BLOCKED
+cts_version=NOT_TESTED
+cts_test_list_sha256=NOT_TESTED
+cts_pass=NOT_TESTED
+cts_fail=NOT_TESTED
+cts_skip=NOT_TESTED
+cts_crash=NOT_TESTED
+cts_device_lost=NOT_TESTED
+cts_reason=no deqp-vk executable or matching CTS test list on host or device
+
+host_p12_guard=PASS (7/7)
+g615_identity=PASS (device=duchamp model=2311DRK48I)
+g615_probe=NOT_RUN (ADB disconnect)
+result=BLOCKED_SAFE_FALSE
+P13_started=NO

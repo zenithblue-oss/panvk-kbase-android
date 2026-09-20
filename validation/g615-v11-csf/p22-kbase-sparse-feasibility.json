@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "phase": "P22",
+  "date": "2026-09-20",
+  "result": "NO-GO",
+  "implementation": "NONE",
+  "pinnedMesa": "5a07217f034b3e50d8c7c7794f97a2df1742613b",
+  "auditedMesa": "e1f3f372c4a661cd0e71a0cdafc4d469d56ecf35",
+  "kbaseUapi": "1.21",
+  "device": "Mali-G615 MC6",
+  "gpuId": "0xb8a31030",
+  "frontend": "CSF",
+  "capabilities": "validation/g615-v11-csf/consumer-capabilities.json",
+  "feasibilityDoc": "docs/KBASE-SPARSE-FEASIBILITY.md",
+  "p21": "validation/g615-v11-csf/p21-d3d12-feature-level.json",
+  "mesa26_2SparseEnabled": false,
+  "hasSparseOnKbase": false,
+  "ctsRun": false,
+  "g615SparseWorkloadRun": false,
+  "recommendedAction": "Keep every sparse bit false. Do not enable Mesa 26.2 pan/kmod sparse on mali_kbase. Next phase is P23 compliance matrix, not sparse implementation.",
+  "featureBitsUnchanged": {
+    "sparseBinding": false,
+    "sparseResidencyBuffer": false,
+    "sparseResidencyImage2D": false,
+    "sparseResidencyImage3D": false,
+    "sparseResidencyAliased": false,
+    "sparseResidency2Samples": false,
+    "sparseResidency4Samples": false,
+    "sparseResidency8Samples": false,
+    "sparseResidency16Samples": false,
+    "shaderResourceResidency": false,
+    "shaderResourceMinLod": false
+  },
+  "queueSparseBindingBit": false,
+  "sparseProperties": {
+    "residencyAlignedMipSize": false,
+    "residencyNonResidentStrict": false,
+    "residencyStandard2DBlockShape": true,
+    "residencyStandard2DMultisampleBlockShape": false,
+    "residencyStandard3DBlockShape": false
+  },
+  "operations": {
+    "reserveVA": {
+      "vulkan": "userspace VA heap via panvk_as_alloc for SPARSE_BINDING resources",
+      "kbase": "KBASE_IOCTL_MEM_ALLOC / MEM_ALLOC_EX va_pages vs commit_pages; SAME_VA kernel-chosen VA",
+      "feasibility": "INSUFFICIENT"
+    },
+    "mapPages": {
+      "vulkan": "vkQueueBindSparse maps an existing memory object into a resource VA range",
+      "kbase": "MEM_ALLOC commit_pages or MEM_COMMIT on one growable region; no explicit-VA MAP",
+      "feasibility": "INSUFFICIENT"
+    },
+    "unmapPages": {
+      "vulkan": "bind VK_NULL_HANDLE or UNMAP / MAP_SPARSE blackhole punches a hole",
+      "kbase": "MEM_COMMIT shrinks from the end; MEM_FREE / munmap destroys the whole region",
+      "feasibility": "INSUFFICIENT"
+    },
+    "rebindPages": {
+      "vulkan": "replace backing of a VA subrange with a different memory object",
+      "kbase": "no ioctl maps a different handle into an existing subrange",
+      "feasibility": "INFEASIBLE"
+    },
+    "aliasMappings": {
+      "vulkan": "sparseResidencyAliased: same pages in more than one sparse resource VA",
+      "kbase": "MEM_ALIAS creates a new kernel-chosen read-mostly VA; ring-buffer helper only",
+      "feasibility": "INSUFFICIENT"
+    },
+    "bufferSparseBind": {
+      "vulkan": "panvk_async_bind MAP at buffer device address + offset",
+      "kbase": "kbase_kmod_vm_bind rejects any MAP whose va.start is not the alloc-time VA",
+      "feasibility": "INFEASIBLE"
+    },
+    "imageOpaqueBind": {
+      "vulkan": "VkSparseImageOpaqueMemoryBindInfo over the image VA range",
+      "kbase": "same explicit-VA MAP requirement as buffers",
+      "feasibility": "INFEASIBLE"
+    },
+    "imageSparseBind": {
+      "vulkan": "VkSparseImageMemoryBind at 64 KiB standard 2D blocks",
+      "kbase": "4 KiB page commit of one region from the front; no tile-at-offset map",
+      "feasibility": "INFEASIBLE"
+    },
+    "pageGranularity": {
+      "vulkan": "64 KiB standard sparse block; 4 KiB pages would be fine if MAP existed",
+      "kbase": "4 KiB pages; ALLOC_ON_FAULT grows in 2 MiB extensions",
+      "feasibility": "MISMATCH_NOT_SOLE_BLOCKER"
+    },
+    "faultBehavior": {
+      "vulkan": "unbacked pages are blackhole or device-lost; not JIT growth",
+      "kbase": "GROW_ON_GPF commits extension pages on fault; hole access is a GPU fault",
+      "feasibility": "INFEASIBLE"
+    },
+    "queueOrdering": {
+      "vulkan": "vkQueueBindSparse on VK_QUEUE_SPARSE_BINDING_BIT",
+      "kbase": "CSF CS queues only; BIND family is a lost-queue stub",
+      "feasibility": "INFEASIBLE"
+    },
+    "synchronization": {
+      "vulkan": "PAN_KMOD_VM_OP_MODE_ASYNC plus DRM syncobjs",
+      "kbase": "ASYNC vm_bind returns -1; no DRM syncobj",
+      "feasibility": "INFEASIBLE"
+    }
+  },
+  "backendComparison": {
+    "upstreamPanKmodSparse": "Panthor DRM_IOCTL_PANTHOR_VM_BIND, MAP_SPARSE from panthor uAPI 1.9, panvk_async_bind.c",
+    "thisTree": "custom mali_kbase backend; SAME_VA; vm_bind is bookkeeping",
+    "kbaseHasSparseGate": "has_sparse = PAN_ARCH >= 10 && !device->kbase_node_path[0]",
+    "supportedVmOpFlags": "unset on kbase; PAN_KMOD_VM_OP_OP_MAP_SPARSE only set by panthor_kmod.c",
+    "emulateSparseHelpsKbase": false
+  },
+  "remainingSparseBits": {
+    "sparseBinding": "KEEP_FALSE",
+    "sparseResidencyBuffer": "KEEP_FALSE",
+    "sparseResidencyImage2D": "KEEP_FALSE",
+    "sparseResidencyImage3D": "KEEP_FALSE",
+    "sparseResidencyAliased": "KEEP_FALSE",
+    "shaderResourceResidency": "KEEP_FALSE",
+    "shaderResourceMinLod": "KEEP_FALSE",
+    "VK_QUEUE_SPARSE_BINDING_BIT": "KEEP_ABSENT"
+  }
+}

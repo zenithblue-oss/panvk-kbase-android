@@ -36,9 +36,10 @@ patches/              qualified patch families (never one unqualified blob)
 meson/                cross files (android-aarch64, linux-aarch64-native)
 scripts/              fetch / patch / build / package / validate / release
 tests/                kbase-probe, vulkan-smoke, compute, offscreen, ahb,
-                      android-surface, sync, android-loader-app
+                      android-surface, sync, android-loader-app, dxvk-vkd3d
 docs/                 architecture, build, portability, matrix, profiles,
-                      app-compat, release
+                      app-compat, release, Kbase sparse feasibility
+validation/           G615 capability dumps, DXVK/vkd3d profiles and matrix
 .github/workflows/   build / release / source-drift
 ```
 
@@ -63,13 +64,10 @@ change creates a new release even if the Mesa SHA is unchanged.
 
 ### Current status
 
-`g615-v11-csf-v0.1.0-beta.2` is the latest published tag. Its code commit is
-`aa16a4e83b603afc38b186ed09a62aba61083f4b`; post-tag documentation commit
-`d33f9ffd7275704ecc8e74f97f25d9fd3002ed21` is not part of that tag.
-
-This branch contains an **unpublished beta.3 candidate**. No beta.3 tag,
-release, or published asset exists. Candidate packages are prerelease build
-artifacts only.
+`g615-v11-csf-v0.1.0-beta.3` is the latest published tag. Its code commit is
+`fc8a759e7d1b2b8de01c0e96f1fdc5e3950ba1a3`; the release was published on
+2026-09-19. The tag and its Android and glibc assets are frozen by project
+policy. See `validation/g615-v11-csf/BETA3-PUBLICATION-ADDENDUM.md`.
 
 ## Capability truth
 
@@ -79,7 +77,7 @@ Two separate sets are stored per release: `UPSTREAM_MATRIX_CAPABILITIES`
 runtime-tested capabilities may be used for compatibility claims. No fake
 feature bits.
 
-## Runtime Features & Extensions (beta.3 candidate)
+## Runtime Features & Extensions (beta.3)
 
 Full specification and per-capability test breakdown:
 [`docs/RUNTIME-FEATURES.md`](docs/RUNTIME-FEATURES.md). Canonical
@@ -120,6 +118,75 @@ experimental compatibility layer remains excluded from packages because
 direct-PanVK composition and correctness are unproven. Other unsupported
 features are listed in [`docs/RUNTIME-FEATURES.md`](docs/RUNTIME-FEATURES.md).
 
+## DXVK / vkd3d-proton compliance (G615)
+
+Machine-evaluated against stock tagged profiles. No fake feature bits.
+Overall result: **FAIL**. DXVK 2.7.1/3.1.1 COMMON and vkd3d README hard
+gates PASS; D3D9/D3D10/D3D11 profiles and vkd3d 2.14.1/3.0.1 device/profile
+baseline FAIL. Stock DXVK/vkd3d smoke is BLOCKED (Android ICD is not a
+legal host for those Windows binaries). CTS is BLOCKED.
+
+Canonical report:
+[`validation/g615-v11-csf/P23-DXVK-VKD3D-COMPLIANCE-MATRIX.md`](validation/g615-v11-csf/P23-DXVK-VKD3D-COMPLIANCE-MATRIX.md).
+JSON:
+[`validation/g615-v11-csf/p23-dxvk-vkd3d-compliance-matrix.json`](validation/g615-v11-csf/p23-dxvk-vkd3d-compliance-matrix.json).
+Gap report:
+[`validation/g615-v11-csf/dxvk-vkd3d-gap-report.md`](validation/g615-v11-csf/dxvk-vkd3d-gap-report.md).
+Capability dump:
+[`validation/g615-v11-csf/consumer-capabilities.json`](validation/g615-v11-csf/consumer-capabilities.json).
+
+| Target | Result |
+|---|---|
+| DXVK 1.10.3 D3D9 / D3D10 / FL10.1 / FL11.0 | FAIL |
+| DXVK 2.7.1 COMMON | PASS |
+| DXVK 2.7.1 D3D9 / D3D10_10_1 / D3D11_11_0 / D3D11_11_1 | FAIL |
+| DXVK 3.1.1 COMMON | PASS |
+| DXVK 3.1.1 D3D9 / D3D10_10_1 / D3D11_11_0 / D3D11_11_1 | FAIL |
+| vkd3d-proton 2.0 HARD / DEVICE_CREATE | PASS |
+| vkd3d-proton 2.14.1 HARD | PASS |
+| vkd3d-proton 2.14.1 PROFILE_BASELINE / DEVICE_CREATE | FAIL |
+| vkd3d-proton 3.0.1 HARD | PASS |
+| vkd3d-proton 3.0.1 PROFILE_BASELINE / DEVICE_CREATE | FAIL |
+| MAX_FEATURE_LEVEL / D3D_FEATURE_LEVEL | NOT_AVAILABLE |
+
+Still false (no spoofing): `geometryShader`, `tessellationShader`,
+`fillModeNonSolid`, `multiViewport`, `shaderClipDistance`,
+`shaderCullDistance`, `textureCompressionBC`, transform feedback,
+`pipelineStatisticsQuery`, `robustImageAccess2`, sparse.
+
+Proven on G615: `VK_EXT_robustness2` buffer + `nullDescriptor`,
+`maxPushConstantsSize=256`, `VK_KHR_push_descriptor` / `maxPushDescriptors=32`,
+DXVK/vkd3d common easy gates. Advertised UAB limits are 1,048,576; 1M
+descriptor stress is implemented but not yet run to completion on device.
+
+Phase evidence:
+[`P6`](validation/g615-v11-csf/P6-ROBUSTNESS2.md),
+[`P7`](validation/g615-v11-csf/P7-PUSH-CONSTANTS-DESCRIPTORS.md),
+[`P8`](validation/g615-v11-csf/P8-COMMON-GATES.md),
+[`P9`](validation/g615-v11-csf/P9-BC-COMPATIBILITY.md),
+[`P10`](validation/g615-v11-csf/P10-CLIP-CULL-DISTANCE.md),
+[`P11`](validation/g615-v11-csf/P11-FILL-MODE-NON-SOLID.md),
+[`P12`](validation/g615-v11-csf/P12-GEOMETRY-SHADER.md),
+[`P13`](validation/g615-v11-csf/P13-D3D9.md),
+[`P14`](validation/g615-v11-csf/P14-MULTI-VIEWPORT.md),
+[`P15`](validation/g615-v11-csf/P15-TRANSFORM-FEEDBACK.md),
+[`P16`](validation/g615-v11-csf/P16-D3D10.md),
+[`P17`](validation/g615-v11-csf/P17-TESSELLATION-SHADER.md),
+[`P18`](validation/g615-v11-csf/P18-D3D11-FL11.md),
+[`P19`](validation/g615-v11-csf/P19-VKD3D-PROFILE-BASELINE.md),
+[`P20`](validation/g615-v11-csf/P20-PIPELINE-STATISTICS.md),
+[`P21`](validation/g615-v11-csf/P21-D3D12-FEATURE-LEVEL.md),
+[`P22`](validation/g615-v11-csf/P22-KBASE-SPARSE-FEASIBILITY.md).
+Sparse: [`docs/KBASE-SPARSE-FEASIBILITY.md`](docs/KBASE-SPARSE-FEASIBILITY.md)
+(`NO-GO` on Kbase UAPI 1.21). Profiles:
+[`validation/requirements/`](validation/requirements/).
+Evaluators: `scripts/evaluate-vulkan-profile.py`,
+`scripts/evaluate-dxvk-vkd3d-compliance-matrix.py`.
+Workloads: [`tests/dxvk-vkd3d/`](tests/dxvk-vkd3d/).
+
+Next blocker: `robustImageAccess2` (vkd3d 2.14.1/3.0.1 `DEVICE_CREATE`).
+DXVK D3D9 still needs geometry, fill, clip/cull, and BC.
+
 ### New extension workloads
 
 These 16 beta.3 additions are exposed and workload-tested:
@@ -143,10 +210,10 @@ Android timing implementation.
 The immutable beta.2 tag exposed 12 instance and 166 device extensions (178
 total). Its post-tag documentation commit is distinct from the tagged code as
 recorded under [Current status](#current-status). Everything below is the
-unpublished beta.3 candidate inventory generated from the canonical matrix.
+published beta.3 inventory generated from the canonical matrix.
 
 <details>
-<summary><b>Full beta.3 candidate list: 194 extensions (13 instance + 181 device)</b></summary>
+<summary><b>Full beta.3 list: 194 extensions (13 instance + 181 device)</b></summary>
 
 #### Instance extensions (13)
 

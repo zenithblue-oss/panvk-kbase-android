@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "phase": "P20",
+  "date": "2026-09-20",
+  "result": "BLOCKED_SAFE_FALSE",
+  "pipelineStatisticsQuery": false,
+  "pinnedMesa": "5a07217f034b3e50d8c7c7794f97a2df1742613b",
+  "auditedMesa": "e1f3f372c4a661cd0e71a0cdafc4d469d56ecf35",
+  "capabilities": "validation/g615-v11-csf/consumer-capabilities.json",
+  "p19": "validation/g615-v11-csf/p19-vkd3d-profile-baseline.json",
+  "outOfScope": [
+    "P21 D3D12 feature/profile analysis",
+    "P22 sparse/Kbase"
+  ],
+  "p20Owned": {
+    "pipelineStatisticsQuery": {
+      "current": false,
+      "requiredBy": [
+        "vkd3d-proton v2.14.1 VP_D3D12_FL_11_0_baseline",
+        "vkd3d-proton v3.0.1 VP_D3D12_FL_11_0_baseline"
+      ],
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "action": "Keep false. No PanVK VK_QUERY_TYPE_PIPELINE_STATISTICS path. Occlusion, timestamp, and primitives-generated queries are not pipeline statistics. Software accounting would need per-draw IA/VS/clip/FS/CS counters plus GS/TCS/TES zeros or real stages. Do not expose until every advertised counter matches Vulkan semantics and CTS runs.",
+      "counters": {
+        "IA_VERTICES": "NOT_IMPLEMENTED",
+        "IA_PRIMITIVES": "PARTIAL_ELSEWHERE",
+        "VS_INVOCATIONS": "NOT_IMPLEMENTED",
+        "GS_INVOCATIONS": "NOT_APPLICABLE_GEOMETRY_SHADER_FALSE",
+        "GS_PRIMITIVES": "NOT_APPLICABLE_GEOMETRY_SHADER_FALSE",
+        "CLIPPING_INVOCATIONS": "NOT_IMPLEMENTED",
+        "CLIPPING_PRIMITIVES": "NOT_IMPLEMENTED",
+        "FS_INVOCATIONS": "NOT_IMPLEMENTED",
+        "TCS_PATCHES": "NOT_APPLICABLE_TESSELLATION_SHADER_FALSE",
+        "TES_INVOCATIONS": "NOT_APPLICABLE_TESSELLATION_SHADER_FALSE",
+        "CS_INVOCATIONS": "NOT_IMPLEMENTED"
+      },
+      "notes": [
+        "IA_PRIMITIVES has a software CSF path only as VK_QUERY_TYPE_PRIMITIVES_GENERATED_EXT, and that extension is not advertised on G615.",
+        "Mali pan_perf counters exist for profiling, not wired into PanVK query pools, and do not map 1:1 onto Vulkan pipeline statistic bits.",
+        "Pinned and origin/main PanVK both report pipelineStatisticsQuery=false. No backport series exists.",
+        "Asahi hk_query_pool.c has a software pipeline-stat path. Cargo-culting it into PanVK is a new implementation, not an upstream PanVK backport."
+      ]
+    }
+  },
+  "alreadyOwnedPriorPhases": {
+    "textureCompressionBC": {
+      "owner": "P9",
+      "current": false,
+      "implementationStatus": "UNSUPPORTED_NATIVE",
+      "action": "Keep false until transparent BC contract PASSes."
+    },
+    "shaderClipDistance": {
+      "owner": "P10",
+      "current": false,
+      "implementationStatus": "BLOCKED_SAFE_FALSE",
+      "action": "Keep false. Primitive-stage clip, then pixel matrix and CTS."
+    },
+    "shaderCullDistance": {
+      "owner": "P10",
+      "current": false,
+      "implementationStatus": "BLOCKED_SAFE_FALSE",
+      "action": "Keep false. Primitive-stage cull, then pixel matrix and CTS."
+    },
+    "fillModeNonSolid": {
+      "owner": "P11",
+      "current": false,
+      "implementationStatus": "BLOCKED_SAFE_FALSE",
+      "action": "Keep false. Post-vertex primitive expansion, then CTS."
+    },
+    "geometryShader": {
+      "owner": "P12",
+      "current": false,
+      "implementationStatus": "BLOCKED_SAFE_FALSE",
+      "action": "Keep false. Complete Valhall v11 GS or PanVK poly/compute lowering, then CTS."
+    },
+    "multiViewport": {
+      "owner": "P14",
+      "current": false,
+      "implementationStatus": "BLOCKED_SAFE_FALSE",
+      "action": "Keep false. Hardware proof of v11 ViewportIndex plus per-viewport transform/scissor, then CTS."
+    },
+    "VK_EXT_transform_feedback": {
+      "owner": "P15",
+      "current": null,
+      "implementationStatus": "BLOCKED_SAFE_FALSE",
+      "action": "Keep absent. Complete no-IDVS XFB variant, then CTS."
+    },
+    "transformFeedback": {
+      "owner": "P15",
+      "current": false,
+      "implementationStatus": "BLOCKED_SAFE_FALSE",
+      "action": "Keep false. Complete no-IDVS XFB variant, then CTS."
+    },
+    "geometryStreams": {
+      "owner": "P15",
+      "current": false,
+      "implementationStatus": "BLOCKED_SAFE_FALSE",
+      "action": "Keep false. Complete XFB plus geometryShader, then CTS."
+    },
+    "transformFeedbackQueries": {
+      "owner": "P15",
+      "current": false,
+      "implementationStatus": "BLOCKED_SAFE_FALSE",
+      "action": "Keep false. Complete XFB queries after transformFeedback, then CTS."
+    },
+    "tessellationShader": {
+      "owner": "P17",
+      "current": false,
+      "implementationStatus": "BLOCKED_SAFE_FALSE",
+      "action": "Keep false. Complete Valhall v11 TCS/TES or PanVK poly/compute lowering, then CTS."
+    },
+    "robustImageAccess2": {
+      "owner": "P6",
+      "current": false,
+      "implementationStatus": "UNSUPPORTED",
+      "gates": ["PROFILE_BASELINE", "DEVICE_CREATE"],
+      "action": "Keep false. Complete robustImageAccess2 semantics, then CTS. Blocks stock vkd3d device create."
+    }
+  },
+  "evaluatorArtifactsNotDriverGaps": {
+    "bufferImageGranularity": {
+      "current": 64,
+      "required": 65536,
+      "implementationStatus": "EVALUATOR_DIRECTION",
+      "action": "No driver change. Vulkan finer granularity already satisfies a 65536 profile minimum. Evaluator uses >= and reports FAIL because 64 < 65536. Actual 64 is stricter."
+    },
+    "subgroupSupportedOperations[0]": {
+      "current": 1791,
+      "required": "VK_SUBGROUP_FEATURE_BASIC_BIT",
+      "implementationStatus": "EVALUATOR_ARRAY",
+      "action": "No driver change. Capture stores a bitmask integer; evaluator compares flattened array string against the integer. 1791 already includes BASIC."
+    }
+  },
+  "laterPhasesNotStarted": {
+    "P21": "D3D12 feature/profile analysis",
+    "P22": "sparseBinding / sparseResidency* / shaderResourceResidency / shaderResourceMinLod / VK_QUEUE_SPARSE_BINDING_BIT / Kbase VM"
+  },
+  "dxvkRemainingExtras": {
+    "note": "DXVK D3D9/D3D10/D3D11 remaining fails are the same P9-P17 graphics bits. DXVK profiles do not require pipelineStatisticsQuery. P20 does not change DXVK gates.",
+    "ownedByPriorPhases": [
+      "geometryShader",
+      "fillModeNonSolid",
+      "shaderClipDistance",
+      "shaderCullDistance",
+      "textureCompressionBC",
+      "multiViewport",
+      "transformFeedback",
+      "geometryStreams",
+      "VK_EXT_transform_feedback",
+      "tessellationShader"
+    ]
+  }
+}

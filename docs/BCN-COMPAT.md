@@ -3,7 +3,7 @@
 ## Status
 
 Experimental layer build/load only. Nothing is packaged or enabled by default.
-Native PanVK remains truthful with `textureCompressionBC=false`.
+Native and emulated PanVK BC remain false; `textureCompressionBC=false`.
 
 Reference: `https://github.com/leegao/bcn_layer` pinned at
 `50993a2d51772567de9c36de4d523652773f0899`, MIT. The source checkout remains
@@ -57,5 +57,9 @@ workload ran. See `validation/g615-v11-csf/beta3-phase6-bcn-loader.txt`.
 Consequently the layer cannot truthfully expose the complete Vulkan
 `textureCompressionBC` contract in this release.
 
-Phase 9 decision: exclude `libbcn_layer.so` from Android and glibc beta.3
-candidate packages. No shipping or default-enablement claim is made.
+P9 re-audited the pinned component against current upstream; the pin is still
+upstream HEAD and no complete replacement exists. The expanded contract ledger
+is `validation/g615-v11-csf/p9-bcn.json`; detailed blockers and the safe in-ICD
+completion design are in `validation/g615-v11-csf/P9-BC-COMPATIBILITY.md`.
+Exclude `libbcn_layer.so` from Android and glibc packages. No shipping,
+emulation, or default-enablement claim is made.

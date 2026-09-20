@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "project": "vkd3d-proton",
+  "version": "2.0",
+  "tag": "v2.0",
+  "tagCommit": "60ac9b4d515cd8647ccb97591016f3f4058c7db1",
+  "repository": "https://github.com/HansKristian-Work/vkd3d-proton",
+  "hardRequirements": {
+    "source": "README.md:17-24",
+    "apiVersion": "1.1",
+    "extensions": [
+      "VK_EXT_descriptor_indexing",
+      "VK_KHR_timeline_semaphore"
+    ],
+    "updateAfterBindMinimum": 1000000,
+    "updateAfterBindDescriptorTypes": "all required types except UniformBuffer",
+    "descriptorIndexingFeatures": "all VkPhysicalDeviceDescriptorIndexingFeaturesEXT members except descriptorBindingUniformBufferUpdateAfterBind"
+  },
+  "recommended": {
+    "source": "README.md:26-31",
+    "extensions": [
+      "VK_EXT_robustness2",
+      "VK_KHR_buffer_device_address",
+      "VK_EXT_extended_dynamic_state"
+    ]
+  }
+}

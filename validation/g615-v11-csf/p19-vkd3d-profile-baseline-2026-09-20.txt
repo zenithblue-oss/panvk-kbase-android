@@ -1,0 +1,17 @@
+P19 vkd3d-proton 2.14.1 / 3.0.1 re-evaluation
+result=FAIL
+adapter=Mali-G615 MC6
+driver=panvk Mesa 26.3.0-devel (git-5a07217f03)
+api=1.4.363
+icd=576e37de9a3b60dda9a972a6f91c3a50e09238bd31a9888e04215c7b554c803a
+vkd3d-2.14.1 HARD=PASS BASELINE=FAIL DEVICE=FAIL FEATURE_LEVEL=NOT_AVAILABLE smoke=BLOCKED
+  HARD fail=0 blockers=none
+  BASELINE fail=15 blockers=VK_EXT_transform_feedback,robustImageAccess2,transformFeedback,geometryStreams,geometryShader,tessellationShader,fillModeNonSolid,multiViewport,textureCompressionBC,pipelineStatisticsQuery,shaderClipDistance,shaderCullDistance,transformFeedbackQueries,bufferImageGranularity,subgroupSupportedOperations[0]
+  DEVICE fail=1 blockers=robustImageAccess2
+  Stock vkd3d-proton v2.14.1 vkd3d_init_device_caps requires robustImageAccess2. G615 reports that bit false, so D3D12 device creation returns E_INVALIDARG. Stock vkd3d-proton is a Windows D3D12-on-Vulkan layer; this Android ICD is not a legal host for the tagged binaries. No stock vkd3d binary was launched.
+vkd3d-3.0.1 HARD=PASS BASELINE=FAIL DEVICE=FAIL FEATURE_LEVEL=NOT_AVAILABLE smoke=BLOCKED
+  HARD fail=0 blockers=none
+  BASELINE fail=15 blockers=VK_EXT_transform_feedback,robustImageAccess2,transformFeedback,geometryStreams,geometryShader,tessellationShader,fillModeNonSolid,multiViewport,textureCompressionBC,pipelineStatisticsQuery,shaderClipDistance,shaderCullDistance,transformFeedbackQueries,bufferImageGranularity,subgroupSupportedOperations[0]
+  DEVICE fail=1 blockers=robustImageAccess2
+  Stock vkd3d-proton v3.0.1 vkd3d_init_device_caps requires robustImageAccess2. G615 reports that bit false, so D3D12 device creation returns E_INVALIDARG. Stock vkd3d-proton is a Windows D3D12-on-Vulkan layer; this Android ICD is not a legal host for the tagged binaries. No stock vkd3d binary was launched.
+P19_EXIT=FAIL

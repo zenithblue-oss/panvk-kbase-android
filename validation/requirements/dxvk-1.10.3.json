@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "project": "DXVK",
+  "version": "1.10.3",
+  "tag": "v1.10.3",
+  "tagCommit": "57740c6ac9c62f3f26c4b5237d7edf3c40797941",
+  "repository": "https://github.com/doitsujin/dxvk",
+  "derivation": "Exact tagged feature-enable paths; this tag predates VP_DXVK_requirements.json.",
+  "tiers": {
+    "D3D9": {
+      "source": "src/d3d9/d3d9_device.cpp:3887-3950",
+      "requiredFeatures": [
+        "geometryShader",
+        "depthClamp",
+        "depthBiasClamp",
+        "fillModeNonSolid",
+        "sampleRateShading",
+        "shaderClipDistance",
+        "shaderCullDistance",
+        "textureCompressionBC",
+        "occlusionQueryPrecise",
+        "multiViewport",
+        "independentBlend",
+        "fullDrawIndexUint32"
+      ]
+    },
+    "D3D10_10_1": {
+      "source": "src/d3d11/d3d11_device.cpp:1927-1992",
+      "requiredFeatures": [
+        "geometryShader",
+        "depthClamp",
+        "depthBiasClamp",
+        "fillModeNonSolid",
+        "sampleRateShading",
+        "shaderClipDistance",
+        "shaderCullDistance",
+        "textureCompressionBC",
+        "occlusionQueryPrecise",
+        "independentBlend",
+        "multiViewport",
+        "fullDrawIndexUint32",
+        "transformFeedback",
+        "geometryStreams"
+      ],
+      "requiredExtensions": ["VK_EXT_transform_feedback"]
+    },
+    "D3D11_FL11_0": {
+      "source": "src/d3d11/d3d11_device.cpp:1994-2004",
+      "inherits": "D3D10_10_1",
+      "requiredFeatures": [
+        "drawIndirectFirstInstance",
+        "fragmentStoresAndAtomics",
+        "multiDrawIndirect",
+        "tessellationShader"
+      ]
+    }
+  }
+}

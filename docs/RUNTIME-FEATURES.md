@@ -1,7 +1,7 @@
 # Runtime Device Capabilities (Mali-G615 MC6)
 
-This page describes the unpublished beta.3 candidate tested on Poco X6 Pro on
-2026-09-19. The beta.2 tag remains the immutable 178-extension release.
+This page describes the published beta.3 release tested on Poco X6 Pro on
+2026-09-19. Its tag and assets are frozen by project policy.
 
 Normative file: `validation/g615-v11-csf/runtime-feature-matrix.json`.
 
@@ -18,9 +18,9 @@ The matrix has per-extension `sourceImplemented`, `runtimeExposed`,
 `nativeDriverExposed`, `nativeVulkanFeatureBit`, `compatImplementation`,
 `compatAvailable`, and `compatTested`.
 
-## Candidate capture
+## Release capture
 
-| Field | beta.2 tag | beta.3 candidate |
+| Field | beta.2 tag | beta.3 release |
 |---|---:|---:|
 | Instance extensions | 12 | 13 |
 | Device extensions | 166 | 181 |
@@ -28,7 +28,7 @@ The matrix has per-extension `sourceImplemented`, `runtimeExposed`,
 | Mesa | `5a07217f034b3e50d8c7c7794f97a2df1742613b` | same pinned commit |
 | Android ICD SHA-256 | `2366a5c392286553b156057f15840b22428eb501953b224ed0c215436df4f301` | `576e37de9a3b60dda9a972a6f91c3a50e09238bd31a9888e04215c7b554c803a` |
 
-Candidate: Vulkan 1.4.363, Mali-G615 MC6 `0xb8a31030`, CSF, Kbase UAPI 1.21.
+Beta.3: Vulkan 1.4.363, Mali-G615 MC6 `0xb8a31030`, CSF, Kbase UAPI 1.21.
 
 ## Native tested
 
@@ -37,7 +37,7 @@ Phase 5 passed `descriptorIndexing`, `timelineSemaphore`, `dynamicRendering`,
 `robustBufferAccess`, `samplerAnisotropy`, `wideLines`, `largePoints`, ETC2,
 ASTC LDR, and ASTC HDR workloads. Beta.2 compute, graphics, allocation, AHB,
 sync, Android surface, swapchain, 300-present, cold-launch, and glibc gates also
-passed against the candidate.
+passed against beta.3.
 
 The 16 newly exposed and tested extensions are:
 
@@ -70,7 +70,7 @@ selected the system Mali ICD, not staged PanVK; device creation failed before
 known-block tests. Therefore `compatAvailable=true`, `compatLoadTested=true`,
 `compatTested=false`, and `compatComposesWithPanvk=false`. Native BC fields and
 the native Vulkan feature bit remain false. The layer is excluded from both
-candidate packages and is not enabled by default.
+beta.3 packages and is not enabled by default.
 
 ## Platform-inapplicable
 

@@ -1,7 +1,7 @@
 # Mesa Matrix and Runtime Gap
 
 Mesa Matrix is source truth, not target-device runtime truth. The exact pinned
-checkout reports 207 PanVK `DONE` entries. The unpublished beta.3 candidate
+checkout reports 207 PanVK `DONE` entries. The published beta.3 release
 retains Mesa `5a07217f034b3e50d8c7c7794f97a2df1742613b` (`26.3.0-devel`).
 
 ## Runtime comparison
@@ -9,9 +9,9 @@ retains Mesa `5a07217f034b3e50d8c7c7794f97a2df1742613b` (`26.3.0-devel`).
 | Runtime | Instance | Device | Total |
 |---|---:|---:|---:|
 | beta.2 tag | 12 | 166 | 178 |
-| beta.3 candidate | 13 | 181 | 194 |
+| beta.3 release | 13 | 181 | 194 |
 
-The candidate overlaps 193 Matrix entries and adds Android-specific
+Beta.3 overlaps 193 Matrix entries and adds Android-specific
 `VK_KHR_android_surface`. Fourteen Matrix entries are absent:
 
 - 10 `platform-inapplicable`: Android excludes desktop/display WSI.
