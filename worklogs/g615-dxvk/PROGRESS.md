@@ -193,12 +193,19 @@ Series: beta.17 plus the patches below. Nothing is released or tagged yet.
 - **csf-v11/132: compute wait before viewport runs.** `gpu_prerast_draw_generated()` waits on all compute iterators before the viewport run builder, so it can no longer read a zero count from a GS kernel that is still writing. Fixes the `gs_viewport_depth` flake on v12/v13. The race is in shared CSF code, so v10-v12 get the wait too.
 - **csf-v11/140: Mali-G710 model row** (`0xa862`, TODX, v10). Pixel 7 dropped the device with `Unknown gpu_id (0xa8620004)`. [Worklog](../driver-remaining/firebase-v10.md).
 - **099: driverInfo `PanVK-kbase beta.18`.**
-- PanProbe 1.2.4-dev (debug, unreleased, versionCode unchanged at 7): Firebase game-loop mode, bounded watchdog reap, Run all survives activity recreation.
+- PanProbe 1.2.4-dev (debug, unreleased, versionCode 8): Firebase game-loop mode, bounded watchdog reap, Run all survives activity recreation.
 - Device results so far (dev builds, per patch subset):
   - Immortalis-G925 MC12 (v13) with 130 + 131 + 132: PanProbe 36/36, `gs_viewport_depth` 10/10 (beta.17: 34/36).
   - Immortalis-G720 MC12 (v12) with 122 + 130-132: 36/36 on 3 runs, `gs_viewport_depth` 8/8.
   - Firebase v10: G610 MC3 (manaus) 36/36 with 122 + 130-132 + 140; G710 MC7 (panther) 36/36 with 122 + 140.
   - G615 (v11): 122 only, 36/36. The unified build is below.
+- **Unified beta.18 build (2026-10-07, merged main 5df0941, 132 patches on base 5a07217f, tree `/var/tmp/panvk/wt-beta18u`):**
+  - Android ICD `/var/tmp/panvk/dist-beta18u/libvulkan_panfrost.so`: SHA256 `ffcf87c2851f0bea6d9c01269c0f4f258a27278e19c0b1919fbcf9e8fc81aa2c`, BuildID `14b2525b952ef375330500a512c6179629b14ac7`.
+  - glibc ICD `dist-beta18u/glibc/`: SHA256 `6da08ef822404aebbb3ef6dcf469d5f3d5d1194f659db393b7f834bb9ceba767`, BuildID `5129d083f34bfc3dec23ef0ef7a837d99fa02bfe`.
+  - Both pass `validate-binary.sh`; driverInfo `PanVK-kbase beta.18`.
+  - PanProbe 1.2.4-dev (versionCode 8, debug, `-PpanvkSo` clean build): `/var/tmp/panvk/apk-beta18u/panprobe-beta18u.apk`.
+  - G615: Run all 36/36, DXVK / Bachata S4 / vkd3d compliance pass, upload `86211634`. `gs_viewport_depth` alone 10/10. Info page "Mali-G615 MC6" (unchanged). CTS sync + memory gate not run (11,331 cases in the chroot, not quick). Data: `validation/driver-remaining/beta18-device/`.
+  - Firebase (manaus + panther): not run, `TEST_QUOTA_EXCEEDED` for the day. Rerun on the next quota day.
 - Release-time items: refresh `bundled-driver.json` and the app bundles, then release notes and tag.
 
 
