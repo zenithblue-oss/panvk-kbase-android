@@ -1,5 +1,59 @@
 # Changelog
 
+## g615-v11-csf-v0.1.0-beta.18-rc1 (release candidate)
+
+Mesa `5a07217f034b` + the series up to 180. Reference device: Poco X6 Pro, Mali-G615 MC6 (v11),
+mali_kbase CSF UAPI 1.21. First release tested on v10, v11, v12 and v13 hardware. The code is the
+same as the `beta.18-dev+combined` test build (BuildID `4eab4565`); only the `driverInfo` label
+differs.
+
+### Performance
+
+- BCn rework (150, 151, 180): BC textures are decoded by a fragment pass into a compact tiled
+  AFBC/AFRC shadow. Bandwidth-bound sampling is about 2x faster and the shadows use 38-65% less
+  memory. RGBA8 shadows are AFRC (lossy) by default; `PANVK_BC_AFRC=0` keeps them exact.
+- Shader compile stalls (152-154, 160-164): faster Bifrost register allocation (LCRA
+  constraints built once and updated after spilling, sparse rows, spill for every failing node),
+  a flat SSA-repair map, and a NIR opt loop that skips passes that cannot progress. Output is
+  identical on 67539 corpus shaders. The slow Need for Speed: Most Wanted pipelines went from
+  3.6 s to about 0.3 s each.
+- The Mesa disk shader cache is on by default on Android (170). With a warm cache, NFS: Most
+  Wanted has no driver compile stalls (worst freeze 0.99 s, at loading).
+- Each Android property option is looked up once (171): `os_get_option` 335 ms -> 3 ms per
+  NFS session.
+
+### Fixed and added
+
+- `robustBufferAccess2` on v10, with v9/v10 texel buffer bounds checks (122).
+- v13: vertex stores run through gpu_prerast (130); the compute producer is waited on before
+  viewport runs (132). Immortalis-G925 goes from 34/36 to 37/37 in PanProbe.
+- GPUs are named by core count, for example `Mali-G720-Immortalis MC12` (131).
+- Mali-G710 model row (140). beta.17 did not recognise the G710.
+- `driverInfo` reads `PanVK-kbase beta.18-rc1`.
+
+### Validation
+
+- Poco X6 Pro (G615 MC6, v11): PanProbe 1.2.4 37/37, D3D11 cube, NFS: Most Wanted (cold and
+  warm shader cache). The 160-164 dev build had 0 regressions on a CTS subset.
+- PanProbe 37/37 and the PanPlay D3D11 cube on the `beta.18-dev+combined` build: Pixel 7
+  (G710 MC7, v10), motorola edge 40 neo (G610 MC3, v10), Pixel 8 (G715 MC7, v11), Galaxy Tab
+  S10 Ultra (Immortalis-G720 MC12, v12, also NFS: Most Wanted), Galaxy Tab S11 Ultra
+  (Immortalis-G925 MC12, v13).
+
+### Known issues
+
+- Mali-G720 MC8 (user report on beta.17): `gs_viewport_depth` fails intermittently. Not
+  tested on beta.18.
+- The first time a game reaches a new shader, compiling it still takes about 0.3 s. Later
+  sessions read it from the disk cache.
+- BCn shadows for RGBA8 are AFRC (lossy) by default. Set `PANVK_BC_AFRC=0` for exact output.
+- v14 (G1 series) is built but untested.
+- Galaxy Tab S10 Ultra: a second NFS: Most Wanted session in a row stuttered. The cause is not
+  known yet.
+- 4 dEQP `inverted_depth_ranges.nodepthclamp_deltazero` cases failed on beta.17 (121); not
+  rechecked on beta.18.
+- Mali v9 (JM) stays experimental and partly broken.
+
 ## g615-v11-csf-v0.1.0-beta.17 (prerelease)
 
 Mesa `5a07217f034b` + the series up to 121. Tested on Poco X6 Pro, Mali-G615 MC6 (v11),

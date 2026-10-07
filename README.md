@@ -6,15 +6,15 @@
 
 <p align="center">
   <a href="https://t.me/+E-NhUATmkqE5ODg1"><img src="https://img.shields.io/badge/Telegram-Join%20testers-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Join the Telegram testers group"></a>
-  <a href="https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/g615-v11-csf-v0.1.0-beta.17"><img src="https://img.shields.io/badge/driver-beta.17-orange?style=for-the-badge" alt="Driver beta.17"></a>
-  <a href="https://github.com/zenithblue-oss/panplay/releases/tag/panplay-v1.2.3"><img src="https://img.shields.io/badge/PanPlay-1.2.3-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanPlay 1.2.3"></a>
-  <a href="https://github.com/zenithblue-oss/panprobe/releases/tag/panprobe-v1.2.3"><img src="https://img.shields.io/badge/PanProbe-1.2.3-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanProbe 1.2.3"></a>
+  <a href="https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/g615-v11-csf-v0.1.0-beta.18-rc1"><img src="https://img.shields.io/badge/driver-beta.18%20RC1-orange?style=for-the-badge" alt="Driver beta.18 RC1"></a>
+  <a href="https://github.com/zenithblue-oss/panplay/releases/tag/panplay-v1.2.4"><img src="https://img.shields.io/badge/PanPlay-1.2.4-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanPlay 1.2.4"></a>
+  <a href="https://github.com/zenithblue-oss/panprobe/releases/tag/panprobe-v1.2.4"><img src="https://img.shields.io/badge/PanProbe-1.2.4-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanProbe 1.2.4"></a>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Vulkan-1.4-AC162C?logo=vulkan&logoColor=white" alt="Vulkan 1.4">
   <img src="https://img.shields.io/badge/GPU-Mali--G615%20(v11)-0091BD?logo=arm&logoColor=white" alt="Mali-G615 v11">
-  <img src="https://img.shields.io/badge/tested%20(beta.18--dev)-v10%20%7C%20v11%20%7C%20v12%20%7C%20v13-0091BD?logo=arm&logoColor=white" alt="Tested on beta.18-dev: v10, v11, v12, v13">
+  <img src="https://img.shields.io/badge/tested%20(beta.18)-v10%20%7C%20v11%20%7C%20v12%20%7C%20v13-0091BD?logo=arm&logoColor=white" alt="Tested on beta.18: v10, v11, v12, v13">
   <img src="https://img.shields.io/badge/DXVK-D3D9%20%7C%2010%20%7C%2011-555" alt="DXVK D3D9, D3D10, D3D11">
   <img src="https://img.shields.io/badge/Mesa-26.3--devel-6E4C9A" alt="Mesa 26.3-devel">
 </p>
@@ -22,7 +22,7 @@
 > [!IMPORTANT]
 > **🧪 Testers wanted!**
 >
-> 1. Install [PanPlay](https://github.com/zenithblue-oss/panplay/releases/tag/panplay-v1.2.3) and play your games.
+> 1. Install [PanPlay](https://github.com/zenithblue-oss/panplay/releases/tag/panplay-v1.2.4) and play your games.
 > 2. After **every** run, whether the game crashed or not, open the session logs screen and tap **Send to cloud** (or **Share as ZIP**).
 > 3. Send the link or ZIP to the **[Telegram testers group](https://t.me/+E-NhUATmkqE5ODg1)**, with the game name, your GPU, the FPS you saw and any glitches.
 
@@ -55,8 +55,8 @@ apps that can load an alternate Vulkan ICD.
 
 | | App | What it is | Download |
 |---|---|---|---|
-| <img src="apps/panvk-launcher/docs/panplay-logo-512.png" width="48" alt="PanPlay logo"> | **PanPlay** (`apps/panvk-launcher`) | Windows game launcher (Wine + DXVK + built-in X server) with the PanVK driver bundled | [PanPlay 1.2.3](https://github.com/zenithblue-oss/panplay/releases/tag/panplay-v1.2.3) · [all releases](https://github.com/zenithblue-oss/panplay/releases) · [repo](https://github.com/zenithblue-oss/panplay) |
-| <img src="apps/panvk-test/docs/panprobe-logo-512.png" width="48" alt="PanProbe logo"> | **PanProbe** (`apps/panvk-test`) | Vulkan feature/extension info and on-device driver tests | [PanProbe 1.2.3](https://github.com/zenithblue-oss/panprobe/releases/tag/panprobe-v1.2.3) · [all releases](https://github.com/zenithblue-oss/panprobe/releases) · [repo](https://github.com/zenithblue-oss/panprobe) |
+| <img src="apps/panvk-launcher/docs/panplay-logo-512.png" width="48" alt="PanPlay logo"> | **PanPlay** (`apps/panvk-launcher`) | Windows game launcher (Wine + DXVK + built-in X server) with the PanVK driver bundled | [PanPlay 1.2.4](https://github.com/zenithblue-oss/panplay/releases/tag/panplay-v1.2.4) · [all releases](https://github.com/zenithblue-oss/panplay/releases) · [repo](https://github.com/zenithblue-oss/panplay) |
+| <img src="apps/panvk-test/docs/panprobe-logo-512.png" width="48" alt="PanProbe logo"> | **PanProbe** (`apps/panvk-test`) | Vulkan feature/extension info and on-device driver tests | [PanProbe 1.2.4](https://github.com/zenithblue-oss/panprobe/releases/tag/panprobe-v1.2.4) · [all releases](https://github.com/zenithblue-oss/panprobe/releases) · [repo](https://github.com/zenithblue-oss/panprobe) |
 
 Both apps are tested on the Mali-G615. PanProbe also runs on the other devices in [Tested devices](#tested-devices). See [apps/panvk-launcher/docs](apps/panvk-launcher/docs) for launcher usage.
 
@@ -72,26 +72,67 @@ Both apps are tested on the Mali-G615. PanProbe also runs on the other devices i
 
 ## Tested devices
 
-beta.18 is **unreleased and in progress**. The results below come from dev builds; the latest release is beta.17. "Unified beta.18" is the full current series (csf-v11 up to 140, driverInfo `PanVK-kbase beta.18`). PanProbe is 1.2.4-dev (36 tests) unless noted.
+The latest release is **beta.18 RC1** (release candidate). All rows marked
+2026-10-07 used the test build `beta.18-dev+combined` (BuildID `4eab4565`),
+with PanProbe 1.2.4-dev (37 tests) and the PanPlay D3D11 cube. It has the
+same code as beta.18 RC1; only the `driverInfo` label differs. The G615 row
+was rechecked with the RC1 APKs. The series goes up to csf-v11/180:
 
-| Device | SoC | GPU (deviceName as reported) | Mali arch | kbase uAPI | Android | Tested on | Driver build | PanProbe |
-|---|---|---|---|---|---|---|---|---|
-| Poco X6 Pro | Dimensity 8300-Ultra (MT6897) | Mali-G615 MC6 | v11 | CSF 1.21 | 16 | Own device (reference) | Unified beta.18 | **36/36**, `gs_viewport_depth` 10/10 |
-| Galaxy Tab S11 Ultra | MT6991 | Mali-G925-Immortalis MC12 | v13 | CSF 1.30 | 16 | Samsung Remote Test Lab | beta.18-dev (122 + 130 + 131 + 132) | **36/36**, `gs_viewport_depth` 10/10 (beta.17: 34/36) |
-| Galaxy Tab S10 Ultra | Dimensity 9300+ (MT6989) | Mali-G720-Immortalis MC12 | v12 | CSF 1.21 | 15 | Samsung Remote Test Lab | beta.18-dev (122 + 130 + 131 + 132) | **36/36** x3 (beta.17: 36/36) |
-| motorola edge 40 neo | MT6879 | Mali-G610 MC3 | v10 | CSF 1.18 | 14 | Firebase Test Lab | beta.18-dev (122 + 130-132 + 140) | **36/36** |
-| Pixel 7 | Tensor G2 (GS201) | Mali-G710 MC7 | v10 | CSF 1.14 | 13 | Firebase Test Lab | beta.18-dev (122 + 140) | **36/36** (beta.17: device not recognised, fixed by 140) |
-| Mali-G57 MC2 tablet | n/a | Mali-G57 MC2 | v9 (JM) | JM 11.38 | 13 | Own device | beta.14 to beta.17 | **Experimental**: 1/17 (beta.14), 2/17 real (beta.17 smoke, 17-test PanProbe) |
+- BCn emulation rework (150, 151, 180): BC textures are decoded by a fragment
+  pass into a compact AFBC/AFRC shadow. Sampling that is limited by bandwidth
+  is about 2x faster, and the shadows use 38-65% less memory.
+- Shader compile stalls (152-154, 160-164): faster Bifrost register
+  allocation. Need for Speed: Most Wanted shaders went from 3.6 s to about
+  0.3 s.
+- Mesa disk shader cache on by default on Android (170), a PanPlay cache
+  path and `dxvk.trackPipelineLifetime = False`.
+- Each Android property is looked up only once (171).
+- PanPlay keyboard input fix.
 
-The remaining Firebase v10 Pixels (Pixel 7 Pro, 7a, Fold, Tablet; all G710) are queued for the next quota day.
+| Device | SoC | GPU (deviceName) | gpu_id | Arch | Android / kernel / kbase | Tested on | Driver build | PanProbe | PanPlay D3D11 cube |
+|---|---|---|---|---|---|---|---|---|---|
+| Poco X6 Pro (reference) | Dimensity 8300-Ultra (MT6897) | Mali-G615 MC6 | `0xb8a31030` | v11 | 16 / 6.1 custom / CSF 1.21 | Own device, 2026-10-07 | beta.18-dev+combined | **37/37** | OK. NFS: Most Wanted runs without stutter on a warm shader cache |
+| Pixel 7 | Tensor G2 (GS201) | Mali-G710 MC7 | `0xa8620004` | v10 | 13 / 5.10.157 / CSF 1.14 | Firebase Test Lab, 2026-10-07 | beta.18-dev+combined | **37/37** | OK |
+| motorola edge 40 neo | MT6879 | Mali-G610 MC3 | `0xa8670000` | v10 | 14 / 5.10.218 / CSF 1.18 | Firebase Test Lab, 2026-10-07 | beta.18-dev+combined | **37/37** | 47 FPS |
+| Pixel 8 | Tensor G3 | Mali-G715 MC7 | `0xb8a21020` | v11 | 16 / 6.1.145 / CSF 1.38 | Firebase Test Lab, 2026-10-07 | beta.18-dev+combined | **37/37** | 48 FPS |
+| Galaxy Tab S10 Ultra (SM-X920) | Dimensity 9300+ (MT6989) | Mali-G720-Immortalis MC12 | `0xc8700000` | v12 | 14 / 6.1.75 / CSF 1.21 | Samsung Remote Test Lab, 2026-10-07 | beta.18-dev+combined | **37/37** (`gs_viewport_depth` 20/20) | 48 FPS. NFS: Most Wanted race 81.7 FPS |
+| Galaxy Tab S11 Ultra (SM-X930) | MT6991 | Mali-G925-Immortalis MC12 | `0xd8300015` | v13 | 16 / 6.6.102 / CSF 1.30 | Samsung Remote Test Lab, 2026-10-07 | beta.18-dev+combined | **37/37** | 48.1 FPS |
+| Xiaomi 2511FPC34G (user report) | MT6899 | Mali-G720 MC8 | `0xc8700010` | v12 | n/a | Tester, beta.17 | beta.17 (release) | 35-36/37, `gs_viewport_depth` fails intermittently | n/a |
+| Mali-G57 MC2 tablet | n/a | Mali-G57 MC2 | `0x90930010` | v9 (JM) | 13 / 5.15 / JM 11.38 | Own device | beta.14 to beta.17 | **Experimental**: 1/17 (beta.14), 2/17 real (beta.17 smoke, 17-test PanProbe) | n/a |
+
+On the motorola edge 40 neo, kbase rejects `MEM_ALLOC_EX` with `ENOTTY`, and
+the `MEM_ALLOC` fallback from patch 110 works. More tester data (88 records
+from 19 devices, up to beta.15) is in
+[`docs/universal/DEVICES.md`](docs/universal/DEVICES.md).
+
+### Status per arch
+
+| Arch | Frontend | Status | Evidence |
+|---|---|---|---|
+| v9 | JM | **Experimental, partly broken** | G57 MC2 only: 2/17 real PanProbe passes, Vulkan 1.1. G77 (`0x90800011`) is not in the Mesa model table, so it shows no GPU |
+| v10 | CSF | Works on beta.18 RC1 | G610 MC3 and G710 MC7 pass 37/37. G710 needs the model row from csf-v11/140, so beta.17 does not recognise it |
+| v11 | CSF | **Release target**; works on beta.18 RC1 | G615 MC6 (reference) and G715 MC7 (Pixel 8) pass 37/37 |
+| v12 | CSF | Works on beta.18 RC1 | Immortalis-G720 MC12 passes 37/37. The G720 MC8 user report has an intermittent `gs_viewport_depth` failure on beta.17 (open, untested on beta.18) |
+| v13 | CSF | Works on beta.18 RC1 | Immortalis-G925 MC12 passes 37/37 (beta.17: 34/36) |
+| v14 | CSF | **Built, untested** | G1-Ultra (`0xe8800010`) matches its model row, but `vkCreateDevice` failed on beta.15 (`MEM_ALLOC_EX` `ENOTTY`). The 110 fallback is not yet tested on v14 |
+
+### Known gaps
+
+- **Missing gpu_id rows:** Mesa has no row for the G77 (`PAN_PROD_ID(9, 0, 0)`).
+  G510, G620, G625 and plain G725 have never been seen, so their gpu_id values
+  are unconfirmed. The G710 row only exists from csf-v11/140 (beta.18 RC1).
+- **v14:** G1-Ultra needs a rerun with beta.17 or later to check the
+  `MEM_ALLOC_EX` fallback.
+- **G720 MC8:** intermittent `gs_viewport_depth` failure (PROGRESS item 40,
+  not started).
 
 ## Supported GPUs
 
 The **Mali-G615** (Mesa `PAN_ARCH` v11, CSF frontend; Arm's 4th generation
 Valhall, announced 2022) on the reference device above is the validated
-release target. G610 and G710 (v10), Immortalis-G720 (v12) and
-Immortalis-G925 (v13) pass PanProbe 36/36 on beta.18-dev builds, which are
-not released yet (see [Tested devices](#tested-devices)). v9 JM is
+release target. G610 and G710 (v10), G715 (v11), Immortalis-G720 (v12) and
+Immortalis-G925 (v13) pass PanProbe 37/37 on the beta.18 build released as
+beta.18 RC1 (see [Tested devices](#tested-devices)). v9 JM is
 experimental and partly broken; the other parts are untested. Arm's marketing generations (Utgard, Midgard,
 Bifrost, Valhall 1st to 4th gen, 5th Gen, G1) and Mesa `PAN_ARCH` numbers are
 different schemes; the full chronological GPU list, mappings, frontends and
@@ -100,7 +141,8 @@ upstream driver status are in
 
 Status key:
 - ✅ **Supported**: validated on a device.
-- 🧪 **Tested on beta.18-dev, unreleased**: PanProbe 36/36 on a device with a beta.18 dev build; not in a release yet.
+- 🧪 **Tested on beta.18**: PanProbe 37/37 and the D3D11 cube on a device with the beta.18 build (released as beta.18 RC1); less coverage than the G615.
+- ⚠️ **Tested, known issue**: run on a device by us or a user; works, but with an open issue.
 - 🔨 **Built, untested**: compiled into the universal ICD and recognised by the Mesa model table, but never run on that GPU.
 - 📋 **TODO**: a profile exists in `profiles/` and the port is planned.
 - ❔ **Possible, not tried**: Mesa has a backend for this arch, but no profile or device test exists here.
@@ -117,10 +159,10 @@ One row per Mesa arch. Each GPU carries its own status mark.
 | v6 | Bifrost 1st/2nd gen | JM | ❌ Mali-G71, ❔ G72 | Mesa marks G71 unsupported; G72 experimental upstream |
 | v7 | Bifrost 1st to 3rd gen | JM | 📋 Mali-G52, ❔ G31, ❔ G51, ❔ G76 | Profile `g52-v7-jm` (P25); needs the JM kbase path |
 | v9 | Valhall 1st/2nd gen | JM | 🔨 Mali-G57 (tested, MC2), ❔ G77, ❔ G68, ❔ G78, ❔ G78AE | **EXPERIMENTAL, partly broken** (beta.14 universal ICD). Tested only on a G57 MC2 tablet: CTS smoke subsets mostly pass, PanProbe 1/17, reports Vulkan 1.1 with fewer extensions than v10+ |
-| v10 | Valhall 3rd gen | CSF | 🧪 Mali-G610, 🧪 G710, 🔨 G310, ❔ G510 | G610 MC3 (motorola edge 40 neo) and G710 MC7 (Pixel 7) pass PanProbe 36/36 on beta.18-dev (Firebase Test Lab). G710 gets its model row in csf-v11/140 (unreleased). G310 is built, untested; G510 needs a tester's gpu_id |
-| **v11** | **Valhall 4th gen** | **CSF** | ✅ **Mali-G615**, ❔ G715, ❔ Immortalis-G715 | G615 validated on Poco X6 Pro (Dimensity 8300). G715 and Immortalis-G715 share the same arch but are untested |
-| v12 | 5th Gen | CSF | 🧪 Immortalis-G720, 🔨 Mali-G720, ❔ G620 | Immortalis-G720 MC12 (Galaxy Tab S10 Ultra) passes PanProbe 36/36 on beta.17 and beta.18-dev. beta.18 names it by core count (131). G720 and G620 are built, untested |
-| v13 | 5th Gen | CSF | 🧪 Immortalis-G925, 🔨 Mali-G725, 🔨 G625 | Immortalis-G925 MC12 (Galaxy Tab S11 Ultra) passes PanProbe 36/36 on beta.18-dev (beta.17: 34/36, fixed by 130 and 132). G725 and G625 share the product id and are built, untested |
+| v10 | Valhall 3rd gen | CSF | 🧪 Mali-G610, 🧪 G710, 🔨 G310, ❔ G510 | G610 MC3 (motorola edge 40 neo) and G710 MC7 (Pixel 7) pass PanProbe 37/37 on beta.18-dev (Firebase Test Lab, 2026-10-07). G710 gets its model row in csf-v11/140 (beta.18 RC1). G310 is built, untested; G510 needs a tester's gpu_id |
+| **v11** | **Valhall 4th gen** | **CSF** | ✅ **Mali-G615**, 🧪 G715, ❔ Immortalis-G715 | G615 validated on Poco X6 Pro (Dimensity 8300). G715 MC7 (Pixel 8) passes PanProbe 37/37 on beta.18-dev. Immortalis-G715 is untested |
+| v12 | 5th Gen | CSF | 🧪 Immortalis-G720, ⚠️ Mali-G720 (MC8, user report), ❔ G620 | Immortalis-G720 MC12 (Galaxy Tab S10 Ultra) passes PanProbe 36/36 on beta.17 and 37/37 on beta.18-dev. beta.18 names it by core count (131). A user's G720 MC8 scores 35-36/37 on beta.17 (intermittent `gs_viewport_depth`, open). G620 is built, untested |
+| v13 | 5th Gen | CSF | 🧪 Immortalis-G925, 🔨 Mali-G725, 🔨 G625 | Immortalis-G925 MC12 (Galaxy Tab S11 Ultra) passes PanProbe 37/37 on beta.18-dev (beta.17: 34/36, fixed by 130 and 132). G725 and G625 share the product id and are built, untested |
 | v14 | 5th Gen, G1 series | CSF | 🔨 Mali G1-Ultra, 🔨 G1-Premium, 🔨 G1-Pro | **Built, untested** (beta.13 universal ICD). All three are in the Mesa model table; experimental upstream |
 | v15 (unconfirmed) | G2 series | CSF | ❌ Mali G2-Ultra NX, ❌ G2-Premium NX (rumoured), ❌ G2-Pro NX (rumoured) | Not in Mesa yet |
 
@@ -167,13 +209,14 @@ change creates a new release even if the Mesa SHA is unchanged.
 
 ### Current status
 
-Latest: **[`g615-v11-csf-v0.1.0-beta.17`](https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/g615-v11-csf-v0.1.0-beta.17)**
-(prerelease, Mesa `5a07217f` plus the committed series up to 121 and `jm-v9`). Each
+Latest: **[`g615-v11-csf-v0.1.0-beta.18-rc1`](https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/g615-v11-csf-v0.1.0-beta.18-rc1)**
+(release candidate, Mesa `5a07217f` plus the committed series up to 180 and `jm-v9`). Each
 release ships the Android and glibc drivers, an `.adpkg` package, an EMULATOR
 zip, the test APK and screenshots. Full history: [`CHANGELOG.md`](CHANGELOG.md).
 
 | Release | Highlights |
 |---|---|
+| **beta.18 RC1** | First release tested on v10, v11, v12 and v13 hardware: PanProbe 37/37 on G610, G710, G615, G715, Immortalis-G720 and Immortalis-G925. BCn rework: BC textures decode into a compact tiled AFBC/AFRC shadow, about 2x faster bandwidth-bound sampling and 38-65% less shadow memory (150, 151, 180; AFRC is lossy, `PANVK_BC_AFRC=0` for exact). Shader compile stalls: faster register allocation, NFS: Most Wanted pipelines 3.6 s to about 0.3 s, identical output (152-154, 160-164). Mesa disk shader cache on by default on Android (170), each Android property looked up once (171). `robustBufferAccess2` on v10 (122), v13 vertex stores (130, 132), core-count GPU names (131), G710 model row (140). Known: G720 MC8 `gs_viewport_depth` intermittent (untested on beta.18), v14 untested. |
 | **beta.17** | Correctness and reach. G615: GS draws with primitive restart no longer fault the GPU (120); zero depth-range viewports keep exact depth (121); depth bounds keeps FPK/early ZS while off (116); FS `gl_PrimitiveID` survives viewport runs (115); VMR secondaries (114); prerast fan splits (112); `SetEvent`/`ResetEvent` never return DEVICE_LOST (111); X11 software present over MIT-SHM (117). Universal: BC emulation unless all BC formats are native (108), v12+ viewport depth (109), kbase CSF uAPI layouts and 16K pages (110), vertex stores on v13/v14 (119), vendor-neutral gralloc mapper (android/014). PanProbe 36/36 x3; CTS 32339 pass / 115 fail, sync + memory gate unchanged. Fixes for G610/G720/G925/G1-Ultra and stock ROMs untested on hardware. |
 | **beta.16** | Removes the remaining CPU waits on the v11 kbase path. Software WSI present no longer blocks the app's submit thread until the GPU finishes the frame (106). Up to three retired tiler heaps can be in flight, so `vkQueueSubmit` no longer stalls 35-55 ms on heap backpressure (107). NFS: Most Wanted race: 85.5 to 90.6 fps (DXVK HUD), p99 frame time 22 to 16 ms. NFS is now limited by Wine, not the GPU. CTS sync + memory gate: same 56 failures; PanProbe 17/17. |
 | **beta.15** | Faster kbase submission on v11: no CPU graphics drain on tiler heap renewal (102), same-queue semaphores waited on the GPU (103), next tiler heap created on a worker thread (104). NFS: Most Wanted on G615 goes from 24 to 38-40 fps, p99 frame time 102 to 58 ms, >50 ms frames 650 to ~80. `PANVK_DEBUG=trace` works on kbase again (101, 105). CTS sync + memory: no new failures; PanProbe 17/17. v9 still experimental. Fallout 4 hangs before loading the driver (also on beta.14). |
