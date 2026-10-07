@@ -1,0 +1,21 @@
+G720 remote session, 2026-10-07 (Galaxy Tab S10 Ultra SM-X926B, MT6989 / Dimensity 9300+, Android 15
+AP3A.240905.015.A2, kernel 6.1.112-android14-11, gpu_id 0xc8700000 arch v12 Immortalis-G720 MC12,
+kbase CSF uAPI 1.21, BC emulation on, native compressed mask 0xc7fe001e)
+
+run                                    result   upload
+beta.18-dev p132 (1.2.4-dev) run 1     36/36    FAIL (Timed out), zip pulled
+beta.18-dev p132 run 2                 36/36    FAIL (Timed out), zip pulled
+beta.17 (PanProbe 1.2.3 release)       36/36    FAIL (Timed out), zip pulled
+beta.18-dev p132 run 3                 36/36    FAIL (Timed out), zip pulled
+
+Standalone p132 (autorun <test>): gs_viewport_depth 8/8, swapchain_lifecycle 3/3, vertex_stores 3/3,
+draw_params 3/3 PASS.
+
+deviceName: p132 "Mali-G720-Immortalis MC12" (patch 131), beta.17 "Mali-G720 MC12".
+driverInfo still says "beta.17" in p132 builds (099 bump is in the main checkout, not wt-g925).
+
+Failures: none. No new patches (133-139 unused).
+Notes: beta.17 1.2.3 over 1.2.4-dev needs install -r -d (versionCode 7 < 8). The vertex_stores, draw_params
+and gs_viewport_depth failures seen on G925 (v13) do not reproduce on G720 (v12), not even on beta.17.
+Per-run data: g720-p132/, g720-p132-run2/, g720-beta17/, g720-p132-run3/, g720-p132-flaky/.
+Raw logcat and zips are in /var/tmp/panvk/rtl/.

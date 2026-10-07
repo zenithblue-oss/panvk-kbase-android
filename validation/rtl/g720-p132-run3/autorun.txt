@@ -1,0 +1,43 @@
+INFO devices=1 exts=188 formats=196
+COMPLIANCE DXVK compliance PASS items=94 missingHard=[] missingSoft=["tiled resources tier 2 (FL12_0)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","VK_EXT_sample_locations"]
+COMPLIANCE Bachata S4 compliance PASS items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","subgroup_wave64"]
+COMPLIANCE vkd3d compliance PASS items=100 missingHard=[] missingSoft=["viewportSubPixelBits >= 8","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","shaderFloat64","proton: robustImageAccess2","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: ROVs (pixel+sample interlock)","proton: SM6.2 (denorm independence + FP32 FTZ\/preserve)","proton: VK_EXT_descriptor_buffer path","proton: VK_KHR_fragment_shading_rate","proton: VK_EXT_mesh_shader","proton: VK_KHR_ray_query + acceleration_structure"]
+RESULT gpu_prerast_slice PASS mismatch=0 fps=0 ms=67
+RESULT clip_cull PASS mismatch=0 fps=3655.8 ms=1099
+RESULT multi_viewport PASS mismatch=0 fps=3660.8 ms=1103
+RESULT fill_mode PASS mismatch=0 fps=3816.9 ms=1446
+RESULT bc_decode PASS mismatch=0 fps=0 ms=283
+RESULT geometry PASS mismatch=0 fps=3556.8 ms=1382
+RESULT tessellation PASS mismatch=0 fps=3593.4 ms=1813
+RESULT xfb PASS mismatch=0 fps=0 ms=277
+RESULT pipeline_stats PASS mismatch=0 fps=3372.9 ms=1121
+RESULT vertex_stores PASS mismatch=0 fps=0 ms=98
+RESULT gs_viewport_depth PASS mismatch=0 fps=0 ms=123
+RESULT vs_viewport_index PASS mismatch=0 fps=0 ms=173
+RESULT depth_bounds PASS mismatch=0 fps=0 ms=101
+RESULT large_draw PASS mismatch=0 fps=0 ms=2394
+RESULT vmr_secondary PASS mismatch=0 fps=0 ms=51
+RESULT tess_cond_state PASS mismatch=0 fps=0 ms=113
+RESULT bachata_reqs PASS mismatch=0 fps=0 ms=87
+RESULT bachata_exec PASS mismatch=0 fps=0 ms=52
+RESULT robustness2 PASS mismatch=0 fps=0 ms=73
+RESULT blend PASS mismatch=0 fps=0 ms=65
+RESULT occlusion_query PASS mismatch=0 fps=0 ms=54
+RESULT descriptor_model PASS mismatch=0 fps=0 ms=53
+RESULT shader_arith PASS mismatch=0 fps=0 ms=74
+RESULT depth_stencil PASS mismatch=0 fps=0 ms=73
+RESULT sampler PASS mismatch=0 fps=0 ms=75
+RESULT draw_params PASS mismatch=0 fps=0 ms=77
+RESULT submit_stress PASS mismatch=0 fps=0 ms=30072
+RESULT csf_event PASS mismatch=0 fps=0 ms=273
+RESULT gs_tess_primitive_id PASS mismatch=0 fps=0 ms=166
+RESULT bachata_storage_fmtless PASS mismatch=0 fps=0 ms=56
+RESULT bachata_dynamic_render PASS mismatch=0 fps=0 ms=57
+RESULT dxvk_reqs PASS mismatch=0 fps=0 ms=31
+RESULT vkd3d_reqs PASS mismatch=0 fps=0 ms=42
+RESULT vkd3d_heap PASS mismatch=0 fps=0 ms=186
+RESULT vkd3d_timeline PASS mismatch=0 fps=0 ms=260
+RESULT swapchain_lifecycle PASS mismatch=0 fps=121.3 ms=4926 extra=resized FPS 121.3 | present_main 2473ms, resize 10ms, present_resized 989ms, destroy 1ms, cycle 833ms, teardown 22ms
+AUTORUN DONE pass=36 fail=0 skip=0 total=36 (36 pass / 0 fail / 0 skip)
+AUTOUPLOAD FAIL Timed out
+AUTORUN ZIP /storage/emulated/0/Android/data/dev.zenithblue.panvktest/files/panprobe-20261007-054949.zip size=172148

@@ -1,0 +1,25 @@
+G925 remote session, 2026-10-07 (Galaxy Tab S11 Ultra SM-X930, MT6991, Android 16 BP4A.251205.006,
+kernel 6.6.102-android15, gpu_id 0xd8300015 arch v13 MC12, kbase CSF uAPI 1.30, ALLOC_EX, BC emulation on,
+native compressed mask 0xc7fe001e)
+
+run                               result   upload
+beta.17 (PanProbe 1.2.3 release)  34/36    FAIL (SocketTimeoutException, network)
+beta.18-dev (1.2.4-dev, <=122)    33/36    offline (network)
+  + 130                           36/36    3a403cee
+  + 130 (run 2)                   35/36    059d4578 (gs_viewport_depth flake)
+  + 130 + 131                     35/36    FAIL (connection lost) (gs_viewport_depth flake)
+  + 130 + 131 + 132               36/36    not uploaded (gs_viewport_depth standalone 10/10)
+
+Failures
+- vertex_stores (beta.17, beta.18-dev): CASE iter0..5 FAIL outv[0,16] inconsistent got (1000,1000)
+  want (1000,1001) or (1017,1000) total=32. Fixed by 130.
+- draw_params (beta.17, beta.18-dev): 7 cases, e.g. FAIL case base_vertex_instance got_count=12
+  exp_count=12 first_missing=(100,7,458852,1007). Fixed by 130.
+- swapchain_lifecycle (beta.18-dev only): FAIL no surface. The screen was dozing. It passes after a wakeup.
+- gs_viewport_depth (flaky, older than 130): FAIL case A_clamp depthL=[1.0..1.0] expL=0.25 badDepth=1024
+  badColor=1024. Any of A_clamp/B_clamp_clip/C_noclamp can come out empty (nothing drawn).
+  Standalone runs: beta.17 release 5/10 FAIL, +130 4/10, +130+131 7/8. Fixed by 132 (0/10 FAIL).
+
+Patches (uncommitted): csf-v11/130 (v13 VS stores through gpu_prerast), csf-v11/131 (deviceName by core count:
+"Mali-G725 MC12" -> "Mali-G925-Immortalis MC12"), csf-v11/132 (wait for the prerast producer before viewport runs).
+Per-run data: g925-beta17/, g925-beta18dev/, g925-p130/, g925-p131/, g925-p132/. Raw logcat and zips are in /var/tmp/panvk/rtl/.
