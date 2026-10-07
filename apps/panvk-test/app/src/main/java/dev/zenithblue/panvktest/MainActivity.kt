@@ -1094,6 +1094,10 @@ class MainActivity : ComponentActivity() {
                 updateTestResult(res)
             }
             say("RESULT ${test.name} ${res.status} mismatch=${res.mismatch} fps=${res.fps ?: "0"} ms=${res.durationMs}${if (res.extra != null) " extra=${res.extra}" else ""}")
+            if (gameLoop) {
+                if (res.status != "PASS") res.lastLines.takeLast(30).forEach { Log.i("PanProbeGameLoop", "TAIL ${test.name}: $it") }
+                writeGameLoopResult(runResults, null) // partial, survives a Test Lab timeout
+            }
         }
         val passCount = runResults.count { it.status == "PASS" }
         val failCount = runResults.count { it.status in listOf("FAIL", "CRASH", "TIMEOUT") }
@@ -1142,10 +1146,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         } catch (e: Exception) { out.put("error", e.toString()) }
+        out.put("complete", run != null)
         val text = out.toString(2)
-        text.lines().forEach { Log.i("PanProbeGameLoop", it) }
+        if (run != null) text.lines().forEach { Log.i("PanProbeGameLoop", it) }
         try {
-            intent.data?.let { uri -> contentResolver.openOutputStream(uri, "w")?.use { it.write(text.toByteArray()) } }
+            intent.data?.let { uri -> contentResolver.openOutputStream(uri, "wt")?.use { it.write(text.toByteArray()) } }
         } catch (e: Exception) { Log.e("PanProbeGameLoop", "write result failed", e) }
     }
 
