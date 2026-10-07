@@ -187,6 +187,9 @@ class MainActivity : ComponentActivity() {
     @Volatile private var lastAutoRun: File? = null
     // Debug builds only (intent extra --ez uploadDryRun true): build the payload, log it, skip the network.
     @Volatile private var uploadDryRun = false
+    @Volatile private var lastUploadId: String? = null
+    // Firebase Test Lab game loop: Run all, upload, write the summary to intent.data, finish.
+    private val gameLoop get() = intent?.action == "com.google.intent.action.TEST_LOOP"
 
     private fun saveDriverSelection(type: DriverType, importedName: String? = null) {
         val sp = getSharedPreferences("panprobe", Context.MODE_PRIVATE)
@@ -260,7 +263,7 @@ class MainActivity : ComponentActivity() {
         refreshRunsList()
         lifecycleScope.launch { driverUpdate.check(manual = false) }
 
-        val autorunExtra = intent.getStringExtra("autorun")
+        val autorunExtra = intent.getStringExtra("autorun") ?: if (gameLoop) "all" else null
         // One queued retry (set when a Run all finished offline), at the next normal start.
         val pending = sp.getString("pendingRun", null)
         if (pending != null) {
@@ -417,6 +420,7 @@ class MainActivity : ComponentActivity() {
                     UploadPathState("PanVK storage", url = res.url, verifyStatus = "✓")))
             }
             autoUploadStatus = "Uploaded (id $id)"
+            lastUploadId = id
             say("AUTOUPLOAD OK id=$id size=${zip.length()} sha256=$sha")
         } catch (e: Exception) {
             autoUploadFailed = true
@@ -1108,6 +1112,41 @@ class MainActivity : ComponentActivity() {
         withContext(Dispatchers.Main) {
             refreshRunsList()
         }
+        if (gameLoop) {
+            writeGameLoopResult(runResults, savedRun)
+            withContext(Dispatchers.Main) { finish() }
+        }
+    }
+
+    private suspend fun writeGameLoopResult(results: List<TestResult>, run: File?) {
+        val out = JSONObject()
+        try {
+            out.put("app", getAppVersion())
+            out.put("uploadId", lastUploadId ?: JSONObject.NULL)
+            out.put("uploadStatus", autoUploadStatus ?: JSONObject.NULL)
+            out.put("pass", results.count { it.status == "PASS" })
+            out.put("fail", results.count { it.status in listOf("FAIL", "CRASH", "TIMEOUT") })
+            out.put("skip", results.count { it.status == "SKIP" })
+            out.put("tests", JSONArray().apply {
+                for (r in results) put(JSONObject().put("name", r.name).put("status", r.status).put("ms", r.durationMs)
+                    .put("extra", r.extra ?: JSONObject.NULL)
+                    .apply { if (r.status != "PASS") put("tail", JSONArray(r.lastLines.takeLast(30))) })
+            })
+            // Driver-load + device facts from the same zip the upload sends.
+            if (run != null) java.util.zip.ZipFile(buildRunZip(run)).use { zf ->
+                for (e in zf.entries()) when {
+                    e.name.endsWith("driver-load.json") -> out.put("driverLoad", JSONObject(zf.getInputStream(e).bufferedReader().readText()))
+                    e.name.endsWith("manifest.json") -> JSONObject(zf.getInputStream(e).bufferedReader().readText()).let { m ->
+                        for (k in listOf("driver", "device", "gpu", "android", "deviceFacts")) out.put(k, m.opt(k) ?: JSONObject.NULL)
+                    }
+                }
+            }
+        } catch (e: Exception) { out.put("error", e.toString()) }
+        val text = out.toString(2)
+        text.lines().forEach { Log.i("PanProbeGameLoop", it) }
+        try {
+            intent.data?.let { uri -> contentResolver.openOutputStream(uri, "w")?.use { it.write(text.toByteArray()) } }
+        } catch (e: Exception) { Log.e("PanProbeGameLoop", "write result failed", e) }
     }
 
     private fun updateTestStatus(testName: String, status: String) {
