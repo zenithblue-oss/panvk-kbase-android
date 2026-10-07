@@ -85,8 +85,8 @@ Findings:
    (`PANVK_DEBUG=bc_compute`); `PANVK_DEBUG=bc_wide` keeps 16-bit storage.
    Status: done, patch csf-v11/150.
 2. AFRC on the decoded plane (G615 has the AFRC feature bit) for the memory
-   cut on BC1/BC3/BC7. Status: todo.
-3. Others to evaluate: BC->BC copies via decoded planes, decode batching.
+   cut on BC1/BC3/BC7. Status: done, patch csf-v11/151.
+3. Others evaluated, see "Other options".
 
 ## Method 1: fragment decode into a compact tiled shadow (csf-v11/150)
 
@@ -142,6 +142,67 @@ baseline (BC6H UF 49156 KiB, E 1.214).
 | BC1 | 13.3 (-44%) | 0.248 (2.19x) | 10.7 (-56%) | 8.0 (-67%) |
 | BC3 | 16.0 (-40%) | 0.250 (2.16x) | 13.3 (-50%) | 10.7 (-60%) |
 | BC7 | 16.0 (-40%) | 0.249 (2.4x) | 13.3 (-50%) | 10.7 (-60%) |
+
+- Cube-compatible images keep the AFBC shadow (AFRC cube sampling not
+  tested; bc_decode has no cube case).
+
+## Other options
+
+- Free/shrink the raw plane: rejected. It is needed for image->buffer
+  readback, BC-source image copies and BC->BC copies (DXVK sets
+  TRANSFER_SRC on every texture; D3D11 CopySubresourceRegion between BC
+  textures is used by texture streaming). With AFRC it is now 20% (BC1) /
+  33% (BC3/7) of the image; dropping it would need a re-encode path.
+- Lazy decode (decode at first sample): rejected. Upload+decode is one-time
+  and now 3-6 ms per 2048x2048 chain; laziness would add per-draw tracking.
+- Barrier narrowing: done in 150. Buffer->image copies have no barrier
+  between raw copy and decode (decode reads the copy source). Image->image
+  copies use a FRAGMENT_SHADER read barrier instead of ALL_COMMANDS.
+- Decode batching across copy calls: not done. One render pass per region;
+  upload is no longer the bottleneck.
+- BC->ASTC/ETC2 transcode: not tried (rejected in the plan; AFRC already gives
+  ETC2-class bandwidth: E 0.249 ms vs native ETC2 0.365 ms).
+
+## Final (G615, csf-v11/150 + 151, default env)
+
+panvk-test APK proof: side-by-side debug APK `dev.zenithblue.panvktest.bcperf`
+(`-PappIdSuffix=.bcperf -PpanvkSo=dist-afrc5`), autorun bc_decode + bc_perf,
+logs in `apk-proof/`. bc_decode BC_DEVICE_FAILS=0. bc_verify on the APK dump:
+BC4/BC5/BC6H PASS, RGBA8 formats over the 2 LSB tolerance by AFRC on random
+blocks (expected); 16/16 PASS with PANVK_BC_AFRC=0 and with bc_compute.
+
+| format | mem MiB base -> final | upload ms | E ms base -> final | speedup |
+|---|---|---|---|---|
+| BC1 | 24.0 -> 13.3 (-44%) | 5.30 -> 3.3 | 0.544 -> 0.250 | 2.2x |
+| BC3 | 26.7 -> 16.0 (-40%) | 7.0 -> 3.9 | 0.541 -> 0.248 | 2.2x |
+| BC4 | 24.0 -> 8.5 (-65%) | 4.97 -> 3.0 | 0.537 -> 0.244 | 2.2x |
+| BC5 | 26.7 -> 16.6 (-38%) | 5.90 -> 3.5 | 0.540 -> 0.244 | 2.2x |
+| BC6H UF | 48.0 -> 27.4 (-43%) | 12.9 -> 8.5 | 1.224 -> 0.320 | 3.8x |
+| BC6H SF | 48.0 -> 48.5 (+1%) | 14.4 -> 9.3 | 1.217 -> 0.695 | 1.75x |
+| BC7 | 26.7 -> 16.0 (-40%) | 9.9 -> 5.9 | 0.598 -> 0.251 | 2.4x |
+
+Cache-friendly sampling (A/B/C) unchanged at ~0.49 ms (filter bound).
+With PANVK_BC_AFRC=24: BC1 -56%, BC3/BC7 -50% (max error 9-15 LSB on real
+pictures).
+
+## Game check
+
+Not run. Games run inside the launcher (dev.zenithblue.panvklauncher); using
+this driver needs either an imported driver in the launcher (changes its
+state) or the run-as harness with an X server. The only X server on the
+device (termux-x11 :0) belongs to another running proot desktop session, and
+the beta.18 agent is using the device. Needs a slot with the device free:
+MiSide menu/gameplay with DXVK_HUD=full, base vs csf-v11/150+151.
+
+## Open risks
+
+- AFRC is lossy by default (CU32): exact-decode tests (CTS compressed-texture
+  cases, bc_verify) see 13-38 LSB on random blocks. PANVK_BC_AFRC=0 restores
+  exact decode.
+- Only G615 (v11) tested. v10 and v12-v14 take the same fragment path; AFRC
+  only where pan_query_afrc() says so. v9 and 3D images use the old path.
+- AFRC row-stride fix is in lib/ and also affects any other AFRC user
+  (none in panvk before this).
 
 Rejected / dropped:
 - `force_native_bc` probe (sample BC with the real Mali BC format codes
