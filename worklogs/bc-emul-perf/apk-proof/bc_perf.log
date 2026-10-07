@@ -1,0 +1,52 @@
+MESA: info: kbase: CSF driver, uAPI version 1.21, page_size=4096
+MESA: info: panvk: gpu_id 0xb8a31030 variant 0x4 arch v11 model Mali-G615 texture_features 0xc7fe001e 0 0 0
+MESA: info: panvk: BC emulation on (native compressed mask 0xc7fe001e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+DEVICE Mali-G615 MC6 driver=0x6802063 bc=1 etc2=1 astc=1 ts_bits=64 ts_period=76.923 size=2048
+PROBE R8G8B8A8_UNORM optimal=0x1dd83 mods=8 fixedrate(r=0 flags=0x0 rates=0x0) 800000000000062 800000000000072 800000000000351 800000000000341 800000000000051 800000000000041 800000000000061 0
+PROBE R8G8B8A8_SRGB optimal=0x1dd83 mods=8 fixedrate(r=0 flags=0x0 rates=0x0) 800000000000062 800000000000072 800000000000351 800000000000341 800000000000051 800000000000041 800000000000061 0
+PROBE R5G6B5_UNORM optimal=0x1dd83 mods=7 fixedrate(r=0 flags=0x0 rates=0x0) 800000000000042 800000000000351 800000000000341 800000000000051 800000000000041 800000000000061 0
+PROBE R8_UNORM optimal=0x1dd83 mods=5 fixedrate(r=0 flags=0x0 rates=0x0) 800000000000042 800000000000341 800000000000041 800000000000061 0
+PROBE R8_SNORM optimal=0x1dd83 mods=5 fixedrate(r=0 flags=0x0 rates=0x0) 800000000000042 800000000000341 800000000000041 800000000000061 0
+PROBE R8G8_UNORM optimal=0x1dd83 mods=5 fixedrate(r=0 flags=0x0 rates=0x0) 800000000000042 800000000000341 800000000000041 800000000000061 0
+PROBE R8G8_SNORM optimal=0x1dd83 mods=5 fixedrate(r=0 flags=0x0 rates=0x0) 800000000000042 800000000000341 800000000000041 800000000000061 0
+PROBE R16G16_UNORM optimal=0x1dd83 mods=5 fixedrate(r=0 flags=0x0 rates=0x0) 800000000000062 800000000000341 800000000000041 800000000000061 0
+PROBE R16G16B16A16_SFLOAT optimal=0x1dd83 mods=8 fixedrate(r=0 flags=0x0 rates=0x0) 800000000000062 800000000000072 800000000000351 800000000000341 800000000000051 800000000000041 800000000000061 0
+PROBE B10G11R11_UFLOAT optimal=0x1dd83 mods=8 fixedrate(r=0 flags=0x0 rates=0x0) 800000000000062 800000000000072 800000000000351 800000000000341 800000000000051 800000000000041 800000000000061 0
+PROBE E5B9G9R9_UFLOAT optimal=0x1dd83 mods=1 fixedrate(r=0 flags=0x4 rates=0x0) 0
+PROBE ETC2_RGB8 optimal=0x1d401 mods=1 fixedrate(r=-11 flags=0x0 rates=0x0) 0
+PROBE ETC2_RGBA8 optimal=0x1d401 mods=1 fixedrate(r=-11 flags=0x0 rates=0x0) 0
+PROBE EAC_R11 optimal=0x1d401 mods=1 fixedrate(r=-11 flags=0x0 rates=0x0) 0
+PROBE EAC_RG11 optimal=0x1d401 mods=1 fixedrate(r=-11 flags=0x0 rates=0x0) 0
+PROBE ASTC_4x4_UNORM optimal=0x1d401 mods=1 fixedrate(r=-11 flags=0x0 rates=0x0) 0
+PROBE ASTC_8x8_UNORM optimal=0x1d401 mods=1 fixedrate(r=-11 flags=0x0 rates=0x0) 0
+PROBE ASTC_4x4_SFLOAT optimal=0x1d401 mods=1 fixedrate(r=-11 flags=0x0 rates=0x0) 0
+PROBE BC1_RGB_UNORM optimal=0x1d401 mods=0 fixedrate(r=-11 flags=0x0 rates=0x0)
+PROBE BC7_UNORM optimal=0x1d401 mods=0 fixedrate(r=-11 flags=0x0 rates=0x0)
+MESA: info: kbase: CSF driver, uAPI version 1.21, page_size=4096
+MESA: info: kbase: mem_alloc via ALLOC_EX
+MESA: info: kbase: queue_group_create layout=32 bytes
+MESA: info: kbase: tiler_heap_init layout=16 bytes
+PERF fmt=BC1_RGB_UNORM mem_KiB=13664 upload_gpu_ms=3.959 upload_wall_ms=4.390 A_ms=0.551 B_ms=0.524 C_ms=0.523 D_ms=0.259 E_ms=0.283 wallA=0.607
+PERF fmt=BC1_RGBA_SRGB mem_KiB=13664 upload_gpu_ms=3.328 upload_wall_ms=3.582 A_ms=0.487 B_ms=0.490 C_ms=0.486 D_ms=0.244 E_ms=0.251 wallA=0.506
+PERF fmt=BC2_UNORM mem_KiB=16396 upload_gpu_ms=3.939 upload_wall_ms=4.132 A_ms=0.493 B_ms=0.492 C_ms=0.485 D_ms=0.241 E_ms=0.247 wallA=0.507
+PERF fmt=BC3_UNORM mem_KiB=16396 upload_gpu_ms=3.963 upload_wall_ms=4.195 A_ms=0.489 B_ms=0.488 C_ms=0.487 D_ms=0.262 E_ms=0.248 wallA=0.508
+PERF fmt=BC3_SRGB mem_KiB=16396 upload_gpu_ms=3.940 upload_wall_ms=4.150 A_ms=0.492 B_ms=0.492 C_ms=0.485 D_ms=0.242 E_ms=0.247 wallA=0.510
+PERF fmt=BC4_UNORM mem_KiB=8672 upload_gpu_ms=2.979 upload_wall_ms=3.197 A_ms=0.489 B_ms=0.489 C_ms=0.488 D_ms=0.243 E_ms=0.244 wallA=0.502
+PERF fmt=BC4_SNORM mem_KiB=8672 upload_gpu_ms=4.944 upload_wall_ms=5.279 A_ms=0.493 B_ms=0.491 C_ms=0.506 D_ms=0.244 E_ms=0.244 wallA=0.512
+PERF fmt=BC5_UNORM mem_KiB=16972 upload_gpu_ms=4.801 upload_wall_ms=5.062 A_ms=0.492 B_ms=0.490 C_ms=0.486 D_ms=0.242 E_ms=0.272 wallA=0.533
+PERF fmt=BC5_SNORM mem_KiB=16972 upload_gpu_ms=3.535 upload_wall_ms=3.754 A_ms=0.492 B_ms=0.490 C_ms=0.486 D_ms=0.243 E_ms=0.244 wallA=0.504
+PERF fmt=BC6H_UFLOAT mem_KiB=28108 upload_gpu_ms=8.462 upload_wall_ms=8.690 A_ms=0.491 B_ms=0.488 C_ms=0.486 D_ms=0.242 E_ms=0.320 wallA=0.504
+PERF fmt=BC6H_SFLOAT mem_KiB=49708 upload_gpu_ms=9.324 upload_wall_ms=9.510 A_ms=0.512 B_ms=0.492 C_ms=0.492 D_ms=0.250 E_ms=0.695 wallA=0.532
+PERF fmt=BC7_UNORM mem_KiB=16396 upload_gpu_ms=5.839 upload_wall_ms=6.042 A_ms=0.488 B_ms=0.493 C_ms=0.492 D_ms=0.246 E_ms=0.251 wallA=0.500
+PERF fmt=BC7_SRGB mem_KiB=16396 upload_gpu_ms=5.900 upload_wall_ms=6.108 A_ms=0.493 B_ms=0.491 C_ms=0.486 D_ms=0.244 E_ms=0.247 wallA=0.508
+PERF fmt=REF_RGBA8 mem_KiB=22644 upload_gpu_ms=2.441 upload_wall_ms=2.799 A_ms=0.492 B_ms=0.490 C_ms=0.486 D_ms=0.242 E_ms=0.346 wallA=0.542
+PERF fmt=REF_RG8 mem_KiB=11508 upload_gpu_ms=1.175 upload_wall_ms=1.413 A_ms=0.493 B_ms=0.492 C_ms=0.490 D_ms=0.246 E_ms=0.271 wallA=0.512
+PERF fmt=REF_R8 mem_KiB=5940 upload_gpu_ms=1.803 upload_wall_ms=2.447 A_ms=0.492 B_ms=0.491 C_ms=0.487 D_ms=0.243 E_ms=0.244 wallA=0.506
+PERF fmt=REF_RGBA16F mem_KiB=44244 upload_gpu_ms=3.454 upload_wall_ms=3.800 A_ms=0.489 B_ms=0.488 C_ms=0.489 D_ms=0.249 E_ms=0.853 wallA=0.501
+PERF fmt=REF_B10G11R11 mem_KiB=22644 upload_gpu_ms=2.073 upload_wall_ms=3.148 A_ms=0.489 B_ms=0.488 C_ms=0.488 D_ms=0.245 E_ms=0.364 wallA=0.517
+PERF fmt=REF_ETC2_RGBA8 mem_KiB=5952 upload_gpu_ms=0.541 upload_wall_ms=0.809 A_ms=0.508 B_ms=0.490 C_ms=0.490 D_ms=0.243 E_ms=0.366 wallA=0.532
+PERF fmt=REF_ASTC4x4 mem_KiB=5952 upload_gpu_ms=0.445 upload_wall_ms=0.733 A_ms=0.488 B_ms=0.486 C_ms=0.487 D_ms=0.247 E_ms=0.857 wallA=0.505
+RESULT DONE
