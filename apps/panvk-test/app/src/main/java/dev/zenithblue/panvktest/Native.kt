@@ -82,7 +82,7 @@ private val TESTED_BY: Map<String, List<String>> = run {
     t(listOf("shader_arith"), "shaderInt16", "shaderInt8", "storageBuffer16BitAccess", "storageBuffer8BitAccess",
         "shaderDemoteToHelperInvocation", "computeFullSubgroups", "subgroupSizeControl", "shaderZeroInitializeWorkgroupMemory")
     t(listOf("shader_arith", "bachata_exec"), "shaderInt64")
-    t(listOf("bc_decode"), "textureCompressionBC", "bc_formats")
+    t(listOf("bc_decode", "bc_perf"), "textureCompressionBC", "bc_formats")
     t(listOf("descriptor_model"), "bufferDeviceAddress", "descriptorIndexing", "descriptorBindingSampledImageUpdateAfterBind",
         "descriptorBindingUpdateUnusedWhilePending", "descriptorBindingPartiallyBound", "runtimeDescriptorArray",
         "scalarBlockLayout", "inlineUniformBlock", "VK_EXT_descriptor_indexing")

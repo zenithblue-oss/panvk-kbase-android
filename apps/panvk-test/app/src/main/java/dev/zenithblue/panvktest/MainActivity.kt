@@ -110,6 +110,7 @@ class MainActivity : ComponentActivity() {
         TestCase("multi_viewport", isDraw = true),
         TestCase("fill_mode", isDraw = true),
         TestCase("bc_decode", isDraw = false) { ctx -> listOf(ctx.cacheDir.absolutePath) },
+        TestCase("bc_perf", isDraw = false, timeoutMs = 300_000),
         TestCase("geometry", isDraw = true),
         TestCase("tessellation", isDraw = true),
         TestCase("xfb", isDraw = true),
@@ -2576,7 +2577,7 @@ private val TARGET_TAGS: Map<String, List<String>> = run {
     val d = "DXVK"; val s = "S4"; val v = "vkd3d"
     val m = HashMap<String, List<String>>()
     fun t(tags: List<String>, vararg tests: String) = tests.forEach { m[it] = tags }
-    t(listOf(d), "gpu_prerast_slice", "clip_cull", "multi_viewport", "fill_mode", "bc_decode", "pipeline_stats",
+    t(listOf(d), "gpu_prerast_slice", "clip_cull", "multi_viewport", "fill_mode", "bc_decode", "bc_perf", "pipeline_stats",
         "vertex_stores", "gs_viewport_depth", "vs_viewport_index", "large_draw", "vmr_secondary", "csf_event",
         "gs_tess_primitive_id", "dxvk_reqs", "swapchain_lifecycle")
     t(listOf(d, s), "geometry", "tessellation", "tess_cond_state")
