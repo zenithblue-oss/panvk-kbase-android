@@ -169,9 +169,25 @@ object ShortcutStore {
 
     /** exe may be an Android path or a Wine path under the container C: drive. */
     fun resolveExe(ctx: Context, exe: String): String {
-        val m = Regex("^([A-Za-z]):[\\\\/](.*)$").matchEntire(exe) ?: return exe
-        if (!m.groupValues[1].equals("c", true)) return exe
-        return File(ctx.filesDir, "container/.wine/drive_c/" + m.groupValues[2].replace('\\', '/')).path
+        val m = Regex("^([A-Za-z]):[\\\\/](.*)$").matchEntire(exe)
+        val p = if (m == null || !m.groupValues[1].equals("c", true)) exe
+        else File(ctx.filesDir, "container/.wine/drive_c/" + m.groupValues[2].replace('\\', '/')).path
+        return findExeIn(p) ?: p
+    }
+
+    private val NOT_GAME = Regex("(?i)unins|setup|install|redist|vcredist|dxsetup|crash|report|updater|dotnet|handler|config")
+
+    /** [path] is a game folder: pick its main exe (name closest to the folder's, else largest; depth 2). Else null. */
+    fun findExeIn(path: String): String? {
+        val dir = File(path)
+        if (!dir.isDirectory) return null
+        val exes = dir.walkTopDown().maxDepth(2)
+            .filter { it.isFile && it.name.endsWith(".exe", true) && !NOT_GAME.containsMatchIn(it.name) }.toList()
+        val key = dir.name.lowercase().filter { it.isLetterOrDigit() }
+        return exes.minWithOrNull(compareBy<File>(
+            { it.parentFile != dir },
+            { !(key.isNotEmpty() && (it.nameWithoutExtension.lowercase().filter { c -> c.isLetterOrDigit() }.let { n -> key.startsWith(n) || n.startsWith(key) })) },
+            { -it.length() }))?.path
     }
 
     fun launchOptions(ctx: Context, s: Shortcut) = LaunchOptions(
@@ -244,6 +260,27 @@ object PeInfo {
             }
         }
     } catch (_: Throwable) { null }
+
+    /** Lower-case DLL names the PE statically imports (empty when unreadable). */
+    fun imports(path: String): Set<String> = try {
+        RandomAccessFile(path, "r").use { f ->
+            val pe = Pe(f)
+            val rva = pe.u32(pe.optOff + (if (pe.plus) 112 else 96) + 8)
+            var d = pe.rvaToOff(rva)
+            val out = mutableSetOf<String>()
+            while (d > 0 && out.size < 200) {
+                if (pe.u32(d + 12) == 0L) break
+                val n = pe.rvaToOff(pe.u32(d + 12))
+                if (n < 0) break
+                f.seek(n)
+                val sb = StringBuilder()
+                while (sb.length < 64) { val c = f.read(); if (c <= 0) break; sb.append(c.toChar()) }
+                out.add(sb.toString().lowercase())
+                d += 20
+            }
+            out
+        }
+    } catch (_: Throwable) { emptySet() }
 
     fun iconPng(path: String): ByteArray? = try {
         RandomAccessFile(path, "r").use { f -> extract(Pe(f)) }

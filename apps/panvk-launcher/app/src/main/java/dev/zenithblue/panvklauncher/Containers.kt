@@ -284,11 +284,34 @@ object ContainerManager {
         return true
     }
 
+    /**
+     * Redistributable DLLs Wine does not ship (MFC 14 / vcomp: games bundle plugins importing mfc140u.dll,
+     * e.g. Unity's Razer Chroma SDK; without it the game dies in Awake). Bundled in assets/deps/{x86,x64}
+     * (extracted from Microsoft's vc_redist) and copied into the prefix when missing; bump DEPS_REV to re-copy.
+     */
+    private const val DEPS_REV = "2"
+    private fun ensureRuntimeDeps(ctx: Context) {
+        val win = File(ctx.filesDir, "container/.wine/drive_c/windows")
+        if (!win.isDirectory) return
+        val marker = File(ctx.filesDir, "container/.deps-rev")
+        if (marker.isFile && marker.readText() == DEPS_REV && File(win, "system32/mfc140u.dll").isFile) return
+        try {
+            for ((dir, dst) in listOf("x64" to "system32", "x86" to "syswow64", "ddraw" to "cnc-ddraw")) {
+                val out = File(win, dst).apply { mkdirs() }
+                for (n in ctx.assets.list("deps/$dir") ?: emptyArray()) {
+                    ctx.assets.open("deps/$dir/$n").use { i -> File(out, n).outputStream().use { i.copyTo(it) } }
+                }
+            }
+            marker.writeText(DEPS_REV)
+        } catch (_: Exception) {}
+    }
+
     fun env(ctx: Context, extra: Map<String, String>? = null): Map<String, String> {
         val containerDir = File(ctx.filesDir, "container")
         containerDir.mkdirs()
         ensureFex(ctx)
         val wowCopied = ensureWow64(ctx)
+        ensureRuntimeDeps(ctx)
         ensureDxvk(ctx, force = wowCopied)
         val imagefs = File(ctx.filesDir, "contents/imagefs/bionic")
         val tmpDir = File(imagefs, "usr/tmp")
@@ -339,10 +362,13 @@ object ContainerManager {
         } catch (_: Exception) {}
 
         val dxvk = isDxvkEnabled(ctx)
+        // nsiproxy.sys=d: on Android the driver's netlink bind is denied (errno 13) and GetAdaptersAddresses /
+        // GetBestRoute then block forever. Games probe the network at startup (UPnP, Steam API, Unity), so
+        // they sat on a black screen. Without the driver those calls fail fast; services/winebus stay up.
         val dllOverrides = if (dxvk) {
-            "mscoree,mshtml=d;d3d8,d3d9,d3d10core,d3d11,dxgi=n,b"
+            "mscoree,mshtml=d;d3d8,d3d9,d3d10core,d3d11,dxgi=n,b;nsiproxy.sys=d"
         } else {
-            "mscoree,mshtml=d"
+            "mscoree,mshtml=d;nsiproxy.sys=d"
         }
 
         val envMap = mutableMapOf(
@@ -657,7 +683,9 @@ object ContainerManager {
     // Per-launch shortcut overrides (args/env/driver); thread-local so run()/runInternal()/env() need no new params.
     private val launchOpts = ThreadLocal<LaunchOptions?>()
 
-    fun runExe(ctx: Context, exePath: String, onLine: (String) -> Unit = {}, opts: LaunchOptions? = null): Int {
+    fun runExe(ctx: Context, exePathIn: String, onLine: (String) -> Unit = {}, opts: LaunchOptions? = null): Int {
+        // A game folder (shortcut / intent / picker gave a directory) launches its main exe.
+        val exePath = ShortcutStore.findExeIn(exePathIn) ?: exePathIn
         val exeFile = File(exePath)
         if (!exeFile.isFile) {
             val msg = "File not found: $exePath"
@@ -667,12 +695,46 @@ object ContainerManager {
         val fbFile = File(ctx.filesDir, "container/fb.bin")
         try { fbFile.delete() } catch (_: Exception) {}
         val workDir = exeFile.parentFile ?: File(ctx.filesDir, "container")
-        launchOpts.set(opts)
+        // Native-first override is what makes Wine load the swapped-in cnc-ddraw instead of its builtin.
+        val ddraw = swapDdraw(ctx, exePath)
+        val o = opts ?: LaunchOptions()
+        launchOpts.set(if (ddraw == null) opts else o.copy(env = o.env + ("WINEDLLOVERRIDES" to
+            ((o.env["WINEDLLOVERRIDES"] ?: if (isDxvkEnabled(ctx)) "mscoree,mshtml=d;d3d8,d3d9,d3d10core,d3d11,dxgi=n,b;nsiproxy.sys=d" else "mscoree,mshtml=d;nsiproxy.sys=d") + ddraw))))
         try {
             return run(ctx, listOf(exeFile.absolutePath) + (opts?.args ?: emptyList()), workDir = workDir, onLine = onLine, graphics = true)
         } finally {
             launchOpts.remove()
+            swapDdraw(ctx, null)
         }
+    }
+
+    /**
+     * DirectDraw-only games (AoE2, C&C...) need a ddraw implementation: Wine's goes through wined3d, which needs
+     * OpenGL (absent on Android). For such exes the bundled cnc-ddraw (own GDI/D3D9 renderers) temporarily replaces
+     * C:\\windows\\syswow64\\ddraw.dll (Wine's kept as ddraw.dll.wine) and is swapped back when the game ends and
+     * before every other launch, so 3D ddraw games keep Wine's. Game folder stays untouched.
+     */
+    private fun swapDdraw(ctx: Context, exePath: String?): String? {
+        val dir = File(ctx.filesDir, "container/.wine/drive_c/windows/syswow64")
+        val cnc = File(ctx.filesDir, "container/.wine/drive_c/windows/cnc-ddraw")
+        val dll = File(dir, "ddraw.dll"); val keep = File(dir, "ddraw.dll.wine")
+        try {
+            val imp = exePath?.let { PeInfo.imports(it) } ?: emptySet()
+            val sibling = exePath?.let { File(it).parentFile?.list()?.map { n -> n.lowercase() } } ?: emptyList()
+            // A game folder that ships its own ddraw.dll keeps it. A windowed-mode shim (wndmode.dll) is disabled,
+            // else cnc-ddraw refuses to run ("cannot combine with other DirectDraw wrappers").
+            val need = "ddraw.dll" !in sibling && "ddraw.dll" in imp &&
+                imp.none { it.startsWith("d3d") || it == "opengl32.dll" } && File(cnc, "ddraw.dll").isFile
+            if (need) {
+                if (!keep.isFile) dll.copyTo(keep)
+                File(cnc, "ddraw.dll").copyTo(dll, overwrite = true)
+                File(cnc, "ddraw.ini").copyTo(File(dir, "ddraw.ini"), overwrite = true)
+                return ";ddraw=n,b" + sibling.filter { it == "wndmode.dll" }.joinToString("") { ";${it.removeSuffix(".dll")}=d" }
+            } else if (keep.isFile) {
+                keep.copyTo(dll, overwrite = true); keep.delete(); File(dir, "ddraw.ini").delete()
+            }
+        } catch (_: Exception) {}
+        return null
     }
 
     fun runExplorer(ctx: Context, onLine: (String) -> Unit = {}): Int {
@@ -816,6 +878,14 @@ object ContainerManager {
     }
 
     fun importUri(ctx: Context, uri: Uri): String? = resolveUriToPath(ctx, uri)
+
+    /** Picked game folder (OpenDocumentTree) -> its main exe path, or null (needs All files access). */
+    fun resolveTreeToExe(uri: Uri): String? = try {
+        val docId = DocumentsContract.getTreeDocumentId(uri)
+        val vol = docId.substringBefore(':')
+        val root = if (vol == "primary") "/storage/emulated/0" else "/storage/$vol"
+        ShortcutStore.findExeIn(File(root, docId.substringAfter(':', "")).canonicalPath)
+    } catch (_: Exception) { null }
 
     fun isDxvkEnabled(ctx: Context): Boolean {
         val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
