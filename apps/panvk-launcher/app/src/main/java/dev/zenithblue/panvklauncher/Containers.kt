@@ -705,11 +705,15 @@ object ContainerManager {
         val opts = if (unity && opts?.env?.containsKey("DXVK_CONFIG") != true) (opts ?: LaunchOptions()).let {
             it.copy(env = it.env + ("DXVK_CONFIG" to "dxvk.trackPipelineLifetime = False; dxgi.maxDeviceMemory = 2048; dxgi.maxSharedMemory = 1024"))
         } else opts
-        val o = opts ?: LaunchOptions()
-        launchOpts.set(if (ddraw == null) opts else o.copy(env = o.env + ("WINEDLLOVERRIDES" to
+        // AoE2 (age2_x2 / empires2): the intro-video startup path ends in "undetectable problem in loading the specified
+        // device driver" under Wine; its own "nostartup" switch skips it and the menu + games run.
+        val aoe = exeFile.name.lowercase() in setOf("age2_x2.exe", "empires2.exe", "age2_x1.exe")
+        val opts2 = if (aoe && opts?.args?.contains("nostartup") != true) (opts ?: LaunchOptions()).let { it.copy(args = it.args + "nostartup") } else opts
+        val o = opts2 ?: LaunchOptions()
+        launchOpts.set(if (ddraw == null) opts2 else o.copy(env = o.env + ("WINEDLLOVERRIDES" to
             ((o.env["WINEDLLOVERRIDES"] ?: if (isDxvkEnabled(ctx)) "mscoree,mshtml=d;d3d8,d3d9,d3d10core,d3d11,dxgi=n,b;nsiproxy.sys=d" else "mscoree,mshtml=d;nsiproxy.sys=d") + ddraw))))
         try {
-            return run(ctx, listOf(exeFile.absolutePath) + (opts?.args ?: emptyList()), workDir = workDir, onLine = onLine, graphics = true)
+            return run(ctx, listOf(exeFile.absolutePath) + (opts2?.args ?: emptyList()), workDir = workDir, onLine = onLine, graphics = true)
         } finally {
             launchOpts.remove()
             swapDdraw(ctx, null)
