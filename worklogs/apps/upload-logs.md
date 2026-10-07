@@ -39,3 +39,13 @@ Anonymity: props are allowlisted (no serial, boot or account props). Without REA
 
 - PanProbe Run all + `--ez zip true`: deviceFacts `CSF 1.21`, G615 gpu_id, BC emulation decision, queue_group_create / tiler_heap_init layout lines, `aimapper` / mapper backend line, zip < 25 MiB with Mesa debug on (trace logs get capped).
 - PanPlay DXVK game: dxvk-*.log present, logcat capped at 4 MiB, the cloud zip manifest carries deviceFacts.
+
+## Release 1.2.3 upload check (G615, 2026-10-07)
+
+We sent one real upload from the released PanProbe 1.2.3 to the project endpoint. The installed APK matched the release build hash, and the device had no dry-run extra set. Auto-upload was on, and we started the run with the normal Tests > Run all button.
+
+- Run: 36/36 pass, 0 fail, 0 skip. The screen shows "Uploaded (id d8bd0465)" about a minute after the run started.
+- Sent zip: 126,484 bytes and 84 entries (687 KB uncompressed), well under 25 MiB. `tests/panprobe/verify_zip.py` reports OK. The zip holds `driver-load.json` (bundled driver loaded, CSF 1.21), `vulkan-info.json`, `manifest.json`, `system/props.txt`, `logcat.txt` (133 KB), the per-test JSON files and 37 per-test logs. DXVK, Bachata S4 and vkd3d compliance all pass (94, 114 and 100 items).
+- Cloud side, checked read-only: the D1 row (app panprobe, version 1.2.3, code 7) has the matching sha256 and size and `verified_b=1`, and its `extra_json` holds the compliance summary. The KV blob has the same byte count and sha256 as the sent zip.
+- Not captured: the app's own log lines (the AUTOUPLOAD OK line) do not reach adb logcat on this device, so the upload result comes from the on-screen status and the cloud row. The HTTP status of each step was not logged on the device; the app only shows "Uploaded" after its own read-back verification succeeds.
+- Evidence: `validation/driver-remaining/beta17-device/release-upload-1.2.3-*.png` and the downloaded copy `release-upload-1.2.3-sent-d8bd0465.zip`.
