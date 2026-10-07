@@ -71,7 +71,7 @@ android {
         applicationId = "dev.zenithblue.panvktest"
         minSdk = 29
         targetSdk = 36
-        versionCode = 7
+        versionCode = 8
         versionName = "1.2.4-dev"
 
         ndk {
