@@ -209,3 +209,134 @@ Rejected / dropped:
   despite TEXTURE_FEATURES): dropped on request before it was run.
 - RGB565 for BC1: DXVK maps DXGI BC1 to VK BC1_RGBA (alpha), and 565 has no
   sRGB variant, so it would almost never apply. Not implemented.
+
+## Limits pass (2026-10-07, csf-v11/180)
+
+Question: can BCn get smaller or faster, or are we at the limit of the
+G615 feature set? Tools: `device/bc-perf.c` gained `XC_*` entries
+(BCPERF_XC=1: BC encode, CPU decode, CPU re-encode to EAC R11 / EAC RG11 /
+ETC2 RGB8, sampled natively), `--quality` (host-only transcode PSNR),
+`BCPERF_EACENC=1` (GPU EAC R11 encoder `bc-perf-eac.frag`, one fragment
+per block, timed after BC4_UNORM) and a BC1_RGBA punch-through encoder.
+Scripts: `/var/tmp/panvk/xc/{build,run,qdump,verify,apk}.sh`, results
+`/var/tmp/panvk/xc/`. Device 192.168.1.34:37885 under device.lock.
+
+### Native references (G615, 2048x2048 full chain, no raw plane)
+
+| format | mem MiB | E ms | note |
+|---|---|---|---|
+| R8 (AFBC) | 5.8 | 0.250 | tap floor (D = 0.242-0.25 for every format) |
+| RG8 (AFBC) | 11.2 | 0.250 | |
+| RGBA8 (AFBC) | 22.1 | 0.355 | |
+| B10G11R11 (AFBC) | 22.1 | 0.375 | |
+| RGBA16F (AFBC) | 43.2 | 0.91 | |
+| EAC R11 | 3.2 | 0.246 | |
+| EAC RG11 | 5.8 | 0.363 | |
+| ETC2 RGB8 | 3.2 | 0.366 | |
+| ETC2 RGBA8 | 5.8 | 0.368 | |
+| ASTC 4x4 LDR | 5.8 | 0.84 | random payload |
+
+Only EAC R11 samples at the tap floor. ETC2/EAC RG11 are 1.5x and ASTC
+3.4x slower than the AFRC/AFBC shadows in bandwidth-bound sampling.
+
+### Transcode prototypes (BC -> native at upload)
+
+Quality: CPU encoders with wide searches (upper bound for a GPU encoder),
+decoded by the GPU (LOD0 dumps) and by the CPU (`--quality`; both agree
+to 0.3 dB, so the bitstreams are right). 1024x1024 crops of a MiSide frame
+/ the dxcube frame.
+
+| transcode | vs exact BC decode | vs source (BC alone) | E ms | chain MiB (raw + native) |
+|---|---|---|---|---|
+| BC4 -> EAC R11 | 51.1 / 54.7 dB, max 12 | 43.79 / 46.41 (44.55 / 47.05) | 0.246 | 8.5 -> 5.9 |
+| BC5 -> EAC RG11 | 51.3 / 54.7 dB, max 12 | 44.09 / 46.43 (44.87 / 47.06) | 0.363 | 16.6 -> 11.1 |
+| BC1 -> ETC2 RGB8 | 40.2 / 45.1 dB, max 53-56 | 34.03 / 35.91 (35.03 / 35.75) | 0.366 | 10.7 -> 5.9 |
+
+Upload cost, GPU EAC R11 encoder (same search as the CPU one), 2048x2048
+LOD0: 891 ms (52.0 dB vs BC4), fast variant (one multiplier, base +-1)
+126 ms (51.5 dB). Whole chain x4/3: 168-1190 ms, against 3.1-3.6 ms for
+the fragment BC4 decode of the whole chain (50-380x). The ETC2 CPU
+encoder costs 585-940 us per block, 15-80x the EAC one.
+
+Verdict: rejected. BC4 -> EAC R11 saves 2.6 MiB per 2048^2 chain at equal
+speed, but loses 0.6-0.7 dB against the source (the class of the rejected
+4 bpc R8 AFRC, -0.9 dB) and costs 40x+ the decode on upload. BC5 and BC1
+transcodes are 1.5x slower to sample and BC1 -> ETC2 loses 1 dB. BC7/BC3
+-> ASTC 4x4 or ETC2 RGBA8 (8 bpp) would land at the same size as AFRC
+CU16 (8 bpp, -0.5 dB for BC7, no encoder) and sample 1.5-3.4x slower: not
+prototyped. BC6H -> ASTC HDR: no negative values (SF), HDR encoder, ASTC
+sampling 0.84 ms vs 0.33: not prototyped.
+
+### AFRC rate per format (csf-v11/180, done)
+
+Second picture with alpha (`src-mixa`: MiSide RGB + dxcube luma as alpha),
+exact vs AFRC decode, PSNR vs the source:
+
+| format | exact | CU32 | CU24 | CU16 |
+|---|---|---|---|---|
+| BC1 colour | 35.03 | 35.04 | 35.05 | 34.95 |
+| BC2 alpha | 31.35 | 31.35 | 31.33 | |
+| BC3 alpha | 47.14 | 47.05 | 46.44 (max 46 LSB) | |
+| BC7 colour | 38.75 | 38.73 | 38.65 | 38.21 |
+| BC4 (R8) | 44.55 | 43.61 | 41.42 | 37.15 |
+| BC5 (RG8) | 44.87 | 43.72 | 41.34 | 36.89 |
+
+BC1_RGBA punch-through (3-colour mode, 27% transparent texels), vs exact:
+alpha max 34 LSB at CU32, 70 at CU24; opaque colour 52.7 / 46.6 dB; no
+texel crosses the 0.5 alpha-test threshold at either rate.
+
+csf-v11/180: BC1/BC2 shadows default to CU24 (12 bpp); BC3/BC7 keep CU32
+(BC3 alpha -0.7 dB at 24, BC7 is the high-quality format); R8/RG8 stay
+uncompressed (-0.9 to -1.1 dB at the lowest-loss rate). PANVK_BC_AFRC
+still overrides all. Sampling cost does not depend on the rate.
+
+### Raw plane and other memory
+
+- DXVK always sets TRANSFER_SRC|TRANSFER_DST on textures
+  (`d3d11_texture.cpp:38`), so dropping the raw plane for images without
+  TRANSFER_SRC gains nothing for DXVK. UMA: no cheaper memory to move it
+  to. Lazy/sparse: every upload writes it. Kept. Share of the chain after
+  180: BC1 25%, BC3/BC7 33%, BC4 31%, BC5 32%, BC6H UF 19%, SF 11%.
+- AFBC header + alignment overhead: BC4 +0.5 MiB (6%), BC5 +0.6 (4%), BC6H
+  UF +0.7 (3%); AFRC shadows ~0. Not worth losing AFBC bandwidth for.
+- BC6H SF: RGBA16F has no AFRC mode (AFRC covers equal-width <= 12-bit
+  channels; B10G11R11 is mixed-width too) and ASTC HDR has no negative
+  values. 48.5 MiB is the floor on this feature set.
+
+### Speed and upload
+
+- A/B/C (cache friendly): 0.48-0.49 ms for every format, emulated or
+  native: filter-rate bound.
+- D/E (bandwidth bound): BC1/2/3/4/5/7 at 0.244-0.26 ms = the tap floor
+  (native R8 0.25). BC6H UF 0.33 (native B10G11R11 0.375), BC6H SF 0.72
+  (native RGBA16F 0.91). Nothing left on this hardware.
+- Upload: fragment decode 3-6.8 ms per 2048^2 chain vs plain RGBA8 copy
+  2.4-3.7 ms vs native ETC2 1.0 ms.
+- NFS (nfs-23197 perf, 160 s): CPU time in BC paths 208 ms (0.11% of
+  on-CPU time, 85% in the first 70 s): 112 ms recording decode passes
+  (21 ms of it first-use meta pipeline compile), 70 ms
+  `panvk_bc_shadow_info` -> `debug_get_num_option` -> Android property
+  lookups (fixed by csf-v11/171's per-name cache), 34 ms barrier scan in
+  `cmd_bc_decode_zero_initialized`. GPU decode time is not in the CPU
+  profile.
+
+### Final (G615, csf-v11/150 + 151 + 180)
+
+| format | mem MiB 151 -> 180 | E ms | best measured alternative (rejected) | native-format reference |
+|---|---|---|---|---|
+| BC1 | 13.3 -> 10.7 | 0.245-0.255 | CU16 8.0 (opt-in) / ETC2 xcode 5.9 | ETC2 RGB8 3.2, E 0.366 |
+| BC2 | 16.0 -> 13.3 | 0.253 | | |
+| BC3 | 16.0 | 0.26 | CU24 13.3 (alpha -0.7 dB) | ETC2 RGBA8 5.8, E 0.368 |
+| BC4 | 8.5 | 0.244 | EAC R11 xcode 5.9 | EAC R11 3.2, E 0.246 |
+| BC5 | 16.6 | 0.25 | RG8 AFRC 10.7 / EAC RG11 xcode 11.1 | EAC RG11 5.8, E 0.363 |
+| BC6H UF | 27.4 | 0.33 | (ASTC HDR, not prototyped) | ASTC 5.8, E 0.84 |
+| BC6H SF | 48.5 | 0.72 | none | RGBA16F 43.2, E 0.91 |
+| BC7 | 16.0 | 0.26 | CU24 13.3 (-0.1 dB) | ASTC 4x4 5.8, E 0.84 |
+
+Proof: bc_decode + bc_verify (device binary, PANVK_BC_AFRC=0,
+BC_BC6U_TOL=0.0157) 16/16, BC_DEVICE_FAILS=0. panvk-test APK
+(`dev.zenithblue.panvktest.bcperf`, bundled dist-xc180, BuildID
+`4be67989`, series 001-154 + 180): PanProbe autorun all 37/37, bc_decode
+BC_DEVICE_FAILS=0, bc_perf BC1 10932 KiB / BC2 13664 KiB. Default-env
+bc_verify fails the 2 LSB tolerance on the RGBA8 formats (AFRC on random
+blocks, BC1/BC2 max 54-70 LSB now), as expected.

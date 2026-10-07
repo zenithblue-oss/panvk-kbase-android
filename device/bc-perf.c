@@ -18,7 +18,10 @@
  * compression flags for the formats the emulation could decode to.
  *
  * usage: bc-perf <icd.so> [format-substring]
- * env:   BCPERF_SIZE (default 2048)
+ *        bc-perf --quality (host only: transcode quality, needs BCPERF_SRC)
+ * env:   BCPERF_SIZE (default 2048), BCPERF_SRC (RGBA8 picture), BCPERF_DUMP
+ *        (dir for LOD0 dumps), BCPERF_XC=1 (XC_* transcode entries),
+ *        BCPERF_EACENC=1 (GPU EAC encode cost after BC4_UNORM)
  * Output: "PROBE ..." and "PERF ..." lines, then "RESULT DONE".
  */
 #include <dlfcn.h>
@@ -75,6 +78,10 @@ static const struct {
    {VK_FORMAT_B10G11R11_UFLOAT_PACK32, "REF_B10G11R11"},
    {VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK, "REF_ETC2_RGBA8"},
    {VK_FORMAT_ASTC_4x4_UNORM_BLOCK, "REF_ASTC4x4"},
+   /* transcode probe: BC encode, CPU decode, native re-encode (xc_block) */
+   {VK_FORMAT_EAC_R11_UNORM_BLOCK, "XC_BC4_EAC_R11"},
+   {VK_FORMAT_EAC_R11G11_UNORM_BLOCK, "XC_BC5_EAC_RG11"},
+   {VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK, "XC_BC1_ETC2_RGB8"},
 };
 
 static const struct {
@@ -133,6 +140,9 @@ static uint32_t size_px = 2048;
 /* BCPERF_SRC: raw RGBA8 size_px x size_px image used instead of the
  * procedural content (for quality checks on real pictures). */
 static uint8_t *src_rgba;
+/* XC_* ETC1-mode base search: +-1 per channel with BCPERF_SRC (quality),
+ * rounded base only otherwise (sampling cost, 27x faster to encode). */
+static int xc_full;
 static double ts_period_ns = 1.0;
 
 /* ---------------------------------------------------------------- content */
@@ -238,6 +248,63 @@ enc_bc1(float px[16][4], uint8_t *o)
          }
          idx |= (uint32_t)best << (2 * t);
       }
+   }
+   o[0] = c0;
+   o[1] = c0 >> 8;
+   o[2] = c1;
+   o[3] = c1 >> 8;
+   memcpy(o + 4, &idx, 4);
+}
+
+/* BC1 with 1-bit alpha (BC1_RGBA): 3-colour mode with index 3 transparent
+ * when any texel has alpha < 0.5, else enc_bc1(). */
+static void
+enc_bc1a(float px[16][4], uint8_t *o)
+{
+   float lo[3] = {1, 1, 1}, hi[3] = {0, 0, 0};
+   int cut = 0;
+   for (int t = 0; t < 16; t++) {
+      if (px[t][3] < 0.5f) {
+         cut = 1;
+         continue;
+      }
+      for (int c = 0; c < 3; c++) {
+         lo[c] = fminf(lo[c], px[t][c]);
+         hi[c] = fmaxf(hi[c], px[t][c]);
+      }
+   }
+   if (!cut) {
+      enc_bc1(px, o);
+      return;
+   }
+   if (lo[0] > hi[0]) /* all transparent */
+      lo[0] = lo[1] = lo[2] = hi[0] = hi[1] = hi[2] = 0;
+   uint32_t c0 = pack565(lo), c1 = pack565(hi), idx = 0;
+   if (c0 > c1) {
+      uint32_t t = c0;
+      c0 = c1;
+      c1 = t;
+   }
+   float e0[3], e1[3];
+   unpack565(c0, e0);
+   unpack565(c1, e1);
+   for (int t = 0; t < 16; t++) {
+      int best = 3;
+      if (px[t][3] >= 0.5f) {
+         float bd = 1e9f;
+         for (int k = 0; k < 3; k++) {
+            float d = 0;
+            for (int c = 0; c < 3; c++) {
+               const float p = k == 0 ? e0[c] : k == 1 ? e1[c] : (e0[c] + e1[c]) / 2;
+               d += (px[t][c] - p) * (px[t][c] - p);
+            }
+            if (d < bd) {
+               bd = d;
+               best = k;
+            }
+         }
+      }
+      idx |= (uint32_t)best << (2 * t);
    }
    o[0] = c0;
    o[1] = c0 >> 8;
@@ -368,6 +435,679 @@ enc_bc6(float px[16][4], int is_signed, uint8_t *o)
       put_bits(o, &pos, idx[t], 4);
 }
 
+/* ---------------------------------------- BC -> ETC2/EAC transcode probe
+ * CPU prototypes of the "transcode at upload" option: decode the BC block,
+ * re-encode it into the native ETC2/EAC format the GPU samples directly.
+ * Quality-oriented searches (they bound what a GPU encoder could reach).
+ * Pixel arrays are row-major (t = y * 4 + x); ETC/EAC index order is
+ * column-major (i = x * 4 + y). */
+
+static int
+clampi(int v, int lo, int hi)
+{
+   return v < lo ? lo : v > hi ? hi : v;
+}
+
+static uint64_t
+rd_be64(const uint8_t *b)
+{
+   uint64_t v = 0;
+   for (int i = 0; i < 8; i++)
+      v = v << 8 | b[i];
+   return v;
+}
+
+static void
+wr_be64(uint8_t *b, uint64_t v)
+{
+   for (int i = 7; i >= 0; i--, v >>= 8)
+      b[i] = (uint8_t)v;
+}
+
+/* BC4 unorm decode to exact palette values (0..1). */
+static void
+dec_bc4f(const uint8_t *b, float out[16])
+{
+   float p[8] = {b[0], b[1]};
+   for (int k = 2; k < 8; k++)
+      p[k] = b[0] > b[1] ? ((8 - k) * b[0] + (k - 1) * b[1]) / 7.0f
+             : k < 6     ? ((6 - k) * b[0] + (k - 1) * b[1]) / 5.0f
+             : k == 6    ? 0.0f
+                         : 255.0f;
+   uint64_t bits = 0;
+   for (int i = 0; i < 6; i++)
+      bits |= (uint64_t)b[2 + i] << (8 * i);
+   for (int t = 0; t < 16; t++)
+      out[t] = p[(bits >> (3 * t)) & 7] / 255.0f;
+}
+
+/* BC1 decode to 8-bit RGB (565 bit replication, rounded thirds). */
+static void
+dec_bc1i(const uint8_t *b, int out[16][3])
+{
+   const uint32_t c0 = b[0] | b[1] << 8, c1 = b[2] | b[3] << 8;
+   int p[4][3];
+   for (int k = 0; k < 2; k++) {
+      const uint32_t c = k ? c1 : c0;
+      const int r = (c >> 11) & 31, g = (c >> 5) & 63, bl = c & 31;
+      p[k][0] = r << 3 | r >> 2;
+      p[k][1] = g << 2 | g >> 4;
+      p[k][2] = bl << 3 | bl >> 2;
+   }
+   for (int c = 0; c < 3; c++) {
+      if (c0 > c1) {
+         p[2][c] = (2 * p[0][c] + p[1][c] + 1) / 3;
+         p[3][c] = (p[0][c] + 2 * p[1][c] + 1) / 3;
+      } else {
+         p[2][c] = (p[0][c] + p[1][c] + 1) / 2;
+         p[3][c] = 0;
+      }
+   }
+   const uint32_t idx = b[4] | b[5] << 8 | b[6] << 16 | (uint32_t)b[7] << 24;
+   for (int t = 0; t < 16; t++)
+      memcpy(out[t], p[(idx >> (2 * t)) & 3], sizeof(out[t]));
+}
+
+static const int8_t eac_tab[16][8] = {
+   {-3, -6, -9, -15, 2, 5, 8, 14}, {-3, -7, -10, -13, 2, 6, 9, 12},
+   {-2, -5, -8, -13, 1, 4, 7, 12}, {-2, -4, -6, -13, 1, 3, 5, 12},
+   {-3, -6, -8, -12, 2, 5, 7, 11}, {-3, -7, -9, -11, 2, 6, 8, 10},
+   {-4, -7, -8, -11, 3, 6, 7, 10}, {-3, -5, -8, -11, 2, 4, 7, 10},
+   {-2, -6, -8, -10, 1, 5, 7, 9},  {-2, -5, -8, -10, 1, 4, 7, 9},
+   {-2, -4, -8, -10, 1, 3, 7, 9},  {-2, -5, -7, -10, 1, 4, 6, 9},
+   {-3, -4, -7, -10, 2, 3, 6, 9},  {-1, -2, -3, -10, 0, 1, 2, 9},
+   {-4, -6, -8, -9, 3, 5, 7, 8},   {-3, -5, -7, -9, 2, 4, 6, 8},
+};
+
+/* EAC R11 unsigned decode to 0..2047, row-major. */
+static void
+dec_eac11(const uint8_t *b, int out[16])
+{
+   const uint64_t v = rd_be64(b);
+   const int base = v >> 56, mul = (v >> 52) & 15, tab = (v >> 48) & 15;
+   for (int i = 0; i < 16; i++) {
+      const int m = eac_tab[tab][(v >> (45 - 3 * i)) & 7];
+      out[(i & 3) * 4 + (i >> 2)] =
+         clampi(base * 8 + 4 + (mul ? m * mul * 8 : m), 0, 2047);
+   }
+}
+
+/* EAC R11 unsigned encode of 11-bit targets (row-major). Searches every
+ * table, the multipliers around the block range and bases around the
+ * centre; returns the squared error. */
+static uint64_t
+enc_eac11(const int tg[16], uint8_t *o)
+{
+   int lo = 2047, hi = 0;
+   for (int t = 0; t < 16; t++) {
+      lo = tg[t] < lo ? tg[t] : lo;
+      hi = tg[t] > hi ? tg[t] : hi;
+   }
+   uint64_t best = UINT64_MAX, bv = 0;
+   for (int tab = 0; tab < 16; tab++) {
+      int tmin = 0, tmax = 0;
+      for (int k = 0; k < 8; k++) {
+         tmin = eac_tab[tab][k] < tmin ? eac_tab[tab][k] : tmin;
+         tmax = eac_tab[tab][k] > tmax ? eac_tab[tab][k] : tmax;
+      }
+      const int m0 = (hi - lo) / ((tmax - tmin) * 8);
+      for (int mul = m0 - 1; mul <= m0 + 2; mul++) {
+         if (mul < 0 || mul > 15)
+            continue;
+         const int mm = mul ? mul * 8 : 1;
+         const int c = ((lo + hi) / 2 - 4 - (tmax + tmin) * mm / 2) / 8;
+         for (int base = c - 3; base <= c + 3; base++) {
+            if (base < 0 || base > 255)
+               continue;
+            uint64_t err = 0, idx = 0;
+            for (int i = 0; i < 16 && err < best; i++) {
+               const int want = tg[(i & 3) * 4 + (i >> 2)];
+               int bk = 0, bd = INT32_MAX;
+               for (int k = 0; k < 8; k++) {
+                  const int d =
+                     want - clampi(base * 8 + 4 + eac_tab[tab][k] * mm, 0, 2047);
+                  if (d * d < bd) {
+                     bd = d * d;
+                     bk = k;
+                  }
+               }
+               err += bd;
+               idx |= (uint64_t)bk << (45 - 3 * i);
+            }
+            if (err < best) {
+               best = err;
+               bv = (uint64_t)base << 56 | (uint64_t)mul << 52 |
+                    (uint64_t)tab << 48 | idx;
+            }
+         }
+      }
+   }
+   wr_be64(o, bv);
+   return best;
+}
+
+static const int etc1_tab[8][2] = {{2, 8},   {5, 17},  {9, 29},  {13, 42},
+                                   {18, 60}, {24, 80}, {33, 106}, {47, 183}};
+static const int etc2_dist[8] = {3, 6, 11, 16, 23, 32, 41, 64};
+
+static int
+ext4(int c)
+{
+   return c * 17;
+}
+
+static int
+ext5(int c)
+{
+   return c << 3 | c >> 2;
+}
+
+static int
+sx3(int v)
+{
+   return v & 4 ? v - 8 : v;
+}
+
+/* ETC2 RGB8 decode (all five modes), row-major 8-bit RGB. */
+static void
+dec_etc2(const uint8_t *b, int out[16][3])
+{
+   const uint64_t v = rd_be64(b);
+#define BITS(hi, n) ((int)((v >> ((hi) - (n) + 1)) & ((1u << (n)) - 1)))
+   const int diff = BITS(33, 1), flip = BITS(32, 1);
+   int pal[4][3], mode = 0; /* 0 etc1, 1 T, 2 H, 3 planar */
+   if (diff) {
+      const int r = BITS(63, 5) + sx3(BITS(58, 3)), g = BITS(55, 5) + sx3(BITS(50, 3)),
+                bl = BITS(47, 5) + sx3(BITS(42, 3));
+      mode = (r < 0 || r > 31) ? 1 : (g < 0 || g > 31) ? 2 : (bl < 0 || bl > 31) ? 3 : 0;
+   }
+   if (mode == 3) {
+      const int o[3] = {BITS(62, 6), BITS(56, 1) << 6 | BITS(54, 6),
+                        BITS(48, 1) << 5 | BITS(44, 2) << 3 | BITS(41, 3)};
+      const int hh[3] = {BITS(38, 5) << 1 | BITS(32, 1), BITS(31, 7), BITS(24, 6)};
+      const int vv[3] = {BITS(18, 6), BITS(12, 7), BITS(5, 6)};
+      for (int c = 0; c < 3; c++) {
+         const int O = c == 1 ? o[c] << 1 | o[c] >> 6 : o[c] << 2 | o[c] >> 4;
+         const int H = c == 1 ? hh[c] << 1 | hh[c] >> 6 : hh[c] << 2 | hh[c] >> 4;
+         const int V = c == 1 ? vv[c] << 1 | vv[c] >> 6 : vv[c] << 2 | vv[c] >> 4;
+         for (int t = 0; t < 16; t++)
+            out[t][c] = clampi(((t & 3) * (H - O) + (t >> 2) * (V - O) + 4 * O + 2) >> 2,
+                               0, 255);
+      }
+      return;
+   }
+   if (mode == 1 || mode == 2) {
+      int c1[3], c2[3], di;
+      if (mode == 1) {
+         c1[0] = BITS(60, 2) << 2 | BITS(57, 2);
+         c1[1] = BITS(55, 4);
+         c1[2] = BITS(51, 4);
+         c2[0] = BITS(47, 4);
+         c2[1] = BITS(43, 4);
+         c2[2] = BITS(39, 4);
+         di = BITS(35, 2) << 1 | BITS(32, 1);
+      } else {
+         c1[0] = BITS(62, 4);
+         c1[1] = BITS(58, 3) << 1 | BITS(52, 1);
+         c1[2] = BITS(51, 1) << 3 | BITS(49, 3);
+         c2[0] = BITS(46, 4);
+         c2[1] = BITS(42, 4);
+         c2[2] = BITS(38, 4);
+         di = BITS(34, 1) << 2 | BITS(32, 1) << 1 |
+              ((c1[0] << 8 | c1[1] << 4 | c1[2]) >= (c2[0] << 8 | c2[1] << 4 | c2[2]));
+      }
+      const int d = etc2_dist[di];
+      for (int c = 0; c < 3; c++) {
+         const int a = ext4(c1[c]), e = ext4(c2[c]);
+         if (mode == 1) {
+            pal[0][c] = a;
+            pal[1][c] = clampi(e + d, 0, 255);
+            pal[2][c] = e;
+            pal[3][c] = clampi(e - d, 0, 255);
+         } else {
+            pal[0][c] = clampi(a + d, 0, 255);
+            pal[1][c] = clampi(a - d, 0, 255);
+            pal[2][c] = clampi(e + d, 0, 255);
+            pal[3][c] = clampi(e - d, 0, 255);
+         }
+      }
+      for (int i = 0; i < 16; i++)
+         memcpy(out[(i & 3) * 4 + (i >> 2)],
+                pal[((v >> (i + 16)) & 1) << 1 | ((v >> i) & 1)], sizeof(pal[0]));
+      return;
+   }
+   int base[2][3];
+   for (int c = 0; c < 3; c++) {
+      if (diff) {
+         const int b5 = BITS(63 - 8 * c, 5);
+         base[0][c] = ext5(b5);
+         base[1][c] = ext5(b5 + sx3(BITS(58 - 8 * c, 3)));
+      } else {
+         base[0][c] = ext4(BITS(63 - 8 * c, 4));
+         base[1][c] = ext4(BITS(59 - 8 * c, 4));
+      }
+   }
+   const int tb[2] = {BITS(39, 3), BITS(36, 3)};
+   for (int i = 0; i < 16; i++) {
+      const int x = i >> 2, y = i & 3, s = flip ? y >= 2 : x >= 2;
+      const int msb = (v >> (i + 16)) & 1, lsb = (v >> i) & 1;
+      const int m = (lsb ? etc1_tab[tb[s]][1] : etc1_tab[tb[s]][0]) * (msb ? -1 : 1);
+      for (int c = 0; c < 3; c++)
+         out[y * 4 + x][c] = clampi(base[s][c] + m, 0, 255);
+   }
+#undef BITS
+}
+
+static int
+sqd3(const int a[3], const int b[3])
+{
+   int e = 0;
+   for (int c = 0; c < 3; c++)
+      e += (a[c] - b[c]) * (a[c] - b[c]);
+   return e;
+}
+
+/* Best of a 4-entry palette per pixel; fills 2-bit indices (column-major
+ * bit layout) and returns the squared error. */
+static int
+pal_fit(const int px[16][3], int pal[4][3], uint64_t *idx, int limit)
+{
+   int err = 0;
+   *idx = 0;
+   for (int i = 0; i < 16 && err < limit; i++) {
+      const int *p = px[(i & 3) * 4 + (i >> 2)];
+      int bk = 0, bd = INT32_MAX;
+      for (int k = 0; k < 4; k++) {
+         const int d = sqd3(p, pal[k]);
+         if (d < bd) {
+            bd = d;
+            bk = k;
+         }
+      }
+      err += bd;
+      *idx |= (uint64_t)(bk >> 1) << (i + 16) | (uint64_t)(bk & 1) << i;
+   }
+   return err;
+}
+
+/* Find values for the free bits (mask) so that the decoder picks `mode`. */
+static int
+etc2_force_mode(uint64_t *v, uint64_t freemask, int mode)
+{
+   int nfree = 0, pos[8];
+   for (int b = 63; b >= 32; b--)
+      if (freemask >> b & 1)
+         pos[nfree++] = b;
+   for (unsigned s = 0; s < (1u << nfree); s++) {
+      uint64_t w = *v & ~freemask;
+      for (int k = 0; k < nfree; k++)
+         if (s >> k & 1)
+            w |= 1ull << pos[k];
+      const int r = (int)(w >> 59 & 31) + sx3(w >> 56 & 7),
+                g = (int)(w >> 51 & 31) + sx3(w >> 48 & 7),
+                bl = (int)(w >> 43 & 31) + sx3(w >> 40 & 7);
+      const int m = (r < 0 || r > 31) ? 1 : (g < 0 || g > 31) ? 2 : (bl < 0 || bl > 31) ? 3 : 0;
+      if (m == mode) {
+         *v = w;
+         return 1;
+      }
+   }
+   return 0;
+}
+
+/* ETC2 RGB8 encode: ETC1 individual/differential (both flips), planar
+ * (least squares), T and H (two colour groups split along luma). */
+static int
+enc_etc2(const int px[16][3], uint8_t *o)
+{
+   int best = INT32_MAX;
+   uint64_t bv = 0;
+
+   /* ETC1 modes */
+   for (int flip = 0; flip < 2; flip++) {
+      int sub_err[2][2][27], sub_tab[2][2][27], sub_base[2][2][27][3];
+      uint64_t sub_idx[2][2][27];
+      for (int s = 0; s < 2; s++) {
+         int avg[3] = {0, 0, 0};
+         for (int t = 0; t < 16; t++) {
+            const int x = t & 3, y = t >> 2;
+            if ((flip ? y >= 2 : x >= 2) == s)
+               for (int c = 0; c < 3; c++)
+                  avg[c] += px[t][c];
+         }
+         for (int dm = 0; dm < 2; dm++) { /* 0: 4-bit, 1: 5-bit */
+            int q[3];
+            for (int c = 0; c < 3; c++)
+               q[c] = dm ? (avg[c] * 31 + 255 * 4) / (255 * 8)
+                         : (avg[c] + 68) / (17 * 8);
+            for (int n = 0; n < 27; n++) {
+               int bq[3] = {q[0] + n % 3 - 1, q[1] + n / 3 % 3 - 1, q[2] + n / 9 - 1};
+               int b8[3], ok = 1;
+               for (int c = 0; c < 3; c++) {
+                  ok &= bq[c] >= 0 && bq[c] <= (dm ? 31 : 15);
+                  b8[c] = dm ? ext5(clampi(bq[c], 0, 31)) : ext4(clampi(bq[c], 0, 15));
+               }
+               sub_err[s][dm][n] = INT32_MAX;
+               memcpy(sub_base[s][dm][n], bq, sizeof(bq));
+               if (!ok || (!xc_full && n != 13))
+                  continue;
+               for (int tb = 0; tb < 8; tb++) {
+                  int e = 0;
+                  uint64_t idx = 0;
+                  for (int t = 0; t < 16; t++) {
+                     const int x = t & 3, y = t >> 2, i = x * 4 + y;
+                     if ((flip ? y >= 2 : x >= 2) != s)
+                        continue;
+                     int bd = INT32_MAX, bk = 0;
+                     for (int k = 0; k < 4; k++) {
+                        const int m = etc1_tab[tb][k & 1] * (k & 2 ? -1 : 1);
+                        const int cc[3] = {clampi(b8[0] + m, 0, 255),
+                                           clampi(b8[1] + m, 0, 255),
+                                           clampi(b8[2] + m, 0, 255)};
+                        const int d = sqd3(px[t], cc);
+                        if (d < bd) {
+                           bd = d;
+                           bk = k;
+                        }
+                     }
+                     e += bd;
+                     idx |= (uint64_t)(bk >> 1) << (i + 16) | (uint64_t)(bk & 1) << i;
+                  }
+                  if (e < sub_err[s][dm][n]) {
+                     sub_err[s][dm][n] = e;
+                     sub_tab[s][dm][n] = tb;
+                     sub_idx[s][dm][n] = idx;
+                  }
+               }
+            }
+         }
+      }
+      for (int dm = 0; dm < 2; dm++)
+         for (int a = 0; a < 27; a++)
+            for (int b = 0; b < 27; b++) {
+               if (sub_err[0][dm][a] == INT32_MAX || sub_err[1][dm][b] == INT32_MAX)
+                  continue;
+               const int e = sub_err[0][dm][a] + sub_err[1][dm][b];
+               if (e >= best)
+                  continue;
+               const int *b0 = sub_base[0][dm][a], *b1 = sub_base[1][dm][b];
+               uint64_t w = (uint64_t)sub_tab[0][dm][a] << 37 |
+                            (uint64_t)sub_tab[1][dm][b] << 34 | (uint64_t)dm << 33 |
+                            (uint64_t)flip << 32 | sub_idx[0][dm][a] | sub_idx[1][dm][b];
+               int ok = 1;
+               for (int c = 0; c < 3; c++) {
+                  if (dm) {
+                     const int d = b1[c] - b0[c];
+                     ok &= d >= -4 && d <= 3;
+                     w |= (uint64_t)b0[c] << (59 - 8 * c) | (uint64_t)(d & 7) << (56 - 8 * c);
+                  } else {
+                     w |= (uint64_t)b0[c] << (60 - 8 * c) | (uint64_t)b1[c] << (56 - 8 * c);
+                  }
+               }
+               if (ok) {
+                  best = e;
+                  bv = w;
+               }
+            }
+   }
+
+   /* planar: per-channel least squares, then +-1 around the rounding */
+   {
+      uint64_t w = 1ull << 33;
+      int e = 0;
+      for (int c = 0; c < 3; c++) {
+         float sum = 0, sx = 0, sy = 0;
+         for (int t = 0; t < 16; t++) {
+            sum += px[t][c];
+            sx += ((t & 3) - 1.5f) * px[t][c];
+            sy += ((t >> 2) - 1.5f) * px[t][c];
+         }
+         const float bx = sx / 20.0f, by = sy / 20.0f, a = sum / 16 - 1.5f * (bx + by);
+         const float f[3] = {a, a + 4 * bx, a + 4 * by};
+         const int bits = c == 1 ? 7 : 6, mx = (1 << bits) - 1;
+         int q[3], bestc = INT32_MAX, bq[3] = {0, 0, 0};
+         for (int k = 0; k < 3; k++)
+            q[k] = (int)lrintf(f[k] * mx / 255.0f);
+         for (int n = 0; n < 27; n++) {
+            const int qq[3] = {clampi(q[0] + n % 3 - 1, 0, mx),
+                               clampi(q[1] + n / 3 % 3 - 1, 0, mx),
+                               clampi(q[2] + n / 9 - 1, 0, mx)};
+            const int O = bits == 7 ? qq[0] << 1 | qq[0] >> 6 : qq[0] << 2 | qq[0] >> 4;
+            const int H = bits == 7 ? qq[1] << 1 | qq[1] >> 6 : qq[1] << 2 | qq[1] >> 4;
+            const int V = bits == 7 ? qq[2] << 1 | qq[2] >> 6 : qq[2] << 2 | qq[2] >> 4;
+            int ec = 0;
+            for (int t = 0; t < 16; t++) {
+               const int d = px[t][c] - clampi(((t & 3) * (H - O) + (t >> 2) * (V - O) +
+                                                4 * O + 2) >> 2, 0, 255);
+               ec += d * d;
+            }
+            if (ec < bestc) {
+               bestc = ec;
+               memcpy(bq, qq, sizeof(bq));
+            }
+         }
+         e += bestc;
+         if (c == 0)
+            w |= (uint64_t)bq[0] << 57 | (uint64_t)(bq[1] >> 1) << 34 |
+                 (uint64_t)(bq[1] & 1) << 32 | (uint64_t)bq[2] << 13;
+         else if (c == 1)
+            w |= (uint64_t)(bq[0] >> 6) << 56 | (uint64_t)(bq[0] & 63) << 49 |
+                 (uint64_t)bq[1] << 25 | (uint64_t)bq[2] << 6;
+         else
+            w |= (uint64_t)(bq[0] >> 5) << 48 | (uint64_t)(bq[0] >> 3 & 3) << 43 |
+                 (uint64_t)(bq[0] & 7) << 39 | (uint64_t)bq[1] << 19 | bq[2];
+      }
+      if (e < best && etc2_force_mode(&w, 1ull << 63 | 1ull << 55 | 7ull << 45 | 1ull << 42, 3)) {
+         best = e;
+         bv = w;
+      }
+   }
+
+   /* T and H: distinct colours sorted by luma, split at every point */
+   int dc[16][3], dn = 0, cnt[16] = {0};
+   for (int t = 0; t < 16; t++) {
+      int k = 0;
+      while (k < dn && sqd3(dc[k], px[t]))
+         k++;
+      if (k == dn)
+         memcpy(dc[dn++], px[t], sizeof(dc[0]));
+      cnt[k]++;
+   }
+   for (int a = 1; a < dn; a++)
+      for (int b = a; b > 0 && dc[b][0] * 2 + dc[b][1] * 4 + dc[b][2] <
+                                  dc[b - 1][0] * 2 + dc[b - 1][1] * 4 + dc[b - 1][2];
+           b--) {
+         int tmp[3], tc = cnt[b];
+         memcpy(tmp, dc[b], sizeof(tmp));
+         memcpy(dc[b], dc[b - 1], sizeof(tmp));
+         memcpy(dc[b - 1], tmp, sizeof(tmp));
+         cnt[b] = cnt[b - 1];
+         cnt[b - 1] = tc;
+      }
+   for (int split = 1; split < dn; split++) {
+      int m[2][3] = {{0}}, n[2] = {0, 0};
+      for (int k = 0; k < dn; k++)
+         for (int c = 0; c < 3; c++)
+            m[k >= split][c] += dc[k][c] * cnt[k];
+      for (int k = 0; k < dn; k++)
+         n[k >= split] += cnt[k];
+      int q[2][3];
+      for (int g = 0; g < 2; g++)
+         for (int c = 0; c < 3; c++)
+            q[g][c] = clampi((m[g][c] + n[g] * 17 / 2) / (n[g] * 17), 0, 15);
+      for (int ln = 0; ln < 9; ln++) {
+         int c1[3], c2[3];
+         for (int c = 0; c < 3; c++) {
+            c1[c] = clampi(q[0][c] + ln % 3 - 1, 0, 15);
+            c2[c] = clampi(q[1][c] + ln / 3 - 1, 0, 15);
+         }
+         for (int di = 0; di < 8; di++) {
+            const int d = etc2_dist[di];
+            int pal[4][3];
+            uint64_t idx;
+            /* H: lsb of the distance index is the colour order */
+            const int *h1 = c1, *h2 = c2;
+            const int o1 = c1[0] << 8 | c1[1] << 4 | c1[2], o2 = c2[0] << 8 | c2[1] << 4 | c2[2];
+            if ((o1 >= o2) != (di & 1)) {
+               h1 = c2;
+               h2 = c1;
+            }
+            if (o1 != o2 || (di & 1)) {
+               for (int c = 0; c < 3; c++) {
+                  pal[0][c] = clampi(ext4(h1[c]) + d, 0, 255);
+                  pal[1][c] = clampi(ext4(h1[c]) - d, 0, 255);
+                  pal[2][c] = clampi(ext4(h2[c]) + d, 0, 255);
+                  pal[3][c] = clampi(ext4(h2[c]) - d, 0, 255);
+               }
+               const int e = pal_fit(px, pal, &idx, best);
+               if (e < best) {
+                  uint64_t w = (uint64_t)h1[0] << 59 | (uint64_t)(h1[1] >> 1) << 56 |
+                               (uint64_t)(h1[1] & 1) << 52 | (uint64_t)(h1[2] >> 3) << 51 |
+                               (uint64_t)(h1[2] & 7) << 47 | (uint64_t)h2[0] << 43 |
+                               (uint64_t)h2[1] << 39 | (uint64_t)h2[2] << 35 |
+                               (uint64_t)(di >> 2) << 34 | 1ull << 33 |
+                               (uint64_t)(di >> 1 & 1) << 32 | idx;
+                  if (etc2_force_mode(&w, 1ull << 63 | 7ull << 53 | 1ull << 50, 2)) {
+                     best = e;
+                     bv = w;
+                  }
+               }
+            }
+            /* T: either group as the single paint colour */
+            for (int sw = 0; sw < 2; sw++) {
+               const int *t1 = sw ? c2 : c1, *t2 = sw ? c1 : c2;
+               for (int c = 0; c < 3; c++) {
+                  pal[0][c] = ext4(t1[c]);
+                  pal[1][c] = clampi(ext4(t2[c]) + d, 0, 255);
+                  pal[2][c] = ext4(t2[c]);
+                  pal[3][c] = clampi(ext4(t2[c]) - d, 0, 255);
+               }
+               const int e = pal_fit(px, pal, &idx, best);
+               if (e < best) {
+                  uint64_t w = (uint64_t)(t1[0] >> 2) << 59 | (uint64_t)(t1[0] & 3) << 56 |
+                               (uint64_t)t1[1] << 52 | (uint64_t)t1[2] << 48 |
+                               (uint64_t)t2[0] << 44 | (uint64_t)t2[1] << 40 |
+                               (uint64_t)t2[2] << 36 | (uint64_t)(di >> 1) << 34 |
+                               1ull << 33 | (uint64_t)(di & 1) << 32 | idx;
+                  if (etc2_force_mode(&w, 7ull << 61 | 1ull << 58, 1)) {
+                     best = e;
+                     bv = w;
+                  }
+               }
+            }
+         }
+      }
+   }
+   wr_be64(o, bv);
+   return best;
+}
+
+/* Transcode one block of the XC_* entries: BC encode the texels, decode,
+ * re-encode natively. */
+static void
+xc_block(VkFormat f, float px[16][4], uint8_t *o)
+{
+   uint8_t bc[8];
+   if (f == VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK) {
+      int p[16][3];
+      enc_bc1(px, bc);
+      dec_bc1i(bc, p);
+      enc_etc2(p, o);
+      return;
+   }
+   const int nch = f == VK_FORMAT_EAC_R11G11_UNORM_BLOCK ? 2 : 1;
+   for (int ch = 0; ch < nch; ch++) {
+      float v[16];
+      int tg[16];
+      enc_bc4(px, ch, 0, bc);
+      dec_bc4f(bc, v);
+      for (int t = 0; t < 16; t++)
+         tg[t] = (int)lrintf(v[t] * 2047.0f);
+      enc_eac11(tg, o + 8 * ch);
+   }
+}
+
+static int
+is_xc(VkFormat f)
+{
+   return f == VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK || f == VK_FORMAT_EAC_R11_UNORM_BLOCK ||
+          f == VK_FORMAT_EAC_R11G11_UNORM_BLOCK;
+}
+
+/* Host-only quality check (no ICD): bc-perf --quality, BCPERF_SRC +
+ * BCPERF_SIZE. LOD0 per block: BC decode vs transcoded decode vs source. */
+static int
+quality_main(void)
+{
+   const VkFormat xf[3] = {VK_FORMAT_EAC_R11_UNORM_BLOCK, VK_FORMAT_EAC_R11G11_UNORM_BLOCK,
+                           VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK};
+   const char *xn[3] = {"BC4->EAC_R11", "BC5->EAC_RG11", "BC1->ETC2_RGB8"};
+   for (int k = 0; k < 3; k++) {
+      double e_bc = 0, e_xc = 0, e_x = 0;
+      int mx_x = 0, mx_bc = 0;
+      size_t n = 0;
+      struct timespec t0, t1;
+      double enc_s = 0;
+      for (uint32_t by = 0; by < size_px / 4; by++)
+         for (uint32_t bx = 0; bx < size_px / 4; bx++) {
+            float px[16][4];
+            for (int t = 0; t < 16; t++)
+               texel(bx * 4 + t % 4, by * 4 + t / 4, size_px, px[t]);
+            uint8_t bc[8], o[16];
+            float ref[16][3], got[16][3];
+            int nch = k == 2 ? 3 : k + 1;
+            if (k == 2) {
+               int p[16][3], q[16][3];
+               enc_bc1(px, bc);
+               dec_bc1i(bc, p);
+               clock_gettime(CLOCK_MONOTONIC, &t0);
+               enc_etc2(p, o);
+               clock_gettime(CLOCK_MONOTONIC, &t1);
+               dec_etc2(o, q);
+               for (int t = 0; t < 16; t++)
+                  for (int c = 0; c < 3; c++) {
+                     ref[t][c] = p[t][c];
+                     got[t][c] = q[t][c];
+                  }
+            } else {
+               clock_gettime(CLOCK_MONOTONIC, &t0);
+               xc_block(xf[k], px, o);
+               clock_gettime(CLOCK_MONOTONIC, &t1);
+               for (int c = 0; c < nch; c++) {
+                  float v[16];
+                  int q[16];
+                  enc_bc4(px, c, 0, bc);
+                  dec_bc4f(bc, v);
+                  dec_eac11(o + 8 * c, q);
+                  for (int t = 0; t < 16; t++) {
+                     ref[t][c] = v[t] * 255.0f;
+                     got[t][c] = q[t] * 255.0f / 2047.0f;
+                  }
+               }
+            }
+            enc_s += (t1.tv_sec - t0.tv_sec) + (t1.tv_nsec - t0.tv_nsec) / 1e9;
+            for (int t = 0; t < 16; t++)
+               for (int c = 0; c < nch; c++) {
+                  const double s = px[t][c] * 255.0, a = ref[t][c], b = got[t][c];
+                  e_bc += (a - s) * (a - s);
+                  e_xc += (b - a) * (b - a);
+                  e_x += (b - s) * (b - s);
+                  const int d = (int)lrint(fabs(b - a)), d2 = (int)lrint(fabs(a - s));
+                  mx_x = d > mx_x ? d : mx_x;
+                  mx_bc = d2 > mx_bc ? d2 : mx_bc;
+                  n++;
+               }
+         }
+#define PSNR(e) (10.0 * log10(255.0 * 255.0 * n / ((e) > 0 ? (e) : 1e-9)))
+      printf("QUALITY %s bc_vs_src=%.2fdB(max %d) xc_vs_bc=%.2fdB(max %d) "
+             "xc_vs_src=%.2fdB cpu_us_per_block=%.2f\n",
+             xn[k], PSNR(e_bc), mx_bc, PSNR(e_xc), mx_x, PSNR(e_x),
+             enc_s * 1e6 / ((size_px / 4) * (size_px / 4)));
+#undef PSNR
+   }
+   return 0;
+}
+
 static int
 is_bc(VkFormat f)
 {
@@ -391,8 +1131,10 @@ unit_B(VkFormat f, int *blocked)
    if (is_bc(f))
       return block_B(f);
    if (f == VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK ||
-       f == VK_FORMAT_ASTC_4x4_UNORM_BLOCK)
+       f == VK_FORMAT_ASTC_4x4_UNORM_BLOCK || f == VK_FORMAT_EAC_R11G11_UNORM_BLOCK)
       return 16;
+   if (f == VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK || f == VK_FORMAT_EAC_R11_UNORM_BLOCK)
+      return 8;
    *blocked = 0;
    switch (f) {
    case VK_FORMAT_R8_UNORM:
@@ -453,9 +1195,11 @@ encode_level(VkFormat f, uint32_t w, uint32_t h, uint8_t *dst)
          switch (f) {
          case VK_FORMAT_BC1_RGB_UNORM_BLOCK:
          case VK_FORMAT_BC1_RGB_SRGB_BLOCK:
+            enc_bc1(px, o);
+            break;
          case VK_FORMAT_BC1_RGBA_UNORM_BLOCK:
          case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:
-            enc_bc1(px, o);
+            enc_bc1a(px, o);
             break;
          case VK_FORMAT_BC2_UNORM_BLOCK:
          case VK_FORMAT_BC2_SRGB_BLOCK:
@@ -486,6 +1230,10 @@ encode_level(VkFormat f, uint32_t w, uint32_t h, uint8_t *dst)
             enc_bc7(px, o);
             break;
          default:
+            if (is_xc(f)) {
+               xc_block(f, px, o);
+               break;
+            }
             /* ETC2/ASTC: random payload is fine for sampling cost. */
             for (uint32_t k = 0; k < ub; k++)
                o[k] = lcg();
@@ -661,6 +1409,9 @@ main(int argc, char **argv)
       }
       fclose(sf);
    }
+   xc_full = src_rgba != NULL;
+   if (!strcmp(argv[1], "--quality"))
+      return quality_main();
    const char *dump_dir = getenv("BCPERF_DUMP");
    const char *filter = argc > 2 ? argv[2] : NULL;
 
@@ -933,6 +1684,9 @@ main(int argc, char **argv)
       const VkFormat f = fmts[fi].f;
       if (filter && !strstr(fmts[fi].name, filter))
          continue;
+      /* XC_* (transcode probe, slow CPU encode): only with BCPERF_XC */
+      if (is_xc(f) && !getenv("BCPERF_XC"))
+         continue;
       VkFormatProperties fp;
       vkGetPhysicalDeviceFormatProperties(phys, f, &fp);
       if (!(fp.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) ||
@@ -1139,6 +1893,109 @@ main(int argc, char **argv)
              "A_ms=%.3f B_ms=%.3f C_ms=%.3f D_ms=%.3f E_ms=%.3f wallA=%.3f\n",
              fmts[fi].name, (unsigned long long)(mem_B / 1024), up_best,
              up_wall, res[0], res[1], res[2], res[3], res[4], resw[0]);
+
+      if (getenv("BCPERF_EACENC") && f == VK_FORMAT_BC4_UNORM_BLOCK) {
+         /* Upload cost of a BC4 -> EAC R11 transcode: GPU encode of LOD0
+          * (bc-perf-eac.frag, one fragment per block) from the decoded
+          * texture, then a CPU decode of the result against the BC4 decode. */
+         const uint32_t bw = size_px / 4;
+         VkImageCreateInfo eci = rtci;
+         eci.format = VK_FORMAT_R32G32_UINT;
+         eci.extent = (VkExtent3D){bw, bw, 1};
+         eci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+         VkImage ei;
+         CK(vkCreateImage(dev, &eci, NULL, &ei), "EImg");
+         VkMemoryRequirements emr;
+         vkGetImageMemoryRequirements(dev, ei, &emr);
+         VkMemoryAllocateInfo eai = {.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                                     .allocationSize = emr.size,
+                                     .memoryTypeIndex = pick_mem(emr.memoryTypeBits, dev_mi)};
+         VkDeviceMemory em;
+         CK(vkAllocateMemory(dev, &eai, NULL, &em), "EMem");
+         CK(vkBindImageMemory(dev, ei, em, 0), "EBind");
+         VkImageViewCreateInfo evci = rtvci;
+         evci.image = ei;
+         evci.format = VK_FORMAT_R32G32_UINT;
+         VkImageView ev;
+         CK(vkCreateImageView(dev, &evci, NULL, &ev), "EView");
+         VkAttachmentDescription eatt = att;
+         eatt.format = VK_FORMAT_R32G32_UINT;
+         eatt.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+         eatt.finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+         VkRenderPassCreateInfo erpci = rpci;
+         erpci.pAttachments = &eatt;
+         VkRenderPass erp;
+         CK(vkCreateRenderPass(dev, &erpci, NULL, &erp), "ERP");
+         VkFramebufferCreateInfo efbci = fbci;
+         efbci.renderPass = erp;
+         efbci.pAttachments = &ev;
+         efbci.width = efbci.height = bw;
+         VkFramebuffer efb;
+         CK(vkCreateFramebuffer(dev, &efbci, NULL, &efb), "EFB");
+         VkShaderModuleCreateInfo esci = fsci;
+         esci.codeSize = sizeof(bc_perf_eac_frag_spv);
+         esci.pCode = bc_perf_eac_frag_spv;
+         VkShaderModule efs;
+         CK(vkCreateShaderModule(dev, &esci, NULL, &efs), "EFS");
+         VkPipelineShaderStageCreateInfo est[2] = {stages[0], stages[1]};
+         est[1].module = efs;
+         VkPipelineColorBlendAttachmentState ecba = {.colorWriteMask = 0xf};
+         VkPipelineColorBlendStateCreateInfo ecbs = cbs;
+         ecbs.pAttachments = &ecba;
+         VkGraphicsPipelineCreateInfo egp = gpci;
+         egp.pStages = est;
+         egp.pColorBlendState = &ecbs;
+         egp.renderPass = erp;
+         VkPipeline epipe;
+         CK(vkCreateGraphicsPipelines(dev, VK_NULL_HANDLE, 1, &egp, NULL, &epipe), "EGP");
+         struct buf eb = mkbuf((VkDeviceSize)bw * bw * 8, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+         for (int fast = 0; fast < 2; fast++) {
+         double enc_ms = 1e9;
+         for (int run = 0; run < 3; run++) {
+            begin();
+            VkRenderPassBeginInfo erb = {.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                                         .renderPass = erp,
+                                         .framebuffer = efb,
+                                         .renderArea = {{0, 0}, {bw, bw}}};
+            vkCmdWriteTimestamp(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, qp, 0);
+            vkCmdBeginRenderPass(cb, &erb, VK_SUBPASS_CONTENTS_INLINE);
+            VkViewport evp = {0, 0, bw, bw, 0, 1};
+            VkRect2D esc = {{0, 0}, {bw, bw}};
+            vkCmdSetViewport(cb, 0, 1, &evp);
+            vkCmdSetScissor(cb, 0, 1, &esc);
+            vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, epipe);
+            vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pl, 0, 1, &ds, 0,
+                                    NULL);
+            vkCmdPushConstants(cb, pl, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 4, &fast);
+            vkCmdDraw(cb, 3, 1, 0, 0);
+            vkCmdEndRenderPass(cb);
+            vkCmdWriteTimestamp(cb, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, qp, 1);
+            VkBufferImageCopy erc = {.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
+                                     .imageExtent = {bw, bw, 1}};
+            vkCmdCopyImageToBuffer(cb, ei, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, eb.b, 1,
+                                   &erc);
+            const double ms = submit();
+            enc_ms = ms < enc_ms ? ms : enc_ms;
+         }
+         double e = 0;
+         int mx = 0;
+         for (uint32_t i = 0; i < bw * bw; i++) {
+            float v[16];
+            int qv[16];
+            dec_bc4f((const uint8_t *)stg.p + lvl_off[0] + (size_t)i * 8, v);
+            dec_eac11((const uint8_t *)eb.p + (size_t)i * 8, qv);
+            for (int t = 0; t < 16; t++) {
+               const double d = qv[t] * 255.0 / 2047.0 - v[t] * 255.0;
+               e += d * d;
+               mx = (int)lrint(fabs(d)) > mx ? (int)lrint(fabs(d)) : mx;
+            }
+         }
+         printf("EACENC fast=%d lod0=%ux%u gpu_ms=%.3f chain_est_ms=%.3f vs_bc4=%.2fdB max=%d\n",
+                fast, size_px, size_px, enc_ms, enc_ms * 4.0 / 3.0,
+                10.0 * log10(255.0 * 255.0 * 16.0 * bw * bw / (e > 0 ? e : 1e-9)), mx);
+         }
+         freebuf(&eb);
+      }
 
       vkDestroyImageView(dev, view, NULL);
       vkDestroyImage(dev, img, NULL);
