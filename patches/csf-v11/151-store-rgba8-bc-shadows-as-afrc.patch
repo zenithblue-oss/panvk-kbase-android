@@ -16,7 +16,8 @@ use the regular AFRC render target and texture paths in lib/.
 
 PANVK_BC_AFRC selects the coding-unit size: 32 (default), 24 or 16
 (3 or 2 bits per component), 0 turns AFRC off. R8/RG8 (BC4/BC5) and
-the float shadows stay as they are: BC4/BC5 at 4 bpc showed 25-50 LSB
+the float shadows stay as they are (and cube-compatible images, whose
+AFRC cube sampling is untested): BC4/BC5 at 4 bpc showed 25-50 LSB
 max error on real pictures, too much for height/normal maps, and AFRC
 has no 16-bit or 11/10-bit float modes.
 
@@ -75,7 +76,7 @@ index 1548b5bc1ed7c329284db3eddbad1e910556fdbd..ff9eca6ca076e8f1fe99167065056b22
     }
  
 diff --git a/src/panfrost/vulkan/panvk_image.c b/src/panfrost/vulkan/panvk_image.c
-index a67b7cc5c3a308cd22a2eeb2e5b654587016239f..915d2299cecd83ba0b4a45cd6866615ee79fb533 100644
+index a67b7cc5c3a308cd22a2eeb2e5b654587016239f..0abf821f31248116fb81bdc436c95aa9321e2f5d 100644
 --- a/src/panfrost/vulkan/panvk_image.c
 +++ b/src/panfrost/vulkan/panvk_image.c
 @@ -448,7 +448,8 @@ panvk_should_checksum(struct panvk_image *image,
@@ -88,7 +89,7 @@ index a67b7cc5c3a308cd22a2eeb2e5b654587016239f..915d2299cecd83ba0b4a45cd6866615e
  {
     *info = (VkImageCreateInfo){
        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-@@ -466,6 +467,33 @@ panvk_bc_shadow_info(const struct panvk_image *image, VkImageCreateInfo *info)
+@@ -466,6 +467,35 @@ panvk_bc_shadow_info(const struct panvk_image *image, VkImageCreateInfo *info)
        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     };
@@ -97,7 +98,8 @@ index a67b7cc5c3a308cd22a2eeb2e5b654587016239f..915d2299cecd83ba0b4a45cd6866615e
 +    * PANVK_BC_AFRC is the coding-unit size in bytes: 32 (default, 4 bits per
 +    * component, max 4-5 LSB error on real pictures), 24 or 16 (3 or 2 bits,
 +    * lossier), 0 = off. R8/RG8 (BC4/BC5) stay uncompressed: at the same
-+    * rate their error is 25-50 LSB, too much for normal and height maps. */
++    * rate their error is 25-50 LSB, too much for normal and height maps.
++    * Cube-compatible images keep AFBC: AFRC cube sampling is untested. */
 +   static const uint64_t afrc_mods[] = {
 +      DRM_FORMAT_MOD_ARM_AFRC(AFRC_FORMAT_MOD_CU_SIZE_P0(AFRC_FORMAT_MOD_CU_SIZE_16)),
 +      DRM_FORMAT_MOD_ARM_AFRC(AFRC_FORMAT_MOD_CU_SIZE_P0(AFRC_FORMAT_MOD_CU_SIZE_24)),
@@ -109,6 +111,7 @@ index a67b7cc5c3a308cd22a2eeb2e5b654587016239f..915d2299cecd83ba0b4a45cd6866615e
 +
 +   if ((cu == 16 || cu == 24 || cu == 32) &&
 +       image->bc_format == VK_FORMAT_R8G8B8A8_UNORM &&
++       !(image->vk.create_flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) &&
 +       pan_query_afrc(&phys_dev->kmod.dev->props)) {
 +      *afrc = (VkImageDrmFormatModifierListCreateInfoEXT){
 +         .sType =
@@ -122,7 +125,7 @@ index a67b7cc5c3a308cd22a2eeb2e5b654587016239f..915d2299cecd83ba0b4a45cd6866615e
  }
  
  static VkResult
-@@ -549,9 +577,10 @@ panvk_image_init_layouts(struct panvk_image *image,
+@@ -549,9 +579,10 @@ panvk_image_init_layouts(struct panvk_image *image,
        /* Lay the decoded plane out exactly as the bc_shadow image created in
         * panvk_CreateImage() will be, after the raw blocks. */
        VkImageCreateInfo sci;
@@ -134,7 +137,7 @@ index a67b7cc5c3a308cd22a2eeb2e5b654587016239f..915d2299cecd83ba0b4a45cd6866615e
        vk_image_init(&dev->vk, &tmp.vk, &sci);
        VkResult result = panvk_image_init(&tmp, &sci);
        vk_image_finish(&tmp.vk);
-@@ -942,8 +971,9 @@ panvk_CreateImage(VkDevice device, const VkImageCreateInfo *pCreateInfo,
+@@ -942,8 +973,9 @@ panvk_CreateImage(VkDevice device, const VkImageCreateInfo *pCreateInfo,
  
     if (image->bc_gfx) {
        VkImageCreateInfo sci;
