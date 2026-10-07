@@ -17,6 +17,8 @@ Goal: PanProbe Run all passes on every Mali v10 device in Firebase Test Lab.
 | r2 | main (122) + csf-v11/140 | no results: activity recreated 3 s after start, Run all lost (PanProbe bug) | **36/36 PASS** (upload `99a194b3`) |
 | r3 | main (122) + csf-v11/130-132 + 140 | **36/36 PASS** (upload `411b7306`) | not rerun (quota) |
 
+| r4 | unified beta.18 (main 5df0941, sha `ffcf87c2…`) | not run: `TEST_QUOTA_EXCEEDED` (Insufficient testing quota), matrix failed at validation | same |
+
 Latest per-device result: manaus 36/36 (r3), panther 36/36 (r2). DXVK, Bachata S4 and vkd3d compliance: all PASS on manaus r3 (no hard item missing; `robustBufferAccess2` comes from 122).
 
 ## Devices
@@ -38,6 +40,7 @@ Both: BC emulation on (native masks `0xc1fe039e` and `0xc1fe001e`), `KBASE_IOCTL
 ## Open items
 
 - **r1 `gpu_prerast_slice` hang on G610 (beta.17).** One child did `queue_group_create`, `tiler_heap_init` and one successful queue wait, then nothing for 15 min, and could not be killed. There is no test log (PanProbe hung before it could upload). It did not reproduce in r3 (main + 122 + 130-132 + 140, `gpu_prerast_slice` PASS in 303 ms). 132 fixes a compute-to-compute ordering race in the same path and is a plausible fix, but one passing run does not prove it. A G610 rerun of beta.17 alone would tell.
+- **Unified beta.18 rerun (r4)**: blocked by the daily quota on 2026-10-07. Rerun on the next quota day with `/var/tmp/panvk/apk-beta18u/panprobe-beta18u.apk`, in this order: manaus, panther, cheetah, lynx, tangorpro (felix after that).
 - **Remaining v10 models**: cheetah (Pixel 7 Pro), lynx (Pixel 7a), felix (Pixel Fold, API 33/34/36), tangorpro (Pixel Tablet, API 33/36). All are G710 and should hit the same 140 row. They need the next quota day.
 - The recreation trigger on manaus is unknown. The restart covers it, but the cancelled first run overlaps the new one for about one test.
 - The bundled-driver label still says beta.17 (the dev APK uses `-PpanvkSo`, so `bundled-driver.json` is not updated).
