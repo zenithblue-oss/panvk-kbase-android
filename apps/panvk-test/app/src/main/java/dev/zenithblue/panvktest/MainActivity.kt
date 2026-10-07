@@ -274,7 +274,8 @@ class MainActivity : ComponentActivity() {
             }
         }
         // autorun = "all" or a single test name (e.g. gs_viewport_depth)
-        if (autorunExtra != null && savedInstanceState == null) {
+        // Game loop: a recreated activity restarts the run (the old coroutine died with lifecycleScope).
+        if (autorunExtra != null && (savedInstanceState == null || gameLoop)) {
             selectedTabState.intValue = 2 // Switch UI to Tests tab
             lifecycleScope.launch(Dispatchers.IO) {
                 runHeadlessAutorun(autorunExtra)
