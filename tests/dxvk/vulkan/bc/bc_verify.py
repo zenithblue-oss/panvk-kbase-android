@@ -5,6 +5,7 @@ References: Pillow BCn decoder (BC1-3), Mesa CPU BPTC decoder via bc_ref
 (BC6H, BC7), and a spec-direct decoder below (BC4/BC5 unorm+snorm).
 usage: bc_verify.py <dump_dir> <bc_ref_binary>
 """
+import math
 import os
 import struct
 import subprocess
@@ -98,6 +99,7 @@ def srgb_encode(v):
 def compare(name, dev, ref):
     """Max error in the unit the format is judged in."""
     worst = 0.0
+    sq = 0.0
     for d, r in zip(dev, ref):
         for c in range(4):
             if name.startswith("BC6H"):
@@ -109,7 +111,8 @@ def compare(name, dev, ref):
             else:
                 err = abs(d[c] - r[c]) * 255.0
             worst = max(worst, err)
-    return worst
+            sq += err * err
+    return worst, sq / max(1, 4 * len(ref))
 
 
 def tol(name):
@@ -159,12 +162,17 @@ def main():
         sub = open("%s/%s.sub" % (d, name), "rb").read()
         e1 = expected(name, blocks, None, bc_ref)
         e2 = expected(name, blocks, sub, bc_ref)
-        w1 = compare(name, load_f4("%s/%s.up" % (d, name)), e1)
-        w2 = compare(name, load_f4("%s/%s.up2" % (d, name)), e2)
+        w1, mse = compare(name, load_f4("%s/%s.up" % (d, name)), e1)
+        w2, _ = compare(name, load_f4("%s/%s.up2" % (d, name)), e2)
         ok = w1 <= tol(name) and w2 <= tol(name)
         fails += not ok
-        print("VERIFY %s upload_maxerr=%.4g subupdate_maxerr=%.4g tol=%g %s"
-              % (name, w1, w2, tol(name), "PASS" if ok else "FAIL"))
+        # PSNR in the judged unit (255 or 127 LSB scale; BC6H: relative).
+        peak = 1.0 if name.startswith("BC6H") else (
+            127.0 if name.endswith("SNORM") else 255.0)
+        psnr = 10 * math.log10(peak * peak / mse) if mse else float("inf")
+        print("VERIFY %s upload_maxerr=%.4g subupdate_maxerr=%.4g psnr=%.1f "
+              "tol=%g %s" % (name, w1, w2, psnr, tol(name),
+                             "PASS" if ok else "FAIL"))
     print("BC_VERIFY_FAILS=%d" % fails)
     return 1 if fails else 0
 
