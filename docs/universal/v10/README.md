@@ -3,6 +3,8 @@
 All file:line references throughout this document are relative to the Mesa root of the beta.16 tree (Mesa 5a07217f + csf-v11 series up to 107 + jm-v9 001-003), written as `src/panfrost/...:NNN`, unless marked "beta.17 tree" (the unreleased beta.17 candidate: beta.16 + csf-v11 108-118 + android/014 + wsi/017 + jm-v9 004-005).
 
 ## Summary
+Update 2026-10-07 (beta.18 work, unreleased): `robustBufferAccess2` is now on for v10 (`patches/csf-v11/122`). It was gated to v11+. SSBO and UBO loads are already bounds-checked by the hardware (`LD_PKA` against the Buffer descriptor), and SSBO stores and atomics get software checks on every arch. Texel buffers were the gap: `LEA_BUF` has no bounds check before v11. A v9 (Mali-G57) proxy build with the feature forced on failed all 342 robustness2 texel buffer cases. 122 therefore also adds software bounds checks for texel buffer loads, stores and atomics on v9/v10. With them the proxy passes every robustness2 buffer case it supports (2,324 pass, 0 fail). This unblocks the one hard Bachata S4 requirement that v10 was missing. It still needs confirmation from a G610 tester. On the G615 (v11) nothing changes: the robustness CTS and PanProbe results are identical to beta.17. [Worklog](../../../worklogs/driver-remaining/122-robustbufferaccess2-v10.md).
+
 Update 2026-10-06: a third v10 device, vivo V2284A (MT6896Z/CZA, Mali-G610 MC6, Linux 5.10.233 android12, `5b799ebb`, beta.15), ran a user D3D game in PanPlay. DXVK skipped the adapter for missing `textureCompressionBC` and the game exited with code 3 after 4 s. This is the same blocker as on the other 5.10 G610 MC6. The unreleased patch 108 targets it. The G57 dev smoke of 108 confirms the partial-native mask theory (`TEXTURE_FEATURES[0] = 0xf7fe03fe`, BC1-BC3 native only), but no G610 mask has been logged yet.
 
 The first v10 PanProbe run arrived after the beta.16 snapshot. A Mali-G610 MC4 (23090RA98I, MT6886, Linux 5.15 android13) scores 15/17 on beta.15 (`854bef5b`). `vkCreateDevice`, CSF queue groups, tiler heaps, shader upload and submission all work, including geometry, tessellation, XFB, depth bounds and both viewport tests. The two failures are the known cross-arch blockers: `bc_decode` (every BC format unsupported, `textureCompressionBC = false`) and `swapchain_lifecycle` (`vkCreateSwapchainKHR` -1000072003 after `mapper load failed`). No `KBASE_IOCTL_MEM_EXEC_INIT` warning appears on this 5.15 kernel. The earlier Mali-G610 MC6 on Linux 5.10 (`559830af`, `0b151151`, beta.14) still has only PanPlay data, where DXVK rejects the adapter for missing `textureCompressionBC`. Mali-G710, Mali-G510 and Mali-G310 share the architecture but remain unseen.
@@ -141,6 +143,7 @@ I MESA: Using fallback gralloc implementation
 - Timestamps: `GET_CPU_GPU_TIMEINFO` may be absent on older CSF kbase; timestamp queries would then read 0.
 - CS work-register count: an implausible firmware value falls back to 96 on v10/v11 (a Pixel 7 G710 reported a bad value before beta.12); unverified on a real v10 kernel.
 - Android gralloc mapper metadata support for vendor API < 34 / HIDL mapper4 for Android-surface swapchains.
+- `robustBufferAccess2`: **on since beta.18 work (`patches/csf-v11/122`, unreleased), pending G610 tester confirmation.** Tester check: PanProbe `robustness2` logs `robustBufferAccess2=1` and passes `oob_ssbo_load`, `oob_ubo_load` and `oob_ssbo_store`. Texel buffers get software bounds checks on v9/v10 (also in 122), which the v9 proxy confirms. If a v10 tester runs CTS, the robustness2 `uniform_texel_buffer` and `storage_texel_buffer` cases are the ones to watch.
 
 ## Fix plan
 
@@ -152,6 +155,7 @@ I MESA: Using fallback gralloc implementation
 | 4 | PanProbe run on the 5.10 G610 MC6 | Data collection | Shows whether 5.10 needs old-CSF layouts |
 | 5 | EXEC_INIT ordering fix (call before JIT_INIT; candidate patch jm-v9/004) | 6–12 h | Eliminates kbase EPERM warning on 5.10 |
 | 6 | Old-CSF layout support (40-byte 1.18 queue group, 24-byte heap init, 16 KiB pages): **patched, unreleased (csf-v11/110)** | Done; tester logcat | Only if rank 4 shows failures |
+| 7 | `robustBufferAccess2` on v10: **patched, unreleased (csf-v11/122)** | Done; tester PanProbe `robustness2` | Bachata S4 hard requirement on v10 |
 
 ## Open questions / data needed from testers
 - **PanProbe zip on a 5.10 G610 MC6:** The 5.15 G610 MC4 has one (`854bef5b`). Neither 5.10 MC6 (23054RA19C, V2284A) has one. No upload records the kbase uAPI version. A beta.17 run would log it (110) together with `TEXTURE_FEATURES` and the BC decision (118).
