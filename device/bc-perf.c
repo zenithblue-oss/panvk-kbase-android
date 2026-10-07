@@ -126,10 +126,13 @@ static uint32_t host_mi, dev_mi;
    X(ResetDescriptorPool) X(CreateRenderPass) X(CreateFramebuffer)             \
    X(CmdBeginRenderPass) X(CmdEndRenderPass) X(CreateQueryPool)                \
    X(CmdResetQueryPool) X(CmdWriteTimestamp) X(GetQueryPoolResults)            \
-   X(CmdSetViewport) X(CmdSetScissor)
+   X(CmdSetViewport) X(CmdSetScissor) X(CmdBlitImage) X(CmdCopyImageToBuffer)
 DEV_FUNCS(PFN)
 
 static uint32_t size_px = 2048;
+/* BCPERF_SRC: raw RGBA8 size_px x size_px image used instead of the
+ * procedural content (for quality checks on real pictures). */
+static uint8_t *src_rgba;
 static double ts_period_ns = 1.0;
 
 /* ---------------------------------------------------------------- content */
@@ -146,6 +149,13 @@ lcg(void)
 static void
 texel(uint32_t x, uint32_t y, uint32_t w, float c[4])
 {
+   if (src_rgba) {
+      const uint8_t *p =
+         src_rgba + 4 * ((size_t)(y * (size_px / w)) * size_px + x * (size_px / w));
+      for (int i = 0; i < 4; i++)
+         c[i] = p[i] / 255.0f;
+      return;
+   }
    const float u = (float)x / w, v = (float)y / w;
    const float r = sqrtf((u - 0.5f) * (u - 0.5f) + (v - 0.4f) * (v - 0.4f));
    const float n = (float)(lcg() & 255) / 255.0f * 0.06f;
@@ -641,6 +651,17 @@ main(int argc, char **argv)
    setvbuf(stdout, NULL, _IONBF, 0);
    if (getenv("BCPERF_SIZE"))
       size_px = atoi(getenv("BCPERF_SIZE"));
+   if (getenv("BCPERF_SRC")) {
+      FILE *sf = fopen(getenv("BCPERF_SRC"), "rb");
+      src_rgba = malloc((size_t)size_px * size_px * 4);
+      if (!sf || fread(src_rgba, 4, (size_t)size_px * size_px, sf) !=
+                    (size_t)size_px * size_px) {
+         printf("FAIL BCPERF_SRC needs %ux%u RGBA8\n", size_px, size_px);
+         return 1;
+      }
+      fclose(sf);
+   }
+   const char *dump_dir = getenv("BCPERF_DUMP");
    const char *filter = argc > 2 ? argv[2] : NULL;
 
    void *h = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
@@ -997,6 +1018,63 @@ main(int argc, char **argv)
          double wall = (t1.tv_sec - t0.tv_sec) * 1e3 + (t1.tv_nsec - t0.tv_nsec) / 1e6;
          up_best = g < up_best ? g : up_best;
          up_wall = wall < up_wall ? wall : up_wall;
+      }
+
+      if (dump_dir) {
+         /* LOD0 -> RGBA8 by a nearest blit (reads the decoded data). */
+         VkImageCreateInfo dci2 = ici2;
+         dci2.format = VK_FORMAT_R8G8B8A8_UNORM;
+         dci2.mipLevels = 1;
+         dci2.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+         VkImage di;
+         CK(vkCreateImage(dev, &dci2, NULL, &di), "DumpImage");
+         VkMemoryRequirements dmr;
+         vkGetImageMemoryRequirements(dev, di, &dmr);
+         VkMemoryAllocateInfo dai = {.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                                     .allocationSize = dmr.size,
+                                     .memoryTypeIndex = pick_mem(dmr.memoryTypeBits, dev_mi)};
+         VkDeviceMemory dm;
+         CK(vkAllocateMemory(dev, &dai, NULL, &dm), "DumpMem");
+         CK(vkBindImageMemory(dev, di, dm, 0), "DumpBind");
+         struct buf rb = mkbuf((VkDeviceSize)size_px * size_px * 4,
+                               VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+         begin();
+         vkCmdWriteTimestamp(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, qp, 0);
+         img_barrier(img, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                     VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_SHADER_READ_BIT,
+                     VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                     VK_PIPELINE_STAGE_TRANSFER_BIT);
+         img_barrier(di, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                     0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                     VK_PIPELINE_STAGE_TRANSFER_BIT);
+         const int32_t s = size_px;
+         VkImageBlit bl = {{VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1}, {{0, 0, 0}, {s, s, 1}},
+                           {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1}, {{0, 0, 0}, {s, s, 1}}};
+         vkCmdBlitImage(cb, img, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, di,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bl, VK_FILTER_NEAREST);
+         img_barrier(di, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                     VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT,
+                     VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                     VK_PIPELINE_STAGE_TRANSFER_BIT);
+         VkBufferImageCopy rc = {.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
+                                 .imageExtent = {size_px, size_px, 1}};
+         vkCmdCopyImageToBuffer(cb, di, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, rb.b, 1, &rc);
+         img_barrier(img, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT,
+                     VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+         vkCmdWriteTimestamp(cb, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, qp, 1);
+         submit();
+         char path[512];
+         snprintf(path, sizeof(path), "%s/%s.rgba", dump_dir, fmts[fi].name);
+         FILE *df = fopen(path, "wb");
+         if (df) {
+            fwrite(rb.p, 4, (size_t)size_px * size_px, df);
+            fclose(df);
+         }
+         freebuf(&rb);
+         vkDestroyImage(dev, di, NULL);
+         vkFreeMemory(dev, dm, NULL);
       }
 
       CK(vkResetDescriptorPool(dev, dp, 0), "ResetDP");

@@ -114,6 +114,35 @@ baseline (BC6H UF 49156 KiB, E 1.214).
 - BC1/2/3/7 memory +3% (AFBC header, 4 KiB alignment of the shadow).
   Needs AFRC or raw-plane reduction for a cut.
 
+## Method 2: AFRC on the RGBA8 shadow (csf-v11/151)
+
+- RGBA8 shadow (BC1/2/3/7) created with a one-entry DRM modifier list:
+  AFRC rot, 32-byte coding units (4 bpc, 16 bpp). `PANVK_BC_AFRC=32|24|16|0`.
+- Lib bug found and fixed: AFRC row stride used the mip width rounded down
+  to whole 32 px tiles. Small or non-aligned levels got a zero row stride
+  (garbage at PSNR 4-8 dB, GPU fault with CU24).
+- Quality (`/var/tmp/panvk/bcperf-quality.sh`): BCPERF_SRC = 1024x1024 crop
+  of a MiSide frame and of the dxcube test frame, LOD0 blitted to RGBA8 and
+  compared with the exact decode (PANVK_BC_AFRC=0). BC's own error vs
+  source: 35-44 dB.
+
+| CU | BC1 PSNR / max | BC7 PSNR / max | BC4 (R8) | BC5 (RG8) |
+|---|---|---|---|---|
+| 32 | 66-75 dB / 4 | 64-73 dB / 5 | 49-52 dB / 26 | 49-51 dB / 50 |
+| 24 | 57-64 dB / 15 | 56-64 dB / 12 | 43-46 dB / 54 | 43-46 dB / 53 |
+| 16 | 48-55 dB / 38 | 48-55 dB / 40 | 37-40 dB / 96 | 37-40 dB / 108 |
+
+- Decision: CU32 on by default for RGBA8 only. R8/RG8 rejected (25-50 LSB
+  max error on height/normal-map style data). CU24/16 opt-in.
+- bc_verify with AFRC on fails the 2 LSB tolerance on random blocks
+  (max 13-38): expected, the exactness gate runs with PANVK_BC_AFRC=0.
+
+| format | mem MiB (CU32) | E ms | CU24 mem | CU16 mem |
+|---|---|---|---|---|
+| BC1 | 13.3 (-44%) | 0.248 (2.19x) | 10.7 (-56%) | 8.0 (-67%) |
+| BC3 | 16.0 (-40%) | 0.250 (2.16x) | 13.3 (-50%) | 10.7 (-60%) |
+| BC7 | 16.0 (-40%) | 0.249 (2.4x) | 13.3 (-50%) | 10.7 (-60%) |
+
 Rejected / dropped:
 - `force_native_bc` probe (sample BC with the real Mali BC format codes
   despite TEXTURE_FEATURES): dropped on request before it was run.
