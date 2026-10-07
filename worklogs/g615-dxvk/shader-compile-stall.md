@@ -190,3 +190,110 @@ allocator. Interference is now about 85% of the remaining time.
   `PAN_SHADER_CAPTURE=<dir>`. Then replay the `.psc` files with
   `pan_shader_replay`.
 - Any other DXVK title with first-use stutter.
+
+## Round 2: compile cost per pipeline (csf-v11/160-164)
+
+After 152-154, each of the 3 slow NFS pipelines still took about 0.65 s
+on the device, 0.42 s of it in register allocation. Device perf profile of
+the 152-154 driver in NFS (`nfs-23197`), RA samples: SSA spiller 290 (SSA
+repair 159), RA liveness 260, interference 260. NIR: `bi_optimize_loop`
+638, `nir_opt_algebraic` 251, `nir_opt_copy_prop_vars` 140.
+
+Harness: scratch tree `/var/tmp/panvk/wt-cc` (not in the series). It adds
+phase timers (`PAN_PHT=1`: RA phases, backend phases, every `NIR_PASS`),
+captures before `pan_preprocess_nir` and `pan_postprocess_nir`, and an
+output hash. Scripts: `ch-cc2.sh` (device: pipeline time plus per-phase
+replays), `pc.py`, `pht.py`, `cmp.py` in `/var/tmp/panvk/shc`.
+
+All five patches are lossless. The binary is identical on all 67539
+corpus shaders, and NIR is identical on the 65 synthetic pre/post
+captures. Code quality is unchanged: instructions, spills, fills, register
+count.
+
+- **160:** one LCRA constraint build is shared by the 32 and 64 register
+  attempts. Only affinities differ, so both masks are kept. Block liveness
+  tracks only "global" nodes (read before written in some block).
+  Constraints are queued and sorted into rows at the end with two
+  counting sorts. Before, each one was inserted into a sorted sparse row,
+  which moved about 56 entries per insert.
+- **161:** after a spill round the constraint state is updated, not
+  rebuilt. Spilling only changes the spilled nodes and adds fill
+  temporaries, so only constraints with a spilled or new node are redone.
+  All nodes of a round are spilled from one scan of the shader. The fill
+  temporaries are numbered as before.
+- **162:** SSA repair keeps one flat (block, variable) map, instead of a
+  `hash_table_u64` per block with a ralloc copy per definition.
+- **163:** `bi_optimize_loop` uses `NIR_LOOP_PASS_NOT_IDEMPOTENT`. A pass is
+  skipped only while no other pass made progress since it last ran without
+  progress.
+- **164:** constraint rows stay sparse up to a quarter of the nodes. A dense
+  row (more than 256 entries before) cost a full node scan per solver use.
+
+Host per phase (x86, `pan_shader_compile`, 18 synthetic shaders in the
+NFS range, ms, before = 152-154):
+
+| phase | before | after |
+|---|---|---|
+| total | 955 | 309 |
+| RA | 832 | 190 |
+| interference build (113 / 25 builds) | 697 | 26 + 40 sort |
+| solve, 32-register attempt (incl. rebuild before) | 161 | 1 |
+| solve, 64-register passes (incl. rebuild before) | 579 | 16 |
+| spill rounds (spill + constraint update after) | 35 | 49 |
+| SSA spiller | 41 | 32 |
+| `nir_opt_algebraic` (backend) | 14.7 | 9.7 |
+
+65 very large synthetic shaders (syn2): 23.7 s -> 5.1 s, RA 22.3 -> 3.8 s.
+By patch, NFS-range / syn2: 160 955 -> 472 ms / 23.7 -> 13.8 s, 161 ->
+345 / 8.0 s, 162 -> 335 / 7.4 s, 163 -> 325 / 7.2 s, 164 -> 309 / 5.1 s.
+NIR, 65 syn2 captures with 163: preprocess 1198 -> 1144 ms, postprocess
+334 -> 307 ms.
+
+Device (G615, glibc chroot, full `vkCreateGraphicsPipelines` through
+`shc_pipe`, one run each, 63 synthetic pipelines, before = 152-154):
+
+| pipelines by "before" time | n | before | after | after > 150 ms |
+|---|---|---|---|---|
+| < 300 ms | 35 | 19-295 (median 115) | 14-118 (median 63) | 0 |
+| 300-1000 ms | 11 | 322-933 (median 751) | 142-318 (median 298) | 10 |
+| 1-4.4 s | 17 | 1060-4394 (median 1604) | 282-915 (median 509) | 17 |
+| all | 63 | sum 44.1 s, max 4394 | sum 14.0 s, max 915 | 27 |
+
+Device CTS corpus replay (67492 shaders, `pan_shader_compile`, minimum of
+2 runs each, same session):
+
+| set | before | after |
+|---|---|---|
+| all: p50 / p99 / max | 0.36 / 6.49 / 294 ms | 0.36 / 5.12 / 262 ms |
+| shaders > 100 ms | 11 | 5 |
+| spilling (451): p50 / p99 / max | 4.06 / 23.3 / 111 ms | 2.83 / 15.9 / 70 ms |
+
+What is left in the pipelines that took 0.6-0.8 s before (the NFS cost
+class, now 0.28-0.32 s on the device):
+
+- preprocess NIR, about 100 ms. `nir_opt_algebraic` is 80 ms of it. It
+  drops the float range analysis cache after every replacement, then
+  recomputes it. On the 152-154 NFS profile this was not visible.
+- backend 115-140 ms, of which RA is 70-90 ms.
+- about 50 ms in SPIR-V to NIR and the pass-through stages.
+
+So the "< 150 ms" target for the 3 NFS pipelines is probably not met.
+Expect about 0.3 s, down from 0.65 s. The "< 100 ms" target for synthetic
+shaders is met for the ones that took under 300 ms before (max 118 ms
+pipeline, single run). It is not met for the bigger ones. Next steps,
+neither lossless:
+
+- range analysis that survives `nir_opt_algebraic` replacements
+- fewer LCRA passes after SSA spilling (fixed cost per pass: liveness and
+  constraint update)
+
+Correctness:
+
+- PanProbe (panvk-test APK, `dev.zenithblue.panvktest`, bundled Android
+  ICD from a clean series tree with 160-164, BuildID
+  `4a93096816dee3df54a7c201a6a9afa26df47795`): Run all 37/37 pass.
+- CTS subset (`ch-shc-cts.sh`, same 96129 cases as the v3 run, clean series
+  tree with 160-164): 68227 Pass / 634 Fail / 27268 NotSupported, v3 was
+  68227 / 633 / 27268 / 1 DeviceLost. Only diff:
+  `glsl.loops.special.do_while_dynamic_iterations.dowhile_trap_vertex`
+  DeviceLost to Fail (known flaky trap test). No new failures.
