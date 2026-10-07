@@ -83,10 +83,36 @@ Findings:
    Decode reads the copy source buffer directly (no barrier after the raw
    copy). Compute + LINEAR stays for 3D images and as fallback
    (`PANVK_DEBUG=bc_compute`); `PANVK_DEBUG=bc_wide` keeps 16-bit storage.
-   Status: in progress.
+   Status: done, patch csf-v11/150.
 2. AFRC on the decoded plane (G615 has the AFRC feature bit) for the memory
    cut on BC1/BC3/BC7. Status: todo.
 3. Others to evaluate: BC->BC copies via decoded planes, decode batching.
+
+## Method 1: fragment decode into a compact tiled shadow (csf-v11/150)
+
+Correctness: 16/16 PASS, bc_decode BC_DEVICE_FAILS=0. BC6H UF max rel.
+error 0.0132 (B10G11R11 rounding, verify run with BC_BC6U_TOL=0.0157).
+PANVK_DEBUG=bc_compute and bc_wide also 16/16; bc_compute numbers match the
+baseline (BC6H UF 49156 KiB, E 1.214).
+
+| format | mem MiB | upload ms | A | D | E (bw) | E vs base |
+|---|---|---|---|---|---|---|
+| BC1 | 24.8 | 3.30 | 0.485 | 0.258 | 0.284 | 1.92x |
+| BC1 sRGB | 24.8 | 4.26 | 0.493 | 0.270 | 0.309 | |
+| BC2 | 27.4 | 3.93 | 0.489 | 0.248 | 0.292 | 1.89x |
+| BC3 | 27.4 | 3.93 | 0.493 | 0.243 | 0.289 | 1.87x |
+| BC4 | 8.5 (-65%) | 3.43 | 0.488 | 0.242 | 0.242 | 2.22x |
+| BC5 | 16.6 (-38%) | 5.36 | 0.489 | 0.243 | 0.243 | 2.22x |
+| BC6H UF | 27.4 (-43%) | 8.46 | 0.492 | 0.243 | 0.321 | 3.81x |
+| BC6H SF | 48.5 | 9.32 | 0.488 | 0.249 | 0.695 | 1.75x |
+| BC7 | 27.4 | 5.84 | 0.489 | 0.247 | 0.287 | 2.08x |
+
+- Bandwidth-bound sampling reaches or beats the native uncompressed
+  reference of the same storage format (decoded content is blocky, so
+  AFBC compresses it better than the RGBA8 reference pattern).
+- Upload+decode 1.3-1.9x faster (no barrier, tile writeback).
+- BC1/2/3/7 memory +3% (AFBC header, 4 KiB alignment of the shadow).
+  Needs AFRC or raw-plane reduction for a cut.
 
 Rejected / dropped:
 - `force_native_bc` probe (sample BC with the real Mali BC format codes
