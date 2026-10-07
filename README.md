@@ -14,6 +14,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Vulkan-1.4-AC162C?logo=vulkan&logoColor=white" alt="Vulkan 1.4">
   <img src="https://img.shields.io/badge/GPU-Mali--G615%20(v11)-0091BD?logo=arm&logoColor=white" alt="Mali-G615 v11">
+  <img src="https://img.shields.io/badge/tested%20(beta.18--dev)-v10%20%7C%20v11%20%7C%20v12%20%7C%20v13-0091BD?logo=arm&logoColor=white" alt="Tested on beta.18-dev: v10, v11, v12, v13">
   <img src="https://img.shields.io/badge/DXVK-D3D9%20%7C%2010%20%7C%2011-555" alt="DXVK D3D9, D3D10, D3D11">
   <img src="https://img.shields.io/badge/Mesa-26.3--devel-6E4C9A" alt="Mesa 26.3-devel">
 </p>
@@ -57,7 +58,7 @@ apps that can load an alternate Vulkan ICD.
 | <img src="apps/panvk-launcher/docs/panplay-logo-512.png" width="48" alt="PanPlay logo"> | **PanPlay** (`apps/panvk-launcher`) | Windows game launcher (Wine + DXVK + built-in X server) with the PanVK driver bundled | [PanPlay 1.2.3](https://github.com/zenithblue-oss/panplay/releases/tag/panplay-v1.2.3) · [all releases](https://github.com/zenithblue-oss/panplay/releases) · [repo](https://github.com/zenithblue-oss/panplay) |
 | <img src="apps/panvk-test/docs/panprobe-logo-512.png" width="48" alt="PanProbe logo"> | **PanProbe** (`apps/panvk-test`) | Vulkan feature/extension info and on-device driver tests | [PanProbe 1.2.3](https://github.com/zenithblue-oss/panprobe/releases/tag/panprobe-v1.2.3) · [all releases](https://github.com/zenithblue-oss/panprobe/releases) · [repo](https://github.com/zenithblue-oss/panprobe) |
 
-Both apps are tested on the Mali-G615 only. See [apps/panvk-launcher/docs](apps/panvk-launcher/docs) for launcher usage.
+Both apps are tested on the Mali-G615. PanProbe also runs on the other devices in [Tested devices](#tested-devices). See [apps/panvk-launcher/docs](apps/panvk-launcher/docs) for launcher usage.
 
 ## Reference device
 
@@ -69,13 +70,29 @@ Both apps are tested on the Mali-G615 only. See [apps/panvk-launcher/docs](apps/
 | **Kernel interface** | `/dev/mali0` (`mali_kbase`) |
 | **GPU ID string** | `Mali-G615 6 cores r1p3 0xB8A3` |
 
+## Tested devices
+
+beta.18 is **unreleased and in progress**. The results below come from dev builds; the latest release is beta.17. "Unified beta.18" is the full current series (csf-v11 up to 140, driverInfo `PanVK-kbase beta.18`). PanProbe is 1.2.4-dev (36 tests) unless noted.
+
+| Device | SoC | GPU (deviceName as reported) | Mali arch | kbase uAPI | Android | Tested on | Driver build | PanProbe |
+|---|---|---|---|---|---|---|---|---|
+| Poco X6 Pro | Dimensity 8300-Ultra (MT6897) | Mali-G615 MC6 | v11 | CSF 1.21 | 16 | Own device (reference) | Unified beta.18 | **36/36**, `gs_viewport_depth` 10/10 |
+| Galaxy Tab S11 Ultra | MT6991 | Mali-G925-Immortalis MC12 | v13 | CSF 1.30 | 16 | Samsung Remote Test Lab | beta.18-dev (122 + 130 + 131 + 132) | **36/36**, `gs_viewport_depth` 10/10 (beta.17: 34/36) |
+| Galaxy Tab S10 Ultra | Dimensity 9300+ (MT6989) | Mali-G720-Immortalis MC12 | v12 | CSF 1.21 | 15 | Samsung Remote Test Lab | beta.18-dev (122 + 130 + 131 + 132) | **36/36** x3 (beta.17: 36/36) |
+| motorola edge 40 neo | MT6879 | Mali-G610 MC3 | v10 | CSF 1.18 | 14 | Firebase Test Lab | beta.18-dev (122 + 130-132 + 140) | **36/36** |
+| Pixel 7 | Tensor G2 (GS201) | Mali-G710 MC7 | v10 | CSF 1.14 | 13 | Firebase Test Lab | beta.18-dev (122 + 140) | **36/36** (beta.17: device not recognised, fixed by 140) |
+| Mali-G57 MC2 tablet | n/a | Mali-G57 MC2 | v9 (JM) | JM 11.38 | 13 | Own device | beta.14 to beta.17 | **Experimental**: 1/17 (beta.14), 2/17 real (beta.17 smoke, 17-test PanProbe) |
+
+The remaining Firebase v10 Pixels (Pixel 7 Pro, 7a, Fold, Tablet; all G710) are queued for the next quota day.
+
 ## Supported GPUs
 
-Only the **Mali-G615** (Mesa `PAN_ARCH` v11, CSF frontend; Arm's 4th
-generation Valhall, announced 2022) is supported and validated, on the
-reference device above. Other Mali GPUs (including G610/v10, G720/v12 and the
-Bifrost/Valhall v7/v9 JM parts) have planned profiles or patch scaffolding but
-are untested and unsupported. Arm's marketing generations (Utgard, Midgard,
+The **Mali-G615** (Mesa `PAN_ARCH` v11, CSF frontend; Arm's 4th generation
+Valhall, announced 2022) on the reference device above is the validated
+release target. G610 and G710 (v10), Immortalis-G720 (v12) and
+Immortalis-G925 (v13) pass PanProbe 36/36 on beta.18-dev builds, which are
+not released yet (see [Tested devices](#tested-devices)). v9 JM is
+experimental and partly broken; the other parts are untested. Arm's marketing generations (Utgard, Midgard,
 Bifrost, Valhall 1st to 4th gen, 5th Gen, G1) and Mesa `PAN_ARCH` numbers are
 different schemes; the full chronological GPU list, mappings, frontends and
 upstream driver status are in
@@ -83,6 +100,7 @@ upstream driver status are in
 
 Status key:
 - ✅ **Supported**: validated on a device.
+- 🧪 **Tested on beta.18-dev, unreleased**: PanProbe 36/36 on a device with a beta.18 dev build; not in a release yet.
 - 🔨 **Built, untested**: compiled into the universal ICD and recognised by the Mesa model table, but never run on that GPU.
 - 📋 **TODO**: a profile exists in `profiles/` and the port is planned.
 - ❔ **Possible, not tried**: Mesa has a backend for this arch, but no profile or device test exists here.
@@ -99,10 +117,10 @@ One row per Mesa arch. Each GPU carries its own status mark.
 | v6 | Bifrost 1st/2nd gen | JM | ❌ Mali-G71, ❔ G72 | Mesa marks G71 unsupported; G72 experimental upstream |
 | v7 | Bifrost 1st to 3rd gen | JM | 📋 Mali-G52, ❔ G31, ❔ G51, ❔ G76 | Profile `g52-v7-jm` (P25); needs the JM kbase path |
 | v9 | Valhall 1st/2nd gen | JM | 🔨 Mali-G57 (tested, MC2), ❔ G77, ❔ G68, ❔ G78, ❔ G78AE | **EXPERIMENTAL, partly broken** (beta.14 universal ICD). Tested only on a G57 MC2 tablet: CTS smoke subsets mostly pass, PanProbe 1/17, reports Vulkan 1.1 with fewer extensions than v10+ |
-| v10 | Valhall 3rd gen | CSF | 🔨 Mali-G610, 🔨 G310, ❔ G510, ❔ G710 | **Built, untested** (beta.13 universal ICD). G610/G310 are in the Mesa model table; G510/G710 need a tester's gpu_id |
+| v10 | Valhall 3rd gen | CSF | 🧪 Mali-G610, 🧪 G710, 🔨 G310, ❔ G510 | G610 MC3 (motorola edge 40 neo) and G710 MC7 (Pixel 7) pass PanProbe 36/36 on beta.18-dev (Firebase Test Lab). G710 gets its model row in csf-v11/140 (unreleased). G310 is built, untested; G510 needs a tester's gpu_id |
 | **v11** | **Valhall 4th gen** | **CSF** | ✅ **Mali-G615**, ❔ G715, ❔ Immortalis-G715 | G615 validated on Poco X6 Pro (Dimensity 8300). G715 and Immortalis-G715 share the same arch but are untested |
-| v12 | 5th Gen | CSF | 🔨 Mali-G720, ❔ G620, ❔ Immortalis-G720 | **Built, untested** (beta.13 universal ICD). G720 (variant 4) is in the Mesa model table; G620/Immortalis-G720 need a tester's gpu_id |
-| v13 | 5th Gen | CSF | 🔨 Mali-G725, ❔ G625, ❔ Immortalis-G925 | **Built, untested** (beta.13 universal ICD). G725 (variant 4) is in the Mesa model table; G625/Immortalis-G925 need a tester's gpu_id |
+| v12 | 5th Gen | CSF | 🧪 Immortalis-G720, 🔨 Mali-G720, ❔ G620 | Immortalis-G720 MC12 (Galaxy Tab S10 Ultra) passes PanProbe 36/36 on beta.17 and beta.18-dev. beta.18 names it by core count (131). G720 and G620 are built, untested |
+| v13 | 5th Gen | CSF | 🧪 Immortalis-G925, 🔨 Mali-G725, 🔨 G625 | Immortalis-G925 MC12 (Galaxy Tab S11 Ultra) passes PanProbe 36/36 on beta.18-dev (beta.17: 34/36, fixed by 130 and 132). G725 and G625 share the product id and are built, untested |
 | v14 | 5th Gen, G1 series | CSF | 🔨 Mali G1-Ultra, 🔨 G1-Premium, 🔨 G1-Pro | **Built, untested** (beta.13 universal ICD). All three are in the Mesa model table; experimental upstream |
 | v15 (unconfirmed) | G2 series | CSF | ❌ Mali G2-Ultra NX, ❌ G2-Premium NX (rumoured), ❌ G2-Pro NX (rumoured) | Not in Mesa yet |
 
