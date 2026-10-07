@@ -161,6 +161,37 @@ PanPlay shortcut. Recorder and analysis:
 - On-device driver sha256 `aadf6776...` matches the build
   (BuildID `73947988`). Install kept app data (shortcuts, containers).
 
+## NFS results (beta.18-dev+combined, BuildID 4eab4565)
+
+Two user sessions on the combined build (152-154, 160-164, 170-171, 180):
+`nfs-29088` (cold cache) and `nfs-10098` (warm cache). `ana_nfs.py` and
+`cgp.py` in `/var/tmp/panvk/nfs-stutter`.
+
+| | 23640 old | 23197 RA fix | 29088 cold | 10098 warm |
+|---|---|---|---|---|
+| gaps >150/250/1000 ms | 7/6/4 | 7/4/3 | 4/3/1 | 4/2/0 |
+| freeze sum / max | 14.8 / 4.50 s | 4.85 / 1.57 s | 2.43 / 1.06 s | 1.62 / 0.99 s |
+| dxvk-cs compile | 11861 ms | 2183 ms | 491 ms | 0 (11 ms cache reads) |
+| worker compile | 1458 ms | 1296 ms | 1245 ms | 0 (118 ms cache reads) |
+| race start (~30 s) | 4.5 + 4.0 s | 1.57 s | 0.93 s | none >250 ms |
+| ~110 s spot | 4.07 s | 1.07 s | none | none |
+| loading freeze | 1.30 s | 1.34 s | 1.06 s | 0.99 s |
+
+- Cache: 57 files before session 1, 540 files / 5.4 MB after, unchanged
+  after session 2 (all hits).
+- The cold race-start freeze is one 419 ms compile on dxvk-cs plus the
+  disk cache writer compressing new entries (zlib `longest_match` on the
+  `disk$` threads, about 360 ms of CPU). First session only.
+- Loading freeze in the warm session: `os_get_option` 128 -> 0 ms
+  (session total 335 -> 3 ms), `panvk_CreateImage` 168 -> 24 ms. Left:
+  `panvk_AllocateMemory` 103 ms (kbase alloc ioctl 62, BO zeroing 35),
+  wine `munmap` 72 ms, file-backed page faults and FEX/game code.
+- Other warm stalls >250 ms: 36.1 s, 283 ms, game/FEX code on the game
+  thread, no driver compile.
+- Hardware keyboard connected 12.5 s into session 1: config change, no
+  activity relaunch, the game ran 177 s more. `VK_ERROR_SURFACE_LOST_KHR`
+  appears only at the user exit (window teardown). No crash.
+
 ## What to test in NFS (user)
 
 - Two sessions of the same race or the same stretch of the map. The
