@@ -354,3 +354,5 @@ Deferred (vkd3d out of scope for now). Hard requirement for vkd3d-proton device 
 
 ### X11 present teardown hang
 Seen once under Xvfb in the glibc chroot (`x11_wait_for_present` in `destroySwapchain`). Not reproduced on Android: `swapchain_lifecycle` passes, and the beta.8 Android X11 software present path (084) returns `VK_TIMEOUT` instead of hanging or DeviceLost.
+
+- 2026-10-07 shader compile stalls: `csf-v11/152-154` (LCRA spill loop spills for every failed node per pass, SSA spill target leaves room for the 8 reserved registers, lossless interference/solve speedups). G615 replay: NFS-class shaders (1-4 s) now 28-249 ms, CTS corpus max 1686 -> 300 ms, fills -1%. CTS shader subset 0 regressions, PanProbe 37/37. Details: `shader-compile-stall.md`.
