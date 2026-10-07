@@ -131,7 +131,7 @@ Bachata caches format properties for every guest surface and depth format plus `
 | Arch (GPUs) | Hard | Soft missing | Notes |
 |---|---|---|---|
 | v9 JM (G57/G77/G78) | **Fails**: `VK_EXT_robustness2` only for `PAN_ARCH >= 10` (`P:214`) | n/a | Bachata's PanVK admission also rejects JM |
-| v10 (G710/G610/G510) | **Fails**: `robustBufferAccess2=0` (`P:651`) | 7 (as v11) | Fix item 1 below |
+| v10 (G710/G610/G510) | Expected pass since beta.18 work: `robustBufferAccess2` on via `csf-v11/122` (unreleased; was `robustBufferAccess2=0`, `P:651`) | 7 (as v11) | Pending G610 tester confirmation (item 1 below) |
 | v11 (G615/G715) | **Pass** (device-verified, exact create chain OK) | 7 | Primary target |
 | v12 (G720/G620) | Expected pass (same code paths) | 7 expected | Not run; gpu_id gaps for some SKUs |
 | v13 (G725/G625) | Expected pass | 7 expected | Not run |
@@ -141,7 +141,7 @@ Bachata caches format properties for every guest surface and depth format plus `
 
 Ordered by impact. S = days, M = 1-2 weeks, L = more than 2 weeks or research.
 
-1. **`robustBufferAccess2` on v10** (M). The only hard blocker on any CSF GPU Bachata admits. Needs bounds-checked SSBO/UBO access on v10 (NIR robust-access lowering against descriptor sizes, or the v11 hardware path if v10 has it) plus CTS `robustness2` runs.
+1. **`robustBufferAccess2` on v10** (M). The only hard blocker on any CSF GPU Bachata admits. **Status (2026-10-07): enabled in `patches/csf-v11/122` (beta.18 work, unreleased), pending G610 tester confirmation.** SSBO and UBO loads use `LD_PKA`, which the hardware bounds-checks against the Buffer descriptor (same `Size` field as v11), and SSBO stores and atomics get NIR software bounds checks on every arch. Texel buffers have no hardware check before v11. A v9 (Mali-G57) proxy build with the feature forced on failed all 342 robustness2 texel buffer cases, so 122 also adds software checks for texel buffer loads, stores and atomics on v9/v10. With them the proxy passes every supported robustness2 buffer case. G615 robustness CTS and PanProbe are unchanged. Still needed: a G610 PanProbe `robustness2` run. [Worklog](../worklogs/driver-remaining/122-robustbufferaccess2-v10.md).
 2. **`VK_AMD_shader_image_load_store_lod`** (M). Removes a fatal shader path (storage-image read with LOD, hard #20) and the per-mip descriptor fallback. PanVK already handles per-level storage views, so the work is SPIR-V/NIR plumbing of an explicit LOD into image load/store (to be confirmed against the Valhall image instructions). It is a vendor extension, so it stays in this fork.
 3. **`VK_KHR_fragment_shader_barycentric`** (M-L). Bachata's manual-interpolation fallback only handles recognised patterns; other shaders render wrong. Needs per-vertex attribute access in the fragment shader (fetch the three vertices' varyings and the barycentrics).
 4. **`VK_EXT_shader_atomic_float2` float32 min/max (buffer and image)** (M). The Bachata fallback for images does two atomics and is racy. A NIR lowering to a compare-exchange loop or sign-split integer min/max would be enough.
