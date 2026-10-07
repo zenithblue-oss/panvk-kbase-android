@@ -188,7 +188,18 @@ Series: beta.17 plus the patches below. Nothing is released or tagged yet.
     - CTS robustness2 buffer cases + `buffer_access` + `pipeline_robustness*` (48,567 cases): 23,824 pass / 12 fail / 24,731 NotSupported on both builds, with identical per-case results. The 12 failures are pre-existing image-robustness `frag_fast_gpl` cases.
     - The final build was not re-run on the G615 because the phone was in use. Its v11 code is unchanged.
   - Open: G610 hardware, a G615 re-run on the final build, and v10 texel buffer performance with robustness on.
-- Release-time items: bump the 099 driverInfo string to beta.18, refresh `bundled-driver.json` and the app bundles, then release notes and tag.
+- **csf-v11/130: v13 vertex stores through gpu_prerast.** A VS with stores or atomics gets the gpu_prerast variants on v13+, as on v10-v12 (IDVS ran the VS more than once per vertex). Fixes `vertex_stores` and `draw_params` on the G925. [Worklog](../driver-remaining/130-132-g925.md).
+- **csf-v11/131: GPU names by core count.** One product id covers several names; the split matches panthor. G925 MC12 reports "Mali-G925-Immortalis MC12" (was "Mali-G725 MC12"), G720 reports "Mali-G720-Immortalis MC12". The G615 has its own product id and keeps its name.
+- **csf-v11/132: compute wait before viewport runs.** `gpu_prerast_draw_generated()` waits on all compute iterators before the viewport run builder, so it can no longer read a zero count from a GS kernel that is still writing. Fixes the `gs_viewport_depth` flake on v12/v13. The race is in shared CSF code, so v10-v12 get the wait too.
+- **csf-v11/140: Mali-G710 model row** (`0xa862`, TODX, v10). Pixel 7 dropped the device with `Unknown gpu_id (0xa8620004)`. [Worklog](../driver-remaining/firebase-v10.md).
+- **099: driverInfo `PanVK-kbase beta.18`.**
+- PanProbe 1.2.4-dev (debug, unreleased, versionCode unchanged at 7): Firebase game-loop mode, bounded watchdog reap, Run all survives activity recreation.
+- Device results so far (dev builds, per patch subset):
+  - Immortalis-G925 MC12 (v13) with 130 + 131 + 132: PanProbe 36/36, `gs_viewport_depth` 10/10 (beta.17: 34/36).
+  - Immortalis-G720 MC12 (v12) with 122 + 130-132: 36/36 on 3 runs, `gs_viewport_depth` 8/8.
+  - Firebase v10: G610 MC3 (manaus) 36/36 with 122 + 130-132 + 140; G710 MC7 (panther) 36/36 with 122 + 140.
+  - G615 (v11): 122 only, 36/36. The unified build is below.
+- Release-time items: refresh `bundled-driver.json` and the app bundles, then release notes and tag.
 
 
 ## What's left for DXVK (driver)
