@@ -695,8 +695,16 @@ object ContainerManager {
         val fbFile = File(ctx.filesDir, "container/fb.bin")
         try { fbFile.delete() } catch (_: Exception) {}
         val workDir = exeFile.parentFile ?: File(ctx.filesDir, "container")
+        applyGamePrefs(ctx, exeFile.name)
         // Native-first override is what makes Wine load the swapped-in cnc-ddraw instead of its builtin.
         val ddraw = swapDdraw(ctx, exePath)
+        // Unity D3D11 games size their texture budget from the DXGI VRAM they see (5+ GB shared on this SoC) while the
+        // device heap is ~2.4 GB: Silksong then exhausts it and dies in Mono ("Crash!!!") with a black screen.
+        // Cap what DXGI reports unless the shortcut sets its own DXVK_CONFIG.
+        val unity = exeFile.parentFile?.list()?.any { it.equals("UnityPlayer.dll", true) } == true
+        val opts = if (unity && opts?.env?.containsKey("DXVK_CONFIG") != true) (opts ?: LaunchOptions()).let {
+            it.copy(env = it.env + ("DXVK_CONFIG" to "dxvk.trackPipelineLifetime = False; dxgi.maxDeviceMemory = 2048; dxgi.maxSharedMemory = 1024"))
+        } else opts
         val o = opts ?: LaunchOptions()
         launchOpts.set(if (ddraw == null) opts else o.copy(env = o.env + ("WINEDLLOVERRIDES" to
             ((o.env["WINEDLLOVERRIDES"] ?: if (isDxvkEnabled(ctx)) "mscoree,mshtml=d;d3d8,d3d9,d3d10core,d3d11,dxgi=n,b;nsiproxy.sys=d" else "mscoree,mshtml=d;nsiproxy.sys=d") + ddraw))))
@@ -706,6 +714,31 @@ object ContainerManager {
             launchOpts.remove()
             swapDdraw(ctx, null)
         }
+    }
+
+    /**
+     * Per-game config the game reads itself. Dark Souls PTDE renders its whole 3D scene black on panvk with the
+     * default Blur/Antialiasing (MSAA) filter targets, so those are forced off in its ini before each launch.
+     */
+    private fun applyGamePrefs(ctx: Context, exeName: String) {
+        if (!exeName.equals("DARKSOULS.exe", true)) return
+        try {
+            val ini = File(ctx.filesDir, "container/.wine/drive_c/users/xuser/AppData/Local/NBGI/DarkSouls/DarkSouls.ini")
+            val want = mapOf("Blur" to "0", "Antialiasing" to "0", "ForceDisableAA" to "1")
+            val lines = if (ini.isFile) ini.readLines().toMutableList() else mutableListOf("[DisplaySettingFilter]")
+            val seen = mutableSetOf<String>()
+            for (i in lines.indices) {
+                val k = lines[i].substringBefore('=').trim()
+                if (lines[i].contains('=') && k in want) { lines[i] = "$k=${want[k]}"; seen += k }
+            }
+            val miss = want.keys - seen
+            if (miss.isEmpty() && ini.isFile && lines == ini.readLines()) return
+            if (miss.isNotEmpty()) {
+                val at = lines.indexOf("[DisplaySettingFilter]").let { if (it < 0) { lines += "[DisplaySettingFilter]"; lines.size } else it + 1 }
+                lines.addAll(at, miss.map { "$it=${want[it]}" })
+            }
+            ini.parentFile?.mkdirs(); ini.writeText(lines.joinToString("\r\n") + "\r\n")
+        } catch (_: Exception) {}
     }
 
     /**
