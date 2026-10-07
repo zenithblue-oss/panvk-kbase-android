@@ -195,7 +195,10 @@ JNIEXPORT jstring JNICALL Java_dev_zenithblue_panvktest_Native_run(
     char retbuf[64];
     if (pid_res == 0) {
         kill(pid, SIGKILL);
-        waitpid(pid, &status, 0);
+        /* Bounded reap: a child stuck in an uninterruptible kernel wait (wedged GPU)
+         * never dies, and a blocking waitpid would hang the whole run. */
+        for (int i = 0; i < 500 && waitpid(pid, &status, WNOHANG) == 0; i++)
+            usleep(10000);
         snprintf(retbuf, sizeof(retbuf), "timeout");
     } else if (WIFEXITED(status)) {
         snprintf(retbuf, sizeof(retbuf), "exit:%d", WEXITSTATUS(status));
