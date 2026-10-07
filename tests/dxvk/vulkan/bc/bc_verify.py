@@ -5,6 +5,7 @@ References: Pillow BCn decoder (BC1-3), Mesa CPU BPTC decoder via bc_ref
 (BC6H, BC7), and a spec-direct decoder below (BC4/BC5 unorm+snorm).
 usage: bc_verify.py <dump_dir> <bc_ref_binary>
 """
+import os
 import struct
 import subprocess
 import sys
@@ -112,6 +113,10 @@ def compare(name, dev, ref):
 
 
 def tol(name):
+    # BC6H_UFLOAT may be stored as B10G11R11_UFLOAT (5/6-bit mantissa, max
+    # relative rounding error 2^-6): pass BC_BC6U_TOL=0.0157 for that path.
+    if name == "BC6H_UFLOAT":
+        return float(os.environ.get("BC_BC6U_TOL", "1e-3"))
     return 1e-3 if name.startswith("BC6H") else 2.0
 
 
