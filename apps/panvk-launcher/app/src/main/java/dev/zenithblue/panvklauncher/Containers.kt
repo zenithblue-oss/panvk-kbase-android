@@ -387,7 +387,7 @@ object ContainerManager {
         // GetBestRoute then block forever. Games probe the network at startup (UPnP, Steam API, Unity), so
         // they sat on a black screen. Without the driver those calls fail fast; services/winebus stay up.
         val dllOverrides = if (dxvk) {
-            "mscoree,mshtml=d;d3d8,d3d9,d3d10core,d3d11,dxgi=n,b;nsiproxy.sys=d"
+            "mscoree,mshtml=d;d3d8,d3d9,d3d10core,d3d11,d3d12,d3d12core,dxgi=n,b;nsiproxy.sys=d"
         } else {
             "mscoree,mshtml=d;nsiproxy.sys=d"
         }
@@ -738,7 +738,7 @@ object ContainerManager {
         val hlsl = if (needsHlslFix(ctx, exeFile)) ";d3dcompiler_43,wined3d=n" else ""
         val extraOvr = (ddraw ?: "") + hlsl
         launchOpts.set(if (extraOvr.isEmpty()) opts2 else o.copy(env = o.env + ("WINEDLLOVERRIDES" to
-            ((o.env["WINEDLLOVERRIDES"] ?: if (isDxvkEnabled(ctx)) "mscoree,mshtml=d;d3d8,d3d9,d3d10core,d3d11,dxgi=n,b;nsiproxy.sys=d" else "mscoree,mshtml=d;nsiproxy.sys=d") + extraOvr))))
+            ((o.env["WINEDLLOVERRIDES"] ?: if (isDxvkEnabled(ctx)) "mscoree,mshtml=d;d3d8,d3d9,d3d10core,d3d11,d3d12,d3d12core,dxgi=n,b;nsiproxy.sys=d" else "mscoree,mshtml=d;nsiproxy.sys=d") + extraOvr))))
         try {
             return run(ctx, listOf(exeFile.absolutePath) + (opts2?.args ?: emptyList()), workDir = workDir, onLine = onLine, graphics = true)
         } finally {
@@ -963,7 +963,7 @@ object ContainerManager {
         val win = File(ctx.filesDir, "container/.wine/drive_c/windows")
         val dxvk = ContentManager.list(ctx).firstOrNull { it.type == "DXVK" }
         val srcWow = dxvk?.let { File(it.dir, "syswow64/dxgi.dll") }
-        val missing = !File(win, "system32/dxgi.dll").exists() ||
+        val missing = !File(win, "system32/dxgi.dll").exists() || (dxvk?.let { File(it.dir, "system32/d3d12core.dll") }?.takeIf { it.isFile }?.let { it.length() != File(win, "system32/d3d12core.dll").length() } == true) ||
             (srcWow?.isFile == true && File(win, "syswow64/dxgi.dll").length() != srcWow.length())
         if (!prefs.contains("dxvk_enabled") || (isDxvkEnabled(ctx) && (missing || force))) setDxvkEnabled(ctx, true)
     }
@@ -985,7 +985,7 @@ object ContainerManager {
             dstSys32.mkdirs()
             dstSyswow64.mkdirs()
 
-            val dlls = listOf("d3d8.dll", "d3d9.dll", "d3d10core.dll", "d3d11.dll", "dxgi.dll")
+            val dlls = listOf("d3d8.dll", "d3d9.dll", "d3d10core.dll", "d3d11.dll", "d3d12.dll", "d3d12core.dll", "dxgi.dll")
             val srcSys32 = File(dxvk.dir, "system32")
             val srcSyswow64 = File(dxvk.dir, "syswow64")
 
