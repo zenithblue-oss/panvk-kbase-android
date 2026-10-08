@@ -1171,6 +1171,11 @@ class MainActivity : ComponentActivity() {
 
     private fun startRunAll() {
         if (isRunningAllState.value) return
+        val drv = File(getDriverPath(driverTypeState.value))
+        if (driverTypeState.value == DriverType.IMPORTED && !DriverUpdate.isAarch64So(drv)) {
+            Toast.makeText(this, "Imported driver is not a valid aarch64 ELF .so. Re-import a real .so. Run blocked.", Toast.LENGTH_LONG).show()
+            return
+        }
         lifecycleScope.launch(Dispatchers.Main) {
             isRunningAllState.value = true
             val runResults = mutableListOf<TestResult>()
@@ -1229,11 +1234,18 @@ class MainActivity : ComponentActivity() {
                 try {
                     val importedDir = File(context.filesDir, "imported").apply { mkdirs() }
                     val destFile = File(importedDir, "libimported.so")
+                    val tmpFile = File(importedDir, "libimported.so.tmp")
                     context.contentResolver.openInputStream(uri)?.use { input ->
-                        destFile.outputStream().use { output ->
+                        tmpFile.outputStream().use { output ->
                             input.copyTo(output)
                         }
                     }
+                    if (!DriverUpdate.isAarch64So(tmpFile)) {
+                        tmpFile.delete()
+                        Toast.makeText(context, "Not an aarch64 ELF .so (zip or wrong file?). Import rejected.", Toast.LENGTH_LONG).show()
+                        return@rememberLauncherForActivityResult
+                    }
+                    if (!tmpFile.renameTo(destFile)) { tmpFile.delete(); throw java.io.IOException("Could not store driver") }
                     var name = uri.lastPathSegment ?: "libimported.so"
                     context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                         val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
