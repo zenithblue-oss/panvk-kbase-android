@@ -29,6 +29,12 @@ coordinates, LOD, texel buffer, OOB store/atomic leaving the image
 unchanged); the beta.18-rc1 build already passes all of them on G615
 with only robustImageAccess enabled, so the shader code is unchanged.
 
+G615 CTS (glibc ICD, 12,024 cases): every non-null-descriptor
+robustness2 image case passes (4,332 pass / 0 fail / 7,548
+NotSupported, r32/rg32/rgba32 f/i/ui and r64, comp/frag/vert), and
+pipeline_robustness.image_robustness only has the 12 frag_fast_gpl
+sampled-image failures that beta.17 already had.
+
 Gate it with EXT_robustness2 and nullDescriptor (PAN_ARCH >= 10). v10
 uses the same LD_TEX/LEA_TEX/TEX_FETCH path; its texel buffers get the
 software checks from csf-v11/122 (robustBufferAccess2).
