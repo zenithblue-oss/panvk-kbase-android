@@ -287,7 +287,7 @@ private fun GameCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = !busy, onClickLabel = "Launch ${g.name}", onClick = onPlay),
+            .clickable(enabled = !busy, onClickLabel = "Open launcher for ${g.name}", onClick = onOptions),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         shape = MaterialTheme.shapes.large
     ) {
@@ -315,7 +315,7 @@ private fun GameCard(
                     DropdownMenuItem(text = { Text("Delete") }, onClick = onDelete, leadingIcon = { Icon(Icons.Rounded.DeleteOutline, null) }, modifier = Modifier.heightIn(min = 48.dp))
                 }
             }
-            // Same action as tapping the card: launches with the game's saved settings (Launch options in the menu).
+            // Quick launch with the game's saved settings; tapping the card opens the launch sheet instead.
             FilledIconButton(onClick = onPlay, enabled = !busy, modifier = Modifier.size(52.dp)) {
                 Icon(Icons.Rounded.PlayArrow, contentDescription = if (busy) "Wine is running" else "Launch ${g.name}", modifier = Modifier.size(28.dp))
             }
