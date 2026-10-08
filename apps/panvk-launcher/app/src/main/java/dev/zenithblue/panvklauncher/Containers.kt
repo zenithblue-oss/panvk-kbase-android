@@ -288,8 +288,13 @@ object ContainerManager {
      * Redistributable DLLs Wine does not ship (MFC 14 / vcomp: games bundle plugins importing mfc140u.dll,
      * e.g. Unity's Razer Chroma SDK; without it the game dies in Awake). Bundled in assets/deps/{x86,x64}
      * (extracted from Microsoft's vc_redist) and copied into the prefix when missing; bump DEPS_REV to re-copy.
+     * deps/x86 also holds Wine 11.19's i386 d3dcompiler_43.dll + wined3d.dll (vkd3d-shader 2.1) with the
+     * "Wine builtin DLL" stub tag renamed so Wine treats them as native: idle unless a game overrides them =n
+     * (see HLSL_FIX_EXES); default builtin-first load order keeps Proton's own for everything else.
      */
-    private const val DEPS_REV = "2"
+    private const val DEPS_REV = "3"
+    // ponytail: per-exe list; widen to every d3dx9-importing exe if more runtime-HLSL games show the same bug.
+    private val HLSL_FIX_EXES = setOf("burnoutparadise.exe")
     private fun ensureRuntimeDeps(ctx: Context) {
         val win = File(ctx.filesDir, "container/.wine/drive_c/windows")
         if (!win.isDirectory) return
@@ -710,8 +715,13 @@ object ContainerManager {
         val aoe = exeFile.name.lowercase() in setOf("age2_x2.exe", "empires2.exe", "age2_x1.exe")
         val opts2 = if (aoe && opts?.args?.contains("nostartup") != true) (opts ?: LaunchOptions()).let { it.copy(args = it.args + "nostartup") } else opts
         val o = opts2 ?: LaunchOptions()
-        launchOpts.set(if (ddraw == null) opts2 else o.copy(env = o.env + ("WINEDLLOVERRIDES" to
-            ((o.env["WINEDLLOVERRIDES"] ?: if (isDxvkEnabled(ctx)) "mscoree,mshtml=d;d3d8,d3d9,d3d10core,d3d11,dxgi=n,b;nsiproxy.sys=d" else "mscoree,mshtml=d;nsiproxy.sys=d") + ddraw))))
+        // Burnout Paradise compiles its HLSL at runtime through d3dx9_37 -> d3dcompiler_43. Proton 11.0-2's bundled
+        // vkd3d-shader 1.18 emits SM3 bytecode that renders the world black/garbage (same bytecode is wrong on desktop
+        // RADV too); Wine 11.19's compiler (bundled in deps/x86) gives correct shaders.
+        val hlsl = if (exeFile.name.lowercase() in HLSL_FIX_EXES) ";d3dcompiler_43,wined3d=n" else ""
+        val extraOvr = (ddraw ?: "") + hlsl
+        launchOpts.set(if (extraOvr.isEmpty()) opts2 else o.copy(env = o.env + ("WINEDLLOVERRIDES" to
+            ((o.env["WINEDLLOVERRIDES"] ?: if (isDxvkEnabled(ctx)) "mscoree,mshtml=d;d3d8,d3d9,d3d10core,d3d11,dxgi=n,b;nsiproxy.sys=d" else "mscoree,mshtml=d;nsiproxy.sys=d") + extraOvr))))
         try {
             return run(ctx, listOf(exeFile.absolutePath) + (opts2?.args ?: emptyList()), workDir = workDir, onLine = onLine, graphics = true)
         } finally {
