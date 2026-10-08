@@ -1,12 +1,11 @@
 /* vkd3d (D3D12 on Vulkan) device requirement gate (query only, no rendering).
  *
- * PanPlay bundles Proton 11.0-2 (GameNative proton-wine), whose d3d12.dll uses the
- * Wine-bundled upstream vkd3d 1.18 (exported from wined3d.dll). No vkd3d-proton is
- * shipped. So:
- *   HARD = what makes Wine vkd3d 1.18 device creation fail (libs/vkd3d/device.c, tag vkd3d-1.18).
- *   SOFT = Wine vkd3d 1.18 feature-level / capability gates, plus every vkd3d-proton
- *          (HEAD 2230755) hard requirement as "proton: ..." items, so the gap to
- *          vkd3d-proton is visible without failing the report.
+ * PanPlay ships vkd3d-proton 22307558 (d3d12/d3d12core in the DXVK package, versionCode 19+);
+ * Proton's Wine-bundled vkd3d 1.18 is the fallback. So:
+ *   HARD = what makes Wine vkd3d 1.18 device creation fail (libs/vkd3d/device.c, tag vkd3d-1.18),
+ *          plus every vkd3d-proton (22307558) device creation check as "proton: ..." items
+ *          (libs/vkd3d/device.c:2495-2672, state.c:8351 bindless init).
+ *   SOFT = feature-level / capability gates, and features vkd3d-proton uses without checking.
  * Line refs: docs/vkd3d-vulkan-requirements.md.
  *
  * Output (same format as tests/dxvk/vulkan/dxvk-reqs/dxvk_reqs.c, parsed by PanProbe):
@@ -54,16 +53,25 @@ soft(int ok, const char *item, const char *effect)
    }
 }
 
-/* vkd3d-proton hard requirement, reported as soft (PanPlay does not ship vkd3d-proton). */
+/* vkd3d-proton device creation requirement (PanPlay ships vkd3d-proton): hard. */
 static int proton_fail = 0;
 static void
 proton(int ok, const char *item)
 {
    char name[192];
    snprintf(name, sizeof(name), "proton: %s", item);
-   soft(ok, name, "vkd3d-proton device creation fails");
+   hard(ok, name);
    if (!ok)
       proton_fail++;
+}
+
+/* Used by vkd3d-proton without an explicit check: Vulkan errors at use, not at device creation. */
+static void
+proton_used(int ok, const char *item)
+{
+   char name[192];
+   snprintf(name, sizeof(name), "proton: %s (used, unchecked)", item);
+   soft(ok, name, "vkd3d-proton uses it unconditionally");
 }
 
 static VkExtensionProperties *exts;
@@ -489,11 +497,11 @@ main(int argc, char **argv)
           p12.maxPerStageDescriptorUpdateAfterBindSamplers);
    proton(db_path || limits_1m, "1M per-stage UAB sampled/storage images + SSBOs (or descriptor buffer)");
    /* Used unconditionally, no explicit check: Vulkan errors at use. */
-   proton(gfx_compute, "graphics+compute queue");
-   proton(f12.timelineSemaphore, "timelineSemaphore (used, unchecked)");
-   proton(f12.bufferDeviceAddress, "bufferDeviceAddress (used, unchecked)");
-   proton(f13.synchronization2, "synchronization2 (used, unchecked)");
-   proton(f13.dynamicRendering, "dynamicRendering (used, unchecked)");
+   proton_used(gfx_compute, "graphics+compute queue");
+   proton_used(f12.timelineSemaphore, "timelineSemaphore");
+   proton_used(f12.bufferDeviceAddress, "bufferDeviceAddress");
+   proton_used(f13.synchronization2, "synchronization2");
+   proton_used(f13.dynamicRendering, "dynamicRendering");
 
    /* ================= vkd3d-proton: capability gates ================= */
    int proton_uav_ok = proton_uav == 18;

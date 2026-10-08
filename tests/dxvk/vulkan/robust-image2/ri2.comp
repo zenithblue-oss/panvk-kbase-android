@@ -1,0 +1,61 @@
+#version 450
+// robustImageAccess2 probe. Build with -DR32UI (no-alpha format, uint) or
+// -DRGBA8 (alpha format, float). Every case writes one uvec4 (raw bits).
+// Images are 4x4, 2 array layers; the sampled view has 2 mip levels.
+layout(local_size_x = 1) in;
+
+#ifdef R32UI
+layout(binding = 0, r32ui) uniform uimage2DArray simg;
+layout(binding = 1) uniform usampler2DArray tex;
+layout(binding = 2) uniform usamplerBuffer tbuf;
+#define VEC uvec4
+uvec4 bits(uvec4 v) { return v; }
+#else
+layout(binding = 0, rgba8) uniform image2DArray simg;
+layout(binding = 1) uniform sampler2DArray tex;
+layout(binding = 2) uniform samplerBuffer tbuf;
+#define VEC vec4
+uvec4 bits(vec4 v) { return floatBitsToUint(v); }
+#endif
+
+layout(binding = 3, std430) buffer Out { uvec4 r[32]; } o;
+
+void main()
+{
+   // Loads from the storage image (level 0, 2 layers).
+   o.r[0] = bits(imageLoad(simg, ivec3(1, 2, 1)));          // in bounds
+   o.r[1] = bits(imageLoad(simg, ivec3(4, 0, 0)));          // x
+   o.r[2] = bits(imageLoad(simg, ivec3(0, 4, 0)));          // y
+   o.r[3] = bits(imageLoad(simg, ivec3(0, 0, 2)));          // layer
+   o.r[4] = bits(imageLoad(simg, ivec3(-1, 0, 0)));         // negative x
+   o.r[5] = bits(imageLoad(simg, ivec3(65537, 0, 0)));      // x aliasing 1
+   o.r[6] = bits(imageLoad(simg, ivec3(0, 0, 65536)));      // layer aliasing 0
+   // texelFetch on the sampled view (2 levels, 2 layers).
+   o.r[8] = bits(texelFetch(tex, ivec3(1, 1, 1), 1));       // in bounds, lod 1
+   o.r[9] = bits(texelFetch(tex, ivec3(0, 0, 0), 2));       // lod
+   o.r[10] = bits(texelFetch(tex, ivec3(2, 0, 0), 1));      // x, valid at lod 0
+   o.r[11] = bits(texelFetch(tex, ivec3(0, 0, 2), 0));      // layer
+   o.r[12] = bits(texelFetch(tex, ivec3(0, -1, 0), 0));     // negative y
+   o.r[13] = bits(texelFetch(tex, ivec3(0, 0, 0), 31));     // lod far away
+   // Texel buffer (4 texels in the view).
+   o.r[16] = bits(texelFetch(tbuf, 3));                     // in bounds
+   o.r[17] = bits(texelFetch(tbuf, 4));                     // oob
+   o.r[18] = bits(texelFetch(tbuf, 65536 + 1));             // aliasing 1
+   // Stores: one in bounds, then out of bounds ones (checked on the host).
+   imageStore(simg, ivec3(3, 3, 1), VEC(7));
+   imageStore(simg, ivec3(4, 0, 0), VEC(9));
+   imageStore(simg, ivec3(0, 4, 0), VEC(9));
+   imageStore(simg, ivec3(0, 0, 2), VEC(9));
+   imageStore(simg, ivec3(-1, 0, 0), VEC(9));
+   imageStore(simg, ivec3(65536, 1, 0), VEC(9));
+   imageStore(simg, ivec3(0, 0, 65536), VEC(9));
+#ifdef R32UI
+   // Atomics: in bounds first, then out of bounds (return 0, no write).
+   o.r[24] = uvec4(imageAtomicAdd(simg, ivec3(0, 3, 1), 1u), 0, 0, 0);
+   o.r[25] = uvec4(imageAtomicAdd(simg, ivec3(4, 0, 0), 1u), 0, 0, 0);
+   o.r[26] = uvec4(imageAtomicAdd(simg, ivec3(0, 0, 2), 1u), 0, 0, 0);
+   o.r[27] = uvec4(imageAtomicExchange(simg, ivec3(-1, 0, 0), 5u), 0, 0, 0);
+   o.r[28] = uvec4(imageAtomicCompSwap(simg, ivec3(65536, 0, 0), 0u, 5u), 0, 0, 0);
+   o.r[29] = uvec4(imageAtomicMax(simg, ivec3(0, 4, 0), 99u), 0, 0, 0);
+#endif
+}
