@@ -62,10 +62,10 @@ class DriverUpdate(private val ctx: Context) {
         /** Debug builds only: pretend this driver version is installed (intent extra "updateAs"). */
         @Volatile var debugInstalledAs: String? = null
 
-        fun label(v: String): String = Regex("beta\\.\\d+(?:-rc\\d+)?").find(v)?.value ?: v
+        fun label(v: String): String = Regex("beta\\.\\d+(?:-rc\\d+)?|rc\\d+").find(v)?.value ?: v
 
-        /** [major, minor, patch, beta, rc]; a final sorts after every beta, a beta after its RCs. */
-        fun versionKey(v: String): List<Int>? = Regex("(\\d+)\\.(\\d+)\\.(\\d+)(?:-beta\\.(\\d+)(?:-rc(\\d+))?)?").find(v)?.groupValues
+        /** [major, minor, patch, beta, rc]; a final sorts after every beta, a beta after its RCs; "-rcN" without beta sorts after every beta. */
+        fun versionKey(v: String): List<Int>? = Regex("(\\d+)\\.(\\d+)\\.(\\d+)(?:-beta\\.(\\d+))?(?:-rc(\\d+))?").find(v)?.groupValues
             ?.let { g -> listOf(g[1].toInt(), g[2].toInt(), g[3].toInt(), g[4].toIntOrNull() ?: Int.MAX_VALUE,
                 g[5].toIntOrNull() ?: Int.MAX_VALUE) }
 
