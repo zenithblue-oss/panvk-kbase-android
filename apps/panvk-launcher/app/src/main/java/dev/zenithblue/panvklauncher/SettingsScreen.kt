@@ -53,6 +53,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.io.File
 
+private fun openContainerInFileManager(ctx: android.content.Context) {
+    val uri = android.provider.DocumentsContract.buildRootUri("dev.zenithblue.panvklauncher.documents", "container")
+    val base = android.content.Intent(android.content.Intent.ACTION_VIEW)
+        .setDataAndType(uri, android.provider.DocumentsContract.Root.MIME_TYPE_ITEM)
+        .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+    val ok = listOf("com.google.android.documentsui", "com.android.documentsui", null).any { pkg ->
+        runCatching { ctx.startActivity(android.content.Intent(base).also { if (pkg != null) it.setPackage(pkg) }) }.isSuccess
+    }
+    if (!ok) android.widget.Toast.makeText(ctx, "Open Files app → sidebar → PanPlay Wine container", android.widget.Toast.LENGTH_LONG).show()
+}
+
 /** App + Wine settings. Replaces the old "Wine" tab: every action it had is here. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -286,6 +297,8 @@ fun SettingsScreen(
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = onOpenAppLog, modifier = Modifier.heightIn(min = 48.dp)) { Text("Launcher log") }
                     OutlinedButton(onClick = onOpenSessionLogs, modifier = Modifier.heightIn(min = 48.dp)) { Text("Last session logs") }
+                    val ctx = androidx.compose.ui.platform.LocalContext.current
+                    OutlinedButton(onClick = { openContainerInFileManager(ctx) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Open Wine container in file manager") }
                 }
             }
         }
