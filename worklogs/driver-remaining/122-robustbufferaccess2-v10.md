@@ -5,7 +5,7 @@ Patch: `patches/csf-v11/122-advertise-robustbufferaccess2-on-v10.patch`. This is
 Status: in the beta.18 series.
 - Proven on a pre-v11 proxy: Mali-G57 (v9), with a local build that forces the feature on.
 - The G615 regression check was clean on the gate-only build.
-- No v10 (G610) hardware run yet.
+- v10 (G610 MC3, manaus, Firebase): PanProbe 36/36 on the dev build, then 37/37 on beta.18-rc1.
 
 ## What
 
