@@ -372,6 +372,7 @@ private fun ShortcutEditorSheet(
     var env by remember { mutableStateOf(ShortcutStore.envText(initial.env)) }
     var arch by remember { mutableStateOf(initial.arch) }
     var res by remember { mutableStateOf(initial.resolution) }
+    var fps by remember { mutableStateOf(initial.fpsLimit) }
     var driver by remember { mutableStateOf(DriverManager.find(ctx, drivers, initial.driver)?.id ?: "") }
     var importing by remember { mutableStateOf(false) }
     var detected by remember { mutableStateOf<String?>(null) }
@@ -463,6 +464,7 @@ private fun ShortcutEditorSheet(
             )
             DropdownField("Architecture", ARCHES.map { it to it }, arch, { arch = it })
             ResolutionField("Resolution", res, { res = it }, defaultLabel = "Launcher default")
+            FpsLimitField(fps) { fps = it }
             DropdownField(
                 "Driver",
                 listOf("" to "Launcher default") + drivers.map { it.id to it.label }, driver, { driver = it }
@@ -484,7 +486,7 @@ private fun ShortcutEditorSheet(
                         onSave(
                             initial.copy(
                                 name = n, exe = exe.trim(), args = args.trim(), env = ShortcutStore.parseEnv(env),
-                                arch = arch, resolution = res, driver = driver,
+                                arch = arch, resolution = res, driver = driver, fpsLimit = fps,
                                 // exe changed: re-extract icon
                                 icon = if (exe.trim() != initial.exe) "auto" else initial.icon
                             )

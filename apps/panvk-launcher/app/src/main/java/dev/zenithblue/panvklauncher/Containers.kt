@@ -451,6 +451,14 @@ object ContainerManager {
         } else envMap.putAll(FexPresets.env(emuMode))
         // Per-game shortcut env wins over defaults (but not DISPLAY / display plumbing above).
         launchOpts.get()?.env?.forEach { (k, v) -> if (k != "DISPLAY" && k != "DXVK_HUD") envMap[k] = v }
+        // FPS cap. DXVK 3.x dropped the DXVK_FRAME_RATE env (config option instead); vkd3d-proton reads VKD3D_FRAME_RATE.
+        // A user-set DXVK_FRAME_RATE in the shortcut env means they manage it themselves.
+        val fps = launchOpts.get()?.fpsLimit ?: 0
+        if (fps in 1..1000 && launchOpts.get()?.env?.containsKey("DXVK_FRAME_RATE") != true) {
+            envMap["DXVK_FRAME_RATE"] = "$fps"
+            envMap["VKD3D_FRAME_RATE"] = "$fps"
+            envMap["DXVK_CONFIG"] = (envMap["DXVK_CONFIG"]?.let { "$it; " } ?: "") + "dxvk.maxFrameRate = $fps"
+        }
         return envMap
     }
 
