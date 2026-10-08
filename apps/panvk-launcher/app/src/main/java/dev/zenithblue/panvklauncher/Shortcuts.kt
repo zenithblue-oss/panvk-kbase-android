@@ -69,6 +69,43 @@ object FexPresets {
     }
 }
 
+/**
+ * Box64 (WowBox64, PE build of ptitSeb/box64) as the 32-bit WoW64 emulator instead of FEX. Stored in [Shortcut.fex]
+ * as one of [modes]; anything else is a FEX preset. Applied as BOX64_* env (only the keys the WowBox64 build reads).
+ */
+object Box64Presets {
+    val modes = listOf("Box64 Default", "Box64 Stability", "Box64 Performance")
+    fun isBox(m: String) = m in modes
+
+    // Per-exe default when the game has no saved choice. NFS Undercover (SecuROM self-modifying code) stalls forever
+    // at "Compiling shaders" under FEX 2609.1 and 2610 (SMC re-translation loop) but runs on WowBox64.
+    private val EXE_DEFAULT = mapOf("nfs.exe" to "Box64 Stability")
+    /** [Shortcut.fex] if set, else the per-exe default, else "" (FEX default). */
+    fun modeFor(s: Shortcut) = s.fex.ifEmpty { EXE_DEFAULT[java.io.File(s.exe).name.lowercase()] ?: "" }
+    /** Mode shown/saved for a shortcut's [Shortcut.fex] value. */
+    fun resolve(m: String) = if (isBox(m)) m else FexPresets.resolve(m)
+
+    fun hint(m: String) = when (m) {
+        "Box64 Stability" -> "Strong memory model, no big blocks, safe flags. Slowest, safest."
+        "Box64 Performance" -> "Big blocks, fast NaN/rounding, relaxed flags. Fast; may crash or glitch."
+        else -> "Box64 defaults. Good starting point; 32-bit games only."
+    }
+
+    fun env(m: String): Map<String, String> = when (m) {
+        "Box64 Stability" -> mapOf(
+            "BOX64_DYNAREC_STRONGMEM" to "2", "BOX64_DYNAREC_BIGBLOCK" to "0", "BOX64_DYNAREC_SAFEFLAGS" to "2",
+            "BOX64_DYNAREC_CALLRET" to "0", "BOX64_DYNAREC_FASTNAN" to "0", "BOX64_DYNAREC_FASTROUND" to "0",
+            "BOX64_DYNAREC_X87DOUBLE" to "1", "BOX64_DYNAREC_WEAKBARRIER" to "0"
+        )
+        "Box64 Performance" -> mapOf(
+            "BOX64_DYNAREC_STRONGMEM" to "0", "BOX64_DYNAREC_BIGBLOCK" to "3", "BOX64_DYNAREC_SAFEFLAGS" to "0",
+            "BOX64_DYNAREC_CALLRET" to "1", "BOX64_DYNAREC_FASTNAN" to "1", "BOX64_DYNAREC_FASTROUND" to "1",
+            "BOX64_DYNAREC_FORWARD" to "1024", "BOX64_DYNAREC_WEAKBARRIER" to "2"
+        )
+        else -> emptyMap()
+    }
+}
+
 /** Intent extra consumed by MainActivity (debug builds only): shortcut id or name. */
 const val EXTRA_LAUNCH_SHORTCUT = "dev.zenithblue.panvklauncher.LAUNCH_SHORTCUT"
 
@@ -202,7 +239,7 @@ object ShortcutStore {
     }
 
     fun launchOptions(ctx: Context, s: Shortcut) = LaunchOptions(
-        args = splitArgs(s.args), env = s.env, driverId = s.driver, fexMode = s.fex
+        args = splitArgs(s.args), env = s.env, driverId = s.driver, fexMode = Box64Presets.modeFor(s)
     )
 
     /** Whitespace split honouring "double quotes". */
