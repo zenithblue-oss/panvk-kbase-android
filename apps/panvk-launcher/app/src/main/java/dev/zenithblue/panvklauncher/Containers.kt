@@ -686,7 +686,7 @@ object ContainerManager {
     fun runExe(ctx: Context, exePathIn: String, onLine: (String) -> Unit = {}, opts: LaunchOptions? = null): Int {
         // A game folder (shortcut / intent / picker gave a directory) launches its main exe.
         val exePath = ShortcutStore.findExeIn(exePathIn) ?: exePathIn
-        val exeFile = File(exePath)
+        val exeFile = File(exePath).let { if (it.isFile) ShortcutStore.preferInner(it) else it }
         if (!exeFile.isFile) {
             val msg = "File not found: $exePath"
             onLine(msg)
@@ -697,7 +697,7 @@ object ContainerManager {
         val workDir = exeFile.parentFile ?: File(ctx.filesDir, "container")
         applyGamePrefs(ctx, exeFile.name)
         // Native-first override is what makes Wine load the swapped-in cnc-ddraw instead of its builtin.
-        val ddraw = swapDdraw(ctx, exePath)
+        val ddraw = swapDdraw(ctx, exeFile.path)
         // Unity D3D11 games size their texture budget from the DXGI VRAM they see (5+ GB shared on this SoC) while the
         // device heap is ~2.4 GB: Silksong then exhausts it and dies in Mono ("Crash!!!") with a black screen.
         // Cap what DXGI reports unless the shortcut sets its own DXVK_CONFIG.
