@@ -177,6 +177,17 @@ object ShortcutStore {
 
     private val NOT_GAME = Regex("(?i)unins|setup|install|redist|vcredist|dxsetup|crash|report|updater|dotnet|handler|config")
 
+    /**
+     * Zip/installer extracts often nest the game twice (Game/Game/Game.exe, outer copy without the data dirs):
+     * an exe that has a same-named exe in a direct subfolder is the outer duplicate, use the inner one.
+     * Burnout Paradise otherwise spins forever on a missing VEHICLES/VEHICLELIST.BUNDLE.
+     */
+    fun preferInner(exe: File): File {
+        val inner = exe.parentFile?.listFiles { f -> f.isDirectory }?.sortedBy { it.name }
+            ?.firstNotNullOfOrNull { d -> d.listFiles { f -> f.isFile && f.name.equals(exe.name, true) }?.firstOrNull() }
+        return if (inner != null) preferInner(inner) else exe
+    }
+
     /** [path] is a game folder: pick its main exe (name closest to the folder's, else largest; depth 2). Else null. */
     fun findExeIn(path: String): String? {
         val dir = File(path)
@@ -187,7 +198,7 @@ object ShortcutStore {
         return exes.minWithOrNull(compareBy<File>(
             { it.parentFile != dir },
             { !(key.isNotEmpty() && (it.nameWithoutExtension.lowercase().filter { c -> c.isLetterOrDigit() }.let { n -> key.startsWith(n) || n.startsWith(key) })) },
-            { -it.length() }))?.path
+            { -it.length() }))?.let { preferInner(it).path }
     }
 
     fun launchOptions(ctx: Context, s: Shortcut) = LaunchOptions(
