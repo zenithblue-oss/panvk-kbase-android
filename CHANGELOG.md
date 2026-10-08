@@ -1,5 +1,24 @@
 # Changelog
 
+## panvk-kbase-v0.1.0-rc2 (release candidate)
+
+Mesa `5a07217f034b` + the series up to csf-v11/181 and jm-v9/006. Tags drop the `g615` prefix from
+now on (the driver supports Mali v10-v13); versions continue as `0.1.0-rcN`, then `0.1.0`. Apps 1.2.5
+and later see both tag prefixes; 1.2.4 only sees the old one.
+
+### Fixed and added
+
+- `robustImageAccess2` on v10 and later (181). Poco X6 Pro (G615): PanProbe 38/38, CTS robustness2
+  image 4332 passed / 0 failed, `D3D12CreateDevice` OK.
+- Mali-G77 model row (jm-v9/006): gpu_id `0x90800011`, variant 0 from a tester log. Unproven on a
+  G77; v9 stays experimental.
+- `driverInfo` reads `PanVK-kbase beta.18-rc2`.
+
+### Validation
+
+- Built and checked with `validate-package.sh` / `validate-binary` only. The RC2 binary has not been
+  run on a device yet. Android `.so` sha256 `725b13c7...`, BuildID `2c4da3d9...`.
+
 ## g615-v11-csf-v0.1.0-beta.18-rc1 (release candidate)
 
 Mesa `5a07217f034b` + the series up to 180. Reference device: Poco X6 Pro, Mali-G615 MC6 (v11),
