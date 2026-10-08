@@ -73,7 +73,7 @@ android {
         providers.gradleProperty("appIdSuffix").orNull?.let { applicationIdSuffix = it }
         minSdk = 29
         targetSdk = 36
-        versionCode = 11
+        versionCode = 12
         versionName = "1.2.4"
 
         ndk {

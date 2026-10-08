@@ -63,7 +63,9 @@ private val TESTED_BY: Map<String, List<String>> = run {
         "VK_EXT_depth_clip_enable", "depthClamp")
     t(listOf("robustness2", "bachata_exec"), "VK_EXT_robustness2.nullDescriptor", "nullDescriptor", "VK_EXT_robustness2")
     t(listOf("robustness2"), "VK_EXT_robustness2.robustBufferAccess2", "robustBufferAccess2", "robustBufferAccess",
-        "robustImageAccess", "robustImageAccess / robustImageAccess2")
+        "proton: robustBufferAccess2")
+    t(listOf("robust_image_access2"), "robustImageAccess", "robustImageAccess / robustImageAccess2", "robustImageAccess2",
+        "proton: robustImageAccess2")
     t(listOf("depth_stencil"), "depthBiasClamp", "VK_EXT_depth_bias_control", "D24_UNORM_S8_UINT or D32_SFLOAT_S8_UINT",
         "format_D24S8_or_D32S8_depth_stencil", "D24_UNORM_S8_UINT depth-stencil", "format_D32_SFLOAT_depth_stencil")
     t(listOf("blend"), "dualSrcBlend", "independentBlend", "logicOp (FL11_1)", "logicOp")

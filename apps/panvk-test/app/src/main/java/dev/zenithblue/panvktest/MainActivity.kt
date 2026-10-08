@@ -125,6 +125,7 @@ class MainActivity : ComponentActivity() {
         TestCase("bachata_reqs", isDraw = false),
         TestCase("bachata_exec", isDraw = false),
         TestCase("robustness2", isDraw = false),
+        TestCase("robust_image_access2", isDraw = false),
         TestCase("blend", isDraw = false),
         TestCase("occlusion_query", isDraw = false),
         TestCase("descriptor_model", isDraw = false),
@@ -2583,7 +2584,7 @@ private val TARGET_TAGS: Map<String, List<String>> = run {
     t(listOf(d, s), "geometry", "tessellation", "tess_cond_state")
     t(listOf(d, v), "xfb", "depth_bounds", "blend", "occlusion_query", "descriptor_model", "shader_arith",
         "depth_stencil", "draw_params", "submit_stress")
-    t(listOf(d, s, v), "robustness2", "sampler")
+    t(listOf(d, s, v), "robustness2", "robust_image_access2", "sampler")
     t(listOf(s), "bachata_reqs")
     t(listOf(s, v), "bachata_exec", "bachata_storage_fmtless", "bachata_dynamic_render")
     t(listOf(v), "vkd3d_reqs", "vkd3d_heap", "vkd3d_timeline")
