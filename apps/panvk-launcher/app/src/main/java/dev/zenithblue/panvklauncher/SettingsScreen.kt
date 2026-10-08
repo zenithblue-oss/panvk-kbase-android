@@ -80,6 +80,8 @@ fun SettingsScreen(
     selectedDriver: Driver,
     isDxvkEnabled: Boolean,
     onToggleDxvk: (Boolean) -> Unit,
+    isVkd3dEnabled: Boolean,
+    onToggleVkd3d: (Boolean) -> Unit,
     displayStatus: String,
     builtinDisplay: Boolean,
     onToggleBuiltin: (Boolean) -> Unit,
@@ -105,6 +107,17 @@ fun SettingsScreen(
         ?.let { versionLabel(it) } ?: "not installed"
 
     PageList {
+        item { SectionTitle("Wine container") }
+        item {
+            SettingsCard {
+                Text("Browse drive_c in the Files app (enable Show hidden files for .wine)", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                Button(onClick = { openContainerInFileManager(ctx) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Icon(Icons.Rounded.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp)); Text("Open Wine container in file manager")
+                }
+            }
+        }
         item { SectionTitle("Wine environment") }
         item {
             SettingsCard {
@@ -139,6 +152,8 @@ fun SettingsScreen(
                     InfoRow("Wine", ver("Proton"))
                     InfoRow("FEX", ver("FEXCore"))
                     InfoRow("DXVK", ver("DXVK"))
+                    InfoRow("vkd3d-proton", ver("VKD3D"))
+                    InfoRow("Box64", ver("Box64"))
                     InfoRow("PanVK driver", selectedDriver.label)
                 }
                 if (isRunning) {
@@ -221,6 +236,7 @@ fun SettingsScreen(
         item {
             SettingsCard {
                 SwitchRow("DXVK", "Direct3D 8/9/10/11 to Vulkan", isDxvkEnabled, onToggleDxvk)
+                SwitchRow("vkd3d-proton", "Direct3D 12 to Vulkan (needs DXVK on)", isVkd3dEnabled, onToggleVkd3d)
                 Text(
                     "Enabling DXVK is not a game compatibility result. ARM64EC smoke tests do not validate x86/i686 WOW64 games; 32-bit staging can fail on Mali kbase SAME_VA.",
                     style = MaterialTheme.typography.bodySmall,
@@ -297,8 +313,6 @@ fun SettingsScreen(
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = onOpenAppLog, modifier = Modifier.heightIn(min = 48.dp)) { Text("Launcher log") }
                     OutlinedButton(onClick = onOpenSessionLogs, modifier = Modifier.heightIn(min = 48.dp)) { Text("Last session logs") }
-                    val ctx = androidx.compose.ui.platform.LocalContext.current
-                    OutlinedButton(onClick = { openContainerInFileManager(ctx) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Open Wine container in file manager") }
                 }
             }
         }
