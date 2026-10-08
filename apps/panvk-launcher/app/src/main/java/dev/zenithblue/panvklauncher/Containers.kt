@@ -293,8 +293,24 @@ object ContainerManager {
      * (see HLSL_FIX_EXES); default builtin-first load order keeps Proton's own for everything else.
      */
     private const val DEPS_REV = "3"
-    // ponytail: per-exe list; widen to every d3dx9-importing exe if more runtime-HLSL games show the same bug.
     private val HLSL_FIX_EXES = setOf("burnoutparadise.exe")
+    // Game shader caches built by Proton's broken compiler; wiped once (marker) when the fix first applies.
+    private val HLSL_STALE_CACHES = mapOf("burnoutparadise.exe" to "AppData/Local/Criterion Games/Burnout Paradise/ShaderCache")
+
+    private fun needsHlslFix(ctx: Context, exe: File): Boolean {
+        val name = exe.name.lowercase()
+        val fix = name in HLSL_FIX_EXES || (PeInfo.arch(exe.path) == "i386" &&
+            PeInfo.imports(exe.path).any { it.startsWith("d3dx9_") || it.startsWith("d3dcompiler_") })
+        if (!fix) return false
+        val rel = HLSL_STALE_CACHES[name] ?: return true
+        val users = File(ctx.filesDir, "container/.wine/drive_c/users")
+        val marker = File(ctx.filesDir, "container/.hlsl-cache-cleared-$name")
+        if (!marker.exists()) {
+            users.listFiles()?.forEach { File(it, rel).deleteRecursively() }
+            marker.writeText("1")
+        }
+        return true
+    }
     private fun ensureRuntimeDeps(ctx: Context) {
         val win = File(ctx.filesDir, "container/.wine/drive_c/windows")
         if (!win.isDirectory) return
@@ -718,7 +734,8 @@ object ContainerManager {
         // Burnout Paradise compiles its HLSL at runtime through d3dx9_37 -> d3dcompiler_43. Proton 11.0-2's bundled
         // vkd3d-shader 1.18 emits SM3 bytecode that renders the world black/garbage (same bytecode is wrong on desktop
         // RADV too); Wine 11.19's compiler (bundled in deps/x86) gives correct shaders.
-        val hlsl = if (exeFile.name.lowercase() in HLSL_FIX_EXES) ";d3dcompiler_43,wined3d=n" else ""
+        // Any 32-bit exe importing d3dx9_*/d3dcompiler_* gets it too (only x86 copies are bundled, so never x64).
+        val hlsl = if (needsHlslFix(ctx, exeFile)) ";d3dcompiler_43,wined3d=n" else ""
         val extraOvr = (ddraw ?: "") + hlsl
         launchOpts.set(if (extraOvr.isEmpty()) opts2 else o.copy(env = o.env + ("WINEDLLOVERRIDES" to
             ((o.env["WINEDLLOVERRIDES"] ?: if (isDxvkEnabled(ctx)) "mscoree,mshtml=d;d3d8,d3d9,d3d10core,d3d11,dxgi=n,b;nsiproxy.sys=d" else "mscoree,mshtml=d;nsiproxy.sys=d") + extraOvr))))
