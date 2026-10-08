@@ -18,14 +18,14 @@ Helper scripts (host): /var/tmp/panvk/panplay-games/{go.sh,in.sh,sc.py,launch.sh
 | Cat Quest | yes (overworld, 121 fps) | CatQuest/gameplay.png | mfc140u.dll missing: bundled MFC; nsiproxy hang fixed |
 | MiSide | yes (new game, bedroom, 59 fps) | MiSide/gameplay.png | works after nsiproxy.sys=d |
 | Skyrim TESV | yes (intro carriage 3D, 38 fps) | TESV/gameplay.png | works after nsiproxy.sys=d |
-| Need for Speed MW | yes (main menu 3D, 100 fps; driving by key nav) | speedmw/gameplay.png | legal splash was nsiproxy hang; fixed |
+| Need for Speed MW | yes (Quick Play > circuit City Perimeter, racing 3rd of 3, 90 fps, HUD+speedo) | speedmw/gameplay.png | legal splash was nsiproxy hang; fixed. Nav by `--longpress` keys, race start by Enter |
 | Dark Souls PtD | yes (in-world, 3D visible) | DarkSouls/gameplay.png | black 3D = Blur/Antialiasing (MSAA) filter on panvk: app forces `Blur=0 Antialiasing=0 ForceDisableAA=1` in DarkSouls.ini; pad preset darksouls.json |
 | Silksong | yes (in-game) | Silksong/gameplay.png | `Crash!!!` = Unity over-budgets VRAM (DXGI 5+ GB vs 2.4 GB heap): app caps `dxgi.maxDeviceMemory=2048; dxgi.maxSharedMemory=1024` for UnityPlayer.dll games |
-| Burnout Paradise | no: Paradise City loading screen, never finishes (4+ min, 60 fps) | Burnout/loading.png | CPU-bound main thread 93%, no log error |
-| NFS Undercover | no: stuck on `Compiling shaders...` | nfsuc/n3.png | earlier: `Unhandled illegal instruction at address 00D4AB4C` (FEX); now hangs in game shader compile, fex Extreme also 0.9 fps |
+| Burnout Paradise | partial: main menu, license, in-world (pause menu, minimap, tutorial subtitle); 3D scene renders black/garbled, car does not move | Burnout/ingame_corrupt3d.png, Burnout/menu.png | Endless loading root cause found: shortcut pointed at the outer nested copy of BurnoutParadise.exe, which has no VEHICLES/ dir (log: `CreateFileW ... VEHICLES\\VEHICLELIST.BUNDLE not found (c000003a)`, main thread spins). Pointing it at `.../Burnout Paradise/Burnout Paradise/BurnoutParadise.exe` (the one next to VEHICLES/) loads fine. Not CPU/audio/topology: WINE_CPU_TOPOLOGY=4 had no effect. Remaining: 3D corruption, same with d3d9.forceSwvp and floatEmulation=Strict |
+| NFS Undercover | no: BLOCKED by DRM | nfsuc/n3.png | game dir has `paul.dll` (SecuROM 7 component) next to a 10.5 MB nfs.exe whose `.data` (0x91f000, 0x6531d4 virt, 0x64000 raw) is executed: crash at `00D4AB4C` = `.data`+0x2BB4C holding encrypted-looking bytes (`d3 61 43 72 1e ff 80 ff`), SEH CONTINUE_SEARCH; exe also ships steam_api.dll/steam_api.ini and a 2.2 MB dinput8.dll (modified install). Not bypassing DRM/cracks: stopped. |
 | AoE2 | yes (Standard Game, village in-game) | AoE2/gameplay.png | `undetectable problem in loading the specified device driver` came from startup/intro path; app passes `nostartup` for age2_x1/age2_x2/empires2.exe. cnc-ddraw works (auto and gdi) |
 
 
 ## Still blocked (evidence)
-- Burnout Paradise: loading screen never ends in Stability/Compat/Intermediate/Performance FEX modes, main thread CPU-bound, no error in log. Proof of state: Burnout/loading.png.
-- NFS Undercover: `Unhandled illegal instruction at address 00D4AB4C` (inside .data, SEH chain returns CONTINUE_SEARCH, so DRM/SMC-style code); Denuvo mode adds `FEX_SMCCHECKS=full` and hits a stack overflow in virtual_setup_exception; otherwise hangs at `Compiling shaders...`. Proof: nfsuc/n3.png, nfsuc/p1.png.
+- Burnout Paradise: 3D scene black/garbled after reaching the world (see table). Next idea: AA/postfx targets like Dark Souls, or panvk D24S8 path (log: `D3D9: VK_FORMAT_D16_UNORM_S8_UINT -> VK_FORMAT_D24_UNORM_S8_UINT`).
+- NFS Undercover: DRM (SecuROM `paul.dll` + code-in-.data). Per project rule no cracks or bypasses.
