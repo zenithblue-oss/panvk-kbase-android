@@ -535,3 +535,38 @@ published beta.3 inventory generated from the canonical matrix.
 Mesa code remains under its upstream licenses (see `LICENSES/` and
 `NOTICE.md`). Build/patch/test scaffolding in this repository is MIT unless
 otherwise noted.
+
+## Credits
+
+This project builds on the work of many people. Thank you.
+
+### Driver
+
+- [Mesa](https://gitlab.freedesktop.org/mesa/mesa) / PanVK and Panfrost (MIT): the driver this project patches. Pinned commit in `sources.lock`.
+- Arm `mali_kbase` UAPI headers (Linux kernel, GPL-2.0 WITH Linux-syscall-note): vendored, see `NOTICE.md`.
+- [wonderkast02/panvk-g720-kbase-csf](https://github.com/wonderkast02/panvk-g720-kbase-csf): CSF / Valhall and 5th Gen reference (kmod backend, CSF lifecycle, AHB, sync, G720 tessellation).
+- [LukeValen/panvk-mali-g52](https://github.com/LukeValen/panvk-mali-g52): JM / Bifrost reference.
+- [Noysz/panvk-g99-jm](https://github.com/Noysz/panvk-g99-jm): JM / Valhall v9 reference.
+- [nangitagamer777-art/PanVK-kbase](https://github.com/nangitagamer777-art/PanVK-kbase) and [Panvk_Kmod](https://github.com/nangitagamer777-art/Panvk_Kmod): implementation history and secondary reference.
+- [leegao/bcn_layer](https://github.com/leegao/bcn_layer) (MIT) with libGPUCounters, and [leegao/mesa-funnymdzz](https://github.com/leegao/mesa-funnymdzz): BCn compatibility and secondary references.
+- [Khronos](https://www.khronos.org/) Vulkan headers, registry and [VK-GL-CTS](https://github.com/KhronosGroup/VK-GL-CTS): API definitions and conformance testing.
+
+### PanPlay
+
+- [Winlator](https://github.com/brunodev85/winlator) (LGPL-2.1): built-in X server, renderer and touchpad view (vendored in `apps/panvk-launcher/third_party/winlator`).
+- [Wine](https://gitlab.winehq.org/wine/wine) (LGPL-2.1-or-later) and Valve's [Proton](https://github.com/ValveSoftware/Proton), via the [GameNative proton-wine](https://github.com/GameNative/proton-wine) arm64ec build. Wine 11.19 `d3dcompiler_43` / `wined3d` (with vkd3d-shader) as the HLSL compiler fix.
+- [GameNative](https://github.com/GameNative): `imagefs_bionic` Android userland for Wine.
+- [FEX-Emu](https://github.com/FEX-Emu/FEX) (MIT): x86 / x86-64 emulation (ARM64EC and WoW64).
+- [DXVK](https://github.com/doitsujin/dxvk) (Zlib): Direct3D 8/9/10/11 to Vulkan.
+- [vkd3d-proton](https://github.com/HansKristian-Work/vkd3d-proton) (LGPL-2.1): Direct3D 12 to Vulkan.
+- [cnc-ddraw](https://github.com/FunkyFr3sh/cnc-ddraw) (MIT): DirectDraw renderer for old games.
+- Microsoft Visual C++ Redistributable (MFC140, VCOMP140): redistributed under Microsoft's redistribution terms.
+- [llvm-mingw](https://github.com/mstorsjo/llvm-mingw): Windows cross toolchain for FEX, DXVK and vkd3d-proton.
+- [Apache Commons Compress](https://commons.apache.org/proper/commons-compress/) (Apache-2.0), [XZ for Java](https://tukaani.org/xz/java.html) (0BSD) and [zstd-jni](https://github.com/luben/zstd-jni) (BSD-2-Clause): archive unpacking.
+
+### PanProbe and both apps
+
+- [Android Jetpack / AndroidX and Jetpack Compose](https://developer.android.com/jetpack) (Apache-2.0): app UI.
+- Android NDK and the Vulkan loader on Android: native test runner and Vulkan info.
+
+Full license notices: `NOTICE.md`, `LICENSES/` and `apps/panvk-launcher/app/src/main/assets/components-NOTICE.txt`.
