@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://t.me/+E-NhUATmkqE5ODg1"><img src="https://img.shields.io/badge/Telegram-Join%20testers-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Join the Telegram testers group"></a>
-  <a href="https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/g615-v11-csf-v0.1.0-beta.18-rc1"><img src="https://img.shields.io/badge/driver-beta.18%20RC1-orange?style=for-the-badge" alt="Driver beta.18 RC1"></a>
+  <a href="https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc2"><img src="https://img.shields.io/badge/driver-0.1.0%20RC2-orange?style=for-the-badge" alt="Driver 0.1.0 RC2"></a>
   <a href="https://github.com/zenithblue-oss/panplay/releases/tag/panplay-v1.2.4"><img src="https://img.shields.io/badge/PanPlay-1.2.4-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanPlay 1.2.4"></a>
   <a href="https://github.com/zenithblue-oss/panprobe/releases/tag/panprobe-v1.2.4"><img src="https://img.shields.io/badge/PanProbe-1.2.4-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanProbe 1.2.4"></a>
 </p>
@@ -209,13 +209,16 @@ change creates a new release even if the Mesa SHA is unchanged.
 
 ### Current status
 
-Latest: **[`g615-v11-csf-v0.1.0-beta.18-rc1`](https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/g615-v11-csf-v0.1.0-beta.18-rc1)**
-(release candidate, Mesa `5a07217f` plus the committed series up to 180 and `jm-v9`). Each
+Latest: **[`panvk-kbase-v0.1.0-rc2`](https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc2)**
+(release candidate, Mesa `5a07217f` plus the committed series up to 181 and `jm-v9`; not yet tested on a
+device, the device results below are for RC1 and earlier builds). Tags no longer carry the `g615`
+prefix; older releases keep theirs. Each
 release ships the Android and glibc drivers, an `.adpkg` package, an EMULATOR
 zip, the test APK and screenshots. Full history: [`CHANGELOG.md`](CHANGELOG.md).
 
 | Release | Highlights |
 |---|---|
+| **0.1.0 RC2** | `robustImageAccess2` on v10 and later (181): G615 PanProbe 38/38, CTS robustness2 image 4332/0, `D3D12CreateDevice` OK. Mali-G77 model row (jm-v9/006, variant 0 from a tester log, unproven on G77). `driverInfo` beta.18-rc2. Tag prefix `g615` dropped (`panvk-kbase-v`). RC2 binary not yet device-tested. |
 | **beta.18 RC1** | First release tested on v10, v11, v12 and v13 hardware: PanProbe 37/37 on G610, G710, G615, G715, Immortalis-G720 and Immortalis-G925. BCn rework: BC textures decode into a compact tiled AFBC/AFRC shadow, about 2x faster bandwidth-bound sampling and 38-65% less shadow memory (150, 151, 180; AFRC is lossy, `PANVK_BC_AFRC=0` for exact). Shader compile stalls: faster register allocation, NFS: Most Wanted pipelines 3.6 s to about 0.3 s, identical output (152-154, 160-164). Mesa disk shader cache on by default on Android (170), each Android property looked up once (171). `robustBufferAccess2` on v10 (122), v13 vertex stores (130, 132), core-count GPU names (131), G710 model row (140). Known: G720 MC8 `gs_viewport_depth` intermittent (untested on beta.18), v14 untested. |
 | **beta.17** | Correctness and reach. G615: GS draws with primitive restart no longer fault the GPU (120); zero depth-range viewports keep exact depth (121); depth bounds keeps FPK/early ZS while off (116); FS `gl_PrimitiveID` survives viewport runs (115); VMR secondaries (114); prerast fan splits (112); `SetEvent`/`ResetEvent` never return DEVICE_LOST (111); X11 software present over MIT-SHM (117). Universal: BC emulation unless all BC formats are native (108), v12+ viewport depth (109), kbase CSF uAPI layouts and 16K pages (110), vertex stores on v13/v14 (119), vendor-neutral gralloc mapper (android/014). PanProbe 36/36 x3; CTS 32339 pass / 115 fail, sync + memory gate unchanged. Fixes for G610/G720/G925/G1-Ultra and stock ROMs untested on hardware. |
 | **beta.16** | Removes the remaining CPU waits on the v11 kbase path. Software WSI present no longer blocks the app's submit thread until the GPU finishes the frame (106). Up to three retired tiler heaps can be in flight, so `vkQueueSubmit` no longer stalls 35-55 ms on heap backpressure (107). NFS: Most Wanted race: 85.5 to 90.6 fps (DXVK HUD), p99 frame time 22 to 16 ms. NFS is now limited by Wine, not the GPU. CTS sync + memory gate: same 56 failures; PanProbe 17/17. |
