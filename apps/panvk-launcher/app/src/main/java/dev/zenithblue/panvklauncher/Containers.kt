@@ -292,7 +292,7 @@ object ContainerManager {
      * "Wine builtin DLL" stub tag renamed so Wine treats them as native: idle unless a game overrides them =n
      * (see HLSL_FIX_EXES); default builtin-first load order keeps Proton's own for everything else.
      */
-    private const val DEPS_REV = "3"
+    private const val DEPS_REV = "4"
     private val HLSL_FIX_EXES = setOf("burnoutparadise.exe")
     // Game shader caches built by Proton's broken compiler; wiped once (marker) when the fix first applies.
     private val HLSL_STALE_CACHES = mapOf("burnoutparadise.exe" to "AppData/Local/Criterion Games/Burnout Paradise/ShaderCache")
@@ -317,7 +317,7 @@ object ContainerManager {
         val marker = File(ctx.filesDir, "container/.deps-rev")
         if (marker.isFile && marker.readText() == DEPS_REV && File(win, "system32/mfc140u.dll").isFile) return
         try {
-            for ((dir, dst) in listOf("x64" to "system32", "x86" to "syswow64", "ddraw" to "cnc-ddraw")) {
+            for ((dir, dst) in listOf("x64" to "system32", "x86" to "syswow64", "ddraw" to "cnc-ddraw", "wow64" to "system32")) {
                 val out = File(win, dst).apply { mkdirs() }
                 for (n in ctx.assets.list("deps/$dir") ?: emptyArray()) {
                     ctx.assets.open("deps/$dir/$n").use { i -> File(out, n).outputStream().use { i.copyTo(it) } }
@@ -448,7 +448,11 @@ object ContainerManager {
                 ?.let { envMap["MESA_VK_X11_SW_REFRESH_HZ"] = Math.round(it).toString() }
         }
         // FEX preset (default Intermediate); per-game env below may override single FEX_* keys.
-        envMap.putAll(FexPresets.env(launchOpts.get()?.fexMode ?: ""))
+        val emuMode = launchOpts.get()?.fexMode ?: ""
+        if (Box64Presets.isBox(emuMode)) {
+            envMap.putAll(Box64Presets.env(emuMode))
+            envMap["HODLL"] = "wowbox64.dll"
+        } else envMap.putAll(FexPresets.env(emuMode))
         // Per-game shortcut env wins over defaults (but not DISPLAY / display plumbing above).
         launchOpts.get()?.env?.forEach { (k, v) -> if (k != "DISPLAY" && k != "DXVK_HUD") envMap[k] = v }
         return envMap
@@ -678,6 +682,7 @@ object ContainerManager {
             if (!graphics) return runInternal(ctx, args, workDir ?: containerDir, onLine, session?.env)
             // A game from an earlier session (crashed launcher, detached child) must not keep its GPU and RAM.
             killPrefixProcesses(ctx)
+            selectWow64Emulator(ctx, Box64Presets.isBox(launchOpts.get()?.fexMode ?: ""))
             val code = runInternal(ctx, args, workDir ?: containerDir, onLine, session?.env)
             // The started exe can exit while the game it spawned keeps running (Fallout4Launcher, start.exe), and a
             // finished game can leave Wine processes behind that hold its memory into the next launch. Wait until
@@ -847,6 +852,24 @@ object ContainerManager {
     }
 
     /** SIGKILL every process running in the container prefix, then drop the stale ntsync shm. */
+    /**
+     * 32-bit emulator Wine loads for WoW64 processes: HKLM\Software\Microsoft\Wow64\x86 default value. Edited in
+     * system.reg directly (wineserver is dead here, and a reg.exe write would be lost to the SIGKILL cleanup).
+     * Box64 = wowbox64.dll (bundled in assets/deps/wow64), FEX = libwow64fex.dll. Always rewritten so FEX games
+     * switch back after a Box64 launch.
+     */
+    private fun selectWow64Emulator(ctx: Context, box: Boolean) {
+        try {
+            val reg = File(ctx.filesDir, "container/.wine/system.reg")
+            if (!reg.isFile) return
+            val want = if (box) "wowbox64.dll" else "libwow64fex.dll"
+            val text = reg.readText(Charsets.ISO_8859_1)
+            val re = Regex("""(\[Software\\\\Microsoft\\\\Wow64\\\\x86\][^\n]*\n(?:#[^\n]*\n)?@=")[^"\n]*(")""")
+            val out = re.replace(text) { it.groupValues[1] + want + it.groupValues[2] }
+            if (out != text) reg.writeText(out, Charsets.ISO_8859_1)
+        } catch (_: Exception) {}
+    }
+
     private fun killPrefixProcesses(ctx: Context) {
         try {
             val winePrefix = File(ctx.filesDir, "container/.wine")
