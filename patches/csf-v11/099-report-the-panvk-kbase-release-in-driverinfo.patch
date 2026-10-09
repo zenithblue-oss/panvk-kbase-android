@@ -4,8 +4,9 @@ Date: Sun, 4 Oct 2026 12:00:00 +0530
 Subject: [PATCH] panvk: report the PanVK-kbase release in driverInfo
 
 Expose the PanVK-kbase release in driverInfo so DXVK HUD and PanProbe
-show beta.13 alongside the Mesa version. Allow build-time overrides with
-PANVK_KBASE_RELEASE; the resulting string fits the 256-byte driverInfo.
+show the release name (RC3) alongside the Mesa version. Allow build-time
+overrides with PANVK_KBASE_RELEASE; the resulting string fits the 256-byte
+driverInfo.
 
 Purpose: show the PanVK-kbase release in DXVK HUD / PanProbe
 Tested GPU: not run (target: Mali-G615 MC6 / Poco X6 Pro)
@@ -25,7 +26,7 @@ index 90ed3daa229..9eb316fa1b6 100644
  #include "pan_props.h"
  
 +#ifndef PANVK_KBASE_RELEASE
-+#define PANVK_KBASE_RELEASE "beta.18-rc2"
++#define PANVK_KBASE_RELEASE "RC3"
 +#endif
 +
  /* We reserve one ubo for push constant, one for sysvals and one per-set for the
