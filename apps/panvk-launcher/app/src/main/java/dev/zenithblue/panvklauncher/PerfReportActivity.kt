@@ -58,7 +58,7 @@ class PerfReportActivity : ComponentActivity() {
         val ids = remember { PerfRecorder.list(ctx) }
         var cur by remember { mutableStateOf(want ?: PerfRecorder.lastFor(ctx, game)) }
         var menu by remember { mutableStateOf(false) }
-        Column(Modifier.fillMaxSize().systemBarsPadding().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.fillMaxSize().systemBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Performance", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                 Button(onClick = { finish() }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Close") }
@@ -70,8 +70,8 @@ class PerfReportActivity : ComponentActivity() {
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedButton(onClick = { share(ctx, id) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Export ZIP") }
-                Box {
-                    OutlinedButton(onClick = { menu = true }, modifier = Modifier.heightIn(min = 48.dp)) { Text(id.take(26)) }
+                Box(Modifier.weight(1f)) {
+                    OutlinedButton(onClick = { menu = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(id, maxLines = 1) }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         ids.forEach { s -> DropdownMenuItem(text = { Text(s) }, onClick = { cur = s; menu = false }) }
                     }
@@ -118,7 +118,7 @@ class PerfReportActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun Report(d: Data) {
+    private fun ColumnScope.Report(d: Data) {
         val s = d.sum
         fun n(k: String, fmt: String = "%.1f", unit: String = ""): String? =
             if (s.has(k) && !s.isNull(k)) String.format(Locale.US, fmt, s.optDouble(k)) + unit else null
@@ -142,7 +142,7 @@ class PerfReportActivity : ComponentActivity() {
             "FPS limit" to if (s.optInt("fpsLimit") > 0) s.optInt("fpsLimit").toString() else "off",
             "DXVK" to s.optString("dxvk"), "Device" to s.optString("device")
         )
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (!s.optBoolean("dxvkStats"))
                 Text("No DXVK frame data (D3D12/vkd3d games, DXVK off, or the game never presented). System graphs only.",
                     color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
