@@ -745,7 +745,10 @@ object ContainerManager {
         // vkd3d-shader 1.18 emits SM3 bytecode that renders the world black/garbage (same bytecode is wrong on desktop
         // RADV too); Wine 11.19's compiler (bundled in deps/x86) gives correct shaders.
         // Any 32-bit exe importing d3dx9_*/d3dcompiler_* gets it too (only x86 copies are bundled, so never x64).
-        val hlsl = if (needsHlslFix(ctx, exeFile)) ";d3dcompiler_43,wined3d=n" else ""
+        // Native wined3d is only for Burnout (HLSL_FIX_EXES): for other games it can make Wine's wined3d (GL, absent
+        // on Android) initialise instead of DXVK (NFS: Most Wanted on a fresh G925 container: wined3d_adapter_gl_init).
+        val hlsl = if (!needsHlslFix(ctx, exeFile)) ""
+            else if (exeFile.name.lowercase() in HLSL_FIX_EXES) ";d3dcompiler_43,wined3d=n" else ";d3dcompiler_43=n"
         val extraOvr = (ddraw ?: "") + hlsl
         launchOpts.set(if (extraOvr.isEmpty()) opts2 else o.copy(env = o.env + ("WINEDLLOVERRIDES" to
             ((o.env["WINEDLLOVERRIDES"] ?: defaultDllOverrides(ctx)) + extraOvr))))
