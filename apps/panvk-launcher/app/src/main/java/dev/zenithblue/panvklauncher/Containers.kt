@@ -412,6 +412,7 @@ object ContainerManager {
             envMap["DXVK_LOG_LEVEL"] = "info"
             envMap["DXVK_LOG_PATH"] = "Z:" + gfxLogs.absolutePath
             envMap["DXVK_HUD"] = "full"
+            envMap.putAll(PerfRecorder.env()) // DXVK_STATS_FILE while a perf session is recording
         }
         envMap["VKD3D_LOG_FILE"] = "Z:" + File(gfxLogs, "vkd3d.log").absolutePath
         // Mesa disk cache in files/mesa_shader_cache: compiled shaders survive sessions
