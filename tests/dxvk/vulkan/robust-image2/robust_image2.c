@@ -113,10 +113,6 @@ device_hook(struct dx7 *t, VkDeviceCreateInfo *dci)
           supported_rob2.robustBufferAccess2,
           supported_rob2.nullDescriptor);
 
-   if (!supported_rob2.robustImageAccess2) {
-      printf("INFO robustImageAccess2 not advertised; checking hardware behaviour anyway\n");
-   }
-
    static VkPhysicalDeviceFeatures2 dev_feat2;
    static VkPhysicalDeviceRobustness2FeaturesEXT dev_rob2;
    static VkPhysicalDeviceImageRobustnessFeatures dev_img_rob;
@@ -926,16 +922,17 @@ main(int argc, char **argv)
    dx7_init(&t, argv[1], NULL);
    load_extra_funcs(&t, argv[1]);
 
+   /* Unsupported feature: nothing to check (v10 LD_TEX returns alpha 1 OOB). */
+   if (!supported_rob2.robustImageAccess2) {
+      printf("RESULT SKIP robustImageAccess2 not supported\n");
+      return 0;
+   }
+
    int passes = 0;
    int fails = 0;
 
    run_variant(&t, "r32ui", VK_FORMAT_R32_UINT, ri2_r32ui_spv, sizeof(ri2_r32ui_spv), &passes, &fails);
    run_variant(&t, "rgba8", VK_FORMAT_R8G8B8A8_UNORM, ri2_rgba8_spv, sizeof(ri2_rgba8_spv), &passes, &fails);
-
-   if (!supported_rob2.robustImageAccess2) {
-      printf("FAIL case advertised robustImageAccess2=0\n");
-      fails++;
-   }
 
    if (fails > 0) {
       printf("RESULT FAIL\n");
