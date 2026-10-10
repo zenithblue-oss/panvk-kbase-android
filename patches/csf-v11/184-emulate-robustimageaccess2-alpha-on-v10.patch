@@ -1,0 +1,147 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Sat, 10 Oct 2026 10:30:00 +0530
+Subject: [PATCH] pan/bi: emulated robustImageAccess2 alpha fix-up on GPU, v10 only biblioklept
+
+csf-v11/181 advertises robustImageAccess2 on v10+, but v10 (G610/G710)
+LD_TEX returns (0,0,0,1) for every out-of-bounds storage image load,
+whatever the format. robustImageAccess2 wants (0,0,0,0) when the view
+format has alpha. RGB is already zero, R32_UINT and friends already get
+the right alpha 1, and texelFetch, texel buffers, stores and atomics
+already pass on v10, so only the alpha of 4-wide image loads is wrong.
+v11 returns (0,0,0,0) natively.
+
+Emulated alpha fix-up on GPU, v10 only: when the pipeline uses
+robustImageAccess2 (panvk sets nir_var_image in robust_modes), each
+4-wide image_load of a 1D/2D/3D/cube image whose format has alpha (or
+is unknown) gets
+
+  oob   = desc.w0 == 0 (null) | x > Width-1 | y > Height-1 | z/layer > Depth-1/Array size-1
+  alpha = oob ? 0 : alpha
+
+The sizes come from the Texture descriptor the load already uses (one
+64-bit descriptor load for word 0-1, one 32-bit load for word 6/7 with
+arrays/3D/cube; both are CSEd across loads of the same image). The
+compares are unsigned on the full 32-bit coordinates, so negative and
+65536-aliased coordinates are caught too. Formatless loads keep alpha 1
+when the descriptor's component order has no alpha (RGB1/R001 family,
+order bit 4). v11+ and stores/atomics are unchanged.
+
+Purpose: robustImageAccess2 on v10 (G610/G710): emulated alpha fix-up on GPU, v10 only
+Upstream-commit: none (upstream main 6b9cd5ab still reports robustImageAccess2 = false on v10)
+Tested GPU: Mali-G615 MC6 (v11, local, unaffected: 83/83 robust_image_access2 cases incl. formatless, bench +0.2%, instructions 185/185); v10 Firebase pending (TEST_QUOTA_EXCEEDED)
+Tested Kbase UAPI: CSF 1.21 / MediaTek
+Mesa base range: 5a07217f034b (26.3.0-devel), patched through csf-v11/181
+Validation test: PanProbe robust_image_access2 (r32ui/rgba8, formatless r32ui/rgba8, BENCH line) + vkd3d_reqs
+Dependencies: csf-v11/181
+Generated-by: LLM
+---
+
+diff --git a/src/panfrost/compiler/bifrost/bifrost_nir.c b/src/panfrost/compiler/bifrost/bifrost_nir.c
+index 07c0df8..9629e57 100644
+--- a/src/panfrost/compiler/bifrost/bifrost_nir.c
++++ b/src/panfrost/compiler/bifrost/bifrost_nir.c
+@@ -911,6 +911,73 @@ bi_lower_robust_texel_buf(nir_builder *b, nir_instr *instr, void *data)
+    return true;
+ }
+ 
++/*
++ * v10 LD_TEX returns (0,0,0,1) for out-of-bounds storage image texels,
++ * whatever the format; v11 returns (0,0,0,0) when the format has alpha, as
++ * robustImageAccess2 wants. RGB is already zero, so only clear alpha when
++ * the coordinates are outside the Texture descriptor (Width, Height,
++ * Array size or Depth, all minus(1); a null descriptor has word 0 == 0).
++ * Unsigned compares also catch negative and >16-bit coordinates.
++ */
++static bool
++bi_lower_robust_image_alpha_v10(nir_builder *b, nir_intrinsic_instr *intr,
++                                UNUSED void *data)
++{
++   if (intr->intrinsic != nir_intrinsic_image_load ||
++       intr->def.num_components < 4)
++      return false;
++
++   const enum glsl_sampler_dim dim = nir_intrinsic_image_dim(intr);
++   if (dim != GLSL_SAMPLER_DIM_1D && dim != GLSL_SAMPLER_DIM_2D &&
++       dim != GLSL_SAMPLER_DIM_3D && dim != GLSL_SAMPLER_DIM_CUBE)
++      return false;
++
++   /* Formats without alpha already get the right (0,0,0,1). */
++   const enum pipe_format format = nir_intrinsic_format(intr);
++   if (format != PIPE_FORMAT_NONE && !util_format_has_alpha(format))
++      return false;
++
++   b->cursor = nir_before_instr(&intr->instr);
++   nir_def *handle = intr->src[0].ssa;
++   nir_def *coords = intr->src[1].ssa;
++
++   nir_def *w01 = pan_nir_load_va_desc(b, 2, 32, handle, 0);
++   nir_def *w0 = nir_channel(b, w01, 0);
++   nir_def *w1 = nir_channel(b, w01, 1);
++
++   nir_def *oob = nir_ieq_imm(b, w0, 0);
++   oob = nir_ior(b, oob, nir_ult(b, nir_iand_imm(b, w1, 0xffff),
++                                 nir_channel(b, coords, 0)));
++   if (dim != GLSL_SAMPLER_DIM_1D)
++      oob = nir_ior(b, oob, nir_ult(b, nir_ushr_imm(b, w1, 16),
++                                    nir_channel(b, coords, 1)));
++
++   /* Storage cube views are 2D arrays, the face is in coords.z. */
++   if (dim == GLSL_SAMPLER_DIM_3D || dim == GLSL_SAMPLER_DIM_CUBE ||
++       nir_intrinsic_image_array(intr)) {
++      nir_def *n = pan_nir_load_va_desc(b, 1, 32, handle,
++                                        dim == GLSL_SAMPLER_DIM_3D ? 7 * 4
++                                                                   : 6 * 4);
++      unsigned c = dim == GLSL_SAMPLER_DIM_1D ? 1 : 2;
++      oob = nir_ior(b, oob, nir_ult(b, nir_iand_imm(b, n, 0xffff),
++                                    nir_channel(b, coords, c)));
++   }
++
++   /* Formatless: keep alpha 1 when the view format has none. Its component
++    * order (Format bits 0:7, word 0 bit 10) is then RGB1/GRB1/BGR1/1RGB/...,
++    * which all have bit 4 set; RGBA/BGRA/... have it clear.
++    */
++   if (format == PIPE_FORMAT_NONE)
++      oob = nir_iand(b, oob, nir_inot(b, nir_test_mask(b, w0, 1u << 14)));
++
++   b->cursor = nir_after_instr(&intr->instr);
++   nir_def *alpha = nir_bcsel(b, oob, nir_imm_zero(b, 1, intr->def.bit_size),
++                              nir_channel(b, &intr->def, 3));
++   nir_def *res = nir_vector_insert_imm(b, &intr->def, alpha, 3);
++   nir_def_rewrite_uses_after(&intr->def, res);
++   return true;
++}
++
+ static bool pan_nir_lower_buf_image_access(nir_shader *nir, unsigned arch);
+ static bool bi_should_idvs(nir_shader *nir, const struct pan_compile_inputs *inputs);
+ static bool bifrost_nir_lower_vs_atomics(nir_shader *nir);
+@@ -935,6 +1002,11 @@ bifrost_postprocess_nir(nir_shader *nir,
+                nir_metadata_none, &robust_modes);
+    }
+ 
++   if (gpu_arch == 10 && (inputs->robust_modes & nir_var_image))
++      NIR_PASS(_, nir, nir_shader_intrinsics_pass,
++               bi_lower_robust_image_alpha_v10, nir_metadata_control_flow,
++               NULL);
++
+    NIR_PASS(_, nir, nir_lower_image_atomics_to_global, NULL, NULL);
+ 
+    /* on Bifrost, lower MSAA load/stores to 3D load/stores */
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index fe6a210..38b3e87 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -3381,6 +3381,10 @@ panvk_compile_shader(struct panvk_device *dev,
+       robust_modes |= nir_var_mem_ubo;
+    if (info->robustness->storage_buffers != VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED_EXT)
+       robust_modes |= nir_var_mem_ssbo;
++   /* v10 image loads need a shader fix-up for robustImageAccess2. */
++   if (info->robustness->images ==
++       VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_ROBUST_IMAGE_ACCESS_2_EXT)
++      robust_modes |= nir_var_image;
+ 
+    struct pan_compile_inputs inputs = {
+       .gpu_id = phys_dev->kmod.dev->props.gpu_id,
+--
+2.47.0
+

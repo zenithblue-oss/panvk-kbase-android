@@ -1,0 +1,17 @@
+#version 450
+// Storage-image load microbenchmark: every invocation of a 4096x4096 grid
+// loads 16 rgba8 texels down its column. The sum is only written when it can
+// never happen, so the loads stay but nothing is stored.
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(binding = 0, rgba8) uniform readonly image2D img;
+layout(binding = 1, std430) buffer Out { vec4 r; } o;
+
+void main()
+{
+   ivec2 c = ivec2(gl_GlobalInvocationID.xy);
+   vec4 s = vec4(0.0);
+   for (int i = 0; i < 16; i++)
+      s += imageLoad(img, ivec2(c.x, (c.y + i * 8) & 4095));
+   if (s.w < -1.0)
+      o.r = s;
+}

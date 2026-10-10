@@ -919,9 +919,11 @@ class MainActivity : ComponentActivity() {
         val mismatchRegex = Regex("""mismatch=(\d+)""")
         val fpsRegex = Regex("""FPS ([0-9.]+)""")
         val last40 = ArrayDeque<String>(40)
+        val bench = mutableListOf<String>()
         if (logFile.exists()) scanLog(logFile) { line ->
             val trimmed = line.trimStart()
             if (trimmed.startsWith("FAIL") || trimmed.startsWith("RESULT FAIL")) hasFail = true
+            if (trimmed.startsWith("BENCH ")) bench.add(trimmed.removePrefix("BENCH "))
             if (trimmed.startsWith("RESULT SKIP")) hasSkip = true
             mismatchSum += mismatchRegex.findAll(line)
                 .sumOf { it.groupValues[1].toLongOrNull() ?: 0L }
@@ -954,7 +956,8 @@ class MainActivity : ComponentActivity() {
             fps = fps,
             durationMs = durationMs,
             logFile = logFile,
-            lastLines = last40.toList()
+            lastLines = last40.toList(),
+            extra = bench.takeIf { it.isNotEmpty() }?.joinToString(" | ")
         )
     }
 

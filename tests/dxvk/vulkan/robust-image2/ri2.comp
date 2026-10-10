@@ -2,16 +2,23 @@
 // robustImageAccess2 probe. Build with -DR32UI (no-alpha format, uint) or
 // -DRGBA8 (alpha format, float). Every case writes one uvec4 (raw bits).
 // Images are 4x4, 2 array layers; the sampled view has 2 mip levels.
+// -DNOFMT declares the storage image without a format (no atomics then).
+#ifdef NOFMT
+#extension GL_EXT_shader_image_load_formatted : require
+#define SFMT(f)
+#else
+#define SFMT(f) , f
+#endif
 layout(local_size_x = 1) in;
 
 #ifdef R32UI
-layout(binding = 0, r32ui) uniform uimage2DArray simg;
+layout(binding = 0 SFMT(r32ui)) uniform uimage2DArray simg;
 layout(binding = 1) uniform usampler2DArray tex;
 layout(binding = 2) uniform usamplerBuffer tbuf;
 #define VEC uvec4
 uvec4 bits(uvec4 v) { return v; }
 #else
-layout(binding = 0, rgba8) uniform image2DArray simg;
+layout(binding = 0 SFMT(rgba8)) uniform image2DArray simg;
 layout(binding = 1) uniform sampler2DArray tex;
 layout(binding = 2) uniform samplerBuffer tbuf;
 #define VEC vec4
@@ -49,7 +56,7 @@ void main()
    imageStore(simg, ivec3(-1, 0, 0), VEC(9));
    imageStore(simg, ivec3(65536, 1, 0), VEC(9));
    imageStore(simg, ivec3(0, 0, 65536), VEC(9));
-#ifdef R32UI
+#if defined(R32UI) && !defined(NOFMT)
    // Atomics: in bounds first, then out of bounds (return 0, no write).
    o.r[24] = uvec4(imageAtomicAdd(simg, ivec3(0, 3, 1), 1u), 0, 0, 0);
    o.r[25] = uvec4(imageAtomicAdd(simg, ivec3(4, 0, 0), 1u), 0, 0, 0);
