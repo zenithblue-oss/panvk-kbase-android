@@ -5,6 +5,7 @@
  */
 #include <dlfcn.h>
 #include <math.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -257,6 +258,25 @@ get_texel_rgba8(int x, int y, int layer, int level, uint8_t bytes[4])
    bytes[3] = 200;
 }
 
+/* The app keeps only the last ~28 lines: remember the first 16 failures and
+ * repeat them right before RESULT FAIL (and in a BENCH line for "extra"). */
+static char fail_list[16][160];
+static int fail_count;
+
+static void
+failf(const char *fmt, ...)
+{
+   char line[160];
+   va_list ap;
+   va_start(ap, fmt);
+   vsnprintf(line, sizeof(line), fmt, ap);
+   va_end(ap);
+   printf("FAIL case %s\n", line);
+   if (fail_count < 16)
+      snprintf(fail_list[fail_count], sizeof(fail_list[0]), "%s", line);
+   fail_count++;
+}
+
 static void
 check_uvec4(const char *variant, const char *name,
             const uint32_t got[4], const uint32_t want[4],
@@ -282,7 +302,7 @@ check_uvec4(const char *variant, const char *name,
       printf("PASS case %s.%s\n", variant, name);
       (*passes)++;
    } else {
-      printf("FAIL case %s.%s got=(0x%08x,0x%08x,0x%08x,0x%08x) want=(0x%08x,0x%08x,0x%08x,0x%08x)\n",
+      failf("%s.%s got=(0x%08x,0x%08x,0x%08x,0x%08x) want=(0x%08x,0x%08x,0x%08x,0x%08x)",
              variant, name, got[0], got[1], got[2], got[3], want[0], want[1], want[2], want[3]);
       (*fails)++;
    }
@@ -803,7 +823,7 @@ run_variant(struct dx7 *t, const char *variant_name, VkFormat format,
       printf("PASS case %s.store\n", variant_name);
       (*passes)++;
    } else {
-      printf("FAIL case %s.store got=(0x%08x) want=(0x%08x)\n", variant_name, got_store, want_store);
+      failf("%s.store got=(0x%08x) want=(0x%08x)", variant_name, got_store, want_store);
       (*fails)++;
    }
 
@@ -814,7 +834,7 @@ run_variant(struct dx7 *t, const char *variant_name, VkFormat format,
          printf("PASS case %s.store_atomic\n", variant_name);
          (*passes)++;
       } else {
-         printf("FAIL case %s.store_atomic got=(0x%08x) want=(0x%08x)\n",
+         failf("%s.store_atomic got=(0x%08x) want=(0x%08x)",
                 variant_name, got_atomic_store, want_atomic_store);
          (*fails)++;
       }
@@ -851,7 +871,7 @@ run_variant(struct dx7 *t, const char *variant_name, VkFormat format,
       printf("PASS case %s.store_oob\n", variant_name);
       (*passes)++;
    } else {
-      printf("FAIL case %s.store_oob got=(0x%08x) want=(0x%08x)\n", variant_name, bad_got, bad_want);
+      failf("%s.store_oob got=(0x%08x) want=(0x%08x)", variant_name, bad_got, bad_want);
       (*fails)++;
    }
 
@@ -896,7 +916,7 @@ run_variant(struct dx7 *t, const char *variant_name, VkFormat format,
       printf("PASS case %s.sanity\n", variant_name);
       (*passes)++;
    } else {
-      printf("FAIL case %s.sanity got=(0x%08x,0x%08x,0x%08x,0x%08x) want=(0x%08x,0x%08x,0x%08x,0x%08x)\n",
+      failf("%s.sanity got=(0x%08x,0x%08x,0x%08x,0x%08x) want=(0x%08x,0x%08x,0x%08x,0x%08x)",
              variant_name, san_got[0], san_got[1], san_got[2], san_got[3],
              san_want[0], san_want[1], san_want[2], san_want[3]);
       (*fails)++;
@@ -1178,6 +1198,12 @@ main(int argc, char **argv)
    bench(&t);
 
    if (fails > 0) {
+      printf("BENCH failed=%d:", fails);
+      for (int i = 0; i < fail_count && i < 16; i++)
+         printf(" %s", fail_list[i]);
+      printf("\n");
+      for (int i = 0; i < fail_count && i < 16; i++)
+         printf("FAILED: %s\n", fail_list[i]);
       printf("RESULT FAIL\n");
       return 1;
    } else {
