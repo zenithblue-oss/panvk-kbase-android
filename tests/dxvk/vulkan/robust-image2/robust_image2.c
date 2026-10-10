@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #if __has_include("../dx7_harness.h")
 #include "../dx7_harness.h"
@@ -47,6 +48,7 @@ static PFN_vkGetInstanceProcAddr gipa;
 static VkPhysicalDeviceRobustness2FeaturesEXT supported_rob2;
 static VkPhysicalDeviceImageRobustnessFeatures supported_img_rob;
 static const char *s_ext_name = NULL;
+static int has_pipe_rob, has_exec_props;
 
 static void
 device_hook(struct dx7 *t, VkDeviceCreateInfo *dci)
@@ -77,6 +79,10 @@ device_hook(struct dx7 *t, VkDeviceCreateInfo *dci)
 
    int has_ext = 0, has_khr = 0, has_img_rob = 0;
    for (uint32_t i = 0; i < ext_count; i++) {
+      if (!strcmp(exts[i].extensionName, "VK_EXT_pipeline_robustness"))
+         has_pipe_rob = 1;
+      if (!strcmp(exts[i].extensionName, "VK_KHR_pipeline_executable_properties"))
+         has_exec_props = 1;
       if (!strcmp(exts[i].extensionName, "VK_EXT_robustness2"))
          has_ext = 1;
       if (!strcmp(exts[i].extensionName, "VK_KHR_robustness2"))
@@ -116,7 +122,9 @@ device_hook(struct dx7 *t, VkDeviceCreateInfo *dci)
    static VkPhysicalDeviceFeatures2 dev_feat2;
    static VkPhysicalDeviceRobustness2FeaturesEXT dev_rob2;
    static VkPhysicalDeviceImageRobustnessFeatures dev_img_rob;
-   static const char *enabled_exts[2];
+   static VkPhysicalDevicePipelineRobustnessFeaturesEXT dev_pipe_rob;
+   static VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR dev_exec_props;
+   static const char *enabled_exts[4];
    uint32_t num_enabled_exts = 0;
 
    dev_img_rob.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_ROBUSTNESS_FEATURES;
@@ -131,11 +139,30 @@ device_hook(struct dx7 *t, VkDeviceCreateInfo *dci)
 
    dev_feat2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
    dev_feat2.features.robustBufferAccess = VK_TRUE;
+   dev_feat2.features.shaderStorageImageReadWithoutFormat =
+      t->feats.shaderStorageImageReadWithoutFormat;
+   dev_feat2.features.shaderStorageImageWriteWithoutFormat =
+      t->feats.shaderStorageImageWriteWithoutFormat;
    dev_feat2.pNext = &dev_rob2;
 
    enabled_exts[num_enabled_exts++] = s_ext_name;
    if (has_img_rob)
       enabled_exts[num_enabled_exts++] = "VK_EXT_image_robustness";
+   /* Benchmark only: per-pipeline image robustness and shader statistics. */
+   if (has_pipe_rob) {
+      dev_pipe_rob.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_ROBUSTNESS_FEATURES_EXT;
+      dev_pipe_rob.pipelineRobustness = VK_TRUE;
+      dev_pipe_rob.pNext = dev_img_rob.pNext;
+      dev_img_rob.pNext = &dev_pipe_rob;
+      enabled_exts[num_enabled_exts++] = "VK_EXT_pipeline_robustness";
+   }
+   if (has_exec_props) {
+      dev_exec_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR;
+      dev_exec_props.pipelineExecutableInfo = VK_TRUE;
+      dev_exec_props.pNext = dev_img_rob.pNext;
+      dev_img_rob.pNext = &dev_exec_props;
+      enabled_exts[num_enabled_exts++] = "VK_KHR_pipeline_executable_properties";
+   }
 
    dci->pNext = &dev_feat2;
    dci->pEnabledFeatures = NULL;
@@ -265,7 +292,9 @@ static void
 run_variant(struct dx7 *t, const char *variant_name, VkFormat format,
             const uint32_t *spv, size_t spv_bytes, int *passes, int *fails)
 {
-   int is_r32ui = !strcmp(variant_name, "r32ui");
+   int is_r32ui = !strncmp(variant_name, "r32ui", 5);
+   /* Formatless variants have no atomics (GLSL needs the r32ui format). */
+   int has_atomics = is_r32ui && !strstr(variant_name, "nofmt");
 
    /* Storage image: 2D, 4x4, arrayLayers 2, mipLevels 1, OPTIMAL tiling,
     * usage STORAGE|TRANSFER_SRC|TRANSFER_DST. View 2D_ARRAY, layers 0..1, GENERAL layout. */
@@ -778,7 +807,7 @@ run_variant(struct dx7 *t, const char *variant_name, VkFormat format,
       (*fails)++;
    }
 
-   if (is_r32ui) {
+   if (has_atomics) {
       uint32_t got_atomic_store = *(uint32_t *)(out_storage + 1 * 64 + (3 * 4 + 0) * 4);
       uint32_t want_atomic_store = 0x101cu + 1u;
       if (got_atomic_store == want_atomic_store) {
@@ -798,7 +827,7 @@ run_variant(struct dx7 *t, const char *variant_name, VkFormat format,
          for (int x = 0; x < 4 && store_oob_pass; x++) {
             if (layer == 1 && y == 3 && x == 3)
                continue;
-            if (is_r32ui && layer == 1 && y == 3 && x == 0)
+            if (has_atomics && layer == 1 && y == 3 && x == 0)
                continue;
             int off = layer * 64 + (y * 4 + x) * 4;
             uint32_t cur = *(uint32_t *)(out_storage + off);
@@ -828,7 +857,7 @@ run_variant(struct dx7 *t, const char *variant_name, VkFormat format,
 
    /* Atomics (R32 variant only):
     * r[24].x == original value of texel (0,3,1); r[25..29].x == 0 */
-   if (is_r32ui) {
+   if (has_atomics) {
       uint32_t want24[4] = { 0x101cu, 0, 0, 0 };
       check_uvec4(variant_name, "atomic", out_r[24], want24, 0, passes, fails);
       uint32_t zero4[4] = { 0, 0, 0, 0 };
@@ -851,7 +880,7 @@ run_variant(struct dx7 *t, const char *variant_name, VkFormat format,
          is_written = true;
       if (i >= 16 && i <= 18)
          is_written = true;
-      if (is_r32ui && i >= 24 && i <= 29)
+      if (has_atomics && i >= 24 && i <= 29)
          is_written = true;
       if (!is_written) {
          for (int c = 0; c < 4; c++) {
@@ -896,6 +925,214 @@ run_variant(struct dx7 *t, const char *variant_name, VkFormat format,
    vkFreeMemory(t->dev, sampled_mem, NULL);
 }
 
+static double
+now_ms(void)
+{
+   struct timespec ts;
+   clock_gettime(CLOCK_MONOTONIC, &ts);
+   return ts.tv_sec * 1e3 + ts.tv_nsec / 1e6;
+}
+
+/* Storage-image load cost with robustImageAccess2 (device default) against
+ * the same shader with image robustness 1 (VK_EXT_pipeline_robustness).
+ * v10 adds a bounds check for alpha in the first one only. Informational:
+ * prints a BENCH line, never fails the test.
+ */
+static void
+bench(struct dx7 *t)
+{
+   if (!has_pipe_rob) {
+      printf("BENCH skipped: no VK_EXT_pipeline_robustness\n");
+      return;
+   }
+
+   enum { N = 4096 };
+   VkImageCreateInfo ici = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+      .imageType = VK_IMAGE_TYPE_2D,
+      .format = VK_FORMAT_R8G8B8A8_UNORM,
+      .extent = { N, N, 1 },
+      .mipLevels = 1,
+      .arrayLayers = 1,
+      .samples = VK_SAMPLE_COUNT_1_BIT,
+      .tiling = VK_IMAGE_TILING_OPTIMAL,
+      .usage = VK_IMAGE_USAGE_STORAGE_BIT,
+      .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+   };
+   VkImage img = VK_NULL_HANDLE;
+   CK(vkCreateImage(t->dev, &ici, NULL, &img), "BenchImage");
+   VkDeviceMemory img_mem = alloc_image_memory(t, img);
+   VkImageViewCreateInfo ivci = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+      .image = img,
+      .viewType = VK_IMAGE_VIEW_TYPE_2D,
+      .format = VK_FORMAT_R8G8B8A8_UNORM,
+      .subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 },
+   };
+   VkImageView view = VK_NULL_HANDLE;
+   CK(vkCreateImageView(t->dev, &ivci, NULL, &view), "BenchView");
+   VkBuffer out_buf = VK_NULL_HANDLE;
+   VkDeviceMemory out_mem = VK_NULL_HANDLE;
+   dx7_buffer(t, 16, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, NULL, &out_buf, &out_mem);
+
+   VkDescriptorSetLayoutBinding b[2] = {
+      { .binding = 0, .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, .descriptorCount = 1, .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT },
+      { .binding = 1, .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = 1, .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT },
+   };
+   VkDescriptorSetLayoutCreateInfo dslci = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+      .bindingCount = 2,
+      .pBindings = b,
+   };
+   VkDescriptorSetLayout dsl = VK_NULL_HANDLE;
+   CK(vkCreateDescriptorSetLayout(t->dev, &dslci, NULL, &dsl), "BenchDSL");
+   VkPipelineLayoutCreateInfo plci = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+      .setLayoutCount = 1,
+      .pSetLayouts = &dsl,
+   };
+   VkPipelineLayout pl = VK_NULL_HANDLE;
+   CK(vkCreatePipelineLayout(t->dev, &plci, NULL, &pl), "BenchPL");
+   VkDescriptorPoolSize ps[2] = {
+      { .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, .descriptorCount = 1 },
+      { .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = 1 },
+   };
+   VkDescriptorPoolCreateInfo dpci = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+      .maxSets = 1,
+      .poolSizeCount = 2,
+      .pPoolSizes = ps,
+   };
+   VkDescriptorPool dp = VK_NULL_HANDLE;
+   CK(vkCreateDescriptorPool(t->dev, &dpci, NULL, &dp), "BenchDP");
+   VkDescriptorSetAllocateInfo dsai = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+      .descriptorPool = dp,
+      .descriptorSetCount = 1,
+      .pSetLayouts = &dsl,
+   };
+   VkDescriptorSet ds = VK_NULL_HANDLE;
+   CK(vkAllocateDescriptorSets(t->dev, &dsai, &ds), "BenchDS");
+   VkDescriptorImageInfo dii = { .imageView = view, .imageLayout = VK_IMAGE_LAYOUT_GENERAL };
+   VkDescriptorBufferInfo dbi = { .buffer = out_buf, .range = 16 };
+   VkWriteDescriptorSet w[2] = {
+      { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = ds, .dstBinding = 0, .descriptorCount = 1, .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, .pImageInfo = &dii },
+      { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = ds, .dstBinding = 1, .descriptorCount = 1, .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .pBufferInfo = &dbi },
+   };
+   vkUpdateDescriptorSets(t->dev, 2, w, 0, NULL);
+
+   /* [0] = robustImageAccess2 (device default), [1] = robustImageAccess. */
+   VkPipelineRobustnessCreateInfoEXT rob1 = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_ROBUSTNESS_CREATE_INFO_EXT,
+      .storageBuffers = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DEVICE_DEFAULT_EXT,
+      .uniformBuffers = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DEVICE_DEFAULT_EXT,
+      .vertexInputs = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DEVICE_DEFAULT_EXT,
+      .images = VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_ROBUST_IMAGE_ACCESS_EXT,
+   };
+   VkPipeline pipe[2];
+   VkShaderModule sm = dx7_module(t, ri2_bench_spv, sizeof(ri2_bench_spv));
+   for (int i = 0; i < 2; i++) {
+      VkComputePipelineCreateInfo cpci = {
+         .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+         .pNext = i ? &rob1 : NULL,
+         .flags = has_exec_props ? VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR : 0,
+         .stage = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+            .module = sm,
+            .pName = "main",
+         },
+         .layout = pl,
+      };
+      CK(vkCreateComputePipelines(t->dev, VK_NULL_HANDLE, 1, &cpci, NULL, &pipe[i]), "BenchPipe");
+   }
+   vkDestroyShaderModule(t->dev, sm, NULL);
+
+   /* Run each pipeline 1 + 7 times, interleaved, keep the fastest. */
+   double best[2] = { 1e30, 1e30 };
+   for (int run = 0; run < 16; run++) {
+      int i = run & 1;
+      CK(vkResetFences(t->dev, 1, &t->fence), "ResetFence");
+      CK(vkResetCommandBuffer(t->cmd, 0), "ResetCmd");
+      VkCommandBufferBeginInfo bbi = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+      CK(vkBeginCommandBuffer(t->cmd, &bbi), "BeginCmd");
+      if (run == 0) {
+         VkImageMemoryBarrier bar = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+            .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .newLayout = VK_IMAGE_LAYOUT_GENERAL,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .image = img,
+            .subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 },
+         };
+         vkCmdPipelineBarrier(t->cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                              VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL,
+                              0, NULL, 1, &bar);
+      }
+      vkCmdBindPipeline(t->cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipe[i]);
+      vkCmdBindDescriptorSets(t->cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pl, 0, 1, &ds, 0, NULL);
+      vkCmdDispatch(t->cmd, N / 8, N / 8, 1);
+      CK(vkEndCommandBuffer(t->cmd), "EndCmd");
+      VkSubmitInfo si = {
+         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+         .commandBufferCount = 1,
+         .pCommandBuffers = &t->cmd,
+      };
+      double t0 = now_ms();
+      CK(vkQueueSubmit(t->queue, 1, &si, t->fence), "QueueSubmit");
+      CK(vkWaitForFences(t->dev, 1, &t->fence, VK_TRUE, 30ull * 1000000000ull), "WaitForFences");
+      double ms = now_ms() - t0;
+      if (run >= 2 && ms < best[i])
+         best[i] = ms;
+   }
+
+   char stats[512] = "";
+   PFN_vkGetDeviceProcAddr gdpa =
+      (PFN_vkGetDeviceProcAddr)gipa(t->inst, "vkGetDeviceProcAddr");
+   PFN_vkGetPipelineExecutableStatisticsKHR get_stats = has_exec_props && gdpa ?
+      (PFN_vkGetPipelineExecutableStatisticsKHR)gdpa(t->dev, "vkGetPipelineExecutableStatisticsKHR") : NULL;
+   if (get_stats) {
+      VkPipelineExecutableStatisticKHR st[2][32];
+      uint32_t n[2];
+      for (int i = 0; i < 2; i++) {
+         VkPipelineExecutableInfoKHR ei = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INFO_KHR,
+            .pipeline = pipe[i],
+         };
+         n[i] = 32;
+         for (uint32_t k = 0; k < 32; k++)
+            st[i][k] = (VkPipelineExecutableStatisticKHR){ .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_STATISTIC_KHR };
+         if (get_stats(t->dev, &ei, &n[i], st[i]) < 0)
+            n[i] = 0;
+      }
+      size_t len = 0;
+      for (uint32_t k = 0; k < n[0] && k < n[1] && len + 64 < sizeof(stats); k++) {
+         if (st[0][k].format != VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_UINT64_KHR)
+            continue;
+         len += snprintf(stats + len, sizeof(stats) - len, " %s=%llu/%llu",
+                         st[0][k].name,
+                         (unsigned long long)st[0][k].value.u64,
+                         (unsigned long long)st[1][k].value.u64);
+      }
+   }
+
+   printf("BENCH 4096x4096x16 rgba8 loads ria2=%.2fms ria1=%.2fms delta=%+.1f%% stats(ria2/ria1):%s\n",
+          best[0], best[1], (best[0] / best[1] - 1.0) * 100.0, stats);
+
+   vkDestroyPipeline(t->dev, pipe[0], NULL);
+   vkDestroyPipeline(t->dev, pipe[1], NULL);
+   vkDestroyPipelineLayout(t->dev, pl, NULL);
+   vkDestroyDescriptorPool(t->dev, dp, NULL);
+   vkDestroyDescriptorSetLayout(t->dev, dsl, NULL);
+   vkDestroyBuffer(t->dev, out_buf, NULL);
+   vkFreeMemory(t->dev, out_mem, NULL);
+   vkDestroyImageView(t->dev, view, NULL);
+   vkDestroyImage(t->dev, img, NULL);
+   vkFreeMemory(t->dev, img_mem, NULL);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -933,6 +1170,12 @@ main(int argc, char **argv)
 
    run_variant(&t, "r32ui", VK_FORMAT_R32_UINT, ri2_r32ui_spv, sizeof(ri2_r32ui_spv), &passes, &fails);
    run_variant(&t, "rgba8", VK_FORMAT_R8G8B8A8_UNORM, ri2_rgba8_spv, sizeof(ri2_rgba8_spv), &passes, &fails);
+   /* Formatless: the alpha fix-up must come from the descriptor format. */
+   if (t.feats.shaderStorageImageReadWithoutFormat && t.feats.shaderStorageImageWriteWithoutFormat) {
+      run_variant(&t, "r32ui_nofmt", VK_FORMAT_R32_UINT, ri2_r32ui_nofmt_spv, sizeof(ri2_r32ui_nofmt_spv), &passes, &fails);
+      run_variant(&t, "rgba8_nofmt", VK_FORMAT_R8G8B8A8_UNORM, ri2_rgba8_nofmt_spv, sizeof(ri2_rgba8_nofmt_spv), &passes, &fails);
+   }
+   bench(&t);
 
    if (fails > 0) {
       printf("RESULT FAIL\n");
