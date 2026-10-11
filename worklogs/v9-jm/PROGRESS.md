@@ -392,11 +392,91 @@ Still v10+ only. None of these is required for FL11_0/FL11_1 in DXVK 3.1.1:
   - the bundled `.so` BuildID is checked as d2364fa6;
   - result **38/38 pass**. Run: `/var/tmp/panvk/v9/run-p3/`.
 
+## Phase 4: model rows, kbase JM fixes, import cache clean, bc_decode knob
+
+Status: 021-025 written. The full series (167 patches) applies. The universal Android build is OK. G615 regression is 38/38. **Not tested on a G57 or any other v9 part:** only the Poco X6 Pro (G615) was attached on 2026-10-11.
+
+Build:
+- Tree: `/var/tmp/panvk/v9/mesa-p2`, branch `p4` (one commit per patch 021-025 on top of `p3`).
+- `.so`: `/var/tmp/panvk/dist-v9-p4/libvulkan_panfrost.so`, unstripped, 32977736 bytes.
+- BuildID `d86062454a3798a2022e1157869a8772d62ffb8e`, sha256 `45f5ca54b2485629f5314909a7585e093dd593ab8d2f8b2bfd4a7ef09fbe9604`.
+- Warnings: all pre-existing (5x `csf/panvk_vX_gpu_queue.c:858`).
+
+### Patches
+
+| Patch | What | New v9 feature bits |
+|---|---|---|
+| 021 | G78 `(9, 2, 2)` and G78AE `(9, 0, 5)` model rows. Arch 9 ids with no exact row match on arch major and product major, as kbase does (mask `0xf00f`) | none |
+| 022 | kbase JM: atom layout probe, DATA dependencies inside one submit, 2 s teardown wait, wait clock fix | none |
+| 023 | v9 tiler heap committed in 2 MiB steps (`BASE_MEM_TILER_ALIGN_TOP`), second heap BO for `PANVK_OVERLAP` | none |
+| 024 | v9 JM: clean non-coherent dma-buf imports before submit (`DMA_BUF_IOCTL_SYNC`), off with `PANVK_KBASE_IMPORT_SYNC=0` | none |
+| 025 | `PANVK_V9_RT128` bisect knob for 128-bit render targets | none |
+
+#### 021: model rows
+
+- kbase product ids (mask `0xf00f`): `0x9000` G77, `0x9001`/`0x9003` G57, `0x9002` G78, `0x9004` G68, `0x9005` G78AE.
+- G77 `(9, 0, 0)` from 006 agrees with malisx2 (`0x9000`) and gs101 (`PAN_PROD_ID(9, 0, 0)`). G68 `(9, 2, 4)` is upstream !43414, already in our base.
+- gs101's G78 reports `0x9202`, so the row is `(9, 2, 2)`. The product-major fallback covers parts with another arch minor.
+- All v9 rows use the G57 tile buffer sizes (16 KiB colour, 8 KiB depth), as malisx2 does for every arch 9 part.
+- G78 transaction elimination: gs101 reports stale tiles. PanVK enables CRC only on v10+ (`panvk_image.c`), so v9 needs no quirk.
+
+#### 022: kbase JM robustness (from malisx2)
+
+- Atom layout: a probe atom at stride 72 tells stock kbase (EINVAL, use the 56-byte v2 layout) from MediaTek kbase with `frame_nr` (accepted, keep 64). Before this, a stock kernel could get stride 64 and read every atom 8 bytes off.
+- Fault propagation: atoms of the same `vkQueueSubmit` now use DATA dependencies, so a fault in an early batch fails the fences. Dependencies on earlier submits and semaphore waits stay ORDER.
+- Teardown: `destroy_gpu_queue` waits up to 2 s for the last atoms before the tiler heap and pools are freed.
+- Wait clock: v9 waits use `CLOCK_MONOTONIC`, the same clock as the vk_sync deadlines (found in review).
+- Already present, not ported: 256-atom cap (one atom per `JOB_SUBMIT`), render pass split (v9 splits at 5 * 1024 jobs and before the 16-bit job index overflows), TLS sizing (`pan_query_thread_tls_alloc`), `COHERENT_LOCAL` (already the default flag).
+
+#### 023: tiler heap commit
+
+- The 128 MiB heap is `GROW_ON_GPF`. Its Top pointed at the end of the region, and the tiler takes chunks from both ends, so the first frame committed the whole region.
+- Now: one 2 MiB commit step with `BASE_MEM_TILER_ALIGN_TOP` (JM-only), and Top is base + 2 MiB. A kernel that refuses the flag (EINVAL or ENOMEM) gets the old allocation.
+- `PANVK_OVERLAP` gets a second 128 MiB heap BO instead of two halves of one.
+
+#### 024: imported memory cache clean
+
+- faux123 reports black dashes in 32-bit DXVK games on a G77, fixed by a cache clean of imported memory before submit.
+- On JM, host-visible memory is a dma-heap buffer imported into kbase. If the kernel does not grant `COHERENT_SYSTEM`, CPU writes can stay in the CPU cache.
+- Such imports are listed. Each `vkQueueSubmit` with command buffers runs `DMA_BUF_IOCTL_SYNC` (END | WRITE) on them, which is GPU-safe (no CPU emulation). Coherent kernels are not affected.
+- logcat shows "dma-buf imports are not CPU-coherent" once when the path is active.
+
+#### 025 and bc_decode (not fixed)
+
+- Review found no v9-specific bug for one single-sampled RGBA32F target. pan_fb.c and gallium's pan_desc.c (which renders RAW128 correctly on G57 in Mesa CI) emit the same tile size (256 px), colour allocation (4 KiB), RAW128 formats, strides and offsets. malisx2 selects the same.
+- Bisect steps on a G57, PanProbe `bc_decode` each time:
+  1. `PANVK_V9_RT128=tile` (64-pixel tiles). If it passes, the tile buffer budget is wrong for 128-bit RTs.
+  2. `PANVK_V9_RT128=noround`. If it passes, the blend rounding is wrong.
+  3. `PANVK_V9_RT128=raw`. If it passes, the blend conversion is wrong.
+  4. If none pass: replace the blit value with a constant in `vk_meta_blit_resolve.c:336` (shader vs output path).
+  5. Try `PANVK_DEBUG=noafbc` and `PANVK_DEBUG=linear` to rule out the source image layout.
+
+### Review (gpt-6.1-sol) and fixes
+
+- Fixed in 022: the wait function read `CLOCK_MONOTONIC_RAW` against `CLOCK_MONOTONIC` deadlines.
+- Fixed in 023: ENOMEM was not handled in the `TILER_ALIGN_TOP` fallback.
+- Fixed in 024: no EINTR/EAGAIN retry on `DMA_BUF_IOCTL_SYNC`.
+
+### Series checks
+
+- `apply-patches.sh` on fresh Mesa 5a07217f (`mesa-chk`): 167 applied, rc 0. The tree hash is identical to mesa-p2 `p4`.
+- `patch -p1 -F0` for 021-025: 0 offsets, 0 fuzz.
+- v10-v14: all new code is gated on v9 or on the JM kbase path. v10+ behaviour is unchanged.
+
+### Device results
+
+- G57 / G68 / G77 / G78 / G78AE: none attached.
+- G615 regression:
+  - PanProbe debug, package `dev.zenithblue.panvktest.v9p2`, `adb install -r`;
+  - the bundled `.so` BuildID is checked as d8606245;
+  - result **38/38 pass**. Run: `/var/tmp/panvk/v9/run-p4/`.
+  - The device's `logd` was stopped during the run, so the results were read from the app's `files/autorun.txt`.
+
 ## What's next
 
 - **Phase 2 device run (G57):** 011-017. Run PanProbe `xfb`, `geometry`, `clip_cull`, `vertex_stores`, `gpu_prerast_slice`, `large_draw`, `multi_viewport` and tessellation, and CTS `tessellation.*`, `query_pool.statistics_query.*` and `primitives_generated_query.*`. Watch for hangs from the 256-wide workgroup kernels (`panlib_chunk_step`, restart counting) and from the TCS barrier on the G57.
 - **Phase 3 device run (G57):** 018-020. Run PanProbe `depth_bounds`, `fill_mode` and `vmr_secondary`, then bisect the `bc_decode` 128-bit blit.
-- **Phase 4:** G77 row (006, needs a tester) and a full PanProbe run (up to 38 tests) on the G57.
+- **Phase 4 device run (G57):** 021-025. Check the logcat "JM atom layout" and "dma-buf imports are not CPU-coherent" lines, the tiler heap commit (`/proc/<pid>/smaps` before and after), the `bc_decode` bisect steps above, and a full PanProbe run (38 tests). G77/G78/G78AE testers: `vkEnumeratePhysicalDevices` and PanProbe.
 - **Open items from phase 1:**
   - device validation of 003 and 007-010;
   - CTS multiview, `draw.*indirect*`, `synchronization.basic.event`;

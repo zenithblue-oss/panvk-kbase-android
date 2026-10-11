@@ -72,6 +72,12 @@ must still carry provenance in the patch header.
 - https://github.com/LukeValen/panvk-mali-g52 (JM/Bifrost primary)
 - https://github.com/Noysz/panvk-g99-jm (JM/v9 primary)
 - https://github.com/FristOneRR-Admin/FristOneRR-Panvk-Source (FristOneRR-Panvk-Source, commit efd07ba; Mesa-derived, MIT per-file headers kept; used for the JM kbase submission and v9 JM backend in patches/jm-v9)
+- https://github.com/bmdhacks/malisx2 (MIT; v9 id table and kbase JM logic
+  re-implemented in patches/jm-v9 021-023, no files copied)
+- https://github.com/JimVulkan/mali-panvk (MIT; fill mode reference for
+  patches/jm-v9 019, no code copied)
+- https://github.com/m8l8th814n-eng/mesa-gs101 (no licence stated; facts only,
+  no code copied; patches/jm-v9 021)
 
 Each patch under `patches/` must carry `purpose / source-reference /
 tested-GPU / tested-Kbase-UAPI / Mesa-base-range / dependencies /
