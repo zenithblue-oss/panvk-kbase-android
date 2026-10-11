@@ -190,9 +190,121 @@ Approach: no Noysz code is copied. v10+ already runs these stages through the cs
   - clip/cull distances written by a GS (the GS passthrough has no cull-flag conversion; the same shared code runs on v10+);
   - the 160 MB arenas committed per device on v9.
 
+## Phase 2b: tessellation, multiViewport, queries, large indirect draws
+
+Status: 014-017 written, full series (159 patches) applies, Android universal build OK, G615 regression 38/38. **Not tested on a G57:** none attached on 2026-10-11 (only the Poco X6 Pro).
+
+Build:
+- Tree: `/var/tmp/panvk/v9/mesa-p2`, branch `p2b` (= `p2` + one commit per patch 014-017).
+- `.so`: `/var/tmp/panvk/dist-v9-p2b/libvulkan_panfrost.so`, unstripped, 32.9 MB, clean build from the fresh-applied tree.
+- BuildID `849597ace7f921c550c9ebdb465e3a6ffbcbeae1`, sha256 `f3c30c8887f542d5ae17595ebbdbf766243c6426154d3b5041b3bbc9685cadb8`.
+- Warnings: 6, all pre-existing (5x `csf/panvk_vX_gpu_queue.c:858`, 1x android_stub `BacktraceMap.h`).
+
+### Patches
+
+| Patch | What | New v9 feature bits |
+|---|---|---|
+| 014 | Tessellation through gpu_prerast. GS after tess and XFB after tess are supported. | `tessellationShader`, `extendedDynamicState2PatchControlPoints`, v10 tess limits |
+| 015 | Multi-viewport and `gl_ViewportIndex` from the VS, TES or GS | `multiViewport` (16), `shaderOutputViewportIndex` |
+| 016 | Pipeline statistics, primitives generated and XFB stream queries | `pipelineStatisticsQuery`, `transformFeedbackQueries`, `EXT_primitives_generated_query` (+ with rasterizer discard) |
+| 017 | Indirect gpu_prerast draws that do not fit the arena are split on the GPU | none |
+
+No Noysz code was copied. Every patch ports the csf-v11 design (MIT) onto the jm-v9 backend. The kernels that are only for v9 sit in `#if PAN_ARCH == 9`.
+
+#### 014: tessellation
+
+- CSF runs `gpu_prerast_tess` as a command-stream loop. Each iteration runs, in order:
+  1. `panlib_tess_step`;
+  2. the lowered VS;
+  3. the TCS;
+  4. the tessellator count;
+  5. `panlib_tess_draw`;
+  6. the tessellator write;
+  7. the draw (or the TES lowered as a VS when a GS, XFB or viewport index follows).
+- JM has no loop, so the CPU unrolls the iterations into the job chain. Every job is a barrier.
+- An iteration past the end of the draw does no work:
+  - its grids are zero, so the new `panlib_v9_compute_job_grid` turns those COMPUTE jobs into NULL jobs;
+  - the draw patch turns the empty draw into a NULL job.
+- No CPU readback.
+- Iteration count:
+  - direct draws get exactly what the chunk plan needs;
+  - indirect draws get 8 chunks;
+  - when the TES output is nested (fed to a GS, XFB or viewport index), it is cut into ranges that fit the TES records and the GS slots.
+- The GS primitive ID base comes from the GPU (`panlib_v9_copy32`).
+- Limits:
+  - direct draws over 4096 iterations lose the rest (`mesa_loge_once`);
+  - indirect draws over 8 chunks lose the rest;
+  - a layered tess draw runs the whole tess once per layer;
+  - XFB is captured on layer 0 only.
+- `shaderTessellationAndGeometryPointSize` stays v10+, because the v9 point size path is unverified.
+
+#### 015: multiViewport
+
+- The passthrough VS or GS does the per-viewport transform and the scissor (clip planes). The hardware scissor is the framebuffer box, the same as CSF.
+- The depth clamp is per viewport:
+  1. `panlib_vp_runs` builds the viewport runs;
+  2. the new `panlib_v9_vp_partition` packs the runs of each viewport;
+  3. one indexed indirect draw per viewport, each with that viewport's `minimum_z`/`maximum_z`.
+- When all depth ranges are equal, one merged draw is used instead.
+- Limit: when the depth ranges differ, primitives are reordered by viewport. CSF keeps the run order.
+
+#### 016: queries
+
+- Report layout is the same as CSF.
+- Every counter is added on the GPU:
+  - **Draws:** `panlib_update_pstats_draw` runs once per API draw, not per layer. Direct draws get a draw command written at record time. It counts IA vertices and primitives, VS invocations, and clipping (only without a GS or tess). Primitives generated uses the same kernel, with only the IA primitive slot.
+  - **GS, tess and XFB:** these kernels count their own output, once per layered draw.
+  - **Compute shader invocations:** `panlib_update_pstats_dispatch`.
+  - **Fragment shader invocations:** the occlusion counter, while no occlusion query owns it (same ponytail as CSF).
+- Begin zeroes the reports with WRITE_VALUE jobs. End closes the batch and writes availability per view, clamped to the pool.
+- The pstats copy kernel now reads the one-dword v9 availability objects.
+- `TIMESTAMP` stays v10+.
+
+#### 017: large indirect gpu_prerast draws
+
+- This is CSF `gpu_prerast_chunk_loop` with the loop unrolled:
+  1. `panlib_chunk_setup`;
+  2. 8 iterations, each a `panlib_chunk_step` followed by the lowering of that chunk as an indirect draw.
+- The chunk start reaches the lowered VS through the `chunk` field of `panlib_v9_prerast_indirect`.
+- A draw the arena holds is one chunk. Iterations past the end become NULL jobs.
+- `panlib_chunk_draw.max_insts`: 0 keeps the v10+ cap of 2048 instances; v9 keeps whole instance ranges, as before.
+- Indirect strips with primitive restart are now lowered too.
+- Limits:
+  - a draw that needs more than 8 chunks loses the rest (before this patch the whole draw was dropped);
+  - fans keep the old path;
+  - without a GS, `gl_PrimitiveID` restarts in each chunk.
+
+### Review (gpt-6.1-sol) and fixes
+
+Fixed before export:
+- 014: chunk counts are now computed in 64 bits (`DIV_ROUND_UP` could overflow).
+- 016: primitives-generated queries clear and signal every multiview slot. The multiview slot count is clamped to the pool (`render.view_mask` outlives the render pass). A layered draw counts GS/tess kernel output only on its first layer.
+- 017: `gl_DrawID` is kept (the chunk no longer resets `draw_index`). The instance cap no longer truncates draws that fit before.
+
+Not fixed, documented limits shared with CSF or listed above:
+- the 8-chunk and 4096-iteration bounds;
+- viewport reordering;
+- the framebuffer-box scissor;
+- no FS invocation count while an occlusion query is active.
+
+### Series checks
+
+- `apply-patches.sh` on fresh Mesa 5a07217f (`/var/tmp/panvk/v9/mesa-chk`): 159 applied, rc 0. The tree hash is identical to mesa-p2 `p2b` (d5ebd79f).
+- `patch -p1 -F0` for 014-017 on the tree just before each one: 0 offsets, 0 fuzz.
+- v10-v14: the only shared-code change is the `max_insts` field (0 on CSF, so the old cap applies). Pool types and copy kernels are gated `>= 9` or `== 9`; v6/v7 are unchanged.
+
+### Device results
+
+- G57: none attached.
+- G615 v11 CSF regression with this `.so`:
+  - PanProbe 1.2.5 debug, side-by-side package `dev.zenithblue.panvktest.v9p2`, `adb install -r`;
+  - the bundled `.so` BuildID is checked as 849597ac;
+  - the screen was kept awake with `KEYCODE_WAKEUP` only;
+  - result **38/38 pass** (`swapchain_lifecycle` passes now). Run: `/var/tmp/panvk/v9/run-p2b/`.
+
 ## What's next
 
-- **Phase 2 rest:** tessellation, multiViewport and pipeline statistics (see blockers above). G57 device run of 011-013: PanProbe `xfb`, `geometry`, `clip_cull`, `vertex_stores`, `gpu_prerast_slice`, `large_draw`.
+- **Phase 2 device run (G57):** 011-017. Run PanProbe `xfb`, `geometry`, `clip_cull`, `vertex_stores`, `gpu_prerast_slice`, `large_draw`, `multi_viewport` and tessellation, and CTS `tessellation.*`, `query_pool.statistics_query.*` and `primitives_generated_query.*`. Watch for hangs from the 256-wide workgroup kernels (`panlib_chunk_step`, restart counting) and from the TCS barrier on the G57.
 - **Phase 3:** fill mode (non-solid), depth bounds (GPU emulation, no v9 hardware field), `vmr_secondary` (Noysz 0059: no-attachment `nr_samples` / `evaluate_per_sample` in `v9_cmd_draw`), and the `bc_decode` blit.
 - **Phase 4:** G77 row (006, needs a tester) and a full PanProbe run (up to 38 tests) on the G57.
 - **Open items from phase 1:**
