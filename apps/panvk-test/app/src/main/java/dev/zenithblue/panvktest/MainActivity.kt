@@ -1434,6 +1434,27 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun InfoTab() {
         val coroutineScope = rememberCoroutineScope()
+        val load: () -> Unit = {
+            coroutineScope.launch {
+                infoLoadingState.value = true
+                val (json, raw) = runInfo()
+                if (json != null) {
+                    infoParsedState.value = parseVulkanInfo(json)
+                    infoRawJsonState.value = json.toString(2)
+                    infoRawTextState.value = null
+                } else {
+                    infoParsedState.value = null
+                    infoRawJsonState.value = null
+                    infoRawTextState.value = raw
+                }
+                infoLoadingState.value = false
+            }
+        }
+        // Opening Info with nothing loaded queries the driver; Load re-queries.
+        LaunchedEffect(Unit) {
+            if (!infoLoadingState.value && !isRunningAllState.value && infoParsedState.value == null &&
+                infoRawTextState.value == null) load()
+        }
         InfoTabContent(
             isLoading = infoLoadingState.value,
             parsedInfo = infoParsedState.value,
@@ -1447,22 +1468,7 @@ class MainActivity : ComponentActivity() {
                 selectedTabState.intValue = 2
                 startRunAll()
             },
-            onLoadClick = {
-                coroutineScope.launch {
-                    infoLoadingState.value = true
-                    val (json, raw) = runInfo()
-                    if (json != null) {
-                        infoParsedState.value = parseVulkanInfo(json)
-                        infoRawJsonState.value = json.toString(2)
-                        infoRawTextState.value = null
-                    } else {
-                        infoParsedState.value = null
-                        infoRawJsonState.value = null
-                        infoRawTextState.value = raw
-                    }
-                    infoLoadingState.value = false
-                }
-            }
+            onLoadClick = load
         )
     }
 
