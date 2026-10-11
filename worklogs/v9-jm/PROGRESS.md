@@ -542,3 +542,16 @@ Known limits: postponed tess patches rerun VS/TCS (TCS side effects can repeat);
 - PanProbe `apkchk/panprobe-p5.apk` (bundled BuildID checked):
   - **G57: 38/38** (`run-g57/p5`).
   - **G615 regression: 38/38** (`run-p5-g615/autorun2.txt`). The first G615 run gave 37/38 with `swapchain_lifecycle` FAIL although its own log says PASS; it passed alone and in a second full run (harness timing flake).
+
+### Stage B: PanPlay cubes on the G57
+
+PanPlay 1.2.5 (vc 31) built with `-PpanvkSo=/var/tmp/panvk/dist-v9-p5/libvulkan_panfrost.so`; bundled BuildID 4ec75e25 checked; `adb install -r` (upgrade from 1.2.2). Built-in cube shortcuts (`LAUNCH_SHORTCUT builtin-<api>-arm64ec`, built-in X server, DXVK 3.1.1, DXVK_HUD=full); Termux:X11 is not on this tablet, so the old dxenv flow was not used. Scripts: `/var/tmp/panvk/v9/g57/play/{cube.sh,analyze.py}`; results `play/cubes/` (p5) and `play/cubes-p4/` (p4).
+
+| API | DXVK feature level | FPS p4 / p5 (frames / 25 s) | Pixels | Faults |
+|---|---|---|---|---|
+| D3D11 | FL11_0 used (0xb000), max FL11_1 | 72.1 / 73.3 | OK | none |
+| D3D10 | FL10_0 used, max FL11_1 | 72.6 / 72.9 | OK | none |
+| D3D9 | - | 70.0 / 70.2 | OK | none |
+| D3D8 | - | 77.4 / 76.3 | OK | none |
+
+mesa-panvk.txt and logcat: no fault, device lost or driver warning (only the non-conformant notice). DXVK: only the usual EDID/QueryInterface lines.
