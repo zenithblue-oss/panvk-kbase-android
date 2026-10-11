@@ -112,9 +112,87 @@ Expected changes:
 - `robustness2` null descriptor cases should run instead of skipping.
 - DXVK 3.1.1 should get past "Device does not support Vulkan 1.3".
 
+## Phase 2: transform feedback, geometry shaders, clip/cull, vertex stores
+
+Status: 011-013 written, full series (155 patches) applies, Android universal build OK. **Not tested on a G57:** none was attached on 2026-10-11 (only the Poco X6 Pro G615).
+
+Build:
+- Tree: `/var/tmp/panvk/v9/mesa-p2` (branch `p2` = mesa-p1 + one commit per patch 011-013).
+- `.so`: `/var/tmp/panvk/dist-v9-p2/libvulkan_panfrost.so`, unstripped, 32.9 MB.
+- BuildID `0ddd690afc261d4e9a580281fddc650b520e1a28`, sha256 `7e2423dfc2f2928d027e8b1fe354a4c8148faa0cf13e0011a3bfd2054b41d9cd`.
+
+Approach: no Noysz code is copied. v10+ already runs these stages through the csf-v11 `gpu_prerast` framework: lowered and passthrough shader variants, a device record arena, and libpan kernels for the XFB capture, the GS strip table and so on. 011 lifts those shared gates from `>= 10` to `>= 9`. Only the command side is new, and it lives in the v9 section of `jm/panvk_vX_cmd_draw.c`:
+- what CSF writes with `cs_store`, the CPU fills into per-draw memory;
+- every producer job is a JM barrier job in the vertex/tiler chain;
+- the records are drawn through MALLOC_VERTEX with the passthrough VS or GS.
+
+### Patches
+
+| Patch | What | Noysz source |
+|---|---|---|
+| 011 | `VK_EXT_transform_feedback` (one stream without a GS, 4 buffers, `transformFeedbackDraw`); direct and indirect draws | 0060, 0064 (adjacency is handled by the shared capture) |
+| 012 | `geometryShader`, `geometryStreams`, 4 XFB streams, stream select, v10 GS limits; GS and indirect | 0063, 0065 |
+| 013 | `shaderClipDistance`, `shaderCullDistance` (8), `vertexPipelineStoresAndAtomics` | 0066 (VPS, clip/cull part) |
+
+#### 011: transform feedback
+
+- New kernels, all inside `#if PAN_ARCH == 9`:
+  - `panlib_v9_xfb_begin` / `panlib_v9_xfb_end`: counter load and store.
+  - `panlib_v9_prerast_indirect`: reads one `VkDraw(Indexed)IndirectCommand` and patches the params, the lowered-VS COMPUTE job (type and grid), the first vertex / base instance sysvals and the generated draw command. It also patches the GS job and counts when a GS is bound.
+- Begin always runs a job, so a resubmitted command buffer starts from offset 0.
+- Direct draws larger than the arena are split on the CPU (instance windows, vertex chunks, fan chunks).
+- Rasterizer-discard draws skip the generated draw.
+- Review by gpt-6.1-sol found three bugs, all fixed before export:
+  - JM index offsets are in bytes, but the params and CSF use elements;
+  - resubmit offsets;
+  - the rasterizer-discard draw.
+
+#### 012: geometry shaders
+
+- The GS kernel is a COMPUTE job.
+- Its params and its draw command are in per-draw memory. A `panlib_fill_scalar` job zeroes the draw command (resubmit-safe).
+- `panlib_gs_strip_table` builds the strip table for primitive restart.
+- Layered GS: the test that drops other layers moved from the GS (`lower_layer_writes`) to the GS passthrough, so XFB keeps real positions. `v9_cmd_draw` now takes `writes_layer` from the GS.
+
+#### 013: clip/cull distances, vertex stores
+
+- Clip/cull distances use the shared lowering, which is already arch-agnostic. The FS discard is added only when the previous stage writes distances, so FPK stays on for every other linked pipeline.
+- A VS with stores runs once per vertex as the lowered VS. A draw that cannot be lowered falls back to IDVS.
+
+### Series checks
+
+- `apply-patches.sh` on fresh Mesa 5a07217f: 155 applied, rc 0. The tree hash is identical to mesa-p2 (09ff67fa).
+- `patch -F0` for 011-013 on the tree just before each one: 0 offsets, 0 fuzz.
+- v10-v14: every behaviour change is gated `== 9` or `<= 9`. The v10+ feature and limit values are unchanged.
+- The CSF `panvk_gpu_prerast.c` is also built for v9. Its `<panvk_cmd_buffer.h>` include now picks `jm/` there and `csf/` on CSF.
+
+### Device results
+
+- G57: none attached.
+- G615 v11 CSF regression check with this `.so`:
+  - PanProbe 1.2.5, side-by-side package `dev.zenithblue.panvktest.v9p2`, bundled driver BuildID checked;
+  - result 37/38. The only failure is `swapchain_lifecycle` ("FAIL no surface"): the screen was dozing during the headless autorun, not a driver issue.
+
+### Not done in phase 2 (blockers)
+
+- **Tessellation (0062).**
+  - The csf-v11 tess path is a command-stream loop: chunks of patches, then TES output ranges, with a "more" flag set on the GPU. JM has no loop.
+  - Needs a JM design. One option: CPU-unrolled chunks for direct draws, with a GPU no-op tail, plus a worst-case bound for TES feeding a GS or XFB.
+  - Noysz's version is a different single-pass design on an upstream poly heap. It does not support indirect draws or tess followed by a GS.
+- **multiViewport (rest of 0066).**
+  - The VS/GS viewport passthroughs already do the x/y transform and scissor in the shader.
+  - CSF splits the draw into per-viewport runs only for the depth clamp, again with a command-stream loop.
+  - JM plan: one draw when all viewports share a depth range, else one draw per viewport with a `viewport_id` sysval filter (like layers).
+  - The packed-index primitive ID of the VS passthrough also needs the run indices.
+- **Pipeline statistics (0067).** JM queries are occlusion only. Needs JM query-pool support for the shared pstats counters.
+- Indirect XFB/GS draws with more than the arena holds (up to 65536 vertices x instances) are dropped. CSF splits them on the GPU.
+- To check on the device:
+  - clip/cull distances written by a GS (the GS passthrough has no cull-flag conversion; the same shared code runs on v10+);
+  - the 160 MB arenas committed per device on v9.
+
 ## What's next
 
-- **Phase 2:** port Noysz 0060 and 0062-0067: transform feedback, tessellation, geometry shaders, XFB adjacency, GS streams, multi-viewport, clip/cull distance, vertex stores, pipeline statistics.
+- **Phase 2 rest:** tessellation, multiViewport and pipeline statistics (see blockers above). G57 device run of 011-013: PanProbe `xfb`, `geometry`, `clip_cull`, `vertex_stores`, `gpu_prerast_slice`, `large_draw`.
 - **Phase 3:** fill mode (non-solid), depth bounds (GPU emulation, no v9 hardware field), `vmr_secondary` (Noysz 0059: no-attachment `nr_samples` / `evaluate_per_sample` in `v9_cmd_draw`), and the `bc_decode` blit.
 - **Phase 4:** G77 row (006, needs a tester) and a full PanProbe run (up to 38 tests) on the G57.
 - **Open items from phase 1:**
