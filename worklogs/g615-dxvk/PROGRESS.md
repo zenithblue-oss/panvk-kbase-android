@@ -381,3 +381,19 @@ Seen once under Xvfb in the glibc chroot (`x11_wait_for_present` in `destroySwap
 - 2026-10-07 stutter follow-up: `csf-v11/170` (Mesa disk cache on by default on Android; it was off, so every session recompiled), `csf-v11/171` (Android property options looked up once; 128 ms of the 1.3 s NFS loading freeze), PanPlay sets `MESA_SHADER_CACHE_DIR=filesDir` and `DXVK_CONFIG=dxvk.trackPipelineLifetime = False` (32-bit DXVK destroyed every pipeline library and recompiled it on dxvk-cs at first draw; GPL features are all present). dxcube d3d9 second run: compile 783 -> 0 ms. Details: `stutter-followup.md`.
 - 2026-10-07 BCn limits pass: `csf-v11/180` (BC1/BC2 AFRC shadows at 12 bpp: BC1 13.3 -> 10.7 MiB, BC2 16.0 -> 13.3 per 2048^2 chain, no loss vs source, sampling unchanged). Sampling is at the G615 tap/filter floor for every BC format; native ETC2/EAC-RG11/ASTC sample 1.5-3.4x slower than the shadows, and BC->EAC/ETC2 transcode prototypes lose 0.6-1 dB and cost 50-380x the decode on upload: rejected. PanProbe 37/37, bc_verify 16/16 exact. Details: `worklogs/bc-emul-perf/PROGRESS.md` "Limits pass".
 - 2026-10-07 shader compile cost round 2: `csf-v11/160-164` (LCRA constraints built once for 32/64 regs with global-only liveness and a sorted queue, updated after spilling instead of rebuilt, sparse rows up to n/4; flat SSA-repair map; NIR opt loop skips passes that cannot progress). Output identical on all 67539 corpus shaders. Host NFS-range compile 955 -> 309 ms (RA 832 -> 190); device synthetic pipelines sum 44.1 -> 14.0 s, max 4.4 -> 0.92 s; device CTS corpus p50/p99/max 0.36/6.49/294 -> 0.36/5.12/262 ms. NFS pipelines about 0.65 -> 0.3 s, 150 ms target not met (nir_opt_algebraic range analysis + RA left). CTS subset 0 regressions, PanProbe 37/37. Details: `shader-compile-stall.md` "Round 2".
+
+## RC3 candidate validation (2026-10-11)
+
+- Driver: `/var/tmp/panvk/dist-v9-p5/libvulkan_panfrost.so`, BuildID `4ec75e25deca57c27fb1e0872fdbf58473d41527` (csf-v11 + jm-v9 001-030). driverInfo `PanVK-kbase RC3 (Mesa 26.3.0-devel)` (host strings and on every device).
+- APKs (`-PpanvkSo=` that .so, debug, BuildID checked inside both): `/var/tmp/panvk/rc3-cand/PanProbe-rc3cand.apk` (1.2.5, 38 tests), `/var/tmp/panvk/rc3-cand/PanPlay-rc3cand.apk`. The app-side label still comes from `bundled-driver.json` (`driverName` "PanVK Kbase — RC2", `driverVersion` "RC2 ..."); bump the pin/label before the RC3 release.
+
+| Device | GPU | Where | PanProbe | Notes |
+|---|---|---|---|---|
+| Galaxy Tab S10 Ultra SM-X920 | Immortalis-G720 MC12 (v12) | Samsung RTL `localhost:56562` | 38/38 | gs_viewport_depth 20/20; PanPlay D3D11 cube FL11_0, ~47 FPS, HUD full, no GPU fault/DEVICE_LOST in logcat |
+| motorola edge 40 neo (manaus:34) | G610 MC3 (v10) | Firebase `matrix-150dphq07y0mw` | 38/38 | |
+| Pixel 7 (panther:33) | G710 (v10) | Firebase `matrix-2t3mc5xy0vff9` | 38/38 | |
+| Pixel 8 (shiba:36) | G715 (v11) | Firebase `matrix-1sq2kl8k331o4` | 38/38 | |
+| Pixel 9 (tokay:36) | G715 (v11) | Firebase `matrix-zx33pgbvsdzxa` | 38/38 | |
+| Pixel 7a (lynx:33) | G710 (v10) | Firebase `matrix-1rshhvtwvqtmf` | 38/38 | |
+
+- No failures. Firebase: 5/5 daily physical runs used (0 left today); one device at a time, no retries. Results: `/var/tmp/panvk/firebase-panprobe/res/rc3cand-*`, RTL: `/var/tmp/panvk/rc3-cand/rtl-x920/`.
