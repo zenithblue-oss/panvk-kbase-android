@@ -1,5 +1,34 @@
 # Changelog
 
+## panvk-kbase-v0.1.0-rc3 (release candidate)
+
+Mesa `5a07217f034b` + the series up to csf-v11/184 and jm-v9/030 (172 patches). **v9 to v13 are
+supported.** Apps: PanProbe and PanPlay 1.2.6 bundle this driver.
+
+### Added and fixed
+
+- **Mali v9 (Valhall JM) supported** (jm-v9 003-030): Vulkan 1.3, multi-draw indirect and indirect
+  count, transform feedback, geometry shaders and streams, tessellation, clip/cull distances and
+  vertex stores, multiViewport and viewport index, pipeline statistics and XFB queries, depth bounds,
+  per-sample shading and VMR, non-solid fill modes, conditional rendering, robustImageAccess2,
+  robustBufferAccess2 and null descriptors, GPU timestamps. kbase JM fixes: atom layout, fault
+  propagation and teardown, incremental tiler heap commit, non-coherent dma-buf imports, malloc
+  vertex array reset on resubmit, CmdSetEvent on GPU completion. Mali-G78 and G78AE model rows (021).
+- v9 limits: gpu_prerast and tessellated draws are unrolled in a fixed number of chunks (logcat warns
+  once when a draw is cut short); with per-viewport depth ranges v9 draws once per viewport.
+- **v10 robustImageAccess2 alpha fix (csf-v11/184):** v10 returned the wrong alpha for
+  out-of-bounds storage image loads; the shader now fixes it up on the GPU (v10 only). G610 and G710
+  38/38.
+- `driverInfo` reads `PanVK-kbase RC3`.
+
+### Validation
+
+PanProbe 38/38 with the RC3 binary (Android `.so` BuildID `4ec75e25`): Mali-G57 MC2 (v9, Lenovo Tab
+TB336FU; D3D8-D3D11 cubes ~70-76 FPS, NFS: Most Wanted ~18 FPS), Mali-G615 MC6 (v11, Poco X6 Pro),
+Immortalis-G720 MC12 (v12, Galaxy Tab S10 Ultra; `gs_viewport_depth` 20/20, D3D11 cube ~47 FPS
+FL11_0), and on Firebase Test Lab G610 MC3 (motorola edge 40 neo), G710 MC7 (Pixel 7, Pixel 7a) and
+G715 MC7 (Pixel 8, Pixel 9). Immortalis-G925 (v13) was not rerun on RC3 (37/37 on beta.18 RC1).
+
 ## panvk-kbase-v0.1.0-rc2 (release candidate)
 
 Mesa `5a07217f034b` + the series up to csf-v11/181 and jm-v9/006. Tags drop the `g615` prefix from
