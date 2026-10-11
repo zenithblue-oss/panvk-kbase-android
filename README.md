@@ -98,25 +98,26 @@ was rechecked with the RC1 APKs. The series goes up to csf-v11/180:
 | Galaxy Tab S10 Ultra (SM-X920) | Dimensity 9300+ (MT6989) | Mali-G720-Immortalis MC12 | `0xc8700000` | v12 | 14 / 6.1.75 / CSF 1.21 | Samsung Remote Test Lab, 2026-10-07 | beta.18-dev+combined | **37/37** (`gs_viewport_depth` 20/20) | 48 FPS. NFS: Most Wanted race 81.7 FPS |
 | Galaxy Tab S11 Ultra (SM-X930) | MT6991 | Mali-G925-Immortalis MC12 | `0xd8300015` | v13 | 16 / 6.6.102 / CSF 1.30 | Samsung Remote Test Lab, 2026-10-07 | beta.18-dev+combined | **37/37** | 48.1 FPS |
 | Xiaomi 2511FPC34G (user report) | MT6899 | Mali-G720 MC8 | `0xc8700010` | v12 | n/a | Tester, beta.17 | beta.17 (release) | 35-36/37, `gs_viewport_depth` fails intermittently | n/a |
-| Mali-G57 MC2 tablet | n/a | Mali-G57 MC2 | `0x90930010` | v9 (JM) | 13 / 5.15 / JM 11.38 | Own device | beta.14 to beta.17; `jm-v9` 001-025 dev build (2026-10-11) not yet run | **Experimental**: 1/17 (beta.14), 2/17 real (beta.17 smoke, 17-test PanProbe). The 001-025 build is untested on v9 | n/a |
+| Lenovo Tab TB336FU | MediaTek (mt8755) | Mali-G57 MC2 | `0x90930010` | v9 (JM) | 16 / 5.15 / JM 11.38 | Own device, 2026-10-11 | `jm-v9` 001-030 dev build (BuildID `4ec75e25`, unreleased); beta.14 to beta.17 before | **38/38** (dev build; released beta.17: 2/17) | OK: D3D11 FL11_0 used (max FL11_1), ~73 FPS; D3D8/9/10 cubes OK. NFS Most Wanted races at ~18 FPS (GPU-bound, no faults) |
 
 On the motorola edge 40 neo, kbase rejects `MEM_ALLOC_EX` with `ENOTTY`, and
 the `MEM_ALLOC` fallback from patch 110 works. More tester data (88 records
 from 19 devices, up to beta.15) is in
 [`docs/universal/DEVICES.md`](docs/universal/DEVICES.md).
 
-The `jm-v9` series (001-025, unreleased) adds Vulkan 1.3, geometry shaders,
+The `jm-v9` series (001-030, unreleased) adds Vulkan 1.3, geometry shaders,
 tessellation, transform feedback, multiViewport, clip/cull distances, depth
-bounds, fill mode and kbase JM fixes to v9. It is built into the universal
-ICD (dev build BuildID `d8606245`), and the G615 still passes PanProbe 38/38
-with it. No v9 device has run it yet. See
-[`worklogs/v9-jm/PROGRESS.md`](worklogs/v9-jm/PROGRESS.md).
+bounds, fill mode, conditional rendering, robustImageAccess2, GPU timestamps
+and kbase JM fixes to v9. It is built into the universal ICD (dev build
+BuildID `4ec75e25`). With it the G57 passes PanProbe 38/38 and runs the
+PanPlay D3D8-D3D11 cubes and NFS Most Wanted, and the G615 still passes
+38/38. See [`worklogs/v9-jm/PROGRESS.md`](worklogs/v9-jm/PROGRESS.md).
 
 ### Status per arch
 
 | Arch | Frontend | Status | Evidence |
 |---|---|---|---|
-| v9 | JM | **Experimental, partly broken** | Released builds: G57 MC2 only, 2/17 real PanProbe passes, Vulkan 1.1. The unreleased `jm-v9` 001-025 series implements Vulkan 1.3 and the DXVK FL11_0/FL11_1 features and adds G77, G78 and G78AE model rows, but it is **not validated on v9 hardware** |
+| v9 | JM | **Experimental** (released builds partly broken) | Released builds: G57 MC2 only, 2/17 real PanProbe passes, Vulkan 1.1. The unreleased `jm-v9` 001-030 series implements Vulkan 1.3 and the DXVK FL11_0/FL11_1 features and adds G77, G78 and G78AE model rows. On the G57 MC2 it passes PanProbe 38/38 and the D3D8-D3D11 cubes; G68/G77/G78 are untested |
 | v10 | CSF | Works on beta.18 RC1 | G610 MC3 and G710 MC7 pass 37/37. G710 needs the model row from csf-v11/140, so beta.17 does not recognise it |
 | v11 | CSF | **Release target**; works on beta.18 RC1 | G615 MC6 (reference) and G715 MC7 (Pixel 8) pass 37/37 |
 | v12 | CSF | Works on beta.18 RC1 | Immortalis-G720 MC12 passes 37/37. The G720 MC8 user report has an intermittent `gs_viewport_depth` failure on beta.17 (open, untested on beta.18) |
@@ -130,12 +131,10 @@ with it. No v9 device has run it yet. See
   (unreleased). G510, G620, G625 and plain G725 have never been seen, so their
   gpu_id values are unconfirmed. The G710 row only exists from csf-v11/140
   (beta.18 RC1).
-- **v9 `bc_decode`:** on the G57, the vk_meta blit into an RGBA32F image gives
-  wrong output. BC decoding itself is correct. The root cause is not found;
-  `PANVK_V9_RT128` (`jm-v9/025`) is a bisect knob for the next G57 run.
-- **v9 chunk caps:** indirect gpu_prerast and tessellated draws on v9 are
-  unrolled in a fixed number of chunks. Larger draws are cut short, with a
-  one-time warning in logcat.
+- **v9 chunk caps:** gpu_prerast and tessellated draws on v9 are unrolled in a
+  fixed number of chunks (direct tess 1024 iterations, indirect tess 32,
+  direct restart strips 1024 chunks, other indirect draws 8). Larger draws are
+  cut short, with a one-time warning in logcat.
 - **v9 viewport ordering:** with multiViewport and different depth ranges per
   viewport, v9 draws once per viewport, so primitives are reordered by
   viewport. CSF keeps the original order.
@@ -176,7 +175,7 @@ One row per Mesa arch. Each GPU carries its own status mark.
 | v5 | Midgard 3rd/4th gen | JM | ❌ Mali-T760, ❌ T820, ❌ T830, ❌ T860, ❌ T880 | No PanVK backend |
 | v6 | Bifrost 1st/2nd gen | JM | ❌ Mali-G71, ❔ G72 | Mesa marks G71 unsupported; G72 experimental upstream |
 | v7 | Bifrost 1st to 3rd gen | JM | 📋 Mali-G52, ❔ G31, ❔ G51, ❔ G76 | Profile `g52-v7-jm` (P25); needs the JM kbase path |
-| v9 | Valhall 1st/2nd gen | JM | 🔨 Mali-G57 (tested, MC2), 🔨 G68, 🔨 G77, 🔨 G78, 🔨 G78AE | **EXPERIMENTAL, partly broken** (beta.14 universal ICD). Released builds were tested only on a G57 MC2 tablet: CTS smoke subsets mostly pass, PanProbe 1/17, Vulkan 1.1. The unreleased `jm-v9` 001-025 series implements Vulkan 1.3, GS, tessellation, XFB, multiViewport, depth bounds and fill mode, and adds model rows for G77 (`0x9000`), G78 (`0x9002`) and G78AE (`0x9005`); G68 (`0x9004`) comes from upstream. **Implemented but NOT validated on v9 hardware** |
+| v9 | Valhall 1st/2nd gen | JM | 🔨 Mali-G57 (tested, MC2), 🔨 G68, 🔨 G77, 🔨 G78, 🔨 G78AE | **EXPERIMENTAL, partly broken** (beta.14 universal ICD). Released builds were tested only on a G57 MC2 tablet: CTS smoke subsets mostly pass, PanProbe 1/17, Vulkan 1.1. The unreleased `jm-v9` 001-030 series implements Vulkan 1.3, GS, tessellation, XFB, multiViewport, depth bounds, fill mode, conditional rendering, robustImageAccess2 and timestamps, and adds model rows for G77 (`0x9000`), G78 (`0x9002`) and G78AE (`0x9005`); G68 (`0x9004`) comes from upstream. **G57 MC2: PanProbe 38/38 and D3D8-D3D11 cubes on the dev build; other v9 parts not validated** |
 | v10 | Valhall 3rd gen | CSF | 🧪 Mali-G610, 🧪 G710, 🔨 G310, ❔ G510 | G610 MC3 (motorola edge 40 neo) and G710 MC7 (Pixel 7) pass PanProbe 37/37 on beta.18-dev (Firebase Test Lab, 2026-10-07). G710 gets its model row in csf-v11/140 (beta.18 RC1). G310 is built, untested; G510 needs a tester's gpu_id |
 | **v11** | **Valhall 4th gen** | **CSF** | ✅ **Mali-G615**, 🧪 G715, ❔ Immortalis-G715 | G615 validated on Poco X6 Pro (Dimensity 8300). G715 MC7 (Pixel 8) passes PanProbe 37/37 on beta.18-dev. Immortalis-G715 is untested |
 | v12 | 5th Gen | CSF | 🧪 Immortalis-G720, ⚠️ Mali-G720 (MC8, user report), ❔ G620 | Immortalis-G720 MC12 (Galaxy Tab S10 Ultra) passes PanProbe 36/36 on beta.17 and 37/37 on beta.18-dev. beta.18 names it by core count (131). A user's G720 MC8 scores 35-36/37 on beta.17 (intermittent `gs_viewport_depth`, open). G620 is built, untested |

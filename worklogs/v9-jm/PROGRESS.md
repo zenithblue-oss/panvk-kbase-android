@@ -555,3 +555,26 @@ PanPlay 1.2.5 (vc 31) built with `-PpanvkSo=/var/tmp/panvk/dist-v9-p5/libvulkan_
 | D3D8 | - | 77.4 / 76.3 | OK | none |
 
 mesa-panvk.txt and logcat: no fault, device lost or driver warning (only the non-conformant notice). DXVK: only the usual EDID/QueryInterface lines.
+
+### Stage C: NFS Most Wanted on the G57
+
+Setup: the host zip `/home/abhaybyte/games/Need.for.Speed.Most.Wanted.zip` was pushed and unzipped to `/sdcard/Games/Need.for.Speed.Most.Wanted`; shortcut `gf5eb79d4` (NFSMW, i386, FEX Extreme, DXVK_HUD=full), same JSON as G925/G720; PanPlay got all-files access with `appops set ... MANAGE_EXTERNAL_STORAGE allow` (as `rtl-nfs.sh`). One-command run: `/var/tmp/panvk/v9/g57/play/nfs-race.sh [<apk>|-] <tag>` (takes the device lock; title > Quick Race > Custom Race > Circuit City Perimeter > Lexus IS300 auto; DPAD_UP held 5 s at a time for 120 s; frame CSV from PanPlay `files/perf`, `hitch.py`).
+
+Script fix: the mid-boot `KEYCODE_WAKEUP` acted as "click to continue" once the title loaded faster (warm cache, ~40 s), which sent the menu keys into a career race (`race-p5` run, discarded). The wake is gone; boot wait is `BOOT` (120 s).
+
+| Run | .so | 120 s drive avg FPS | 1% low | p99 / max | >100 ms | GPU |
+|---|---|---|---|---|---|---|
+| race-5, race-6 | p4 d8606245 | 18.6 / 18.7 | 15.2 / 15.3 | 66 / 74 ms | 0 | 83 % |
+| race-p4b | p4 d8606245 | 17.7 | 14.2 | 70.5 / 75 ms | 0 | 83 % |
+| race-p5b | p5 4ec75e25 | 17.5 | 14.3 | 70.0 / 74 ms | 0 | 83 % |
+
+- p4 and p5 are within noise in the same session (17.7 vs 17.5). The first 20 s of the race (car moving) run at ~21 FPS; the rest is the car pinned at the first corner (no steering), a repeatable GPU-bound load. For scale, the G720 got 77.5 FPS.
+- Visuals match the G720 shots; no glitches seen. No DEVICE_LOST or VK_ERROR in logcat or DXVK logs. The game's MESA lines do not reach logcat and PanPlay writes no session for shortcut launches, so a silent GPU fault would not be visible; none showed as corruption or a hang.
+- RAM: 7.6 GB total, ~3.2 GB available in the race; thermal status 0; the tablet stayed online all session.
+- No driver change for NFS: it is GPU-bound at 83 % on an MC2 part.
+
+### What's next (v9)
+
+- Steering in the NFS run (timed DPAD_LEFT/RIGHT) for a real-driving frame profile; a GPU profile of the race on the G57.
+- The chunk caps and VS/TCS rerun for postponed tess patches (028); conditional rendering cost (030).
+- G68/G77/G78/G78AE testers; CTS `tessellation.*`, `query_pool.statistics_query.*`, multiview, `draw.*indirect*` on the G57.
