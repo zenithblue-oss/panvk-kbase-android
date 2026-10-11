@@ -302,10 +302,100 @@ Not fixed, documented limits shared with CSF or listed above:
   - the screen was kept awake with `KEYCODE_WAKEUP` only;
   - result **38/38 pass** (`swapchain_lifecycle` passes now). Run: `/var/tmp/panvk/v9/run-p2b/`.
 
+## Phase 3: depth bounds, per-sample shading, VMR, fill mode, feature audit
+
+Status: 018-020 written. The full series (162 patches) applies. The universal Android build is OK. G615 regression is 38/38. **Not tested on a G57:** none was attached on 2026-10-11 (only the Poco X6 Pro, G615).
+
+Build:
+- Tree: `/var/tmp/panvk/v9/mesa-p2`, branch `p3` (one commit per patch 018-020 on top of `p2b`).
+- `.so`: `/var/tmp/panvk/dist-v9-p3/libvulkan_panfrost.so`. It is unstripped (32.9 MB) and is a clean build of the fresh-applied tree.
+- BuildID `d2364fa6e38c9a3954b1940ab2873e6b6a1e8021`, sha256 `9af0c399b4e9c71cc17af20daefb8f6236d09716c57e66427e39003869ab8ffa`.
+- Warnings: 6, all pre-existing (5x `csf/panvk_vX_gpu_queue.c:858`, 1x android_stub `BacktraceMap.h`).
+
+### Patches
+
+| Patch | What | New v9 feature bits |
+|---|---|---|
+| 018 | Depth bounds FS emulation (csf-v11 092/116) enabled on v9. The v9 DCD gets Evaluate per-sample and Alpha-to-coverage. Attachmentless draws split the batch when `rasterizationSamples` changes (Noysz 0059). | `depthBounds`, `variableMultisampleRate` |
+| 019 | `polygonMode` LINE/POINT through the gpu_prerast polygon kernel, as on CSF | `fillModeNonSolid` |
+| 020 | `mesa_logw_once` when an indirect draw takes a path with a chunk cap (014/017) | none |
+
+#### 018: depth bounds, per-sample shading, VMR
+
+- Depth bounds:
+  - the shader side (`#if PAN_ARCH >= 10` changed to `>= 9`) reads tile depth with LD_TILE, tests it against the `ds.bounds` sysvals and writes SampleMask;
+  - `dev->depth_bounds_fs` is used when no FS is bound;
+  - there is no v9 hardware field, so this is GPU emulation only.
+- 116 FPK rules are kept. An early-fragment-tests FS that writes ZS or feeds an occlusion query gets `MALI_PIXEL_KILL_FORCE_LATE` while bounds are on. This does not apply when the FS can discard, writes its own SampleMask, or alpha-to-coverage is on.
+- DCD `evaluate_per_sample` is set for sample shading or a blend shader with more than 1 sample. `alpha_to_coverage` comes from dynamic state. Before this patch, v9 had neither bit.
+- VMR (`vmr_secondary`):
+  - `v9_attachmentless_samples()` runs first in `v9_cmd_draw`;
+  - with no attachments and a sample count different from the batch, it closes the batch (only if its FBD was already emitted) and opens a new one;
+  - it then sets `fb.nr_samples` and resets `fb.layout.sample_count`.
+
+#### 019: fill mode
+
+- `v9_prerast_poly_mode()` is NONE when a GS is bound, as on CSF (`gpu_prerast_poly_mode` is skipped with a GS on v10+ too).
+- Otherwise:
+  1. the lowered VS writes positions to the arena;
+  2. a `GPU_POLYGON` compute job culls, applies facing and writes edge/point indices to `POLY_INDEX_OFFSET` plus an indirect draw;
+  3. the tiler draws LINES/POINTS with primitive restart.
+- Indirect draws patch the polygon job grid through the `gs_job` slot of `panlib_v9_prerast_indirect`. The draw command is zeroed with `panlib_fill_scalar` first.
+
+#### 020: chunk caps
+
+- The caps are not raised. Each chunk unrolls a full job set into the command buffer, so raising them costs command memory on every indirect draw.
+- The warning fires once per process at record time:
+  - for indirect gpu_prerast draws (`V9_PRERAST_INDIRECT_CHUNKS`);
+  - for indirect tessellated draws (`V9_TESS_INDIRECT_CHUNKS`).
+
+### bc_decode (not fixed, blocker)
+
+- On the G57, the BC decode output and compute sampling are bit-identical to the G615 (same nonzero counts). BC emulation is therefore correct on v9.
+- The failing step is the vk_meta fragment blit into a 128-bit RGBA32F destination. The lib texture code is shared with v10+, so the suspect is the JM v9 fragment/blend/FB path for 128-bit render targets, or the blit push-descriptor path.
+- Root cause is not confirmed. It needs a G57 to bisect (blit to RGBA8 vs RGBA32F, and copy vs blit).
+
+### Feature audit (v9 vs G615 v10), DXVK 3.1.1 FL11_0/FL11_1
+
+Real on v9 now:
+- GS, tessellation, `multiViewport`, clip/cull distance;
+- `multiDrawIndirect`, `drawIndirectFirstInstance`;
+- `depthClamp`, `depthClipEnable`, `depthBounds`;
+- `robustBufferAccess2`, `nullDescriptor`, maintenance5/6;
+- `logicOp`, VPS&A (drirc default on), `fragmentStoresAndAtomics`;
+- XFB + queries, pipeline statistics;
+- `fillModeNonSolid`, `variableMultisampleRate`;
+- `textureCompressionBC` (emulated; see the bc_decode blit above).
+
+Still v10+ only. None of these is required for FL11_0/FL11_1 in DXVK 3.1.1:
+- `alphaToOne`, `shaderTessellationAndGeometryPointSize`, `shaderFloat16`, `samplerFilterMinmax`;
+- `robustImageAccess2`, `shaderOutputLayer`, `conditionalRendering`, `EXT_multi_draw`;
+- `nestedCommandBuffer`, rasterization order access, `memoryPriority`/pageable;
+- ycbcr extras, timestamps, `indirectMemoryCopy`, sparse.
+
+### Review (gpt-6.1-sol) and fixes
+
+- Fixed in 019: `fs.required` was computed only on the plain draw path, so the tess and gpu_prerast paths called `get_fs()` with a stale value. It is now computed first in `v9_cmd_draw_layer()`.
+- Not fixed, parity with CSF: polygon mode is ignored when a GS is bound.
+
+### Series checks
+
+- `apply-patches.sh` on fresh Mesa 5a07217f (`mesa-chk`): 162 applied, rc 0. The tree hash is identical to mesa-p2 `p3` (e843809b).
+- `patch -p1 -F0` for 018-020: 0 offsets, 0 fuzz.
+- v10-v14: the shared-code changes are `#if PAN_ARCH >= 10` to `>= 9` gates only. v10+ behaviour is unchanged.
+
+### Device results
+
+- G57: none attached.
+- G615 regression:
+  - PanProbe debug, package `dev.zenithblue.panvktest.v9p2`, `adb install -r`;
+  - the bundled `.so` BuildID is checked as d2364fa6;
+  - result **38/38 pass**. Run: `/var/tmp/panvk/v9/run-p3/`.
+
 ## What's next
 
 - **Phase 2 device run (G57):** 011-017. Run PanProbe `xfb`, `geometry`, `clip_cull`, `vertex_stores`, `gpu_prerast_slice`, `large_draw`, `multi_viewport` and tessellation, and CTS `tessellation.*`, `query_pool.statistics_query.*` and `primitives_generated_query.*`. Watch for hangs from the 256-wide workgroup kernels (`panlib_chunk_step`, restart counting) and from the TCS barrier on the G57.
-- **Phase 3:** fill mode (non-solid), depth bounds (GPU emulation, no v9 hardware field), `vmr_secondary` (Noysz 0059: no-attachment `nr_samples` / `evaluate_per_sample` in `v9_cmd_draw`), and the `bc_decode` blit.
+- **Phase 3 device run (G57):** 018-020. Run PanProbe `depth_bounds`, `fill_mode` and `vmr_secondary`, then bisect the `bc_decode` 128-bit blit.
 - **Phase 4:** G77 row (006, needs a tester) and a full PanProbe run (up to 38 tests) on the G57.
 - **Open items from phase 1:**
   - device validation of 003 and 007-010;
