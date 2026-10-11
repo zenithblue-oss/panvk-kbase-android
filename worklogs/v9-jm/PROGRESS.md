@@ -481,3 +481,64 @@ Build:
   - device validation of 003 and 007-010;
   - CTS multiview, `draw.*indirect*`, `synchronization.basic.event`;
   - a multi-atom `JOB_SUBMIT` (rest of 0068).
+
+## Phase 5: G57 device bring-up (Lenovo TB336FU, 2026-10-11)
+
+Device: Mali-G57 MC2, gpu_id 0x90930010, kbase JM uAPI 11.38, kernel 5.15, Android 16 (mt8755). Logcat works; no root, so no kbase/dmesg. Driver logs: "MediaTek JM atom layout (frame_nr), stride 64, probe event 0x1"; "dma-buf imports are not CPU-coherent; cleaning them before each submit".
+
+Tools: `/var/tmp/panvk/v9/run-g57/run.sh` (device lock, install, single test or all, pulls `files/logs`), `/var/tmp/panvk/v9/g57/{nj.sh,apk.sh}`. Mesa options are set as Android props, e.g. `setprop debug.mesa.panvk.v9.rt128 tile` (`debug.mesa.*` is shell-settable, `vendor.mesa.*` is denied).
+
+### Iteration 1: p4 .so (BuildID d8606245), full PanProbe
+
+Run `/var/tmp/panvk/v9/run-g57/r1/`: **28 pass / 9 fail / 1 skip**.
+
+| Test | Result | Symptom |
+|---|---|---|
+| bc_decode | PASS | the phase 3 blocker does not reproduce on the G57 |
+| large_draw | FAIL | direct gpu_prerast draw over arena capacity is skipped (139263 verts); tess draw needs 35000 iterations, only 4096 drawn |
+| gs_tess_primitive_id | FAIL | indirect-chunk: 96 of 3600 primitives (indirect tess chunk cap 8 x 507 patches) |
+| tessellation | FAIL | cases up to `indirect` pass, then `vkWaitForFences` VK_TIMEOUT |
+| vs_viewport_index | FAIL | TES gl_ViewportIndex ignored (E/F), gl_PrimitiveID in FS without GS wrong (G) |
+| draw_params | FAIL | `divisor` and `divisor0` cases |
+| pipeline_stats | FAIL | compute shader invocations 0 (want 112) |
+| tess_cond_state | FAIL | CreateDevice VK_ERROR_EXTENSION_NOT_PRESENT (asks for VK_EXT_conditional_rendering) |
+| bc_perf | FAIL | ts_bits=0, then a query returns VK_ERROR_DEVICE_LOST |
+| vkd3d_reqs | FAIL | robustImageAccess2 hard-missing |
+| robust_image_access2 | SKIP | robustImageAccess2 not exposed |
+
+bc_decode bisect (`PANVK_V9_RT128=tile|noround|raw` via props): all PASS, as is the default. No 128-bit RT bug on the G57.
+
+Fixes were investigated in parallel, one private tree per area (reflinked from `mesa-chk`, which now has the p4 series as commit ce77899).
+
+### Iteration 2: per-area fixes (each on its own tree, G57 runs)
+
+| Area | Tests | Result on G57 | Notes |
+|---|---|---|---|
+| misc | draw_params, pipeline_stats | both PASS, `all` 30/7/1 | divisor bug from 002/009; CS count after the empty-shader skip (016) |
+| prerast | large_draw, gs_tess_primitive_id | both PASS, `all` 31/6/1; tessellation 36 s -> 7.5 s | tessellation "timeout" was slowness (1536 iterations x 74 jobs vs the 30 s fence), not a hang |
+| tess | vs_viewport_index | PASS | primitive index enable/override never set on v9 (002) |
+| feat | vkd3d_reqs, robust_image_access2, tess_cond_state, bc_perf | all PASS, `all` 32/6/0 | deqp-vk on G57: conditional_rendering.* 352 pass, pipeline.monolithic.timestamp.* 236 pass, robustness2 storage_image subset 840 pass, 0 fail |
+
+Review of the combined diff found CSF struct growth (`tcs_stat`, `cut_tail`) and new kernel logic compiled into CSF kernels. Rev 2 of prerast puts all of it under `PAN_ARCH == 9` (CSF structs/kernels byte-identical) and raises the direct tess cap 512 -> 1024.
+
+Integration tree (misc + prerast + tess + feat), BuildID 991051a7: **G57 38/38**.
+
+### Patches 026-030
+
+| Patch | What | Introduced by |
+|---|---|---|
+| 026 | instance-rate attributes add `firstInstance * stride` for every divisor (direct + indirect kernels) | 002, 009 |
+| 027 | count compute invocations before the empty-shader early return | 016 |
+| 028 | direct restart-strip chunking (`cut_tail`, cap 1024 chunks); tess chunks sized on the GPU from real levels (4096 patches/chunk, arena index budget); direct tess 1024 iterations, indirect 32; nested ranges that fit go to `v9_prerast_draw_one` | 011, 014, 017 |
+| 029 | `primitive_index_enable/override` in the v9 MALLOC_VERTEX primitive descriptor | 002 |
+| 030 | robustImageAccess2 (v10 GPU alpha fix-up also for gpu_arch 9), VK_EXT_conditional_rendering on JM (1-thread `panlib_v9_cond_render` job reads the predicate on the GPU and turns the draw's jobs into NULL jobs; batches reset before any submit), GPU timestamps (WRITE_VALUE SYSTEM_TIMESTAMP, atom needs `BASE_JD_REQ_PERMON`, timestampValidBits 64, 76.923 ns) | new on v9 |
+
+Known limits: postponed tess patches rerun VS/TCS (TCS side effects can repeat); output past the caps (direct tess 1024 iterations, indirect tess 32, direct restart strips 1024 chunks, indirect non-tess 8 chunks) is dropped with a warning; triangle strips with adjacency over the arena stay unhandled; conditional rendering costs one predicate job per draw/dispatch and record-time job-list building; timestamp writes split batches.
+
+### Iteration 3: fresh series p5
+
+- `apply-patches.sh` on fresh Mesa 5a07217f (`mesa-p5`): 172 applied, rc 0, plain `git apply` (0 fuzz). The tree is identical to the integration tree.
+- `.so`: `/var/tmp/panvk/dist-v9-p5/libvulkan_panfrost.so`, 32959864 bytes, BuildID `4ec75e25deca57c27fb1e0872fdbf58473d41527`, sha256 `f40888780b053f8f573a033856a09a6ce93b0b22d33e7fa6a4eefa5f142f1102`. Warnings: pre-existing only.
+- PanProbe `apkchk/panprobe-p5.apk` (bundled BuildID checked):
+  - **G57: 38/38** (`run-g57/p5`).
+  - **G615 regression: 38/38** (`run-p5-g615/autorun2.txt`). The first G615 run gave 37/38 with `swapchain_lifecycle` FAIL although its own log says PASS; it passed alone and in a second full run (harness timing flake).
