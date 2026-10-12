@@ -457,6 +457,14 @@ object ContainerManager {
         // Per-game shortcut env wins over defaults (but not DISPLAY / display plumbing above).
         launchOpts.get()?.env?.forEach { (k, v) -> if (k != "DISPLAY" && k != "DXVK_HUD") envMap[k] = v }
         envMap.remove(EXTRA_DLL_OVERRIDES)?.let { envMap["WINEDLLOVERRIDES"] = envMap["WINEDLLOVERRIDES"] + it }
+        // Game audio (graphical runs, set by run()): driver libs first on LD_LIBRARY_PATH, the other wine*.drv disabled.
+        audioEnv.get()?.forEach { (k, v) ->
+            when (k) {
+                GameAudio.AUDIO_LIB_DIR -> envMap["LD_LIBRARY_PATH"] = "$v:${envMap["LD_LIBRARY_PATH"]}"
+                GameAudio.AUDIO_DLL_OVERRIDES -> envMap["WINEDLLOVERRIDES"] = (envMap["WINEDLLOVERRIDES"] ?: "") + v
+                else -> envMap[k] = v
+            }
+        }
         // FPS cap. DXVK 3.x dropped the DXVK_FRAME_RATE env (config option instead); vkd3d-proton reads VKD3D_FRAME_RATE.
         // A user-set DXVK_FRAME_RATE in the shortcut env means they manage it themselves.
         val fps = launchOpts.get()?.fpsLimit ?: 0
@@ -704,6 +712,8 @@ object ContainerManager {
             // A game from an earlier session (crashed launcher, detached child) must not keep its GPU and RAM.
             killPrefixProcesses(ctx)
             selectWow64Emulator(ctx, Box64Presets.isBox(launchOpts.get()?.fexMode ?: ""))
+            audioEnv.set(GameAudio.start(ctx, GameAudio.resolve(ctx, launchOpts.get()?.audio),
+                File(containerDir, ".wine").absolutePath, onLine))
             val code = runInternal(ctx, args, workDir ?: containerDir, onLine, session?.env)
             // The started exe can exit while the game it spawned keeps running (Fallout4Launcher, start.exe), and a
             // finished game can leave Wine processes behind that hold its memory into the next launch. Wait until
@@ -712,6 +722,7 @@ object ContainerManager {
             killPrefixProcesses(ctx)
             return code
         } finally {
+            if (audioEnv.get() != null) { GameAudio.stop(ctx); audioEnv.remove() }
             if (session != null) DisplayServer.close(session)
             synchronized(lifecycleLock) {
                 currentProcess = null
@@ -729,6 +740,8 @@ object ContainerManager {
 
     // Per-launch shortcut overrides (args/env/driver); thread-local so run()/runInternal()/env() need no new params.
     private val launchOpts = ThreadLocal<LaunchOptions?>()
+    // GameAudio.start() result for the current graphical run; read by env().
+    private val audioEnv = ThreadLocal<Map<String, String>?>()
 
     fun runExe(ctx: Context, exePathIn: String, onLine: (String) -> Unit = {}, opts: LaunchOptions? = null): Int {
         // A game folder (shortcut / intent / picker gave a directory) launches its main exe.
