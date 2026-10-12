@@ -410,8 +410,10 @@ object ContainerManager {
 
         // DXVK/vkd3d logs go to one dir (Z: = /); SessionLogs.collect moves them into the session folder.
         val gfxLogs = SessionLogs.gfxLogDir(ctx)
+        // Gaming mode skips SessionLogs.collect, so nothing moves these out: keep the newest 20.
+        try { gfxLogs.listFiles { f -> f.isFile }?.sortedByDescending { it.lastModified() }?.drop(20)?.forEach { it.delete() } } catch (_: Exception) {}
         if (dxvk) {
-            envMap["DXVK_LOG_LEVEL"] = "info"
+            envMap["DXVK_LOG_LEVEL"] = if (PerfRecorder.gamingMode(ctx)) "warn" else "info"
             envMap["DXVK_LOG_PATH"] = "Z:" + gfxLogs.absolutePath
             envMap["DXVK_HUD"] = "full"
             envMap.putAll(PerfRecorder.env()) // DXVK_STATS_FILE while a perf session is recording
@@ -554,32 +556,43 @@ object ContainerManager {
             return -1
         }
 
+        // One buffered writer per run; flushed at most every ~1 s while lines arrive, and on exit.
+        val logW = try { java.io.FileWriter(logFile, true).buffered() } catch (_: Exception) { null }
+        var lastFlush = System.currentTimeMillis()
+        fun log(s: String) {
+            try {
+                logW?.write(s); logW?.write("\n")
+                val now = System.currentTimeMillis()
+                if (now - lastFlush >= 1000) { logW?.flush(); lastFlush = now }
+            } catch (_: Exception) {}
+        }
         return try {
             process.inputStream.bufferedReader().use { reader ->
                 var line: String?
                 while (reader.readLine().also { line = it } != null) {
                     val l = line!!
-                    try { logFile.appendText(l + "\n") } catch (_: Exception) {}
+                    log(l)
                     onLine(l)
                 }
             }
             val exitCode = process.waitFor()
             info.exit = exitCode; info.endMs = System.currentTimeMillis()
             val exitMsg = "exit=$exitCode"
-            try { logFile.appendText(exitMsg + "\n") } catch (_: Exception) {}
+            log(exitMsg)
             onLine(exitMsg)
             exitCode
         } catch (e: IOException) {
             val errMsg = e.message ?: e.toString()
-            try { logFile.appendText(errMsg + "\n") } catch (_: Exception) {}
+            log(errMsg)
             onLine(errMsg)
             -1
         } catch (t: Throwable) {
             val errMsg = t.message ?: t.toString()
-            try { logFile.appendText(errMsg + "\n") } catch (_: Exception) {}
+            log(errMsg)
             onLine(errMsg)
             -1
         } finally {
+            try { logW?.close() } catch (_: Exception) {}
             synchronized(lifecycleLock) {
                 if (currentProcess == process) {
                     currentProcess = null
@@ -820,6 +833,46 @@ object ContainerManager {
 
     fun runExplorer(ctx: Context, onLine: (String) -> Unit = {}): Int {
         return run(ctx, listOf("explorer", "/desktop=shell,1280x720"), onLine = onLine, graphics = true)
+    }
+
+    /** .reg header check: "Windows Registry Editor Version 5.00" (UTF-16LE or UTF-8, optional BOM) or "REGEDIT4". */
+    fun isRegFile(head: ByteArray): Boolean {
+        val text = when {
+            head.size >= 2 && head[0] == 0xFF.toByte() && head[1] == 0xFE.toByte() -> String(head, 2, head.size - 2, Charsets.UTF_16LE)
+            head.size >= 3 && head[0] == 0xEF.toByte() && head[1] == 0xBB.toByte() && head[2] == 0xBF.toByte() -> String(head, 3, head.size - 3, Charsets.UTF_8)
+            else -> String(head, Charsets.ISO_8859_1)
+        }
+        return text.startsWith("Windows Registry Editor Version 5.00") || text.startsWith("REGEDIT4")
+    }
+
+    /**
+     * Import a picked .reg into the (single) container prefix with "wine reg import" (handles REGEDIT4 and
+     * UTF-16 v5 files as-is). Goes through run(), so it is refused while a game/wineserver owns the prefix.
+     * Output lands in the normal logs/run-*.log. Returns a short result for a toast. Blocking.
+     */
+    fun importReg(ctx: Context, uri: Uri, onLine: (String) -> Unit = {}): String {
+        val dst = File(ctx.filesDir, "container/.wine/drive_c/panplay-import.reg")
+        try {
+            val head = ctx.contentResolver.openInputStream(uri)?.use { s -> ByteArray(80).let { it.copyOf(s.readNBytesCompat(it)) } }
+                ?: return "Import failed: cannot read file"
+            if (!isRegFile(head)) return "Not a .reg file (bad header)" // short: Android toasts clip long text
+            if (!isSetup(ctx)) return "Container is not set up"
+            ctx.contentResolver.openInputStream(uri)?.use { i -> dst.outputStream().use { i.copyTo(it) } }
+                ?: return "Import failed: cannot read file"
+        } catch (e: Exception) { return "Import failed: ${e.message}" }
+        val tail = ArrayDeque<String>()
+        return try {
+            val code = run(ctx, listOf("reg", "import", """C:\panplay-import.reg""")) { l ->
+                onLine(l); tail.addLast(l); if (tail.size > 3) tail.removeFirst()
+            }
+            if (code == 0) "Registry file imported" else "Registry import failed (exit=$code): ${tail.joinToString(" | ")}"
+        } finally { dst.delete() }
+    }
+
+    private fun java.io.InputStream.readNBytesCompat(b: ByteArray): Int {
+        var n = 0
+        while (n < b.size) { val r = read(b, n, b.size - n); if (r < 0) break; n += r }
+        return n
     }
 
     fun stop(ctx: Context) = synchronized(lifecycleLock) {
