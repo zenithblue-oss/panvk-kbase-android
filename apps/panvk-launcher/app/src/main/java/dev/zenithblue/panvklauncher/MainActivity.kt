@@ -475,6 +475,7 @@ fun LauncherApp(
             }
         )
     }
+    WhatsNewDialog(enabled = !showStorageDialog)
 
     fun runExeWithPermission(path: String, sc: Shortcut? = null) {
         val appFiles = context.filesDir.absolutePath
