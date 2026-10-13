@@ -300,6 +300,9 @@ fun LauncherApp(
             } finally {
                 PerfRecorder.finish(context)
                 DisplayServer.launchOverride = null
+                // Render API the run really used (DXVK/vkd3d logs, GL loads), shown on the next launch card.
+                if (sc != null && launched && !BuiltinTests.isBuiltin(sc) && ContainerManager.lastUsedApi.isNotEmpty())
+                    ShortcutStore.find(context, sc.id)?.let { ShortcutStore.save(context, it.copy(lastApi = ContainerManager.lastUsedApi)) }
                 mainHandler.post {
                     isWineRunning = ContainerManager.isRunning()
                     isContainerSetup = ContainerManager.isSetup(context)

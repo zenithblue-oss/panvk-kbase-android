@@ -27,6 +27,8 @@ data class Shortcut(
     val fex: String = "", // "" = FexPresets.DEFAULT, else a FexPresets mode
     val fpsLimit: Int = 0, // 0 = off, else 1..1000 (DXVK_FRAME_RATE / VKD3D_FRAME_RATE)
     val audio: String = "", // "" = launcher default, else GameAudio.PULSE | ALSA | OFF
+    val renderApi: String = RenderApi.AUTO, // RenderApi.AUTO | DXVK | VKD3D | WINED3D | OPENGL | VULKAN | CNC
+    val lastApi: String = "", // API the last run actually used (RenderApi.used), shown on the launch card
     val icon: String = "auto",
     val created: Long = System.currentTimeMillis(),
     val lastPlayed: Long = 0
@@ -39,7 +41,8 @@ data class LaunchOptions(
     val driverId: String = "",
     val fexMode: String = "",
     val fpsLimit: Int = 0,
-    val audio: String = ""
+    val audio: String = "",
+    val renderApi: String = RenderApi.AUTO
 )
 
 /** FEX emulation presets, applied as FEX_* env on the Wine process (FEX also reads them in libwow64fex.dll). */
@@ -135,7 +138,7 @@ object ShortcutStore {
     private fun toJson(s: Shortcut) = JSONObject().apply {
         put("id", s.id); put("name", s.name); put("exe", s.exe); put("args", s.args)
         put("env", JSONObject(s.env)); put("arch", s.arch); put("resolution", s.resolution)
-        put("driver", s.driver); put("fex", s.fex); put("fpsLimit", s.fpsLimit); put("audio", s.audio); put("icon", s.icon); put("created", s.created)
+        put("driver", s.driver); put("fex", s.fex); put("fpsLimit", s.fpsLimit); put("audio", s.audio); put("renderApi", s.renderApi); put("lastApi", s.lastApi); put("icon", s.icon); put("created", s.created)
         put("lastPlayed", s.lastPlayed)
     }
 
@@ -148,7 +151,8 @@ object ShortcutStore {
             exe = j.getString("exe"), args = j.optString("args", ""), env = env,
             arch = j.optString("arch", "auto"), resolution = j.optString("resolution", ""),
             driver = j.optString("driver", ""), fex = j.optString("fex", ""), fpsLimit = j.optInt("fpsLimit", 0).takeIf { it in 1..1000 } ?: 0,
-            audio = j.optString("audio", "").takeIf { a -> GameAudio.drivers.any { it.first == a } } ?: "", icon = j.optString("icon", "auto"),
+            audio = j.optString("audio", "").takeIf { a -> GameAudio.drivers.any { it.first == a } } ?: "", renderApi = RenderApi.norm(j.optString("renderApi", RenderApi.AUTO)), lastApi = j.optString("lastApi", ""),
+            icon = j.optString("icon", "auto"),
             created = j.optLong("created", 0), lastPlayed = j.optLong("lastPlayed", 0)
         )
     }
@@ -245,7 +249,7 @@ object ShortcutStore {
 
     fun launchOptions(ctx: Context, s: Shortcut) = LaunchOptions(
         args = splitArgs(s.args), env = s.env, driverId = s.driver, fexMode = Box64Presets.modeFor(s), fpsLimit = s.fpsLimit,
-        audio = s.audio
+        audio = s.audio, renderApi = RenderApi.norm(s.renderApi)
     )
 
     /** Whitespace split honouring "double quotes". */
@@ -259,20 +263,6 @@ object ShortcutStore {
         .filterKeys { it.isNotEmpty() }
 
     fun envText(env: Map<String, String>) = env.entries.joinToString("\n") { "${it.key}=${it.value}" }
-
-    /* Per-game env the bundled Wine needs; prefilled when the exe is picked (user can edit it).
-     * Fallout 4 (Galaxy64/steam_api64) on Proton 11.0-2-arm64ec: GetAdaptersAddresses deadlocks in
-     * nsiproxy and OpenSCManagerW from x86_64 code crashes in rpcrt4. Without services.exe both fail
-     * fast. Shortcut WINEDLLOVERRIDES replaces the launcher default, so it repeats the DXVK overrides.
-     * See worklogs/driver-remaining/fo4-hang-before-driver.md. */
-    private val KNOWN_ENV = mapOf(
-        "fallout4.exe" to mapOf(
-            "WINEDLLOVERRIDES" to "mscoree,mshtml=d;d3d8,d3d9,d3d10core,d3d11,dxgi=n,b;services.exe=d"
-        )
-    )
-
-    fun withKnownEnv(exe: String, env: Map<String, String>): Map<String, String> =
-        env + (KNOWN_ENV[exe.substringAfterLast('/').substringAfterLast('\\').lowercase()] ?: emptyMap())
 }
 
 /** Minimal PE reader: machine type and first icon (PNG or DIB entry) from the resource section. */

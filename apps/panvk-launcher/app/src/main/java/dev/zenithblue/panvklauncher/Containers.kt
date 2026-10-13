@@ -295,6 +295,10 @@ object ContainerManager {
     private const val DEPS_REV = "4"
     /** Internal launch-opts env key: per-game DLL overrides appended to WINEDLLOVERRIDES in env(). */
     private const val EXTRA_DLL_OVERRIDES = "PANPLAY_EXTRA_DLLOVERRIDES"
+    /** Internal launch-opts env key: Mesa-Zink lib dir; env() adds it to LD_LIBRARY_PATH and sets the Zink/EGL env (RenderApi). */
+    private const val GL_LIB_KEY = "PANPLAY_GL_LIB"
+    /** API the last runExe() actually used (RenderApi.used), read by the UI after the run. */
+    @Volatile var lastUsedApi: String = ""
     private val HLSL_FIX_EXES = setOf("burnoutparadise.exe")
     // Game shader caches built by Proton's broken compiler; wiped once (marker) when the fix first applies.
     private val HLSL_STALE_CACHES = mapOf("burnoutparadise.exe" to "AppData/Local/Criterion Games/Burnout Paradise/ShaderCache")
@@ -457,6 +461,20 @@ object ContainerManager {
         // Per-game shortcut env wins over defaults (but not DISPLAY / display plumbing above).
         launchOpts.get()?.env?.forEach { (k, v) -> if (k != "DISPLAY" && k != "DXVK_HUD") envMap[k] = v }
         envMap.remove(EXTRA_DLL_OVERRIDES)?.let { envMap["WINEDLLOVERRIDES"] = envMap["WINEDLLOVERRIDES"] + it }
+        // OpenGL for Wine: winex11's EGL backend (HKCU X11 Driver UseEGL) loads libEGL.so.1 from the Mesa-Zink component,
+        // which renders through Zink on PanVK. Appended last so imagefs libs (libexpat, libxcb...) keep priority.
+        envMap.remove(GL_LIB_KEY)?.let { lib ->
+            envMap["LD_LIBRARY_PATH"] = envMap["LD_LIBRARY_PATH"] + ":" + lib
+            envMap["LIBGL_DRIVERS_PATH"] = "$lib/dri"
+            envMap["MESA_LOADER_DRIVER_OVERRIDE"] = "zink"
+            envMap["GALLIUM_DRIVER"] = "zink"
+            // The built-in X server has no DRI3: without this Mesa EGL skips kopper (Zink's Vulkan WSI present) and falls
+            // back to a swrast PutImage path that leaves the window black (glsmoke/Brotato rendered, nothing shown).
+            envMap["LIBGL_KOPPER_DRI2"] = "1"
+            envMap["WINE_USE_EGL"] = "1" // GameNative Wine's win32u only loads libEGL when this is set
+            // run log then shows opengl32 / wined3d loads (RenderApi.used); a shortcut's own WINEDEBUG wins
+            if (launchOpts.get()?.env?.containsKey("WINEDEBUG") != true) envMap["WINEDEBUG"] = "fixme-all,+loaddll"
+        }
         // Game audio (graphical runs, set by run()): driver libs first on LD_LIBRARY_PATH, the other wine*.drv disabled.
         audioEnv.get()?.forEach { (k, v) ->
             when (k) {
@@ -692,6 +710,14 @@ object ContainerManager {
                     if (code == 0) try { noGrabMarker.createNewFile() } catch (_: Exception) {}
                     else onLine("Wine GrabPointer=N failed (exit=$code); mouse clicks may stall in fullscreen games.")
                 }
+                // No libGL on Android: OpenGL goes through winex11's EGL backend (Mesa-Zink component, see RenderApi).
+                val eglMarker = File(containerDir, ".useegl-on")
+                if (!eglMarker.isFile) {
+                    val code = runInternal(ctx, listOf("reg", "add", """HKCU\Software\Wine\X11 Driver""", "/v", "UseEGL", "/d", "Y", "/f"),
+                        containerDir, onLine, session.env)
+                    if (code == 0) try { eglMarker.createNewFile() } catch (_: Exception) {}
+                    else onLine("Wine UseEGL=Y failed (exit=$code); OpenGL games will not render.")
+                }
                 if (synchronized(lifecycleLock) {
                         LaunchGate.cancelled(stopRequested, state == State.STOPPING)
                     }
@@ -757,13 +783,22 @@ object ContainerManager {
         val workDir = exeFile.parentFile ?: File(ctx.filesDir, "container")
         applyGamePrefs(ctx, exeFile.name)
         // Native-first override is what makes Wine load the swapped-in cnc-ddraw instead of its builtin.
-        val ddraw = swapDdraw(ctx, exeFile.path)
+        val api = RenderApi.norm(opts?.renderApi ?: RenderApi.AUTO)
+        val det = RenderApi.detect(exeFile.path)
+        val ddraw = swapDdraw(ctx, exeFile.path, api)
+        val mesa = ContentManager.current(ctx, RenderApi.MESA_TYPE)?.takeIf { File(it.dir, "lib/libEGL.so.1").isFile }
+        val gl = RenderApi.wantsGl(api, det) && mesa != null
+        RenderApi.warning(api, det, mesa != null, ContentManager.current(ctx, "VKD3D") != null)?.let { onLine("Render API: $it") }
+        onLine("Render API: ${RenderApi.label(api)}; detected ${det.text}" + (if (gl) "; OpenGL via Zink ${mesa?.versionName}" else ""))
         // Unity D3D11 games size their texture budget from the DXGI VRAM they see (5+ GB shared on this SoC) while the
         // device heap is ~2.4 GB: Silksong then exhausts it and dies in Mono ("Crash!!!") with a black screen.
         // Cap what DXGI reports unless the shortcut sets its own DXVK_CONFIG.
         val unity = exeFile.parentFile?.list()?.any { it.equals("UnityPlayer.dll", true) } == true
-        val opts = if (unity && opts?.env?.containsKey("DXVK_CONFIG") != true) (opts ?: LaunchOptions()).let {
-            it.copy(env = it.env + ("DXVK_CONFIG" to "dxvk.trackPipelineLifetime = False; dxgi.maxDeviceMemory = 2048; dxgi.maxSharedMemory = 1024"))
+        // Fallout 4 gets the same cap (it sizes its texture budget from DXGI too) plus 2 shader compiler threads.
+        val fo4 = exeFile.name.lowercase() in FO4_EXES
+        val opts = if ((unity || fo4) && opts?.env?.containsKey("DXVK_CONFIG") != true) (opts ?: LaunchOptions()).let {
+            it.copy(env = it.env + ("DXVK_CONFIG" to "dxvk.trackPipelineLifetime = False; dxgi.maxDeviceMemory = 2048; dxgi.maxSharedMemory = 1024" +
+                (if (fo4) "; dxvk.numCompilerThreads = 2" else "")))
         } else opts
         // AoE2 (age2_x2 / empires2): the intro-video startup path ends in "undetectable problem in loading the specified
         // device driver" under Wine; its own "nostartup" switch skips it and the menu + games run.
@@ -778,16 +813,62 @@ object ContainerManager {
         // on Android) initialise instead of DXVK (NFS: Most Wanted on a fresh G925 container: wined3d_adapter_gl_init).
         val hlsl = if (!needsHlslFix(ctx, exeFile)) ""
             else if (exeFile.name.lowercase() in HLSL_FIX_EXES) ";d3dcompiler_43,wined3d=n" else ";d3dcompiler_43=n"
-        val extraOvr = (ddraw ?: "") + hlsl
+        // Fallout 4 (Galaxy64/steam_api64) calls OpenSCManagerW, which crashes in the arm64ec rpcrt4 unless services.exe is
+        // disabled. Appended to the defaults (keeps nsiproxy.sys=d, which stops the GetAdaptersAddresses deadlock).
+        if (fo4) ensureFo4Registry(ctx, exeFile, onLine)
+        val extraOvr = (ddraw ?: "") + hlsl + (if (fo4) ";services.exe=d" else "") + RenderApi.overrides(api)
         // Appended in env(), after ensureDxvk: reading defaultDllOverrides here on a fresh install (dxvk_enabled
         // not yet set) dropped d3d9=n, so wined3d loaded and crashed on first launch (NFS MW, G925/G720).
-        launchOpts.set(if (extraOvr.isEmpty()) opts2 else o.copy(env = o.env + (EXTRA_DLL_OVERRIDES to extraOvr)))
+        val glEnv = if (gl && mesa != null) mapOf(GL_LIB_KEY to File(mesa.dir, "lib").absolutePath) else emptyMap()
+        val args = (opts2?.args ?: emptyList()).let { a ->
+            if (a.any { it.startsWith("--rendering-driver") }) a else a + RenderApi.godotArgs(api, det)
+        }
+        launchOpts.set(o.copy(env = o.env + glEnv + (if (extraOvr.isEmpty()) emptyMap() else mapOf(EXTRA_DLL_OVERRIDES to extraOvr)), args = args))
+        lastUsedApi = ""
+        val t0 = System.currentTimeMillis()
         try {
-            return run(ctx, listOf(exeFile.absolutePath) + (opts2?.args ?: emptyList()), workDir = workDir, onLine = onLine, graphics = true)
+            return run(ctx, listOf(exeFile.absolutePath) + args, workDir = workDir, onLine = onLine, graphics = true)
         } finally {
             launchOpts.remove()
             swapDdraw(ctx, null)
+            // Gfx logs are moved into the session folder later (SessionLogs.collect), so they are still here.
+            val logs = SessionLogs.gfxLogDir(ctx).listFiles { f -> f.isFile && f.lastModified() >= t0 - 5000 }?.toList() ?: emptyList()
+            val runLog = try { lastRun?.logFile?.takeIf { it.lastModified() >= t0 - 5000 }?.readText() ?: "" } catch (_: Exception) { "" }
+            lastUsedApi = RenderApi.used(logs, runLog, gl, ddraw != null)
         }
+    }
+
+    private val FO4_EXES = setOf("fallout4.exe", "fallout4launcher.exe")
+    private const val FO4_KEY = """HKLM\SOFTWARE\Wow6432Node\Bethesda Softworks\Fallout4"""
+
+    /** Android path -> Windows path through the prefix drive links (c: prefix, d: Download, e: shared storage, else z:). */
+    private fun toWinPath(ctx: Context, p: String): String {
+        val c = File(ctx.filesDir, "container/.wine/drive_c").path + "/"
+        val (drive, rest) = when {
+            p.startsWith(c) -> "C" to p.removePrefix(c)
+            p.startsWith("/storage/emulated/0/Download/") -> "D" to p.removePrefix("/storage/emulated/0/Download/")
+            p.startsWith("/storage/emulated/0/") -> "E" to p.removePrefix("/storage/emulated/0/")
+            else -> "Z" to p.removePrefix("/")
+        }
+        return "$drive:\\" + rest.replace('/', '\\')
+    }
+
+    /**
+     * Fallout4.exe / Fallout4Launcher.exe read the install dir from HKLM\...\Wow6432Node\Bethesda Softworks\Fallout4
+     * ("Installed Path"; the regfiles.net .reg leaves "InstalledPath" as the placeholder "Install directory"). A fresh prefix
+     * has neither, so both are pointed at the exe's own folder before each launch (skipped when system.reg already has them).
+     */
+    private fun ensureFo4Registry(ctx: Context, exeFile: File, onLine: (String) -> Unit) {
+        val dir = toWinPath(ctx, exeFile.parentFile?.path ?: return).trimEnd('\\') + "\\"
+        try {
+            val lines = File(ctx.filesDir, "container/.wine/system.reg").readLines()
+            val at = lines.indexOfFirst { it.startsWith("""[Software\\Wow6432Node\\Bethesda Softworks\\Fallout4]""") }
+            val sec = if (at < 0) emptyList() else lines.drop(at + 1).takeWhile { it.isNotBlank() }
+            val want = "=\"" + dir.replace("\\", "\\\\") + "\""
+            if (listOf("Installed Path", "InstalledPath").all { k -> sec.any { it == "\"$k\"$want" } }) return
+        } catch (_: Exception) {}
+        for (k in listOf("Installed Path", "InstalledPath"))
+            run(ctx, listOf("reg", "add", FO4_KEY, "/v", k, "/d", dir, "/f"), onLine = onLine)
     }
 
     /**
@@ -821,7 +902,7 @@ object ContainerManager {
      * C:\\windows\\syswow64\\ddraw.dll (Wine's kept as ddraw.dll.wine) and is swapped back when the game ends and
      * before every other launch, so 3D ddraw games keep Wine's. Game folder stays untouched.
      */
-    private fun swapDdraw(ctx: Context, exePath: String?): String? {
+    private fun swapDdraw(ctx: Context, exePath: String?, api: String = RenderApi.AUTO): String? {
         val dir = File(ctx.filesDir, "container/.wine/drive_c/windows/syswow64")
         val cnc = File(ctx.filesDir, "container/.wine/drive_c/windows/cnc-ddraw")
         val dll = File(dir, "ddraw.dll"); val keep = File(dir, "ddraw.dll.wine")
@@ -830,8 +911,12 @@ object ContainerManager {
             val sibling = exePath?.let { File(it).parentFile?.list()?.map { n -> n.lowercase() } } ?: emptyList()
             // A game folder that ships its own ddraw.dll keeps it. A windowed-mode shim (wndmode.dll) is disabled,
             // else cnc-ddraw refuses to run ("cannot combine with other DirectDraw wrappers").
-            val need = "ddraw.dll" !in sibling && "ddraw.dll" in imp &&
-                imp.none { it.startsWith("d3d") || it == "opengl32.dll" } && File(cnc, "ddraw.dll").isFile
+            // Render API: cnc-ddraw forces the swap (even when ddraw is loaded at run time), any other explicit API skips it.
+            val need = exePath != null && "ddraw.dll" !in sibling && File(cnc, "ddraw.dll").isFile && when (api) {
+                RenderApi.CNC -> true
+                RenderApi.AUTO -> "ddraw.dll" in imp && imp.none { it.startsWith("d3d") || it == "opengl32.dll" }
+                else -> false
+            }
             if (need) {
                 if (!keep.isFile) dll.copyTo(keep)
                 File(cnc, "ddraw.dll").copyTo(dll, overwrite = true)

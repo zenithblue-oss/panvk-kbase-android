@@ -1,5 +1,5 @@
 {
-  "comment": "Archives packed into the APK as assets/components/<file> (stored, not recompressed) and unpacked on first start. Gradle (bundleComponents) copies them from -PcomponentsDir (default /var/tmp/panvk/components) and fails on any sha256 mismatch. Fetched: scripts/fetch-launcher-components.sh. Built: scripts/build-fex-windows.sh, scripts/build-dxvk.sh, scripts/build-box64-wow64.sh, scripts/build-audio.sh (pins in scripts/components.env). -PbundleComponents=false builds a download-only APK.",
+  "comment": "Archives packed into the APK as assets/components/<file> (stored, not recompressed) and unpacked on first start. Gradle (bundleComponents) copies them from -PcomponentsDir (default /var/tmp/panvk/components) and fails on any sha256 mismatch. Fetched: scripts/fetch-launcher-components.sh. Built: scripts/build-fex-windows.sh, scripts/build-dxvk.sh, scripts/build-box64-wow64.sh, scripts/build-audio.sh, scripts/build-mesa-zink.sh (pins in scripts/components.env). -PbundleComponents=false builds a download-only APK.",
   "components": [
     {
       "file": "imagefs_bionic.txz",
@@ -40,6 +40,11 @@
       "file": "ALSA-1.2.16.1-2.wcp",
       "sha256": "723aaf3cb9fdb9bacd2feb02e5db33b31638b3bf4b91a029a68328faf2203b22",
       "build": "scripts/build-audio.sh"
+    },
+    {
+      "file": "Mesa-Zink-26.2.4-1.wcp",
+      "sha256": "46707d28e71eaa9c5a75897b75b411a1eddb10182ca02746a37c9d79f21bcf00",
+      "build": "scripts/build-mesa-zink.sh"
     }
   ]
 }

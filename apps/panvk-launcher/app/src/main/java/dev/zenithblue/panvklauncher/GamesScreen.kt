@@ -165,8 +165,9 @@ fun GamesScreen(
                             menuOpen = menuFor == g.id,
                             onOpenMenu = { menuFor = g.id },
                             onCloseMenu = { menuFor = null },
-                            onPlay = { onLaunch(g) },
-                            onOptions = { menuFor = null; launching = g },
+                            // Re-read: the list is loaded once, a finished run saves lastApi / lastPlayed behind it.
+                            onPlay = { onLaunch(ShortcutStore.find(ctx, g.id) ?: g) },
+                            onOptions = { menuFor = null; launching = ShortcutStore.find(ctx, g.id) ?: g },
                             onEdit = { menuFor = null; editingIsNew = false; editing = g },
                             onDuplicate = {
                                 menuFor = null
@@ -430,7 +431,6 @@ private fun ShortcutEditorSheet(
                     if (path != null) {
                         exe = path
                         if (name.isBlank()) name = File(path).nameWithoutExtension
-                        env = ShortcutStore.envText(ShortcutStore.withKnownEnv(path, ShortcutStore.parseEnv(env)))
                     } else android.widget.Toast.makeText(ctx, ContainerManager.IMPORT_FAIL_MSG, android.widget.Toast.LENGTH_LONG).show()
                 }
             }
@@ -442,7 +442,6 @@ private fun ShortcutEditorSheet(
         if (path != null) {
             exe = path
             if (name.isBlank()) name = File(path).nameWithoutExtension
-            env = ShortcutStore.envText(ShortcutStore.withKnownEnv(path, ShortcutStore.parseEnv(env)))
         } else if (uri != null) android.widget.Toast.makeText(ctx, "No game .exe found in that folder (needs All files access).", android.widget.Toast.LENGTH_LONG).show()
     }
 

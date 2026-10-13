@@ -31,6 +31,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,6 +43,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * "Launch" card shown before a game starts. Lists every runtime part with its real installed version
@@ -71,6 +74,14 @@ fun LaunchSheet(
     }
     var fexMode by remember(game.id) { mutableStateOf(Box64Presets.resolve(Box64Presets.modeFor(game))) }
     var audio by remember(game.id) { mutableStateOf(game.audio) }
+    var renderApi by remember(game.id) { mutableStateOf(RenderApi.norm(game.renderApi)) }
+    // PE import scan + engine hint (Godot/Unity/Unreal) off the main thread; the exe can be tens of MB.
+    val detected by produceState<RenderApi.Detected?>(null, info.exePath) {
+        value = withContext(Dispatchers.IO) { RenderApi.detect(info.exePath) }
+    }
+    val mesaOk = remember { ContentManager.current(ctx, RenderApi.MESA_TYPE) != null }
+    val vkd3dOk = remember { ContentManager.current(ctx, "VKD3D") != null }
+    val apiWarn = detected?.let { RenderApi.warning(renderApi, it, mesaOk, vkd3dOk) }
     val audioDefault = remember { GameAudio.defaultDriver(ctx) }
     val audioInfo = remember(audio) { GameAudio.describe(ctx, GameAudio.resolve(ctx, audio)) }
     // Box64 (WowBox64) only emulates 32-bit WoW64 processes; 64-bit games always use FEX.
@@ -120,6 +131,8 @@ fun LaunchSheet(
                         InfoRow(if (box) "Box64 mode" else "FEX mode", emuMode)
                         InfoRow(audioInfo.label, audioInfo.name, audioInfo.version, subIsError = audioInfo.missing)
                         InfoRow("Executable", info.exePath, info.arch)
+                        InfoRow("Detected API", detected?.text ?: "scanning…", detected?.suggested?.takeIf { it != RenderApi.AUTO }?.let { "suggests " + RenderApi.label(it).substringBefore(" (") } ?: "")
+                        if (game.lastApi.isNotEmpty()) InfoRow("Last run used", game.lastApi, "")
                         // Controller assignment is set in the game's Edit sheet; its mapping can be edited from here.
                         TextButton(onClick = { editCtl = true }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Edit controls…") }
                     }
@@ -136,6 +149,17 @@ fun LaunchSheet(
                         selected = driverId,
                         onSelect = { driverId = it }
                     )
+                    DropdownField(
+                        label = "Render API",
+                        options = RenderApi.options,
+                        selected = renderApi,
+                        onSelect = { renderApi = it }
+                    )
+                    Text(
+                        "Detected: ${detected?.text ?: "scanning…"}" + if (game.lastApi.isNotEmpty()) ". Last run used: ${game.lastApi}." else ".",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (apiWarn != null) Text(apiWarn, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                     DropdownField(
                         label = "32-bit emulator",
                         options = listOf("FEX" to "FEX (default)", "Box64" to "Box64"),
@@ -169,7 +193,7 @@ fun LaunchSheet(
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 52.dp)) { Text("Cancel") }
                         Button(
-                            onClick = { onLaunch(game.copy(resolution = resolution, driver = driverId, fex = emuMode, fpsLimit = fps, audio = audio)) },
+                            onClick = { onLaunch(game.copy(resolution = resolution, driver = driverId, fex = emuMode, fpsLimit = fps, audio = audio, renderApi = renderApi)) },
                             enabled = problems.isEmpty(),
                             modifier = Modifier.weight(1f).heightIn(min = 52.dp)
                         ) {

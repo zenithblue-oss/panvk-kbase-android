@@ -1,0 +1,18 @@
+Allow EGL_OPENGL_API in an Android (bionic) build of Mesa EGL.
+
+Upstream rejects desktop GL on Android because the Android platform EGL has no GL
+consumer. This build is an X11-platform EGL loaded by Wine's winex11 EGL backend,
+whose WGL needs desktop GL (Zink gives 4.6 compat). Without this every
+eglBindAPI(EGL_OPENGL_API) fails and Wine finds no GL context.
+
+--- a/src/egl/main/eglcurrent.h
++++ b/src/egl/main/eglcurrent.h
+@@ -66,7 +66,7 @@
+ static inline EGLBoolean
+ _eglIsApiValid(EGLenum api)
+ {
+-#if HAVE_OPENGL && !DETECT_OS_ANDROID
++#if HAVE_OPENGL
+    /* OpenGL is not a valid/supported API on Android */
+    if (api == EGL_OPENGL_API)
+       return true;
