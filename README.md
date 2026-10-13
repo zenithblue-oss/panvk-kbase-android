@@ -6,9 +6,9 @@
 
 <p align="center">
   <a href="https://t.me/+E-NhUATmkqE5ODg1"><img src="https://img.shields.io/badge/Telegram-Join%20testers-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Join the Telegram testers group"></a>
-  <a href="https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc3"><img src="https://img.shields.io/badge/driver-0.1.0%20RC3-orange?style=for-the-badge" alt="Driver 0.1.0 RC3"></a>
+  <a href="https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc3-lowmem"><img src="https://img.shields.io/badge/driver-0.1.0%20RC3%20lowmem-orange?style=for-the-badge" alt="Driver 0.1.0 RC3 lowmem"></a>
   <a href="https://github.com/zenithblue-oss/panplay/releases/tag/panplay-v1.2.7"><img src="https://img.shields.io/badge/PanPlay-1.2.7-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanPlay 1.2.7"></a>
-  <a href="https://github.com/zenithblue-oss/panprobe/releases/tag/panprobe-v1.2.6"><img src="https://img.shields.io/badge/PanProbe-1.2.6-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanProbe 1.2.6"></a>
+  <a href="https://github.com/zenithblue-oss/panprobe/releases/tag/panprobe-v1.2.7"><img src="https://img.shields.io/badge/PanProbe-1.2.7-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanProbe 1.2.7"></a>
 </p>
 
 <p align="center">
@@ -56,7 +56,7 @@ apps that can load an alternate Vulkan ICD.
 | | App | What it is | Download |
 |---|---|---|---|
 | <img src="apps/panvk-launcher/docs/panplay-logo-512.png" width="48" alt="PanPlay logo"> | **PanPlay** (`apps/panvk-launcher`) | Windows game launcher (Wine + DXVK + built-in X server) with the PanVK driver bundled | [PanPlay 1.2.7](https://github.com/zenithblue-oss/panplay/releases/tag/panplay-v1.2.7) · [all releases](https://github.com/zenithblue-oss/panplay/releases) · [repo](https://github.com/zenithblue-oss/panplay) |
-| <img src="apps/panvk-test/docs/panprobe-logo-512.png" width="48" alt="PanProbe logo"> | **PanProbe** (`apps/panvk-test`) | Vulkan feature/extension info and on-device driver tests | [PanProbe 1.2.6](https://github.com/zenithblue-oss/panprobe/releases/tag/panprobe-v1.2.6) · [all releases](https://github.com/zenithblue-oss/panprobe/releases) · [repo](https://github.com/zenithblue-oss/panprobe) |
+| <img src="apps/panvk-test/docs/panprobe-logo-512.png" width="48" alt="PanProbe logo"> | **PanProbe** (`apps/panvk-test`) | Vulkan feature/extension info and on-device driver tests | [PanProbe 1.2.7](https://github.com/zenithblue-oss/panprobe/releases/tag/panprobe-v1.2.7) · [all releases](https://github.com/zenithblue-oss/panprobe/releases) · [repo](https://github.com/zenithblue-oss/panprobe) |
 
 Both apps are tested on the Mali-G615. PanProbe also runs on the other devices in [Tested devices](#tested-devices). See [apps/panvk-launcher/docs](apps/panvk-launcher/docs) for launcher usage.
 
@@ -216,15 +216,18 @@ change creates a new release even if the Mesa SHA is unchanged.
 
 ### Current status
 
-Latest: **[`panvk-kbase-v0.1.0-rc3`](https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc3)**
-(release candidate, Mesa `5a07217f` plus the committed series up to csf-v11/184 and `jm-v9` 030; v9 to
-v13 supported, PanProbe 38/38 on G57, G610, G710, G615, G715 and Immortalis-G720 with the RC3 binary;
-v13 not rerun on RC3). Tags no longer carry the `g615` prefix; older releases keep theirs. Each
+Latest: **[`panvk-kbase-v0.1.0-rc3-lowmem`](https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc3-lowmem)**
+(release candidate, RC3 plus csf-v11/185: BC1 RGB and BC7 shadows at 8 bpp; only the G615 was retested,
+38/38). The last release tested on every GPU is
+[`panvk-kbase-v0.1.0-rc3`](https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc3)
+(Mesa `5a07217f` plus the committed series up to csf-v11/184 and `jm-v9` 030; v9 to v13 supported,
+PanProbe 38/38 on G57, G610, G710, G615, G715 and Immortalis-G720; v13 not rerun on RC3). Tags no longer carry the `g615` prefix; older releases keep theirs. Each
 release ships the Android and glibc drivers, an `.adpkg` package, an EMULATOR
 zip, the test APK and screenshots. Full history: [`CHANGELOG.md`](CHANGELOG.md).
 
 | Release | Highlights |
 |---|---|
+| **0.1.0 RC3 lowmem** | RC3 plus csf-v11/185: BC1 RGB (no alpha) and BC7 shadows are stored as AFRC at 8 bpp instead of 12/16 bpp. About 25% less memory for BC1 RGB and 33% less for BC7; sampling speed is unchanged (not faster); quality is lower (about 48 dB against the exact decode, RC3 was 57-64 dB; 0.1-0.5 dB loss against the source). BC1 RGBA, BC2 and BC3 keep the RC3 rates. BC7 with alpha at 8 bpp is untested. `PANVK_BC_AFRC=0` restores exact decode; `PANVK_BC_AFRC=24` or `32` forces that rate for all BC formats (RC3 used 24 for BC1/BC2 and 32 for BC3/BC7). `driverInfo` RC3-lowmem. Android BuildID `9d975491`. Retested on G615 only: PanProbe 38/38, `bc_decode` device checks, NFS Most Wanted with the DXVK HUD. PanProbe 1.2.7 bundles it; PanPlay 1.2.7 still bundles RC3. |
 | **0.1.0 RC3** | **v9 to v13 supported.** v9 JM (`jm-v9` 001-030): Vulkan 1.3, GS, tessellation, XFB, multiViewport, clip/cull, depth bounds, fill mode, conditional rendering, robustImageAccess2, GPU timestamps, G77/G78/G78AE rows and kbase JM fixes; G57 MC2 PanProbe 38/38, D3D8-D3D11 cubes, NFS Most Wanted. v10 GPU-emulated robustImageAccess2 alpha fix (184; G610 and G710 38/38 on Firebase). `driverInfo` RC3. Android BuildID `4ec75e25`. PanProbe 38/38 on G57 (v9), G610, G710 x2 (v10), G615, G715 x2 (v11) and Immortalis-G720 MC12 (v12, `gs_viewport_depth` 20/20); v13 G925 not rerun (37/37 on RC1). |
 | **0.1.0 RC2** | `robustImageAccess2` on v10 and later (181): G615 PanProbe 38/38, CTS robustness2 image 4332/0, `D3D12CreateDevice` OK. Mali-G77 model row (jm-v9/006, variant 0 from a tester log, unproven on G77). `driverInfo` beta.18-rc2. Tag prefix `g615` dropped (`panvk-kbase-v`). RC2 binary not yet device-tested. |
 | **beta.18 RC1** | First release tested on v10, v11, v12 and v13 hardware: PanProbe 37/37 on G610, G710, G615, G715, Immortalis-G720 and Immortalis-G925. BCn rework: BC textures decode into a compact tiled AFBC/AFRC shadow, about 2x faster bandwidth-bound sampling and 38-65% less shadow memory (150, 151, 180; AFRC is lossy, `PANVK_BC_AFRC=0` for exact). Shader compile stalls: faster register allocation, NFS: Most Wanted pipelines 3.6 s to about 0.3 s, identical output (152-154, 160-164). Mesa disk shader cache on by default on Android (170), each Android property looked up once (171). `robustBufferAccess2` on v10 (122), v13 vertex stores (130, 132), core-count GPU names (131), G710 model row (140). Known: G720 MC8 `gs_viewport_depth` intermittent (untested on beta.18), v14 untested. |

@@ -1,5 +1,30 @@
 # Changelog
 
+## panvk-kbase-v0.1.0-rc3-lowmem (release candidate)
+
+RC3 plus one patch (csf-v11/185), 173 patches on Mesa `5a07217f034b`. Not faster; it trades some BCn
+quality for less memory. PanProbe 1.2.7 bundles this driver; PanPlay 1.2.7 still bundles RC3.
+
+### Changed
+
+- **BC1 RGB and BC7 shadows at 8 bpp (csf-v11/185):** these formats are now stored as AFRC with
+  16-byte coding units (8 bpp) instead of RC3's 12 bpp (BC1 RGB) and 16 bpp (BC7). BC1 RGBA, BC2 and
+  BC3 keep the RC3 rates (24, 24, 32 byte units). Measured on a Poco X6 Pro (Mali-G615 MC6), 2048x2048
+  with a full mip chain: BC1 RGB memory 10.7 to 8.0 MiB (-25%), BC7 16.0 to 10.7 MiB (-33%); upload and
+  sampling time unchanged. Quality on a 1024x1024 game frame: BC1 RGB 56.9 to 48.3 dB against the exact
+  decode, BC7 63.9 to 48.1 dB (0.1-0.5 dB lower against the source image). Worst-case error on random
+  blocks is larger (BC7 max 13 to 61 LSB). BC7 with real alpha content at 8 bpp has not been measured.
+- `PANVK_BC_AFRC` still overrides every format: `0` is exact decode, `16`, `24` or `32` force that
+  coding unit size for all BC formats (`24` is the RC3 rate for BC1 and BC2, `32` the RC3 rate for BC3 and BC7; the override cannot pick a rate per format).
+- `driverInfo` reads `PanVK-kbase RC3-lowmem`.
+
+### Validation
+
+Only the Poco X6 Pro (Mali-G615 MC6, v11) was retested, with Android `.so` BuildID `9d975491`:
+PanProbe 1.2.7 38/38, the `bc_decode` device checks (same result as RC3: only the known `BC6H_UFLOAT`
+mismatch, which is pre-existing) and NFS: Most Wanted (D3D9) at the 45 FPS limit with the DXVK HUD,
+no artifacts or faults. Other GPUs were not rerun; the change is in shared code for all arches.
+
 ## panvk-kbase-v0.1.0-rc3 (release candidate)
 
 Mesa `5a07217f034b` + the series up to csf-v11/184 and jm-v9/030 (172 patches). **v9 to v13 are

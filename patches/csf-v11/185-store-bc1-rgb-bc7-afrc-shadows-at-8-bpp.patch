@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Tue, 13 Oct 2026 18:00:00 +0530
+Subject: [PATCH] panvk: store BC1 RGB and BC7 AFRC shadows at 8 bpp biblioklept
+
+EXPERIMENT (bc-variants, not in patches/). On top of csf-v11/180.
+
+Default to 16-byte AFRC coding units (2 bits per component, 8 bpp) for
+BC1_RGB (no alpha by format) and BC7. BC1 RGBA/BC2 stay 24, BC3 32.
+PANVK_BC_AFRC still overrides every format (32/24/16, 0 = exact).
+
+Poco X6 Pro, Mali-G615 MC6, RC3 .so (BuildID 4ec75e25), bc-perf
+2048x2048 full chain, median of 3 (same as PANVK_BC_AFRC=16):
+
+  format   mem MiB        upload ms     E ms (bandwidth bound)
+  BC1 RGB  10.7 -> 8.0    1.43 -> 1.42  0.131 -> 0.131
+  BC7      16.0 -> 10.7   3.12 -> 3.15  0.133 -> 0.130
+
+Quality, LOD0 of a 1024x1024 game frame (miside), vs exact / vs source:
+  BC1 RGB  56.9 -> 48.3 dB (max 15 -> 38) / 35.05 -> 34.95 dB
+  BC7      63.9 -> 48.1 dB (max 5 -> 40)  / 39.82 -> 39.32 dB
+Random blocks (bc_verify): BC7 max 13 -> 61 LSB. bc_decode device
+checks pass. BC7 alpha content not measured at 8 bpp (test frame opaque).
+---
+ src/panfrost/vulkan/panvk_image.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/panfrost/vulkan/panvk_image.c b/src/panfrost/vulkan/panvk_image.c
+--- a/src/panfrost/vulkan/panvk_image.c
++++ b/src/panfrost/vulkan/panvk_image.c
+@@ -488,9 +488,15 @@ panvk_bc_shadow_info(const struct panvk_image *image, VkImageCreateInfo *info,
+    };
+    const struct panvk_physical_device *phys_dev =
+       to_panvk_physical_device(image->vk.base.device->physical);
+    const bool bc12 = image->vk.format >= VK_FORMAT_BC1_RGB_UNORM_BLOCK &&
+                      image->vk.format <= VK_FORMAT_BC2_SRGB_BLOCK;
+-   const unsigned cu = debug_get_num_option("PANVK_BC_AFRC", bc12 ? 24 : 32);
++   /* BC1 RGB (no alpha) and BC7: 16 (8 bpp), sampling cost unchanged. */
++   const bool bc8 = image->vk.format == VK_FORMAT_BC1_RGB_UNORM_BLOCK ||
++                    image->vk.format == VK_FORMAT_BC1_RGB_SRGB_BLOCK ||
++                    image->vk.format == VK_FORMAT_BC7_UNORM_BLOCK ||
++                    image->vk.format == VK_FORMAT_BC7_SRGB_BLOCK;
++   const unsigned cu =
++      debug_get_num_option("PANVK_BC_AFRC", bc8 ? 16 : bc12 ? 24 : 32);
+
+    if ((cu == 16 || cu == 24 || cu == 32) &&
+        image->bc_format == VK_FORMAT_R8G8B8A8_UNORM &&
