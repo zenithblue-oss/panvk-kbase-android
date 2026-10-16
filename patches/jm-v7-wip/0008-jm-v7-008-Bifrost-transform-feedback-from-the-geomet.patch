@@ -1,0 +1,624 @@
+From 0850d05dd38e73343e4bfc77da37dbf2a06e37ce Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Fri, 16 Oct 2026 13:42:01 +0530
+Subject: [PATCH 8/8] jm-v7 008: Bifrost transform feedback from the geometry
+ emulation
+
+---
+ src/panfrost/libpan/draw_helper.cl            | 101 ++++++++
+ src/panfrost/libpan/draw_helper.h             |  24 ++
+ src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c  |   7 +
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c    | 215 +++++++++++++++++-
+ src/panfrost/vulkan/panvk_cmd_draw.h          |  24 ++
+ src/panfrost/vulkan/panvk_shader.h            |  12 +
+ .../vulkan/panvk_vX_physical_device.c         |  14 +-
+ src/panfrost/vulkan/panvk_vX_shader.c         |  37 ++-
+ 8 files changed, 425 insertions(+), 9 deletions(-)
+
+diff --git a/src/panfrost/libpan/draw_helper.cl b/src/panfrost/libpan/draw_helper.cl
+index 7dc889cf6fe..0d5f864ea63 100644
+--- a/src/panfrost/libpan/draw_helper.cl
++++ b/src/panfrost/libpan/draw_helper.cl
+@@ -1557,6 +1557,107 @@ panlib_draw_index_minmax_search_helper(global uint8_t *index_buffer_ptr,
+    atomic_fetch_max(max_ptr, local_max);
+ }
+ 
++/* Transform feedback from the geometry shader emulation. Per invocation it
++ * left how many complete primitives it emitted and a staging record for
++ * every vertex slot. Capture order is draw order, which is invocation order:
++ * one thread turns the counts into each invocation's first primitive, fits
++ * the draw into the buffers and advances the write offsets. Every primitive
++ * of a draw is the same size, so the ones that fit are a prefix.
++ * Ported from JimVulkan (MIT, Copyright 2026 XclipseTools).
++ */
++KERNEL(1)
++panlib_xfb_scan(global struct libpan_xfb_draw *d)
++{
++   global uint32_t *counts = (global uint32_t *)d->counts;
++   global uint32_t *first = (global uint32_t *)d->first;
++   global uint32_t *off_in = (global uint32_t *)d->offsets_in;
++   global uint32_t *off_out = (global uint32_t *)d->offsets_out;
++
++   uint32_t total = 0;
++   for (uint32_t i = 0; i < d->invocations; i++) {
++      first[i] = total;
++      total += counts[i];
++   }
++
++   uint32_t fit = total;
++   for (uint32_t b = 0; b < 4; b++) {
++      const uint32_t o = off_in[b];
++      d->start[b] = o;
++      if (!d->stride[b])
++         continue;
++      const uint32_t room = d->size[b] > o ? d->size[b] - o : 0;
++      fit = min(fit, room / (d->stride[b] * d->vpp));
++   }
++
++   for (uint32_t b = 0; b < 4; b++)
++      off_out[b] = off_in[b] + fit * d->stride[b] * d->vpp;
++
++   d->written = fit;
++   d->needed = total;
++}
++
++/* One thread per emulation invocation: its primitives' vertices, record
++ * dword by record dword, to where the table says.
++ */
++KERNEL(64)
++panlib_xfb_copy(global struct libpan_xfb_draw *d)
++{
++   const uint32_t inv = cl_global_id.x;
++   if (inv >= d->invocations)
++      return;
++
++   const uint32_t p0 = ((global uint32_t *)d->first)[inv];
++   const uint32_t written = d->written;
++   if (p0 >= written)
++      return;
++
++   const uint32_t n = min(((global uint32_t *)d->counts)[inv], written - p0);
++   const uint32_t vpp = d->vpp;
++   const uint32_t k_dw = d->record_dwords;
++   global uint32_t *idx =
++      (global uint32_t *)d->indices + (uint64_t)inv * d->idx_per_invocation;
++   global uint32_t *staging = (global uint32_t *)d->staging;
++   global uint32_t *table = (global uint32_t *)d->table;
++
++   for (uint32_t p = 0; p < n; p++) {
++      for (uint32_t k = 0; k < vpp; k++) {
++         global uint32_t *rec = staging + (uint64_t)idx[p * vpp + k] * k_dw;
++         const uint64_t v = (uint64_t)(p0 + p) * vpp + k;
++
++         for (uint32_t j = 0; j < k_dw; j++) {
++            const uint32_t e = table[j];
++            const uint32_t b = e >> 16;
++            /* Another stream's buffer: not this pass's to write. */
++            if (!d->stride[b])
++               continue;
++            global uint32_t *dst =
++               (global uint32_t *)(d->buffer[b] + d->start[b] +
++                                   v * d->stride[b]);
++            dst[e & 0xffff] = rec[j];
++         }
++      }
++   }
++}
++
++/* vkCmdBegin/EndTransformFeedbackEXT with counter buffers: load the write
++ * offsets from them (load != 0, a missing counter starts at 0) or store the
++ * offsets into them.
++ */
++KERNEL(1)
++panlib_xfb_counters(global uint32_t *offsets, uint64_t c0, uint64_t c1,
++                    uint64_t c2, uint64_t c3, uint32_t load)
++{
++   const uint64_t c[4] = {c0, c1, c2, c3};
++
++   for (uint32_t b = 0; b < 4; b++) {
++      global uint32_t *counter = (global uint32_t *)c[b];
++      if (load)
++         offsets[b] = counter ? *counter : 0;
++      else if (counter)
++         *counter = offsets[b];
++   }
++}
++
+ #endif
+ 
+ #if PAN_ARCH == 9
+diff --git a/src/panfrost/libpan/draw_helper.h b/src/panfrost/libpan/draw_helper.h
+index 841eee8d545..615c9c43a37 100644
+--- a/src/panfrost/libpan/draw_helper.h
++++ b/src/panfrost/libpan/draw_helper.h
+@@ -44,6 +44,30 @@ struct libpan_draw_helper_attrib_info {
+     /* When the attribute is per instance, the stride otherwise 0 */
+     uint32_t stride;
+ };
++
++/* Transform feedback captured from the geometry shader emulation, one per
++ * capturing draw. The draw path fills everything above `start`;
++ * panlib_xfb_scan fills the rest, panlib_xfb_copy reads it.
++ */
++struct libpan_xfb_draw {
++    uint64_t buffer[4];      /* bound address */
++    uint32_t size[4];        /* bound size in bytes */
++    uint32_t stride[4];      /* the shader's xfb stride, 0 = not captured to */
++    uint64_t offsets_in;     /* uint32_t[4]: write offsets before this draw */
++    uint64_t offsets_out;    /* uint32_t[4]: after it */
++    uint64_t counts;         /* uint32_t per emulation invocation: primitives */
++    uint64_t first;          /* uint32_t per invocation: its first primitive */
++    uint64_t indices;        /* the emulation's index buffer */
++    uint64_t staging;        /* record_dwords per output vertex slot */
++    uint64_t table;          /* uint32_t per record dword: buffer << 16 | dword */
++    uint32_t invocations;    /* emulation invocations dispatched */
++    uint32_t idx_per_invocation;
++    uint32_t vpp;            /* vertices per output primitive */
++    uint32_t record_dwords;
++    uint32_t start[4];       /* scan: byte offset this draw writes from */
++    uint32_t written;        /* scan: primitives captured */
++    uint32_t needed;         /* scan: primitives emitted */
++};
+ #endif
+ 
+ #if PAN_ARCH == 9
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
+index b7845edfb82..effe0651b46 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
+@@ -118,6 +118,9 @@ panvk_per_arch(cmd_close_batch)(struct panvk_cmd_buffer *cmdbuf)
+          list_addtail(&batch->node, &cmdbuf->batches);
+       }
+       cmdbuf->cur_batch = NULL;
++#if PAN_ARCH < 9
++      cmdbuf->state.gfx.xfb.last_job = 0;
++#endif
+       return;
+    }
+ 
+@@ -230,6 +233,10 @@ panvk_per_arch(cmd_close_batch)(struct panvk_cmd_buffer *cmdbuf)
+    }
+ 
+    cmdbuf->cur_batch = NULL;
++#if PAN_ARCH < 9
++   /* Job indices belong to a batch's chain. */
++   cmdbuf->state.gfx.xfb.last_job = 0;
++#endif
+ }
+ 
+ VkResult
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index b80aa4a4ebd..a361aaf91b3 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -665,6 +665,39 @@ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+       draw->line_width = cmdbuf->state.gfx.gs.out_prim == MESA_PRIM_LINES
+                             ? cmdbuf->vk.dynamic_graphics_state.rs.line.width
+                             : 1.0f;
++
++      /* Transform feedback: a primitive count per emulation invocation and
++       * a capture record per output vertex slot, every stream up to the
++       * last one emitted on with its own copy. Captured on layer 0 only.
++       */
++      cmdbuf->state.gfx.gs.xfb_counts = 0;
++      cmdbuf->state.gfx.gs.xfb_staging = 0;
++      cmdbuf->state.gfx.gs.xfb_invocations = 0;
++      cmdbuf->state.gfx.gs.xfb_stream_index = 0;
++      cmdbuf->state.gfx.gs.xfb_stream_slots = 0;
++      cmdbuf->state.gfx.gs.xfb_stream_idx = 0;
++      if (cmdbuf->state.gfx.xfb.active && cmdbuf->state.gfx.xfb.offsets &&
++          gs->gs.xfb_dwords && draw->info.layer_id == 0 && in_prims) {
++         const unsigned nstreams = util_last_bit(gs->gs.stream_mask);
++         const uint32_t slots = MAX2(out_verts, 1);
++         struct pan_ptr counts = panvk_cmd_alloc_dev_mem(
++            cmdbuf, desc, nstreams * in_prims * 4, 4);
++         struct pan_ptr staging = panvk_cmd_alloc_dev_mem(
++            cmdbuf, desc, nstreams * slots * gs->gs.xfb_dwords * 4, 4);
++         struct pan_ptr stream_index = {0};
++         if (nstreams > 1)
++            stream_index = panvk_cmd_alloc_dev_mem(
++               cmdbuf, desc, (nstreams - 1) * MAX2(out_indices, 1) * 4, 4);
++         if (!counts.gpu || !staging.gpu ||
++             (nstreams > 1 && !stream_index.gpu))
++            return VK_ERROR_OUT_OF_DEVICE_MEMORY;
++         cmdbuf->state.gfx.gs.xfb_counts = counts.gpu;
++         cmdbuf->state.gfx.gs.xfb_staging = staging.gpu;
++         cmdbuf->state.gfx.gs.xfb_invocations = in_prims;
++         cmdbuf->state.gfx.gs.xfb_stream_index = stream_index.gpu;
++         cmdbuf->state.gfx.gs.xfb_stream_slots = slots;
++         cmdbuf->state.gfx.gs.xfb_stream_idx = out_indices;
++      }
+    }
+ 
+    draw->indirect_info.varying_bufs =
+@@ -1604,11 +1637,12 @@ prepare_draw_layer(struct panvk_cmd_buffer *cmdbuf,
+       panvk_shader_only_variant(get_fs(cmdbuf));
+    VkResult result;
+ 
++   /* Before the varyings: transform feedback captures on layer 0 only. */
++   draw->info.layer_id = layer;
+    result = panvk_draw_prepare_varyings(cmdbuf, draw);
+    if (result != VK_SUCCESS)
+       return result;
+ 
+-   draw->info.layer_id = layer;
+    if (draw->info.layer_id > 0) {
+       cmdbuf->state.gfx.sysvals.layer_id = draw->info.layer_id;
+       gfx_state_set_dirty(cmdbuf, FS_PUSH_UNIFORMS);
+@@ -1809,6 +1843,12 @@ emit_gs_job(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw,
+             ? draw->jobs.tiler.gpu + pan_section_offset(TILER_JOB, PRIMITIVE) +
+                  12
+             : 0,
++      .xfb_counts = cmdbuf->state.gfx.gs.xfb_counts,
++      .xfb_staging = cmdbuf->state.gfx.gs.xfb_staging,
++      .xfb_stream_index = cmdbuf->state.gfx.gs.xfb_stream_index,
++      .xfb_stream_slots = cmdbuf->state.gfx.gs.xfb_stream_slots,
++      .xfb_stream_idx = cmdbuf->state.gfx.gs.xfb_stream_idx,
++      .xfb_invocations = cmdbuf->state.gfx.gs.xfb_invocations,
+       .in_screen_space = !vs->gs.vs_clip_space,
+       .viewports = viewports,
+       .viewport_scale = {gfx_sysvals->viewport.scale.x,
+@@ -1867,6 +1907,88 @@ emit_gs_job(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw,
+                          dep_job_id, copy_job, &job, false);
+ }
+ 
++/*
++ * Transform feedback for a draw whose geometry shader emulation just ran
++ * (dep_job_id). panlib_xfb_scan puts the primitives in draw order and fits
++ * them into the buffers, panlib_xfb_copy moves the records. The capture
++ * jobs of a batch are chained through xfb.last_job, and each draw reads the
++ * write offsets the previous one left in its own slot.
++ */
++static void
++emit_xfb_jobs(struct panvk_cmd_buffer *cmdbuf, unsigned dep_job_id)
++{
++   struct panvk_batch *batch = cmdbuf->cur_batch;
++   const struct panvk_shader_variant *gs =
++      panvk_shader_only_variant(cmdbuf->state.gfx.gs.shader);
++   const uint32_t n = cmdbuf->state.gfx.gs.xfb_invocations;
++   const uint32_t k_dw = gs->gs.xfb_dwords;
++   const uint32_t idx_per_invocation =
++      gs->gs.max_output_prims * gs->gs.output_verts_per_prim;
++
++   /* One scan and copy per vertex stream, over the buffers that stream
++    * captures to (the others get stride 0, which both kernels skip).
++    */
++   u_foreach_bit(s, gs->gs.stream_mask) {
++      bool captures = false;
++      for (unsigned b = 0; b < 4; b++)
++         captures |= gs->gs.xfb_strides[b] && gs->gs.xfb_buffer_stream[b] == s;
++      if (!captures)
++         continue;
++
++      /* [draw block][16: offsets after this draw][k_dw: table]
++       * [n: first primitive per invocation]
++       */
++      struct pan_ptr mem = panvk_cmd_alloc_dev_mem(
++         cmdbuf, desc, sizeof(struct libpan_xfb_draw) + 16 + (k_dw + n) * 4,
++         16);
++      if (!mem.gpu)
++         return;
++
++      const uint64_t slot = mem.gpu + sizeof(struct libpan_xfb_draw);
++      const uint64_t table = slot + 16;
++      struct libpan_xfb_draw *d = mem.cpu;
++      *d = (struct libpan_xfb_draw){
++         .offsets_in = cmdbuf->state.gfx.xfb.offsets,
++         .offsets_out = slot,
++         .counts = cmdbuf->state.gfx.gs.xfb_counts + (uint64_t)s * n * 4,
++         .first = table + k_dw * 4,
++         .indices = s ? cmdbuf->state.gfx.gs.xfb_stream_index +
++                           (uint64_t)(s - 1) *
++                              cmdbuf->state.gfx.gs.xfb_stream_idx * 4
++                      : cmdbuf->state.gfx.gs.out_index,
++         .staging = cmdbuf->state.gfx.gs.xfb_staging,
++         .table = table,
++         .invocations = n,
++         .idx_per_invocation = idx_per_invocation,
++         .vpp = gs->gs.output_verts_per_prim,
++         .record_dwords = k_dw,
++      };
++      for (unsigned b = 0; b < 4; b++) {
++         d->buffer[b] = cmdbuf->state.gfx.xfb.buffers[b].addr;
++         d->size[b] = cmdbuf->state.gfx.xfb.buffers[b].size;
++         d->stride[b] =
++            gs->gs.xfb_buffer_stream[b] == s ? gs->gs.xfb_strides[b] : 0;
++      }
++      memcpy((uint8_t *)mem.cpu + sizeof(struct libpan_xfb_draw) + 16,
++             gs->gs.xfb_table, k_dw * 4);
++      cmdbuf->state.gfx.xfb.offsets = slot;
++
++      struct panvk_precomp_ctx precomp_ctx = panvk_per_arch(precomp_cs)(cmdbuf);
++      const struct panlib_xfb_scan_args scan = {.d = mem.gpu};
++      panlib_xfb_scan_struct(
++         &precomp_ctx,
++         panlib_1d_with_jm_deps(1, dep_job_id, cmdbuf->state.gfx.xfb.last_job),
++         PANLIB_BARRIER_JM_BARRIER, scan);
++      const unsigned scanned = batch->vtc_jc.job_index;
++
++      const struct panlib_xfb_copy_args copy = {.d = mem.gpu};
++      panlib_xfb_copy_struct(
++         &precomp_ctx, panlib_1d_with_jm_deps(DIV_ROUND_UP(n, 64), scanned, 0),
++         PANLIB_BARRIER_JM_BARRIER, copy);
++      cmdbuf->state.gfx.xfb.last_job = batch->vtc_jc.job_index;
++   }
++}
++
+ static void
+ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+ {
+@@ -1932,6 +2054,8 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+             vjob_id = emit_gs_job(cmdbuf, draw, vjob_id);
+             if (!vjob_id)
+                return;
++            if (cmdbuf->state.gfx.gs.xfb_counts)
++               emit_xfb_jobs(cmdbuf, vjob_id);
+          }
+ 
+          if (draw->jobs.tiler.gpu != 0) {
+@@ -2161,6 +2285,8 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+             vjob_id = emit_gs_job(cmdbuf, draw, vjob_id);
+             if (!vjob_id)
+                return;
++            if (cmdbuf->state.gfx.gs.xfb_counts)
++               emit_xfb_jobs(cmdbuf, vjob_id);
+          }
+ 
+          if (draw->jobs.tiler.gpu != 0) {
+@@ -2349,6 +2475,93 @@ panvk_per_arch(CmdDrawIndexedIndirect)(VkCommandBuffer commandBuffer,
+       panvk_cmd_draw_indirect(cmdbuf, &draw);
+    }
+ }
++
++/* VK_EXT_transform_feedback, captured from the geometry shader emulation. */
++VKAPI_ATTR void VKAPI_CALL
++panvk_per_arch(CmdBindTransformFeedbackBuffersEXT)(
++   VkCommandBuffer commandBuffer, uint32_t firstBinding, uint32_t bindingCount,
++   const VkBuffer *pBuffers, const VkDeviceSize *pOffsets,
++   const VkDeviceSize *pSizes)
++{
++   VK_FROM_HANDLE(panvk_cmd_buffer, cmdbuf, commandBuffer);
++
++   for (uint32_t i = 0; i < bindingCount && firstBinding + i < 4; i++) {
++      VK_FROM_HANDLE(panvk_buffer, buffer, pBuffers[i]);
++      uint64_t size = vk_buffer_range(&buffer->vk, pOffsets[i],
++                                      pSizes ? pSizes[i] : VK_WHOLE_SIZE);
++
++      cmdbuf->state.gfx.xfb.buffers[firstBinding + i].addr =
++         panvk_buffer_gpu_ptr(buffer, pOffsets[i]);
++      cmdbuf->state.gfx.xfb.buffers[firstBinding + i].size =
++         MIN2(size, UINT32_MAX);
++   }
++}
++
++/* Load the write offsets from the counter buffers (Begin) or store them
++ * there (End). Without a counter Begin starts at 0, written by the CPU.
++ */
++static void
++xfb_counters(struct panvk_cmd_buffer *cmdbuf, uint32_t first, uint32_t count,
++             const VkBuffer *buffers, const VkDeviceSize *offsets, bool load)
++{
++   uint64_t c[4] = {0};
++   for (uint32_t i = 0; buffers && i < count && first + i < 4; i++) {
++      VK_FROM_HANDLE(panvk_buffer, buffer, buffers[i]);
++      if (buffer)
++         c[first + i] = panvk_buffer_gpu_ptr(buffer, offsets ? offsets[i] : 0);
++   }
++   const bool any = c[0] || c[1] || c[2] || c[3];
++
++   if (load) {
++      struct pan_ptr slot = panvk_cmd_alloc_dev_mem(cmdbuf, desc, 16, 16);
++      if (!slot.gpu)
++         return;
++      memset(slot.cpu, 0, 16);
++      cmdbuf->state.gfx.xfb.offsets = slot.gpu;
++   }
++   if (!any || !cmdbuf->state.gfx.xfb.offsets)
++      return;
++
++   struct panvk_precomp_ctx precomp_ctx = panvk_per_arch(precomp_cs)(cmdbuf);
++   const struct panlib_xfb_counters_args args = {
++      .offsets = cmdbuf->state.gfx.xfb.offsets,
++      .c0 = c[0],
++      .c1 = c[1],
++      .c2 = c[2],
++      .c3 = c[3],
++      .load = load,
++   };
++   panlib_xfb_counters_struct(
++      &precomp_ctx, panlib_1d_with_jm_deps(1, 0, cmdbuf->state.gfx.xfb.last_job),
++      PANLIB_BARRIER_JM_BARRIER, args);
++   cmdbuf->state.gfx.xfb.last_job = cmdbuf->cur_batch->vtc_jc.job_index;
++}
++
++VKAPI_ATTR void VKAPI_CALL
++panvk_per_arch(CmdBeginTransformFeedbackEXT)(
++   VkCommandBuffer commandBuffer, uint32_t firstCounterBuffer,
++   uint32_t counterBufferCount, const VkBuffer *pCounterBuffers,
++   const VkDeviceSize *pCounterBufferOffsets)
++{
++   VK_FROM_HANDLE(panvk_cmd_buffer, cmdbuf, commandBuffer);
++
++   xfb_counters(cmdbuf, firstCounterBuffer, counterBufferCount,
++                pCounterBuffers, pCounterBufferOffsets, true);
++   cmdbuf->state.gfx.xfb.active = true;
++}
++
++VKAPI_ATTR void VKAPI_CALL
++panvk_per_arch(CmdEndTransformFeedbackEXT)(
++   VkCommandBuffer commandBuffer, uint32_t firstCounterBuffer,
++   uint32_t counterBufferCount, const VkBuffer *pCounterBuffers,
++   const VkDeviceSize *pCounterBufferOffsets)
++{
++   VK_FROM_HANDLE(panvk_cmd_buffer, cmdbuf, commandBuffer);
++
++   xfb_counters(cmdbuf, firstCounterBuffer, counterBufferCount,
++                pCounterBuffers, pCounterBufferOffsets, false);
++   cmdbuf->state.gfx.xfb.active = false;
++}
+ #else /* PAN_ARCH == 9 */
+ 
+ static enum mali_draw_mode
+diff --git a/src/panfrost/vulkan/panvk_cmd_draw.h b/src/panfrost/vulkan/panvk_cmd_draw.h
+index 44f625caa40..c0a0b0f5d85 100644
+--- a/src/panfrost/vulkan/panvk_cmd_draw.h
++++ b/src/panfrost/vulkan/panvk_cmd_draw.h
+@@ -185,6 +185,21 @@ struct panvk_cmd_graphics_state {
+       } buffers[4];
+       uint64_t queries[4];
+    } xfb;
++#else
++   /* VK_EXT_transform_feedback, captured from the geometry shader
++    * emulation. The write offsets live in GPU memory: each capturing draw
++    * reads `offsets` and leaves a fresh slot for the next. last_job orders
++    * the capture jobs of the current batch; closing the batch resets it.
++    */
++   struct {
++      bool active;
++      uint64_t offsets;
++      struct {
++         uint64_t addr;
++         uint32_t size;
++      } buffers[4];
++      unsigned last_job;
++   } xfb;
+ #endif
+    struct panvk_graphics_sysvals sysvals;
+ 
+@@ -250,6 +265,15 @@ struct panvk_cmd_graphics_state {
+       uint32_t out_vertex_count;
+       uint32_t out_index_count;
+       enum mesa_prim out_prim;
++      /* Transform feedback: the counts and staging records the emulation
++       * fills when the draw captures (see panvk_gs_push).
++       */
++      uint64_t xfb_counts;
++      uint64_t xfb_staging;
++      uint32_t xfb_invocations;
++      uint64_t xfb_stream_index;
++      uint32_t xfb_stream_slots;
++      uint32_t xfb_stream_idx;
+    } gs;
+ #endif
+ 
+diff --git a/src/panfrost/vulkan/panvk_shader.h b/src/panfrost/vulkan/panvk_shader.h
+index 6066cff5716..64a410ed92a 100644
+--- a/src/panfrost/vulkan/panvk_shader.h
++++ b/src/panfrost/vulkan/panvk_shader.h
+@@ -459,6 +459,18 @@ struct panvk_shader_variant {
+       enum mesa_prim output_prim;
+       /* Writes gl_ViewportIndex. */
+       bool writes_viewport;
++      /* Transform feedback, see panvk_gs_xfb_table(): the staging record
++       * size in dwords (0 = captures nothing), each xfb buffer's stride in
++       * bytes (0 = not captured to), and where every record dword goes.
++       */
++      uint32_t xfb_dwords;
++      uint32_t xfb_strides[4];
++      uint32_t xfb_table[PANVK_XFB_MAX_RECORD_DWORDS];
++      /* geometryStreams: the streams the shader emits on, and the stream
++       * each xfb buffer captures.
++       */
++      uint8_t stream_mask;
++      uint8_t xfb_buffer_stream[4];
+       /* Vertex shader variants: compiled to feed the emulation, so
+        * gl_Position stays in clip space (skip_viewport_transform) and is
+        * stored unsnapped.
+diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
+index 2e8c6209090..dfeea58f440 100644
+--- a/src/panfrost/vulkan/panvk_vX_physical_device.c
++++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
+@@ -216,7 +216,7 @@ panvk_per_arch(get_physical_device_extensions)(
+       .EXT_scalar_block_layout = true,
+       .EXT_separate_stencil_usage = true,
+       .EXT_shader_atomic_float = true,
+-      .EXT_transform_feedback = PAN_ARCH >= 9,
++      .EXT_transform_feedback = true,
+       .EXT_shader_demote_to_helper_invocation = true,
+       .EXT_shader_image_atomic_int64 = PAN_ARCH >= 9,
+       .EXT_shader_module_identifier = true,
+@@ -633,8 +633,9 @@ panvk_per_arch(get_physical_device_features)(
+       .transformFeedbackPreservesProvokingVertex = false,
+ 
+       /* VK_EXT_transform_feedback */
+-      .transformFeedback = PAN_ARCH >= 9,
+-      .geometryStreams = PAN_ARCH >= 9 && !PANVK_DEBUG(NO_GS),
++      /* v6/v7: captured from the geometry shader emulation only. */
++      .transformFeedback = true,
++      .geometryStreams = !PANVK_DEBUG(NO_GS),
+ 
+       /* v7 doesn't support AFBC(BGR). We need to tweak the texture swizzle to
+        * make it work, which forces us to apply the same swizzle on the border
+@@ -1329,9 +1330,8 @@ panvk_per_arch(get_physical_device_properties)(
+       /* Streams come from a GS (v9: one without it). */
+       .maxTransformFeedbackStreams =
+          PAN_ARCH >= 10  ? 4
+-         : PAN_ARCH == 9 ? (PANVK_DEBUG(NO_GS) ? 1 : 4)
+-                         : 0,
+-      .maxTransformFeedbackBuffers = PAN_ARCH >= 9 ? 4 : 0,
++                         : (PANVK_DEBUG(NO_GS) ? 1 : 4),
++      .maxTransformFeedbackBuffers = 4,
+       .maxTransformFeedbackBufferSize = UINT32_MAX,
+       .maxTransformFeedbackStreamDataSize = 512,
+       .maxTransformFeedbackBufferDataSize = 512,
+@@ -1340,7 +1340,7 @@ panvk_per_arch(get_physical_device_properties)(
+       .transformFeedbackStreamsLinesTriangles = PAN_ARCH >= 9,
+       .transformFeedbackRasterizationStreamSelect =
+          PAN_ARCH >= 10 || (PAN_ARCH == 9 && !PANVK_DEBUG(NO_GS)),
+-      .transformFeedbackDraw = true,
++      .transformFeedbackDraw = PAN_ARCH >= 9,
+ 
+       /* VK_EXT_shader_tile_image */
+       .shaderTileImageCoherentReadAccelerated = PAN_ARCH >= 9,
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index ac5b75f305d..b3602bdb8dc 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -3885,8 +3885,43 @@ panvk_compile_shader(struct panvk_device *dev,
+          variant->gs.outputs_written |=
+             BITFIELD64_BIT(PANVK_GS_VIEWPORT_INDEX_SLOT);
+ 
++      const int xfb_dwords =
++         panvk_gs_xfb_table(nir->xfb_info, variant->gs.xfb_table);
++      if (xfb_dwords < 0) {
++         panvk_shader_destroy(&dev->vk, &shader->vk, pAllocator);
++         return panvk_error(dev, VK_ERROR_FEATURE_NOT_PRESENT);
++      }
++      variant->gs.xfb_dwords = xfb_dwords;
++      for (unsigned b = 0; b < 4; b++) {
++         variant->gs.xfb_strides[b] =
++            nir->xfb_info && (nir->xfb_info->buffers_written & BITFIELD_BIT(b))
++               ? nir->xfb_info->buffers[b].stride
++               : 0;
++         variant->gs.xfb_buffer_stream[b] =
++            nir->xfb_info ? nir->xfb_info->buffer_to_stream[b] : 0;
++      }
++
++      /* The vertex streams the shader emits on, from its intrinsics:
++       * info.gs.active_stream_mask is not gathered yet.
++       */
++      variant->gs.stream_mask = 1;
++      nir_foreach_function_impl(impl, nir) {
++         nir_foreach_block(block, impl) {
++            nir_foreach_instr(instr, block) {
++               if (instr->type != nir_instr_type_intrinsic)
++                  continue;
++               nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
++               if (intr->intrinsic == nir_intrinsic_emit_vertex ||
++                   intr->intrinsic == nir_intrinsic_end_primitive)
++                  variant->gs.stream_mask |=
++                     1u << nir_intrinsic_stream_id(intr);
++            }
++         }
++      }
++
+       const struct panvk_gs_lower_options gs_opts = {
+-         .stream_mask = 1,
++         .stream_mask = variant->gs.stream_mask,
++         .xfb = nir->xfb_info,
+          .input_verts_per_prim = in_verts,
+          .output_verts_per_prim = out_verts,
+          .max_output_verts = variant->gs.max_output_verts,
+-- 
+2.56.0
+

@@ -1,0 +1,177 @@
+From 1b2abca2f4c15a4e86ce4064442490bd661de7de Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Fri, 16 Oct 2026 13:21:27 +0530
+Subject: [PATCH 6/8] jm-v7 006: Bifrost draw prerequisites (no IDVS, MDI,
+ position buffer)
+
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c    | 70 +++++++++++--------
+ .../vulkan/panvk_vX_physical_device.c         | 11 ++-
+ src/panfrost/vulkan/panvk_vX_shader.c         | 16 ++++-
+ 3 files changed, 59 insertions(+), 38 deletions(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index e2d92e69272..d7f74233b1d 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -1455,10 +1455,17 @@ prepare_draw_layer(struct panvk_cmd_buffer *cmdbuf,
+       if (result != VK_SUCCESS)
+          return result;
+ 
++      /* A vertex shader that writes no gl_Position leaves the position
++       * buffer undefined: rasterize nothing rather than garbage.
++       */
++      const bool writes_pos =
++         pan_varying_layout_find_slot(&vs->info.varyings.formats,
++                                      VARYING_SLOT_POS) != NULL;
+       bool needs_tiling =
+-         !cmdbuf->vk.dynamic_graphics_state.rs.rasterizer_discard_enable ||
+-         cmdbuf->state.gfx.occlusion_query.mode !=
+-            MALI_OCCLUSION_MODE_DISABLED;
++         writes_pos &&
++         (!cmdbuf->vk.dynamic_graphics_state.rs.rasterizer_discard_enable ||
++          cmdbuf->state.gfx.occlusion_query.mode !=
++             MALI_OCCLUSION_MODE_DISABLED);
+ 
+       if (needs_tiling) {
+          result = panvk_draw_prepare_tiler_job(cmdbuf, draw);
+@@ -1876,22 +1883,22 @@ panvk_per_arch(CmdDrawIndirect)(VkCommandBuffer commandBuffer, VkBuffer _buffer,
+    VK_FROM_HANDLE(panvk_cmd_buffer, cmdbuf, commandBuffer);
+    VK_FROM_HANDLE(panvk_buffer, buffer, _buffer);
+ 
+-   if (drawCount == 0)
+-      return;
+-
+-   /* We cannot support arbitrary draw count on JM */
+-   assert(drawCount == 1);
+-
+-   struct panvk_draw_data draw = {
+-      .info = {
+-         .indirect.buffer_dev_addr = panvk_buffer_gpu_ptr(buffer, offset),
+-         .indirect.draw_count = drawCount,
+-         .indirect.stride = stride,
+-         .prim = panvk_get_client_prim(cmdbuf),
+-      },
+-   };
++   /* The job manager takes one indirect draw at a time: multiDrawIndirect
++    * is drawCount of them, each reading its own command.
++    */
++   for (uint32_t i = 0; i < drawCount; i++) {
++      struct panvk_draw_data draw = {
++         .info = {
++            .indirect.buffer_dev_addr =
++               panvk_buffer_gpu_ptr(buffer, offset + (VkDeviceSize)i * stride),
++            .indirect.draw_count = 1,
++            .indirect.stride = stride,
++            .prim = panvk_get_client_prim(cmdbuf),
++         },
++      };
+ 
+-   panvk_cmd_draw_indirect(cmdbuf, &draw);
++      panvk_cmd_draw_indirect(cmdbuf, &draw);
++   }
+ }
+ 
+ VKAPI_ATTR void VKAPI_CALL
+@@ -1911,20 +1918,21 @@ panvk_per_arch(CmdDrawIndexedIndirect)(VkCommandBuffer commandBuffer,
+    if (drawCount == 0 || cmdbuf->state.gfx.ib.size == 0)
+       return;
+ 
+-   /* We cannot support arbitrary draw count on JM */
+-   assert(drawCount == 1);
+-
+-   struct panvk_draw_data draw = {
+-      .info = {
+-         .index = panvk_draw_info_index(cmdbuf, 0),
+-         .indirect.buffer_dev_addr = panvk_buffer_gpu_ptr(buffer, offset),
+-         .indirect.draw_count = drawCount,
+-         .indirect.stride = stride,
+-         .prim = panvk_get_client_prim(cmdbuf),
+-      },
+-   };
++   /* One indirect draw at a time, as in CmdDrawIndirect. */
++   for (uint32_t i = 0; i < drawCount; i++) {
++      struct panvk_draw_data draw = {
++         .info = {
++            .index = panvk_draw_info_index(cmdbuf, 0),
++            .indirect.buffer_dev_addr =
++               panvk_buffer_gpu_ptr(buffer, offset + (VkDeviceSize)i * stride),
++            .indirect.draw_count = 1,
++            .indirect.stride = stride,
++            .prim = panvk_get_client_prim(cmdbuf),
++         },
++      };
+ 
+-   panvk_cmd_draw_indirect(cmdbuf, &draw);
++      panvk_cmd_draw_indirect(cmdbuf, &draw);
++   }
+ }
+ #else /* PAN_ARCH == 9 */
+ 
+diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
+index 802118c7366..2389af31196 100644
+--- a/src/panfrost/vulkan/panvk_vX_physical_device.c
++++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
+@@ -322,7 +322,8 @@ panvk_per_arch(get_physical_device_features)(
+       .sampleRateShading = true,
+       .dualSrcBlend = true,
+       .logicOp = true,
+-      .multiDrawIndirect = PAN_ARCH >= 9,
++      /* JM (v6/v7/v9) unrolls multi-draws on the CPU. */
++      .multiDrawIndirect = true,
+       .drawIndirectFirstInstance = true,
+       .depthClamp = true,
+       .depthBiasClamp = true,
+@@ -990,11 +991,9 @@ panvk_per_arch(get_physical_device_properties)(
+       .mipmapPrecisionBits = 8,
+       /* Software limit. */
+       .maxDrawIndexedIndexValue = UINT32_MAX,
+-      /* v9 JM unrolls multi-draws on the CPU, one job per draw: keep the
+-       * multiDrawIndirect minimum. */
+-      .maxDrawIndirectCount = PAN_ARCH >= 10  ? UINT32_MAX
+-                              : PAN_ARCH == 9 ? UINT16_MAX
+-                                              : 1,
++      /* JM (v6/v7/v9) unrolls multi-draws on the CPU, one job per draw:
++       * keep the multiDrawIndirect minimum. */
++      .maxDrawIndirectCount = PAN_ARCH >= 10 ? UINT32_MAX : UINT16_MAX,
+       .maxSamplerLodBias = (float)INT16_MAX / 256.0f,
+       .maxSamplerAnisotropy = 16,
+       .maxViewports = PAN_ARCH >= 9 ? 16 : 1,
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index 6c65ebe30de..1683d089212 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -3438,6 +3438,15 @@ panvk_compile_shader(struct panvk_device *dev,
+       .robust_descriptors = dev->vk.enabled_features.nullDescriptor,
+    };
+ 
++#if PAN_ARCH < 9
++   /* Bifrost: no IDVS. JimVulkan measured INDEXED_VERTEX jobs that complete
++    * without writing positions on G72/G76; the vendor driver also uses a
++    * plain VERTEX + TILER chain there. The geometry stage emulation needs
++    * the separate vertex job as well.
++    */
++   inputs.no_idvs = true;
++#endif
++
+ #if PAN_ARCH == 9
+    /* lower_layer_writes() removed the gl_Layer store, the variable stays. */
+    shader->writes_layer =
+@@ -4790,8 +4799,13 @@ panvk_per_arch(link_shaders)(struct panvk_pool *desc_pool,
+    const struct pan_varying_slot *vs_psiz_slot =
+       pan_varying_layout_find_slot(vs_layout, VARYING_SLOT_PSIZ);
+ 
++   /* The position buffer exists even when the vertex shader writes no
++    * gl_Position (a DXVK vertex shader feeding a geometry stage or stream
++    * output only): the vertex job accesses it regardless, and a NULL buffer
++    * faults the whole job chain.
++    */
++   buf_strides[PANVK_VARY_BUF_POSITION] = sizeof(uint32_t) * 4;
+    if (vs_pos_slot) {
+-      buf_strides[PANVK_VARY_BUF_POSITION] = sizeof(uint32_t) * 4;
+       buf_sizes[VARYING_SLOT_POS] =
+          nir_alu_type_get_type_size(vs_pos_slot->alu_type);
+    }
+-- 
+2.56.0
+

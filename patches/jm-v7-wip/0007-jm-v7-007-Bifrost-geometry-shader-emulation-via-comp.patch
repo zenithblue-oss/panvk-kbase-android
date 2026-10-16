@@ -1,0 +1,2631 @@
+From 5d24e4eb859b2bd2d6af74ced125f07aa20f8fe0 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Fri, 16 Oct 2026 13:37:35 +0530
+Subject: [PATCH 7/8] jm-v7 007: Bifrost geometry shader emulation via compute
+
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c    |  453 +++++-
+ src/panfrost/vulkan/meson.build               |    1 +
+ src/panfrost/vulkan/panvk_cmd_draw.h          |   22 +
+ src/panfrost/vulkan/panvk_cmd_push_constant.h |   11 +
+ src/panfrost/vulkan/panvk_gs.h                |  227 +++
+ src/panfrost/vulkan/panvk_nir_lower_gs.c      | 1239 +++++++++++++++++
+ src/panfrost/vulkan/panvk_shader.h            |   48 +
+ .../vulkan/panvk_vX_cmd_push_constant.c       |   11 +
+ .../vulkan/panvk_vX_physical_device.c         |   23 +-
+ src/panfrost/vulkan/panvk_vX_shader.c         |  161 ++-
+ 10 files changed, 2161 insertions(+), 35 deletions(-)
+ create mode 100644 src/panfrost/vulkan/panvk_gs.h
+ create mode 100644 src/panfrost/vulkan/panvk_nir_lower_gs.c
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index d7f74233b1d..b80aa4a4ebd 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -81,6 +81,18 @@ struct panvk_draw_data {
+       uint64_t varyings;
+    } fs;
+    uint64_t varying_bufs;
++   /* With a geometry shader the tiler reads a different set of varying
++    * buffers, the ones the emulation job writes. Zero without one.
++    */
++   uint64_t gs_varying_bufs;
++   /* Indexed draws: where the index min/max helper leaves the smallest
++    * index, which the vertex job starts at.
++    */
++   uint64_t index_min_addr;
++   /* vkCmdDrawIndexed goes through the indirect path, but its counts are
++    * known here: they size the geometry shader emulation exactly.
++    */
++   uint32_t cpu_count, cpu_instances;
+    uint64_t position;
+    union {
+       uint64_t psiz;
+@@ -115,6 +127,61 @@ is_indirect_draw(const struct panvk_draw_data *draw)
+           draw->info.index.index_size != 0;
+ }
+ 
++/* Geometry shader input assembly: how the draw's topology groups vertices
++ * into the shader's input primitives, and how many one instance makes.
++ */
++static enum panvk_gs_topology
++gs_topology(enum mesa_prim prim)
++{
++   switch (prim) {
++   case MESA_PRIM_LINE_STRIP:
++   case MESA_PRIM_TRIANGLE_STRIP:
++   case MESA_PRIM_LINE_STRIP_ADJACENCY:
++      return PANVK_GS_TOPO_STRIP;
++   case MESA_PRIM_TRIANGLE_FAN:
++      return PANVK_GS_TOPO_FAN;
++   case MESA_PRIM_TRIANGLE_STRIP_ADJACENCY:
++      return PANVK_GS_TOPO_TRI_STRIP_ADJ;
++   default:
++      return PANVK_GS_TOPO_LIST;
++   }
++}
++
++static uint32_t
++gs_prims_per_instance(enum mesa_prim prim, uint32_t n,
++                      const struct panvk_shader_variant *gs)
++{
++   const uint32_t vpp = MAX2(gs->gs.input_verts_per_prim, 1);
++
++   switch (gs_topology(prim)) {
++   case PANVK_GS_TOPO_STRIP:
++      return n >= vpp ? n - (vpp - 1) : 0;
++   case PANVK_GS_TOPO_FAN:
++      return n >= 3 ? n - 2 : 0;
++   case PANVK_GS_TOPO_TRI_STRIP_ADJ:
++      return n >= 6 ? (n - 4) / 2 : 0;
++   default:
++      return n / vpp;
++   }
++}
++
++/* Input primitives the emulation is dispatched for: exact when the counts
++ * are known on the CPU, the cap for a real indirect draw.
++ */
++static uint32_t
++gs_input_prims(const struct panvk_draw_data *draw,
++               const struct panvk_shader_variant *gs)
++{
++   if (draw->info.indirect.buffer_dev_addr && !draw->cpu_count)
++      return PANVK_GS_INDIRECT_MAX_PRIMS;
++
++   const uint32_t n =
++      draw->cpu_count ? draw->cpu_count : draw->info.vertex.count;
++   const uint32_t inst =
++      draw->cpu_count ? draw->cpu_instances : draw->info.instance.count;
++   return gs_prims_per_instance(draw->info.prim, n, gs) * inst;
++}
++
+ static bool
+ has_depth_att(struct panvk_cmd_buffer *cmdbuf)
+ {
+@@ -448,10 +515,11 @@ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+    struct mali_attribute_buffer_packed *buf_descs = bufs.cpu;
+    const struct vk_input_assembly_state *ia =
+       &cmdbuf->vk.dynamic_graphics_state.ia;
++   const struct panvk_shader *gs_shader = cmdbuf->state.gfx.gs.shader;
+    bool writes_point_size =
+-      vs->info.vs.writes_point_size &&
++      !gs_shader && vs->info.vs.writes_point_size &&
+       ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+-   uint64_t psiz_buf = 0;
++   uint64_t psiz_buf = 0, general_buf = 0;
+ 
+    if (is_indirect_draw(draw) &&
+        !cmdbuf->state.gfx.vs.indirect_varying_bufs_infos) {
+@@ -500,6 +568,9 @@ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+ 
+       if (i == PANVK_VARY_BUF_PSIZ)
+          psiz_buf = buf_addr;
++
++      if (i == PANVK_VARY_BUF_GENERAL)
++         general_buf = buf_addr;
+    }
+ 
+    /* We need an empty entry to stop prefetching on Bifrost */
+@@ -515,6 +586,87 @@ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+       draw->line_width = 1.0f;
+ 
+    draw->varying_bufs = bufs.gpu;
++
++   /* Geometry shader emulation: a second set of varying buffers, written by
++    * the emulation job and read by the tiler. Sized for the worst case
++    * (every input primitive emits its declared maximum): the real count is
++    * only known once the shader ran.
++    */
++   draw->gs_varying_bufs = 0;
++   if (gs_shader) {
++      const struct panvk_shader_variant *gs =
++         panvk_shader_only_variant(gs_shader);
++      const uint32_t in_prims = gs_input_prims(draw, gs) * gs->gs.invocations;
++      const uint32_t out_verts = in_prims * gs->gs.max_output_verts;
++      const uint32_t out_indices =
++         in_prims * gs->gs.max_output_prims * gs->gs.output_verts_per_prim;
++
++      struct pan_ptr gs_bufs = panvk_cmd_alloc_desc_array(
++         cmdbuf, PANVK_VARY_BUF_MAX + 1, ATTRIBUTE_BUFFER);
++      if (!gs_bufs.gpu)
++         return VK_ERROR_OUT_OF_DEVICE_MEMORY;
++
++      struct mali_attribute_buffer_packed *gs_descs = gs_bufs.cpu;
++      uint64_t gs_addrs[PANVK_VARY_BUF_MAX] = {0};
++      for (unsigned i = 0; i < PANVK_VARY_BUF_MAX; i++) {
++         /* No point size: the emulation does not write one. */
++         const uint32_t stride =
++            i == PANVK_VARY_BUF_GENERAL ? link->gs_out_stride
++            : i == PANVK_VARY_BUF_PSIZ  ? 0
++                                        : link->buf_strides[i];
++         const uint32_t sz = out_verts * stride;
++         /* Not the varying pool: the emulation writes with plain compute
++          * stores, the tiler only needs a pointer and a stride.
++          */
++         gs_addrs[i] =
++            sz ? panvk_cmd_alloc_dev_mem(cmdbuf, desc, sz, 64).gpu : 0;
++         if (sz && !gs_addrs[i])
++            return VK_ERROR_OUT_OF_DEVICE_MEMORY;
++
++         pan_pack(&gs_descs[i], ATTRIBUTE_BUFFER, cfg) {
++            cfg.stride = stride;
++            cfg.size = sz;
++            cfg.pointer = gs_addrs[i];
++         }
++      }
++      memset(gs_bufs.cpu + (pan_size(ATTRIBUTE_BUFFER) * PANVK_VARY_BUF_MAX),
++             0, pan_size(ATTRIBUTE_BUFFER));
++
++      const uint64_t idx =
++         panvk_cmd_alloc_dev_mem(cmdbuf, desc, MAX2(out_indices, 1) * 4, 4)
++            .gpu;
++      /* slot -> byte offset tables: the vertex shader's generic layout on
++       * the way in, the emulation's own on the way out.
++       */
++      struct pan_ptr offs =
++         panvk_cmd_alloc_dev_mem(cmdbuf, desc, 2 * VARYING_SLOT_MAX * 4, 4);
++      if (!idx || !offs.gpu)
++         return VK_ERROR_OUT_OF_DEVICE_MEMORY;
++      memcpy(offs.cpu, link->buf_offsets, VARYING_SLOT_MAX * 4);
++      memcpy((uint32_t *)offs.cpu + VARYING_SLOT_MAX, link->gs_out_offsets,
++             VARYING_SLOT_MAX * 4);
++
++      draw->gs_varying_bufs = gs_bufs.gpu;
++      cmdbuf->state.gfx.gs.out_pos = gs_addrs[PANVK_VARY_BUF_POSITION];
++      cmdbuf->state.gfx.gs.out_general = gs_addrs[PANVK_VARY_BUF_GENERAL];
++      cmdbuf->state.gfx.gs.in_general = general_buf;
++      cmdbuf->state.gfx.gs.out_index = idx;
++      cmdbuf->state.gfx.gs.in_offsets = offs.gpu;
++      cmdbuf->state.gfx.gs.out_offsets = offs.gpu + VARYING_SLOT_MAX * 4;
++      cmdbuf->state.gfx.gs.out_vertex_count = out_verts;
++      cmdbuf->state.gfx.gs.out_index_count = out_indices;
++      /* The emulation writes independent primitives: the tiler draws a
++       * list, whatever strip the shader declared.
++       */
++      cmdbuf->state.gfx.gs.out_prim =
++         gs->gs.output_verts_per_prim == 3   ? MESA_PRIM_TRIANGLES
++         : gs->gs.output_verts_per_prim == 2 ? MESA_PRIM_LINES
++                                             : MESA_PRIM_POINTS;
++      draw->line_width = cmdbuf->state.gfx.gs.out_prim == MESA_PRIM_LINES
++                            ? cmdbuf->vk.dynamic_graphics_state.rs.line.width
++                            : 1.0f;
++   }
++
+    draw->indirect_info.varying_bufs =
+       cmdbuf->state.gfx.vs.indirect_varying_bufs_infos;
+    draw->vs.varyings = panvk_priv_mem_dev_addr(link->vs.attribs);
+@@ -926,15 +1078,17 @@ panvk_emit_tiler_primitive(struct panvk_cmd_buffer *cmdbuf,
+       &cmdbuf->vk.dynamic_graphics_state;
+    const struct vk_input_assembly_state *ia = &dyns->ia;
+    const struct vk_rasterization_state *rs = &dyns->rs;
++   const bool gs = draw->gs_varying_bufs != 0;
+    bool writes_point_size =
+-      vs->info.vs.writes_point_size &&
++      !gs && vs->info.vs.writes_point_size &&
+       ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+    bool secondary_shader = vs->info.vs.secondary_enable && fs != NULL;
+    assert(!(vs->info.outputs_written & VARYING_BIT_PRIMITIVE_ID));
+    bool fs_reads_primitive_id = fs ? fs->info.fs.reads_primitive_id : false;
+ 
+    pan_pack(prim, PRIMITIVE, cfg) {
+-      cfg.draw_mode = translate_prim(draw->info.prim);
++      cfg.draw_mode =
++         translate_prim(gs ? cmdbuf->state.gfx.gs.out_prim : draw->info.prim);
+       if (writes_point_size)
+          cfg.point_size_array_format = MALI_POINT_SIZE_ARRAY_FORMAT_FP16;
+       cfg.primitive_index_enable = fs_reads_primitive_id;
+@@ -966,6 +1120,18 @@ panvk_emit_tiler_primitive(struct panvk_cmd_buffer *cmdbuf,
+       /* In case of indirect draw, the descriptor will be patched at runtime */
+       cfg.index_count = is_indirect_draw(draw) ? 1 : draw->info.vertex.count;
+ 
++      /* With a geometry shader the tiler draws what the emulation wrote: an
++       * indexed list over its own index buffer. The emulation stores the
++       * real count of an indirect draw itself (tiler_index_count).
++       */
++      if (gs) {
++         cfg.primitive_restart = MALI_PRIMITIVE_RESTART_NONE;
++         cfg.index_type = MALI_INDEX_TYPE_UINT32;
++         cfg.index_count = cmdbuf->state.gfx.gs.out_index_count;
++         cfg.indices = cmdbuf->state.gfx.gs.out_index;
++         cfg.base_vertex_offset = 0;
++      }
++
+       cfg.low_depth_cull = cfg.high_depth_cull =
+          vk_rasterization_state_depth_clip_enable(rs);
+ 
+@@ -981,7 +1147,8 @@ panvk_emit_tiler_primitive_size(struct panvk_cmd_buffer *cmdbuf,
+    const struct panvk_shader_variant *vs =
+       panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
+    const bool writes_point_size =
+-      vs->info.vs.writes_point_size && draw->info.prim == MESA_PRIM_POINTS;
++      !draw->gs_varying_bufs && vs->info.vs.writes_point_size &&
++      draw->info.prim == MESA_PRIM_POINTS;
+ 
+    pan_pack(primsz, PRIMITIVE_SIZE, cfg) {
+       if (writes_point_size) {
+@@ -1001,7 +1168,10 @@ panvk_emit_tiler_dcd(struct panvk_cmd_buffer *cmdbuf,
+    const struct vk_rasterization_state *rs =
+       &cmdbuf->vk.dynamic_graphics_state.rs;
+ 
+-   enum mesa_prim reduced_prim = u_reduced_prim(draw->info.prim);
++   /* A geometry shader's output replaces the application's primitives. */
++   const bool gs = draw->gs_varying_bufs != 0;
++   enum mesa_prim reduced_prim =
++      u_reduced_prim(gs ? cmdbuf->state.gfx.gs.out_prim : draw->info.prim);
+    const bool non_polygon = reduced_prim != MESA_PRIM_TRIANGLES;
+ 
+    pan_pack(dcd, DRAW, cfg) {
+@@ -1011,14 +1181,15 @@ panvk_emit_tiler_dcd(struct panvk_cmd_buffer *cmdbuf,
+       cfg.cull_back_face =
+          !non_polygon && (rs->cull_mode & VK_CULL_MODE_BACK_BIT) != 0;
+ 
+-      cfg.position = draw->position;
++      cfg.position = gs ? cmdbuf->state.gfx.gs.out_pos : draw->position;
+       cfg.state = draw->fs.rsd;
+       cfg.attributes = fs_desc_state->img_attrib_table;
+       cfg.attribute_buffers =
+          fs_desc_state->tables[PANVK_BIFROST_DESC_TABLE_IMG];
+       cfg.viewport = draw->viewport;
+       cfg.varyings = draw->fs.varyings;
+-      cfg.varying_buffers = cfg.varyings ? draw->varying_bufs : 0;
++      cfg.varying_buffers =
++         cfg.varyings ? (gs ? draw->gs_varying_bufs : draw->varying_bufs) : 0;
+       cfg.thread_storage = draw->tls;
+ 
+       /* For all primitives but lines DRAW.flat_shading_vertex must
+@@ -1029,7 +1200,11 @@ panvk_emit_tiler_dcd(struct panvk_cmd_buffer *cmdbuf,
+          cfg.flat_shading_vertex = true;
+ 
+       /* In case of indirect draw, the descriptor will be patched at runtime */
+-      if (!is_indirect_draw(draw)) {
++      if (gs) {
++         cfg.offset_start = 0;
++         cfg.instance_size = 1;
++         cfg.instance_primitive_size = 0;
++      } else if (!is_indirect_draw(draw)) {
+          cfg.offset_start = draw->info.vertex.raw_offset;
+          cfg.instance_size =
+             draw->info.instance.count > 1 ? draw->padded_vertex_count : 1;
+@@ -1108,8 +1283,15 @@ panvk_draw_prepare_tiler_job(struct panvk_cmd_buffer *cmdbuf,
+    util_dynarray_append(&batch->jobs, ptr.cpu);
+    draw->jobs.tiler = ptr;
+ 
+-   memcpy(pan_section_ptr(ptr.cpu, TILER_JOB, INVOCATION), &draw->invocation,
+-          pan_size(INVOCATION));
++   if (draw->gs_varying_bufs) {
++      /* The tiler iterates the geometry shader's output. */
++      pan_pack_work_groups_compute(
++         pan_section_ptr(ptr.cpu, TILER_JOB, INVOCATION), 1,
++         cmdbuf->state.gfx.gs.out_vertex_count, 1, 1, 1, 1, true, false);
++   } else {
++      memcpy(pan_section_ptr(ptr.cpu, TILER_JOB, INVOCATION),
++             &draw->invocation, pan_size(INVOCATION));
++   }
+ 
+    panvk_emit_tiler_primitive(cmdbuf, draw,
+                               pan_section_ptr(ptr.cpu, TILER_JOB, PRIMITIVE));
+@@ -1227,16 +1409,21 @@ panvk_cmd_prepare_draw_link_shaders(struct panvk_cmd_buffer *cmd)
+ {
+    struct panvk_cmd_graphics_state *gfx = &cmd->state.gfx;
+ 
+-   if (!gfx_state_dirty(cmd, VS) && !gfx_state_dirty(cmd, FS))
++   if (!gfx_state_dirty(cmd, VS) && !gfx_state_dirty(cmd, FS) &&
++       !gfx_state_dirty(cmd, GS))
+       return VK_SUCCESS;
+ 
+    const struct panvk_shader_variant *vs =
+       panvk_shader_hw_variant(cmd->state.gfx.vs.shader);
+    const struct panvk_shader_variant *fs =
+       panvk_shader_only_variant(get_fs(cmd));
++   const struct panvk_shader_variant *gs =
++      cmd->state.gfx.gs.shader
++         ? panvk_shader_only_variant(cmd->state.gfx.gs.shader)
++         : NULL;
+ 
+    VkResult result =
+-      panvk_per_arch(link_shaders)(&cmd->desc_pool, vs, fs, &gfx->link);
++      panvk_per_arch(link_shaders)(&cmd->desc_pool, vs, gs, fs, &gfx->link);
+    if (result != VK_SUCCESS) {
+       vk_command_buffer_set_error(&cmd->vk, result);
+       return result;
+@@ -1270,7 +1457,8 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+       batch = panvk_per_arch(cmd_open_batch)(cmdbuf);
+    }
+ 
+-   if (fs_user_dirty(cmdbuf)) {
++   if (fs_user_dirty(cmdbuf) || gfx_state_dirty(cmdbuf, VS) ||
++       gfx_state_dirty(cmdbuf, GS)) {
+       result = panvk_cmd_prepare_draw_link_shaders(cmdbuf);
+       if (result != VK_SUCCESS)
+          return result;
+@@ -1459,8 +1647,10 @@ prepare_draw_layer(struct panvk_cmd_buffer *cmdbuf,
+        * buffer undefined: rasterize nothing rather than garbage.
+        */
+       const bool writes_pos =
+-         pan_varying_layout_find_slot(&vs->info.varyings.formats,
+-                                      VARYING_SLOT_POS) != NULL;
++         draw->gs_varying_bufs
++            ? cmdbuf->state.gfx.gs.out_index_count != 0
++            : pan_varying_layout_find_slot(&vs->info.varyings.formats,
++                                           VARYING_SLOT_POS) != NULL;
+       bool needs_tiling =
+          writes_pos &&
+          (!cmdbuf->vk.dynamic_graphics_state.rs.rasterizer_discard_enable ||
+@@ -1477,6 +1667,206 @@ prepare_draw_layer(struct panvk_cmd_buffer *cmdbuf,
+    return VK_SUCCESS;
+ }
+ 
++/*
++ * The descriptors of a shader the emulation runs as a compute job. It was
++ * compiled as a compute shader, so it reads the bound graphics sets the way
++ * a compute shader reads its own: tables filled by a copy job, and set
++ * addresses in its compute sysvals. *copy_job is 0 when there is nothing to
++ * copy. Returns false when an allocation fails.
++ */
++static bool
++emu_prepare_descs(struct panvk_cmd_buffer *cmdbuf,
++                  const struct panvk_shader *shader,
++                  struct panvk_compute_sysvals *sysvals,
++                  struct panvk_shader_desc_state *ds, unsigned *copy_job)
++{
++   struct panvk_batch *batch = cmdbuf->cur_batch;
++   struct panvk_descriptor_state *desc_state = &cmdbuf->state.gfx.desc_state;
++   const struct panvk_shader_desc_info *info = &shader->desc_info;
++
++   *ds = (struct panvk_shader_desc_state){0};
++   *copy_job = 0;
++
++   if (panvk_per_arch(cmd_prepare_push_descs)(cmdbuf, desc_state,
++                                              info->used_set_mask) !=
++          VK_SUCCESS ||
++       panvk_per_arch(cmd_prepare_shader_desc_tables)(cmdbuf, desc_state, info,
++                                                      true, ds) != VK_SUCCESS ||
++       panvk_per_arch(cmd_prepare_dyn_ssbos)(cmdbuf, desc_state, info, ds) !=
++          VK_SUCCESS)
++      return false;
++
++   u_foreach_bit(i, info->used_set_mask) {
++      if (i < MAX_SETS && desc_state->sets[i])
++         sysvals->desc.sets[i] = desc_state->sets[i]->descs.dev;
++   }
++   sysvals->desc.sets[PANVK_DESC_TABLE_CS_DYN_SSBOS] = ds->dyn_ssbos;
++
++   struct pan_ptr job;
++   if (panvk_per_arch(meta_get_copy_desc_job)(cmdbuf, info, desc_state, ds, 0,
++                                              &job) != VK_SUCCESS)
++      return false;
++   if (job.cpu) {
++      util_dynarray_append(&batch->jobs, job.cpu);
++      *copy_job = pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_COMPUTE, false,
++                                 false, 0, 0, &job, false);
++   }
++   return true;
++}
++
++/*
++ * The geometry shader as a compute job between the vertex job (dep_job_id)
++ * and the tiler job. Returns the job the tiler waits on, 0 on failure.
++ */
++static unsigned
++emit_gs_job(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw,
++            unsigned dep_job_id)
++{
++   struct panvk_batch *batch = cmdbuf->cur_batch;
++   const struct panvk_shader *gs_shader = cmdbuf->state.gfx.gs.shader;
++   const struct panvk_shader_variant *gs = panvk_shader_only_variant(gs_shader);
++   const struct panvk_shader_link *link = &cmdbuf->state.gfx.link;
++   const struct panvk_graphics_sysvals *gfx_sysvals = &cmdbuf->state.gfx.sysvals;
++
++   if (!panvk_priv_mem_check_alloc(gs->rsd))
++      return 0;
++
++   const bool indirect = is_indirect_draw(draw);
++   const uint32_t in_prims = gs_input_prims(draw, gs);
++   if (!in_prims)
++      return dep_job_id;
++
++   /* gl_ViewportIndex: one viewport only (no multiViewport), so every
++    * entry of the table is viewport 0.
++    */
++   uint64_t viewports = 0;
++   if (gs->gs.writes_viewport) {
++      struct pan_ptr vp = panvk_cmd_alloc_dev_mem(
++         cmdbuf, desc, PANVK_GS_MAX_VIEWPORTS * 24, 4);
++      if (!vp.gpu)
++         return 0;
++      for (unsigned i = 0; i < PANVK_GS_MAX_VIEWPORTS; i++)
++         memcpy((uint8_t *)vp.cpu + i * 24, &gfx_sysvals->viewport, 24);
++      viewports = vp.gpu;
++   }
++
++   /* One invocation per (input primitive, gl_InvocationID) pair. */
++   const uint32_t wg =
++      DIV_ROUND_UP(in_prims * gs->gs.invocations, PANVK_GS_WORKGROUP_SIZE);
++   const struct panvk_shader_variant *vs =
++      panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
++
++   struct panvk_compute_sysvals sysvals = {0};
++   sysvals.num_work_groups.x = wg;
++   sysvals.num_work_groups.y = 1;
++   sysvals.num_work_groups.z = 1;
++   sysvals.local_group_size.x = PANVK_GS_WORKGROUP_SIZE;
++   sysvals.local_group_size.y = 1;
++   sysvals.local_group_size.z = 1;
++   sysvals.gs = (struct panvk_gs_push){
++      .in_pos = draw->position,
++      .in_general = cmdbuf->state.gfx.gs.in_general,
++      .out_pos = cmdbuf->state.gfx.gs.out_pos,
++      .out_general = cmdbuf->state.gfx.gs.out_general,
++      .out_index = cmdbuf->state.gfx.gs.out_index,
++      .in_offsets = cmdbuf->state.gfx.gs.in_offsets,
++      .out_offsets = cmdbuf->state.gfx.gs.out_offsets,
++      .in_general_stride = link->buf_strides[PANVK_VARY_BUF_GENERAL],
++      .out_general_stride = link->gs_out_stride,
++      .num_input_prims = in_prims,
++      /* Indexed draws always take the indirect path here: index_buf is the
++       * buffer base, the command supplies firstIndex.
++       */
++      .index_buf = draw->info.index.index_size
++                      ? draw->info.index.buffer_dev_addr
++                      : 0,
++      .index_size = draw->info.index.index_size,
++      .topology = gs_topology(draw->info.prim),
++      .prims_per_instance =
++         indirect ? 0
++                  : gs_prims_per_instance(draw->info.prim,
++                                          draw->info.vertex.count, gs),
++      .instance_stride =
++         !indirect && draw->info.instance.count > 1
++            ? draw->padded_vertex_count
++            : 0,
++      .indirect_cmd = indirect ? draw->info.indirect.buffer_dev_addr : 0,
++      .in_pos_desc = indirect ? draw->varying_bufs +
++                                   PANVK_VARY_BUF_POSITION *
++                                      pan_size(ATTRIBUTE_BUFFER)
++                              : 0,
++      .in_general_desc = indirect ? draw->varying_bufs +
++                                       PANVK_VARY_BUF_GENERAL *
++                                          pan_size(ATTRIBUTE_BUFFER)
++                                  : 0,
++      .vertex_dcd = indirect ? draw->jobs.vertex.gpu +
++                                  pan_section_offset(COMPUTE_JOB, DRAW)
++                             : 0,
++      .index_min = draw->index_min_addr,
++      /* An indirect draw's real index count is only known on the GPU. */
++      .tiler_index_count =
++         indirect && draw->jobs.tiler.gpu
++            ? draw->jobs.tiler.gpu + pan_section_offset(TILER_JOB, PRIMITIVE) +
++                 12
++            : 0,
++      .in_screen_space = !vs->gs.vs_clip_space,
++      .viewports = viewports,
++      .viewport_scale = {gfx_sysvals->viewport.scale.x,
++                         gfx_sysvals->viewport.scale.y,
++                         gfx_sysvals->viewport.scale.z},
++      .viewport_offset = {gfx_sysvals->viewport.offset.x,
++                          gfx_sysvals->viewport.offset.y,
++                          gfx_sysvals->viewport.offset.z},
++   };
++
++   struct panvk_shader_desc_state ds;
++   unsigned copy_job;
++   if (!emu_prepare_descs(cmdbuf, gs_shader, &sysvals, &ds, &copy_job))
++      return 0;
++
++   struct pan_ptr push_uniforms;
++   if (panvk_per_arch(cmd_prepare_gs_push_uniforms)(
++          cmdbuf, gs, &sysvals, &push_uniforms) != VK_SUCCESS)
++      return 0;
++
++   struct pan_compute_dim dim = {wg, 1, 1};
++   uint64_t tls =
++      panvk_per_arch(cmd_dispatch_prepare_tls)(cmdbuf, gs, &dim, false);
++   if (!tls)
++      return 0;
++
++   struct pan_ptr job = panvk_cmd_alloc_desc(cmdbuf, COMPUTE_JOB);
++   if (!job.gpu)
++      return 0;
++
++   pan_pack_work_groups_compute(
++      pan_section_ptr(job.cpu, COMPUTE_JOB, INVOCATION), wg, 1, 1,
++      PANVK_GS_WORKGROUP_SIZE, 1, 1, false, false);
++
++   pan_section_pack(job.cpu, COMPUTE_JOB, PARAMETERS, cfg) {
++      cfg.job_task_split = util_logbase2_ceil(PANVK_GS_WORKGROUP_SIZE + 1) + 2;
++   }
++
++   pan_section_pack(job.cpu, COMPUTE_JOB, DRAW, cfg) {
++      cfg.state = panvk_priv_mem_dev_addr(gs->rsd);
++      cfg.attributes = ds.img_attrib_table;
++      cfg.attribute_buffers = ds.tables[PANVK_BIFROST_DESC_TABLE_IMG];
++      cfg.uniform_buffers = ds.tables[PANVK_BIFROST_DESC_TABLE_UBO];
++      cfg.textures = ds.tables[PANVK_BIFROST_DESC_TABLE_TEXTURE];
++      cfg.samplers = ds.tables[PANVK_BIFROST_DESC_TABLE_SAMPLER];
++      cfg.push_uniforms = push_uniforms.gpu;
++      cfg.thread_storage = tls;
++   }
++
++   util_dynarray_append(&batch->jobs, job.cpu);
++
++   /* barrier: the vertex job's varying writes must be visible to this one.
++    * suppress_prefetch: the tiler descriptor after it may be patched here.
++    */
++   return pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_COMPUTE, true, true,
++                         dep_job_id, copy_job, &job, false);
++}
++
+ static void
+ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+ {
+@@ -1537,6 +1927,13 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+             pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_VERTEX, false, false,
+                            0, copy_desc_job_id, &draw->jobs.vertex, false);
+ 
++         /* Geometry shader emulation between the vertex and tiler jobs. */
++         if (draw->gs_varying_bufs) {
++            vjob_id = emit_gs_job(cmdbuf, draw, vjob_id);
++            if (!vjob_id)
++               return;
++         }
++
+          if (draw->jobs.tiler.gpu != 0) {
+             pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_TILER, false, false,
+                            vjob_id, 0, &draw->jobs.tiler, false);
+@@ -1642,6 +2039,9 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+          PANLIB_BARRIER_NONE, args, util_logbase2(draw->info.index.index_size),
+          draw->info.index.restart_enable);
+       job_before_indirect_helper = batch->vtc_jc.job_index;
++      draw->index_min_addr =
++         index_min_max_res_ptr +
++         offsetof(struct libpan_draw_helper_index_min_max_result, min);
+    }
+ 
+    for (uint32_t i = 0; i < enabled_layer_count; i++) {
+@@ -1709,7 +2109,10 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+             .raw_vertex_offset_sysval = raw_vertex_offset_sysval,
+             .idvs_job = vs->info.vs.idvs ? draw->jobs.idvs.gpu : 0,
+             .vertex_job = draw->jobs.vertex.gpu,
+-            .tiler_job = draw->jobs.tiler.gpu,
++            /* With a geometry shader the tiler draws what the emulation
++             * wrote, set up on the CPU.
++             */
++            .tiler_job = draw->gs_varying_bufs ? 0 : draw->jobs.tiler.gpu,
+          };
+          panlib_draw_indexed_indirect_helper_struct(&precomp_ctx, indirect_grid,
+                                                     indirect_barrier, args);
+@@ -1731,7 +2134,7 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+             .raw_vertex_offset_sysval = raw_vertex_offset_sysval,
+             .idvs_job = vs->info.vs.idvs ? draw->jobs.idvs.gpu : 0,
+             .vertex_job = draw->jobs.vertex.gpu,
+-            .tiler_job = draw->jobs.tiler.gpu,
++            .tiler_job = draw->gs_varying_bufs ? 0 : draw->jobs.tiler.gpu,
+          };
+          panlib_draw_indirect_helper_struct(&precomp_ctx, indirect_grid,
+                                             indirect_barrier, args);
+@@ -1750,8 +2153,18 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+             pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_VERTEX, false, true, 0,
+                            prev_job, &draw->jobs.vertex, false);
+ 
++         /* Geometry shader emulation; it writes the tiler's index count,
++          * so the tiler descriptor must not be prefetched.
++          */
++         const bool gs = draw->gs_varying_bufs != 0;
++         if (gs) {
++            vjob_id = emit_gs_job(cmdbuf, draw, vjob_id);
++            if (!vjob_id)
++               return;
++         }
++
+          if (draw->jobs.tiler.gpu != 0) {
+-            pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_TILER, false, false,
++            pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_TILER, false, gs,
+                            vjob_id, 0, &draw->jobs.tiler, false);
+          }
+       }
+@@ -1870,6 +2283,8 @@ panvk_per_arch(CmdDrawIndexed)(VkCommandBuffer commandBuffer,
+          .indirect.stride = 0,
+          .prim = panvk_get_client_prim(cmdbuf),
+       },
++      .cpu_count = indexCount,
++      .cpu_instances = instanceCount,
+    };
+ 
+    panvk_cmd_draw_indirect(cmdbuf, &draw);
+diff --git a/src/panfrost/vulkan/meson.build b/src/panfrost/vulkan/meson.build
+index 437a8e73063..947ee796f88 100644
+--- a/src/panfrost/vulkan/meson.build
++++ b/src/panfrost/vulkan/meson.build
+@@ -60,6 +60,7 @@ libpanvk_files = files(
+   'panvk_instance.c',
+   'panvk_mempool.c',
+   'panvk_nir_lower_cooperative_matrix.c',
++  'panvk_nir_lower_gs.c',
+   'panvk_nir_lower_tile_image.c',
+   'panvk_physical_device.c',
+   'panvk_priv_bo.c',
+diff --git a/src/panfrost/vulkan/panvk_cmd_draw.h b/src/panfrost/vulkan/panvk_cmd_draw.h
+index 9943277a32c..44f625caa40 100644
+--- a/src/panfrost/vulkan/panvk_cmd_draw.h
++++ b/src/panfrost/vulkan/panvk_cmd_draw.h
+@@ -157,6 +157,9 @@ enum panvk_cmd_graphics_dirty_state {
+    PANVK_CMD_GRAPHICS_DIRTY_VS_PUSH_UNIFORMS,
+    PANVK_CMD_GRAPHICS_DIRTY_FS_PUSH_UNIFORMS,
+    PANVK_CMD_GRAPHICS_DIRTY_IDVS,
++#if PAN_ARCH < 9
++   PANVK_CMD_GRAPHICS_DIRTY_GS,
++#endif
+    PANVK_CMD_GRAPHICS_DIRTY_STATE_COUNT,
+ };
+ 
+@@ -229,6 +232,25 @@ struct panvk_cmd_graphics_state {
+       const struct panvk_shader *shader;
+       struct panvk_shader_desc_state desc;
+    } gs, tcs, tes;
++#else
++   /* Geometry shaders are emulated by a compute job between the vertex and
++    * tiler jobs (panvk_nir_lower_gs.c). The buffers are the ones that job
++    * writes and the tiler then reads.
++    */
++   struct {
++      const struct panvk_shader *shader;
++      struct panvk_shader_desc_state desc;
++      uint64_t out_pos;
++      uint64_t out_general;
++      uint64_t out_index;
++      uint64_t in_general;
++      uint64_t in_offsets;
++      uint64_t out_offsets;
++      uint64_t viewports;
++      uint32_t out_vertex_count;
++      uint32_t out_index_count;
++      enum mesa_prim out_prim;
++   } gs;
+ #endif
+ 
+    struct {
+diff --git a/src/panfrost/vulkan/panvk_cmd_push_constant.h b/src/panfrost/vulkan/panvk_cmd_push_constant.h
+index a8088b4b878..706ebc4229c 100644
+--- a/src/panfrost/vulkan/panvk_cmd_push_constant.h
++++ b/src/panfrost/vulkan/panvk_cmd_push_constant.h
+@@ -27,4 +27,15 @@ VkResult panvk_per_arch(cmd_prepare_compute_push_uniforms)(
+    struct panvk_cmd_buffer *cmdbuf, const struct panvk_shader_variant *shader,
+    struct pan_ptr *push_uniforms);
+ 
++#if PAN_ARCH < 9
++struct panvk_compute_sysvals;
++
++/* A lowered geometry shader runs as compute during a graphics draw: its
++ * sysvals are built by the caller, not taken from state.compute.
++ */
++VkResult panvk_per_arch(cmd_prepare_gs_push_uniforms)(
++   struct panvk_cmd_buffer *cmdbuf, const struct panvk_shader_variant *shader,
++   const struct panvk_compute_sysvals *sysvals, struct pan_ptr *push_uniforms);
++#endif
++
+ #endif
+diff --git a/src/panfrost/vulkan/panvk_gs.h b/src/panfrost/vulkan/panvk_gs.h
+new file mode 100644
+index 00000000000..70ddad00458
+--- /dev/null
++++ b/src/panfrost/vulkan/panvk_gs.h
+@@ -0,0 +1,227 @@
++/*
++ * Copyright 2026 XclipseTools
++ * SPDX-License-Identifier: MIT
++ *
++ * Ported from JimVulkan/mesa-unified-drivers (Bifrost geometry stage
++ * emulation) by biblioklept.
++ */
++
++#ifndef PANVK_GS_H
++#define PANVK_GS_H
++
++/* Geometry stage emulation for Bifrost (v6/v7). Arch-independent on
++ * purpose: the lowering is pure NIR, and this header only carries the
++ * contract between it and the JM draw path.
++ */
++
++#include <stdbool.h>
++#include <stdint.h>
++
++#include "compiler/shader_enums.h"
++
++struct nir_shader;
++struct nir_xfb_info;
++
++/* Mali has no geometry stage, so a geometry shader is compiled into a
++ * COMPUTE shader that runs between the vertex job and the tiler job: it
++ * reads the varying buffers the vertex shader wrote and writes a fresh set
++ * for the tiler, plus an index buffer expanding the strips it emitted into
++ * independent primitives. Output is sized for the worst case, see
++ * panvk_nir_lower_gs.c.
++ */
++#define PANVK_GS_WORKGROUP_SIZE 64
++#define PANVK_GS_SLOT_UNUSED    UINT32_MAX
++
++/* An indirect draw's parameters exist only on the GPU, so the emulation is
++ * dispatched for this many input primitives (times gl_InvocationID) and each
++ * invocation reads the real count from the draw's argument buffer.
++ * Primitives past the cap are dropped.
++ */
++#define PANVK_GS_INDIRECT_MAX_PRIMS 4096
++
++/* How the draw's vertices assemble into the input primitives. Lists, and
++ * the list-with-adjacency topologies, are LIST.
++ */
++enum panvk_gs_topology {
++   PANVK_GS_TOPO_LIST = 0,
++   /* primitive p is vertices p .. p + n - 1; triangle strips swap the last
++    * two on odd p */
++   PANVK_GS_TOPO_STRIP = 1,
++   /* triangle p is vertices p + 1, p + 2, 0 */
++   PANVK_GS_TOPO_FAN = 2,
++   /* triangle strip with adjacency, see gs_input_record() */
++   PANVK_GS_TOPO_TRI_STRIP_ADJ = 3,
++};
++
++/* Push-constant block the lowered shader reads its addresses from. Field
++ * order is load-bearing: panvk_nir_lower_gs.c addresses it with offsetof().
++ */
++struct panvk_gs_push {
++   uint64_t in_pos;
++   uint64_t in_general;
++   uint64_t out_pos;
++   uint64_t out_general;
++   uint64_t out_index;
++   /* slot -> byte offset in the generic buffer, indexed by gl_varying_slot,
++    * PANVK_GS_SLOT_UNUSED for a slot nothing reads. The input offsets
++    * belong to the vertex shader's layout and the output offsets to the
++    * fragment shader's, neither is known when the GS is compiled.
++    */
++   uint64_t in_offsets;
++   uint64_t out_offsets;
++   uint32_t in_general_stride;
++   uint32_t out_general_stride;
++   uint32_t num_input_prims;
++   uint32_t pad;
++   /* The viewport transform, applied by the emulation on the way out (and
++    * undone on the way in when the vertex shader already applied it).
++    * Padded to vec4. These cannot come from nir_load_viewport_*: this runs
++    * as COMPUTE with a compute sysval block.
++    */
++   float viewport_scale[3];
++   float pad2;
++   float viewport_offset[3];
++   float pad3;
++   /* Input assembly. The vertex shader wrote one varying record per vertex
++    * it ran, each instance's records at instance_stride after the previous
++    * one. index_buf is the draw's first index, or 0 for a plain draw.
++    */
++   uint64_t index_buf;
++   uint32_t index_size;
++   uint32_t topology;
++   uint32_t prims_per_instance;
++   uint32_t instance_stride;
++   /* Indirect draws (indirect_cmd != 0): the Vk*IndirectCommand, the vertex
++    * job's varying buffer descriptors as the draw helper patched them, its
++    * DRAW section (Instance Size is the per-instance record stride), and for
++    * an indexed draw the smallest index (the vertex job starts at it).
++    * index_buf is then the index buffer base. num_input_prims is the cap.
++    */
++   uint64_t indirect_cmd;
++   uint64_t in_pos_desc;
++   uint64_t in_general_desc;
++   uint64_t vertex_dcd;
++   uint64_t index_min;
++   /* The tiler job's PRIMITIVE index count word: the emulation writes the
++    * real count there.
++    */
++   uint64_t tiler_index_count;
++   /* Transform feedback, 0 when the draw is not capturing: one primitive
++    * count per compute invocation, and one staging record per output vertex
++    * slot in panvk_gs_xfb_table() order.
++    */
++   uint64_t xfb_counts;
++   uint64_t xfb_staging;
++   /* The polygon-mode geometry shader culls faces itself (PANVK_GS_CULL_*),
++    * since the tiler only sees the lines or points it emits.
++    */
++   uint32_t polygon_cull;
++   /* POSITION holds screen-space xyz and 1/w (the vertex shader was compiled
++    * for the tiler): the emulation undoes the viewport transform.
++    */
++   uint32_t in_screen_space;
++   /* A shader writing gl_ViewportIndex: PANVK_GS_MAX_VIEWPORTS x
++    * {scale xyz, offset xyz}. 0 otherwise.
++    */
++   uint64_t viewports;
++   /* Tessellation: the draw's struct poly_tess_params. */
++   uint64_t tess_params;
++   /* When non-zero, where the real number of input primitives is:
++    * min(*num_prims_addr, num_input_prims) run.
++    */
++   uint64_t num_prims_addr;
++   /* Vertices per input primitive when compiled for a variable count (the
++    * tess control stage: patchControlPoints).
++    */
++   uint32_t patch_size;
++   /* Leave output positions in clip space (tess eval feeding a GS). */
++   uint32_t out_clip_space;
++   /* geometryStreams: every stream owns a copy of the output vertex slots
++    * (xfb_stream_slots per stream) and its own index list and counts; only
++    * stream 0 is rasterized. xfb_stream_index holds the lists of streams
++    * 1-3, xfb_stream_idx entries each, and the counts of stream s start at
++    * s * xfb_invocations in xfb_counts.
++    */
++   uint64_t xfb_stream_index;
++   uint32_t xfb_stream_slots;
++   uint32_t xfb_stream_idx;
++   uint32_t xfb_invocations;
++   uint32_t pad4;
++};
++
++/* gl_ViewportIndex, carried from the emulation to the fragment shader in a
++ * slot Vulkan never uses and pan lays out as generic.
++ */
++#define PANVK_GS_VIEWPORT_INDEX_SLOT VARYING_SLOT_CLIP_VERTEX
++#define PANVK_GS_MAX_VIEWPORTS       16
++
++#define PANVK_GS_CULL_FRONT (1u << 0)
++#define PANVK_GS_CULL_BACK  (1u << 1)
++#define PANVK_GS_FRONT_CCW  (1u << 2)
++
++/* Transform feedback is captured from the emulation. Every captured 32-bit
++ * component is one dword of a per-vertex staging record; table entry j says
++ * where record dword j goes: xfb buffer (bits 16+) and dword inside that
++ * buffer's vertex (bits 0-15).
++ */
++#define PANVK_XFB_MAX_RECORD_DWORDS 128
++
++/* Fills table (PANVK_XFB_MAX_RECORD_DWORDS entries) and returns the record
++ * size in dwords, 0 for a shader that captures nothing, -1 for one this
++ * emulation cannot capture.
++ */
++int panvk_gs_xfb_table(const struct nir_xfb_info *xfb, uint32_t *table);
++
++struct panvk_gs_lower_options {
++   unsigned input_verts_per_prim;
++   unsigned output_verts_per_prim;
++   unsigned max_output_verts;
++   unsigned max_output_prims;
++   /* gl_InvocationID count: every (input primitive, invocation) pair is its
++    * own compute invocation with its own output slots.
++    */
++   unsigned invocations;
++
++   unsigned pos_stride;
++
++   /* Where panvk_gs_push lives in the push-constant/FAU space. */
++   unsigned params_base;
++
++   /* Transform feedback: stage a capture record at every EmitVertex. */
++   const struct nir_xfb_info *xfb;
++   /* The vertex streams the shader emits on. */
++   unsigned stream_mask;
++};
++
++bool panvk_nir_lower_gs(struct nir_shader *nir,
++                        const struct panvk_gs_lower_options *opts);
++
++/* Tessellation: the tess control shader runs as a compute shader after the
++ * vertex job, one workgroup per patch (workgroup_id.x the patch, .y the
++ * instance), one invocation per output vertex. The tess eval shader becomes
++ * a point-in, point-out geometry shader run once per tessellator index.
++ */
++#define PANVK_TESS_HEAP_SIZE   (64u << 20)
++#define PANVK_TESS_MAX_INDICES (1u << 18)
++
++/* The tessellator's grid for an indirect draw: each thread walks the
++ * patches at this stride.
++ */
++#define PANVK_TESS_INDIRECT_GRID 1024
++
++/* opts: input_verts_per_prim 0 (panvk_gs_push::patch_size), pos_stride,
++ * params_base.
++ */
++bool panvk_nir_lower_tcs_inputs(struct nir_shader *nir,
++                                const struct panvk_gs_lower_options *opts);
++
++/* nir_load_tess_param_buffer_poly -> panvk_gs_push::tess_params. */
++bool panvk_nir_lower_tess_params(struct nir_shader *nir,
++                                 const struct panvk_gs_lower_options *opts);
++
++/* A tess eval shader whose inputs src/poly already lowered, into the
++ * geometry emulation's input form: one point in, one point out.
++ */
++void panvk_nir_tes_to_gs(struct nir_shader *nir);
++
++#endif /* PANVK_GS_H */
+diff --git a/src/panfrost/vulkan/panvk_nir_lower_gs.c b/src/panfrost/vulkan/panvk_nir_lower_gs.c
+new file mode 100644
+index 00000000000..17f7f20b84c
+--- /dev/null
++++ b/src/panfrost/vulkan/panvk_nir_lower_gs.c
+@@ -0,0 +1,1239 @@
++/*
++ * Copyright 2026 XclipseTools
++ * SPDX-License-Identifier: MIT
++ *
++ * Ported from JimVulkan/mesa-unified-drivers (Bifrost geometry stage
++ * emulation) by biblioklept. Debug scaffolding (hardpos/echo/dump) removed.
++ */
++
++/*
++ * Geometry shaders on hardware that has no geometry stage.
++ *
++ * The Mali job manager runs vertex -> tiler -> fragment and nothing else.
++ * The vertex shader WRITES VARYINGS TO MEMORY, and the tiler reads them
++ * back from buffers whose addresses and strides live in descriptors we
++ * build (position is a vec4 at stride 16, point size an fp16 at stride 2,
++ * everything else is packed into one generic buffer). So a geometry shader
++ * is a COMPUTE JOB SPLICED BETWEEN THE TWO: it reads the vertex shader's
++ * varying buffers, runs the geometry shader body once per input primitive,
++ * and writes a fresh set of varying buffers for the tiler.
++ *
++ * WORST-CASE ALLOCATION. How many vertices a geometry shader emits is not
++ * known until it runs. Every input primitive gets a fixed slot of
++ * max_vertices output vertices and (max_vertices - 2) output primitives, so
++ * the counts are known at record time, and slots the shader did not fill are
++ * made DEGENERATE so the tiler discards them.
++ *
++ * STRIPS BECOME LISTS VIA AN INDEX BUFFER. The pass writes each vertex once
++ * and appends INDICES describing the expanded primitive list. Unused index
++ * slots repeat one index, a zero-area primitive that is culled.
++ *
++ * The pass leaves a plain compute shader that reads its buffer addresses
++ * from push constants (struct panvk_gs_push).
++ */
++
++#include "panvk_gs.h"
++
++#include "nir.h"
++#include "nir_builder.h"
++#include "nir_xfb_info.h"
++
++static unsigned
++gs_glsl_type_size(const struct glsl_type *type, bool bindless)
++{
++   return glsl_count_attribute_slots(type, false);
++}
++
++/* One 32-bit store per component: a multi-component store_global did not
++ * reach memory in JimVulkan's measurements on G72/G76.
++ */
++static void
++store_components(nir_builder *b, nir_def *base, nir_def *byte_off, nir_def *val)
++{
++   for (unsigned c = 0; c < val->num_components; c++) {
++      nir_def *addr =
++         nir_iadd(b, base, nir_u2u64(b, nir_iadd_imm(b, byte_off, c * 4)));
++      nir_store_global(b, nir_channel(b, val, c), addr, .align_mul = 4,
++                       .write_mask = 0x1);
++   }
++}
++
++/* The mirror of store_components: component-at-a-time loads. */
++static nir_def *
++load_components(nir_builder *b, nir_def *base, nir_def *byte_off,
++                unsigned num_components, unsigned bit_size)
++{
++   const unsigned sz = bit_size / 8;
++   nir_def *comps[NIR_MAX_VEC_COMPONENTS];
++
++   for (unsigned c = 0; c < num_components; c++) {
++      nir_def *addr =
++         nir_iadd(b, base, nir_u2u64(b, nir_iadd_imm(b, byte_off, c * sz)));
++      comps[c] = nir_load_global(b, 1, bit_size, addr, .align_mul = sz);
++   }
++
++   return nir_vec(b, comps, num_components);
++}
++
++struct lower_gs_state {
++   const struct panvk_gs_lower_options *opts;
++
++   /* The params block, loaded once at the top of the shader. */
++   nir_def *in_pos, *in_general;
++   nir_def *out_pos, *out_general, *out_index;
++   nir_def *in_offsets, *out_offsets;
++   nir_def *in_general_stride, *out_general_stride;
++   nir_def *vp_scale, *vp_offset;
++   nir_def *in_screen_space;
++   nir_def *out_clip_space;
++   /* gl_ViewportIndex: the shader's variable, and the per-viewport table. */
++   nir_variable *viewport_var;
++   nir_def *viewports;
++   /* gl_PrimitiveIDIn (per instance) and gl_InvocationID. */
++   nir_def *prim_id;
++   nir_def *invocation_id;
++   /* Input assembly. */
++   nir_def *instance;
++   nir_def *prims_per_instance;
++   nir_def *index_buf, *index_size, *topology, *instance_stride;
++   /* Subtracted from an index to get the vertex record. */
++   nir_def *index_bias;
++   /* Vertices per input primitive when opts->input_verts_per_prim is 0. */
++   nir_def *vpp_dyn;
++   /* Tessellation: the draw's struct poly_tess_params. */
++   nir_def *tess_params;
++
++   /* Base output vertex slot for this invocation. */
++   nir_def *out_vtx_base;
++   /* Base output index slot. */
++   nir_def *out_idx_base;
++   /* Primitives this invocation has written indices for, per stream. */
++   nir_variable *prims_written[4];
++   /* geometryStreams: see panvk_gs_push::xfb_stream_*. */
++   nir_def *stream_slots, *stream_idx, *stream_index, *xfb_invocations;
++
++   /* This compute invocation, and transform feedback (xfb_dwords == 0: the
++    * shader captures nothing).
++    */
++   nir_def *gid;
++   unsigned xfb_dwords;
++   nir_def *xfb_counts, *xfb_staging;
++};
++
++int
++panvk_gs_xfb_table(const nir_xfb_info *xfb, uint32_t *table)
++{
++   if (!xfb)
++      return 0;
++
++   int n = 0;
++   for (unsigned i = 0; i < xfb->output_count; i++) {
++      const nir_xfb_output_info *o = &xfb->outputs[i];
++
++      /* 32-bit data only. */
++      if (o->data_is_16bit)
++         return -1;
++
++      unsigned dw = o->offset / 4;
++      u_foreach_bit(c, o->component_mask) {
++         if (n >= PANVK_XFB_MAX_RECORD_DWORDS)
++            return -1;
++         table[n++] = ((uint32_t)o->buffer << 16) | dw++;
++      }
++   }
++
++   return n;
++}
++
++/* Component comp of output location loc as the shader holds it right now,
++ * or NULL when no 32-bit output variable covers it.
++ */
++static nir_def *
++xfb_output_component(nir_builder *b, unsigned loc, unsigned comp)
++{
++   nir_foreach_shader_out_variable(var, b->shader) {
++      const struct glsl_type *type = var->type;
++      nir_deref_instr *d = nir_build_deref_var(b, var);
++
++      if (var->data.compact) {
++         const unsigned first =
++            var->data.location * 4 + var->data.location_frac;
++         const unsigned want = loc * 4 + comp;
++         if (want < first || want >= first + glsl_get_length(type))
++            continue;
++         return nir_load_deref(b, nir_build_deref_array_imm(b, d, want - first));
++      }
++
++      const unsigned slots = glsl_count_attribute_slots(type, false);
++      if (loc < var->data.location || loc >= var->data.location + slots)
++         continue;
++
++      if (glsl_type_is_array_or_matrix(type)) {
++         const struct glsl_type *elem = glsl_type_is_array(type)
++                                           ? glsl_get_array_element(type)
++                                           : glsl_get_column_type(type);
++         if (glsl_count_attribute_slots(elem, false) != 1)
++            continue;
++         d = nir_build_deref_array_imm(b, d, loc - var->data.location);
++         type = elem;
++      }
++
++      if (!glsl_type_is_vector_or_scalar(type) || glsl_get_bit_size(type) != 32)
++         continue;
++
++      const unsigned frac = var->data.location_frac;
++      if (comp < frac || comp >= frac + glsl_get_vector_elements(type))
++         continue;
++
++      return nir_channel(b, nir_load_deref(b, d), comp - frac);
++   }
++
++   return NULL;
++}
++
++/* EmitVertex with transform feedback: the vertex's captured components, in
++ * table order, into its staging record. gl_Position is still clip space.
++ */
++static void
++stage_xfb_record(nir_builder *b, struct lower_gs_state *st, nir_def *slot)
++{
++   const nir_xfb_info *xfb = st->opts->xfb;
++
++   nir_push_if(b, nir_ine_imm(b, st->xfb_staging, 0));
++   {
++      nir_def *rec = nir_iadd(
++         b, st->xfb_staging,
++         nir_u2u64(b, nir_imul_imm(b, slot, st->xfb_dwords * 4)));
++      unsigned j = 0;
++      for (unsigned i = 0; i < xfb->output_count; i++) {
++         const nir_xfb_output_info *o = &xfb->outputs[i];
++         u_foreach_bit(c, o->component_mask) {
++            nir_def *v = xfb_output_component(b, o->location, c);
++            if (!v)
++               v = nir_imm_int(b, 0);
++            nir_store_global(b, v, nir_iadd_imm(b, rec, j * 4), .align_mul = 4,
++                             .write_mask = 0x1);
++            j++;
++         }
++      }
++   }
++   nir_pop_if(b, NULL);
++}
++
++static nir_def *
++load_param_u64(nir_builder *b, const struct panvk_gs_lower_options *opts,
++               unsigned offset)
++{
++   return nir_load_push_constant(b, 1, 64, nir_imm_int(b, 0),
++                                 .base = opts->params_base + offset, .range = 8);
++}
++
++static nir_def *
++load_param_u32(nir_builder *b, const struct panvk_gs_lower_options *opts,
++               unsigned offset)
++{
++   return nir_load_push_constant(b, 1, 32, nir_imm_int(b, 0),
++                                 .base = opts->params_base + offset, .range = 4);
++}
++
++static nir_def *
++load_param_vec3f(nir_builder *b, const struct panvk_gs_lower_options *opts,
++                 unsigned offset)
++{
++   nir_def *c[3];
++
++   for (unsigned i = 0; i < 3; i++)
++      c[i] = nir_load_push_constant(b, 1, 32, nir_imm_int(b, 0),
++                                    .base = opts->params_base + offset + i * 4,
++                                    .range = 4);
++
++   return nir_vec(b, c, 3);
++}
++
++/* The tiler takes POSITION in screen space with w replaced by 1/w. A vertex
++ * shader feeding this emulation is compiled WITHOUT the viewport transform
++ * (pan_compile_inputs::vs_keep_clip_space), so the input is clip space and
++ * the transform is applied once, on the way out. A vertex shader compiled
++ * for the tiler (in_screen_space) is converted back first; a zero scale
++ * selects zero rather than dividing.
++ */
++static nir_def *
++screen_to_clip(nir_builder *b, struct lower_gs_state *st, nir_def *p)
++{
++   nir_def *w = nir_frcp(b, nir_channel(b, p, 3));
++   nir_def *zero3 = nir_replicate(b, nir_imm_float(b, 0.0f), 3);
++   nir_def *rcp_scale = nir_bcsel(b, nir_feq(b, st->vp_scale, zero3), zero3,
++                                  nir_frcp(b, st->vp_scale));
++   nir_def *ndc =
++      nir_fmul(b, nir_fsub(b, nir_trim_vector(b, p, 3), st->vp_offset),
++               rcp_scale);
++   nir_def *clip = nir_fmul(b, ndc, nir_replicate(b, w, 3));
++
++   return nir_vec4(b, nir_channel(b, clip, 0), nir_channel(b, clip, 1),
++                   nir_channel(b, clip, 2), w);
++}
++
++static nir_def *
++clip_to_screen_xf(nir_builder *b, nir_def *p, nir_def *vp_scale,
++                  nir_def *vp_offset)
++{
++   /* Same arithmetic and clamp as nir_lower_viewport_transform. */
++   nir_def *w_recip = nir_frcp(b, nir_channel(b, p, 3));
++   w_recip = nir_fclamp(b, w_recip, nir_imm_float(b, -32768.0f),
++                        nir_imm_float(b, 32768.0f));
++
++   nir_def *ndc =
++      nir_fmul(b, nir_trim_vector(b, p, 3), nir_replicate(b, w_recip, 3));
++   nir_def *screen = nir_fadd(b, nir_fmul(b, ndc, vp_scale), vp_offset);
++
++   /* The vertex shader's position reaches memory through the SNAP_4 varying
++    * format (1/256 px). These are plain stores, so snap here too, or shared
++    * edges rasterize differently from the same draw without a GS.
++    */
++   nir_def *snap_x = nir_fmul_imm(
++      b, nir_fround_even(b, nir_fmul_imm(b, nir_channel(b, screen, 0), 256.0)),
++      1.0 / 256.0);
++   nir_def *snap_y = nir_fmul_imm(
++      b, nir_fround_even(b, nir_fmul_imm(b, nir_channel(b, screen, 1), 256.0)),
++      1.0 / 256.0);
++
++   return nir_vec4(b, snap_x, snap_y, nir_channel(b, screen, 2), w_recip);
++}
++
++static nir_def *
++clip_to_screen(nir_builder *b, struct lower_gs_state *st, nir_def *p)
++{
++   return clip_to_screen_xf(b, p, st->vp_scale, st->vp_offset);
++}
++
++/* slot -> byte offset, from the table the draw path filled in. */
++static nir_def *
++load_slot_offset(nir_builder *b, nir_def *table, unsigned location)
++{
++   nir_def *addr = nir_iadd(b, table, nir_imm_int64(b, location * 4));
++   return nir_load_global(b, 1, 32, addr, .align_mul = 4);
++}
++
++/* The address in an ATTRIBUTE_BUFFER descriptor: bits 6-55 of its first 64
++ * bits, on 32-bit halves (no 64-bit AND with an immediate on Bifrost).
++ */
++static nir_def *
++desc_pointer(nir_builder *b, nir_def *desc)
++{
++   nir_def *lo = nir_load_global(b, 1, 32, desc, .align_mul = 8);
++   nir_def *hi =
++      nir_load_global(b, 1, 32, nir_iadd_imm(b, desc, 4), .align_mul = 4);
++   return nir_pack_64_2x32_split(b, nir_iand_imm(b, lo, 0xffffffc0),
++                                 nir_iand_imm(b, hi, 0x00ffffff));
++}
++
++/* An indirect draw's input assembly, read inside the caller's
++ * indirect_cmd != 0 branch. See struct panvk_gs_push.
++ */
++struct indirect_inputs {
++   nir_def *inst, *index_buf, *bias, *stride, *pos, *gen;
++};
++
++static struct indirect_inputs
++load_indirect_inputs(nir_builder *b, const struct panvk_gs_lower_options *opts,
++                     nir_def *cmd, nir_def *index_buf, nir_def *index_size)
++{
++   struct indirect_inputs in;
++   nir_def *indexed = nir_ine_imm(b, index_size, 0);
++   in.inst = nir_load_global(b, 1, 32, nir_iadd_imm(b, cmd, 4), .align_mul = 4);
++   nir_def *first =
++      nir_load_global(b, 1, 32, nir_iadd_imm(b, cmd, 8), .align_mul = 4);
++
++   in.index_buf = nir_bcsel(
++      b, indexed,
++      nir_iadd(b, index_buf, nir_u2u64(b, nir_imul(b, first, index_size))),
++      nir_imm_int64(b, 0));
++   /* Only an indexed draw has a minimum to read. */
++   nir_def *min_addr =
++      load_param_u64(b, opts, offsetof(struct panvk_gs_push, index_min));
++   nir_push_if(b, indexed);
++   nir_def *min_val = nir_load_global(b, 1, 32, min_addr, .align_mul = 4);
++   nir_pop_if(b, NULL);
++   in.bias = nir_if_phi(b, min_val, nir_imm_int(b, 0));
++
++   /* Instance Size, a "padded" count: (2 * odd + 1) << shift. */
++   nir_def *dcd =
++      load_param_u64(b, opts, offsetof(struct panvk_gs_push, vertex_dcd));
++   nir_def *w0 = nir_load_global(b, 1, 32, dcd, .align_mul = 4);
++   nir_def *packed = nir_iand_imm(b, nir_ushr_imm(b, w0, 16), 0xff);
++   nir_def *padded = nir_ishl(
++      b, nir_iadd_imm(b, nir_imul_imm(b, nir_ushr_imm(b, packed, 5), 2), 1),
++      nir_iand_imm(b, packed, 0x1f));
++   in.stride = nir_bcsel(b, nir_ugt_imm(b, in.inst, 1), padded, nir_imm_int(b, 0));
++
++   nir_def *pdesc =
++      load_param_u64(b, opts, offsetof(struct panvk_gs_push, in_pos_desc));
++   nir_def *gdesc =
++      load_param_u64(b, opts, offsetof(struct panvk_gs_push, in_general_desc));
++   in.pos = desc_pointer(b, pdesc);
++   in.gen = desc_pointer(b, gdesc);
++   return in;
++}
++
++/* A direct indexed draw whose vertex job starts at the smallest index:
++ * indices are biased by it; index_min is 0 when there is none.
++ */
++static nir_def *
++load_direct_bias(nir_builder *b, const struct panvk_gs_lower_options *opts,
++                 nir_def *index_size)
++{
++   nir_def *min_addr =
++      load_param_u64(b, opts, offsetof(struct panvk_gs_push, index_min));
++   nir_push_if(b, nir_iand(b, nir_ine_imm(b, min_addr, 0),
++                           nir_ine_imm(b, index_size, 0)));
++   nir_def *v = nir_load_global(b, 1, 32, min_addr, .align_mul = 4);
++   nir_pop_if(b, NULL);
++   return nir_if_phi(b, v, nir_imm_int(b, 0));
++}
++
++/* Which of the vertex shader's varying records is vertex i of this
++ * invocation's input primitive: primitive assembly, then the index buffer,
++ * then the instance.
++ */
++static nir_def *
++gs_input_record(nir_builder *b, struct lower_gs_state *st, nir_def *i)
++{
++   const unsigned vpp = st->opts->input_verts_per_prim;
++   nir_def *p = st->prim_id;
++
++   /* LIST: p * vpp + i */
++   nir_def *list = vpp ? nir_iadd(b, nir_imul_imm(b, p, vpp), i)
++                       : nir_iadd(b, nir_imul(b, p, st->vpp_dyn), i);
++
++   /* STRIP: p + i, triangle strips take p, p+2, p+1 on odd p. */
++   nir_def *strip_i = i;
++   if (vpp == 3) {
++      nir_def *odd = nir_ine_imm(b, nir_iand_imm(b, p, 1), 0);
++      nir_def *swapped =
++         nir_bcsel(b, nir_ieq_imm(b, i, 1), nir_imm_int(b, 2),
++                   nir_bcsel(b, nir_ieq_imm(b, i, 2), nir_imm_int(b, 1), i));
++      strip_i = nir_bcsel(b, odd, swapped, i);
++   }
++   nir_def *strip = nir_iadd(b, p, strip_i);
++
++   /* FAN: p + 1, p + 2, 0 */
++   nir_def *fan = nir_bcsel(b, nir_ieq_imm(b, i, 2), nir_imm_int(b, 0),
++                            nir_iadd(b, p, nir_iadd_imm(b, i, 1)));
++
++   /* TRIANGLE STRIP WITH ADJACENCY, in the shader's order
++    * (v0, a01, v1, a12, v2, a20):
++    *    even p:  2p, first ? 1 : 2p-2,  2p+2, last ? 2p+5 : 2p+6,  2p+4, 2p+3
++    *    odd p:   2p+2, 2p-2,  2p, 2p+3,  2p+4, last ? 2p+5 : 2p+6
++    */
++   nir_def *tsa = list;
++   if (vpp == 6) {
++      nir_def *p2 = nir_imul_imm(b, p, 2);
++      nir_def *odd = nir_ine_imm(b, nir_iand_imm(b, p, 1), 0);
++      nir_def *first = nir_ieq_imm(b, p, 0);
++      nir_def *last = nir_ieq(b, p, nir_iadd_imm(b, st->prims_per_instance, -1));
++      nir_def *far =
++         nir_bcsel(b, last, nir_iadd_imm(b, p2, 5), nir_iadd_imm(b, p2, 6));
++      nir_def *even_v[6] = {
++         p2,
++         nir_bcsel(b, first, nir_imm_int(b, 1), nir_iadd_imm(b, p2, -2)),
++         nir_iadd_imm(b, p2, 2),
++         far,
++         nir_iadd_imm(b, p2, 4),
++         nir_iadd_imm(b, p2, 3),
++      };
++      nir_def *odd_v[6] = {
++         nir_iadd_imm(b, p2, 2), nir_iadd_imm(b, p2, -2), p2,
++         nir_iadd_imm(b, p2, 3), nir_iadd_imm(b, p2, 4),  far,
++      };
++      nir_def *pick = nir_bcsel(b, odd, odd_v[5], even_v[5]);
++      for (int k = 4; k >= 0; k--)
++         pick = nir_bcsel(b, nir_ieq_imm(b, i, k),
++                          nir_bcsel(b, odd, odd_v[k], even_v[k]), pick);
++      tsa = pick;
++   }
++
++   /* A patch is only ever a list. */
++   nir_def *seq =
++      !vpp ? list
++           : nir_bcsel(
++                b, nir_ieq_imm(b, st->topology, PANVK_GS_TOPO_STRIP), strip,
++                nir_bcsel(b, nir_ieq_imm(b, st->topology, PANVK_GS_TOPO_FAN),
++                          fan,
++                          nir_bcsel(b,
++                                    nir_ieq_imm(b, st->topology,
++                                                PANVK_GS_TOPO_TRI_STRIP_ADJ),
++                                    tsa, list)));
++
++   /* Through the index buffer, when there is one. */
++   nir_def *vtx = seq;
++   nir_push_if(b, nir_ine_imm(b, st->index_buf, 0));
++   {
++      nir_def *addr = nir_iadd(b, st->index_buf,
++                               nir_u2u64(b, nir_imul(b, seq, st->index_size)));
++      /* The aligned 32-bit word holding the index, then the index. */
++      nir_def *word_addr = nir_iand_imm(b, addr, ~3ull);
++      nir_def *word = nir_load_global(b, 1, 32, word_addr, .align_mul = 4);
++      nir_def *shift =
++         nir_imul_imm(b, nir_u2u32(b, nir_iand_imm(b, addr, 3)), 8);
++      nir_def *shifted = nir_ushr(b, word, shift);
++      nir_def *idx = nir_bcsel(
++         b, nir_ieq_imm(b, st->index_size, 1), nir_iand_imm(b, shifted, 0xff),
++         nir_bcsel(b, nir_ieq_imm(b, st->index_size, 2),
++                   nir_iand_imm(b, shifted, 0xffff), word));
++      vtx = nir_isub(b, idx, st->index_bias);
++   }
++   nir_pop_if(b, NULL);
++   vtx = nir_if_phi(b, vtx, seq);
++
++   return nir_iadd(b, vtx, nir_imul(b, st->instance, st->instance_stride));
++}
++
++/* gl_in[i].<slot>: load_per_vertex_input with the vertex index as src[0].
++ * The vertex shader already wrote it to its varying buffers, so the load
++ * becomes an address computation and a global load.
++ */
++static nir_def *
++lower_per_vertex_input(nir_builder *b, nir_intrinsic_instr *intr,
++                       struct lower_gs_state *st)
++{
++   const struct panvk_gs_lower_options *opts = st->opts;
++   nir_io_semantics sem = nir_intrinsic_io_semantics(intr);
++
++   nir_def *vtx = gs_input_record(b, st, intr->src[0].ssa);
++
++   if (sem.location == VARYING_SLOT_POS) {
++      nir_def *byte = nir_imul_imm(b, vtx, opts->pos_stride);
++      nir_def *raw = load_components(b, st->in_pos, byte, 4, 32);
++      nir_def *clip = nir_bcsel(b, nir_ine_imm(b, st->in_screen_space, 0),
++                                screen_to_clip(b, st, raw), raw);
++
++      unsigned first = nir_intrinsic_component(intr);
++      nir_def *c[NIR_MAX_VEC_COMPONENTS];
++      for (unsigned i = 0; i < intr->def.num_components; i++)
++         c[i] = nir_channel(b, clip, MIN2(first + i, 3));
++
++      return nir_vec(b, c, intr->def.num_components);
++   }
++
++   /* An input array element: the io semantics name the variable's first
++    * location and src[1] the slot within it.
++    */
++   const unsigned location =
++      sem.location +
++      (nir_src_is_const(intr->src[1]) ? nir_src_as_uint(intr->src[1]) : 0);
++
++   nir_def *base = st->in_general;
++   nir_def *stride = st->in_general_stride;
++   nir_def *offset = load_slot_offset(b, st->in_offsets, location);
++
++   nir_def *byte =
++      nir_iadd(b, nir_imul(b, vtx, stride),
++               nir_iadd_imm(b, offset, nir_intrinsic_component(intr) * 4));
++
++   /* A slot the vertex shader does not write reads as zero, and must not be
++    * loaded at all.
++    */
++   nir_push_if(b, nir_ine_imm(b, offset, PANVK_GS_SLOT_UNUSED));
++   nir_def *val = load_components(b, base, byte, intr->def.num_components,
++                                  intr->def.bit_size);
++   nir_pop_if(b, NULL);
++   return nir_if_phi(b, val,
++                     nir_imm_zero(b, intr->def.num_components,
++                                  intr->def.bit_size));
++}
++
++/* Output vertex slot counter of stream s, the address of index list entry
++ * `entry` of stream s for this invocation, and the address of its primitive
++ * count. Stream 0 is the rasterized one.
++ */
++static nir_def *
++stream_vtx_slot(nir_builder *b, struct lower_gs_state *st, unsigned s,
++                nir_def *counter)
++{
++   nir_def *slot = nir_iadd(b, st->out_vtx_base, counter);
++   return s ? nir_iadd(b, slot, nir_imul_imm(b, st->stream_slots, s)) : slot;
++}
++
++static nir_def *
++stream_index_entry(nir_builder *b, struct lower_gs_state *st, unsigned s,
++                   nir_def *entry)
++{
++   nir_def *e = nir_iadd(b, st->out_idx_base, entry);
++   if (!s)
++      return nir_iadd(b, st->out_index, nir_u2u64(b, nir_imul_imm(b, e, 4)));
++   e = nir_iadd(b, e, nir_imul_imm(b, st->stream_idx, s - 1));
++   return nir_iadd(b, st->stream_index, nir_u2u64(b, nir_imul_imm(b, e, 4)));
++}
++
++static nir_def *
++stream_count_addr(nir_builder *b, struct lower_gs_state *st, unsigned s)
++{
++   nir_def *i =
++      s ? nir_iadd(b, st->gid, nir_imul_imm(b, st->xfb_invocations, s)) : st->gid;
++   return nir_iadd(b, st->xfb_counts, nir_u2u64(b, nir_imul_imm(b, i, 4)));
++}
++
++/* EmitVertex(): flush a whole output vertex to memory. */
++static void
++lower_emit_vertex(nir_builder *b, nir_intrinsic_instr *intr,
++                  struct lower_gs_state *st)
++{
++   const struct panvk_gs_lower_options *opts = st->opts;
++   nir_def *counter = intr->src[0].ssa;
++   const unsigned stream = nir_intrinsic_stream_id(intr);
++
++   /* A vertex on another stream than 0 only matters to transform feedback. */
++   if (stream != 0) {
++      if (!st->xfb_dwords)
++         return;
++      nir_push_if(b, nir_iand(b, nir_ult_imm(b, counter, opts->max_output_verts),
++                              nir_ine_imm(b, st->xfb_staging, 0)));
++      {
++         nir_def *slot = stream_vtx_slot(b, st, stream, counter);
++         stage_xfb_record(b, st, slot);
++         if (opts->output_verts_per_prim == 1) {
++            nir_def *n = nir_load_var(b, st->prims_written[stream]);
++            nir_store_global(b, slot, stream_index_entry(b, st, stream, n),
++                             .align_mul = 4, .write_mask = 0x1);
++            nir_def *written = nir_iadd_imm(b, n, 1);
++            nir_store_var(b, st->prims_written[stream], written, 1);
++            nir_store_global(b, written, stream_count_addr(b, st, stream),
++                             .align_mul = 4, .write_mask = 0x1);
++         }
++      }
++      nir_pop_if(b, NULL);
++      return;
++   }
++
++   /* Never run off the end of this invocation's slot. */
++   nir_push_if(b, nir_ult_imm(b, counter, opts->max_output_verts));
++   {
++      nir_def *slot = nir_iadd(b, st->out_vtx_base, counter);
++
++      nir_foreach_shader_out_variable(var, b->shader) {
++         const unsigned loc = var->data.location;
++
++         if (loc == VARYING_SLOT_POS) {
++            nir_def *clip = nir_load_var(b, var);
++            nir_def *val;
++            if (st->viewport_var) {
++               /* The transform of the viewport this vertex names (clamped). */
++               nir_def *idx =
++                  nir_umin(b, nir_load_var(b, st->viewport_var),
++                           nir_imm_int(b, PANVK_GS_MAX_VIEWPORTS - 1));
++               nir_def *xf = nir_iadd(b, st->viewports,
++                                      nir_u2u64(b, nir_imul_imm(b, idx, 24)));
++               nir_def *scale = load_components(b, xf, nir_imm_int(b, 0), 3, 32);
++               nir_def *offset =
++                  load_components(b, xf, nir_imm_int(b, 12), 3, 32);
++               val = clip_to_screen_xf(b, clip, scale, offset);
++            } else {
++               val = clip_to_screen(b, st, clip);
++            }
++            val = nir_bcsel(b, nir_ine_imm(b, st->out_clip_space, 0), clip, val);
++            store_components(b, st->out_pos,
++                             nir_imul_imm(b, slot, opts->pos_stride), val);
++            continue;
++         }
++
++         /* gl_ViewportIndex goes on to the fragment shader. */
++         if (loc == VARYING_SLOT_VIEWPORT) {
++            nir_def *offset =
++               load_slot_offset(b, st->out_offsets, PANVK_GS_VIEWPORT_INDEX_SLOT);
++            nir_push_if(b, nir_ine_imm(b, offset, PANVK_GS_SLOT_UNUSED));
++            nir_def *byte =
++               nir_iadd(b, nir_imul(b, slot, st->out_general_stride), offset);
++            store_components(b, st->out_general, byte, nir_load_var(b, var));
++            nir_pop_if(b, NULL);
++            continue;
++         }
++
++         /* Point size lives in its own fp16 buffer, and the other built-ins
++          * (layer, clip distances) have no path to the tiler here.
++          */
++         if (loc < VARYING_SLOT_VAR0 || var->data.compact)
++            continue;
++
++         /* One location per element of an output array, each at the
++          * component the variable starts at.
++          */
++         const struct glsl_type *type = var->type;
++         const unsigned elems =
++            glsl_type_is_array(type) ? glsl_get_length(type) : 1;
++         const struct glsl_type *elem_type =
++            glsl_type_is_array(type) ? glsl_get_array_element(type) : type;
++         if (!glsl_type_is_vector_or_scalar(elem_type))
++            continue;
++
++         for (unsigned e = 0; e < elems; e++) {
++            nir_deref_instr *d = nir_build_deref_var(b, var);
++            if (glsl_type_is_array(type))
++               d = nir_build_deref_array_imm(b, d, e);
++            nir_def *val = nir_load_deref(b, d);
++            if (val->bit_size != 32)
++               continue;
++
++            nir_def *offset = load_slot_offset(b, st->out_offsets, loc + e);
++
++            /* A slot the fragment shader does not read has no home. */
++            nir_push_if(b, nir_ine_imm(b, offset, PANVK_GS_SLOT_UNUSED));
++            nir_def *byte = nir_iadd(
++               b, nir_imul(b, slot, st->out_general_stride),
++               nir_iadd_imm(b, offset, var->data.location_frac * 4));
++            store_components(b, st->out_general, byte, val);
++            nir_pop_if(b, NULL);
++         }
++      }
++
++      if (st->xfb_dwords)
++         stage_xfb_record(b, st, slot);
++
++      /* Points: nir_lower_gs_intrinsics removes EndPrimitive, so the point
++       * is recorded here; its index is its own slot.
++       */
++      if (opts->output_verts_per_prim == 1) {
++         nir_def *addr = nir_iadd(
++            b, st->out_index,
++            nir_u2u64(b, nir_imul_imm(b, nir_iadd(b, st->out_idx_base, counter),
++                                      4)));
++         nir_store_global(b, slot, addr, .align_mul = 4, .write_mask = 0x1);
++         nir_def *written = nir_iadd_imm(b, counter, 1);
++         nir_store_var(b, st->prims_written[0], written, 1);
++         if (st->xfb_dwords) {
++            nir_push_if(b, nir_ine_imm(b, st->xfb_counts, 0));
++            nir_store_global(
++               b, written,
++               nir_iadd(b, st->xfb_counts,
++                        nir_u2u64(b, nir_imul_imm(b, st->gid, 4))),
++               .align_mul = 4, .write_mask = 0x1);
++            nir_pop_if(b, NULL);
++         }
++      }
++   }
++   nir_pop_if(b, NULL);
++}
++
++/* EndPrimitive(), and the implicit one at the end of the shader: write the
++ * index list that turns the strip into independent primitives.
++ */
++static void
++lower_end_primitive(nir_builder *b, nir_intrinsic_instr *intr,
++                    struct lower_gs_state *st)
++{
++   const struct panvk_gs_lower_options *opts = st->opts;
++   const unsigned vpp = opts->output_verts_per_prim;
++   const unsigned stream = nir_intrinsic_stream_id(intr);
++
++   if (stream != 0 && !st->xfb_dwords)
++      return;
++
++   /* end_primitive_with_counter(count, count_per_primitive): src[0] is the
++    * running total of vertices, src[1] the vertex count of THIS primitive.
++    */
++   nir_def *vtx_total = intr->src[0].ssa;
++   nir_def *vtx_in_prim = intr->src[1].ssa;
++
++   nir_def *vtx_start = nir_isub(b, vtx_total, vtx_in_prim);
++
++   /* A strip of N vertices expands to N - (vpp - 1) primitives. */
++   nir_def *nprims = nir_imax(b, nir_iadd_imm(b, vtx_in_prim, -(int)(vpp - 1)),
++                              nir_imm_int(b, 0));
++
++   nir_def *prim_base = nir_load_var(b, st->prims_written[stream]);
++
++   nir_variable *i =
++      nir_local_variable_create(b->impl, glsl_uint_type(), "gs_strip_i");
++   nir_store_var(b, i, nir_imm_int(b, 0), 1);
++
++   nir_push_loop(b);
++   {
++      nir_def *iv = nir_load_var(b, i);
++      nir_push_if(b, nir_uge(b, iv, nprims));
++      nir_jump(b, nir_jump_break);
++      nir_pop_if(b, NULL);
++
++      nir_def *idx_entry = nir_imul_imm(b, nir_iadd(b, prim_base, iv), vpp);
++
++      for (unsigned k = 0; k < vpp; k++) {
++         /* Every other triangle of a strip is reversed; bake the swap into
++          * the indices since the tiler draws an independent list.
++          */
++         nir_def *vbase =
++            stream_vtx_slot(b, st, stream, nir_iadd(b, vtx_start, iv));
++         nir_def *v = nir_iadd_imm(b, vbase, k);
++         if (vpp == 3 && k != 0) {
++            nir_def *odd = nir_iand_imm(b, iv, 1);
++            nir_def *swapped = nir_iadd_imm(b, vbase, k == 1 ? 2 : 1);
++            v = nir_bcsel(b, nir_ine_imm(b, odd, 0), swapped, v);
++         }
++
++         nir_def *addr =
++            stream_index_entry(b, st, stream, nir_iadd_imm(b, idx_entry, k));
++         nir_store_global(b, v, addr, .align_mul = 4, .write_mask = 0x1);
++      }
++
++      nir_store_var(b, i, nir_iadd_imm(b, iv, 1), 1);
++   }
++   nir_pop_loop(b, NULL);
++
++   nir_store_var(b, st->prims_written[stream], nir_iadd(b, prim_base, nprims),
++                 1);
++
++   /* Keep the transform feedback count current at every EndPrimitive. */
++   if (st->xfb_dwords) {
++      nir_push_if(b, nir_ine_imm(b, st->xfb_counts, 0));
++      nir_store_global(b, nir_iadd(b, prim_base, nprims),
++                       stream_count_addr(b, st, stream), .align_mul = 4,
++                       .write_mask = 0x1);
++      nir_pop_if(b, NULL);
++   }
++}
++
++/* Every index slot this invocation owns starts as a degenerate primitive,
++ * so the ones the shader never reaches are discarded by the tiler.
++ */
++static void
++emit_degenerate_fill(nir_builder *b, struct lower_gs_state *st)
++{
++   const struct panvk_gs_lower_options *opts = st->opts;
++   const unsigned total = opts->max_output_prims * opts->output_verts_per_prim;
++
++   nir_variable *i =
++      nir_local_variable_create(b->impl, glsl_uint_type(), "gs_fill_i");
++   nir_store_var(b, i, nir_imm_int(b, 0), 1);
++
++   nir_push_loop(b);
++   {
++      nir_def *iv = nir_load_var(b, i);
++      nir_push_if(b, nir_uge_imm(b, iv, total));
++      nir_jump(b, nir_jump_break);
++      nir_pop_if(b, NULL);
++
++      /* All indices equal => zero area => culled. */
++      nir_def *addr = nir_iadd(
++         b, st->out_index,
++         nir_u2u64(b, nir_imul_imm(b, nir_iadd(b, st->out_idx_base, iv), 4)));
++      nir_store_global(b, st->out_vtx_base, addr, .align_mul = 4,
++                       .write_mask = 0x1);
++
++      nir_store_var(b, i, nir_iadd_imm(b, iv, 1), 1);
++   }
++   nir_pop_loop(b, NULL);
++
++   nir_barrier(b, .memory_scope = SCOPE_WORKGROUP,
++               .memory_semantics = NIR_MEMORY_ACQ_REL,
++               .memory_modes = nir_var_mem_global);
++}
++
++static bool
++lower_gs_instr(nir_builder *b, nir_intrinsic_instr *intr, void *data)
++{
++   struct lower_gs_state *st = data;
++
++   b->cursor = nir_before_instr(&intr->instr);
++
++   switch (intr->intrinsic) {
++   case nir_intrinsic_load_per_vertex_input: {
++      nir_def *val = lower_per_vertex_input(b, intr, st);
++      nir_def_replace(&intr->def, val);
++      return true;
++   }
++   case nir_intrinsic_emit_vertex_with_counter:
++      lower_emit_vertex(b, intr, st);
++      nir_instr_remove(&intr->instr);
++      return true;
++   case nir_intrinsic_end_primitive_with_counter:
++      lower_end_primitive(b, intr, st);
++      nir_instr_remove(&intr->instr);
++      return true;
++   case nir_intrinsic_set_vertex_and_primitive_count:
++      /* The counts are fixed by the worst-case allocation. */
++      nir_instr_remove(&intr->instr);
++      return true;
++   case nir_intrinsic_load_primitive_id:
++      nir_def_replace(&intr->def, st->prim_id);
++      return true;
++   case nir_intrinsic_load_invocation_id:
++      nir_def_replace(&intr->def, st->invocation_id);
++      return true;
++   case nir_intrinsic_load_tess_param_buffer_poly:
++      nir_def_replace(&intr->def, st->tess_params);
++      return true;
++   default:
++      return false;
++   }
++}
++
++bool
++panvk_nir_lower_gs(nir_shader *nir, const struct panvk_gs_lower_options *opts)
++{
++   assert(nir->info.stage == MESA_SHADER_GEOMETRY);
++
++   /* A shader that returns ends its last primitive implicitly: add the
++    * EndPrimitive so a strip the shader never closed still writes indices.
++    */
++   {
++      nir_function_impl *impl = nir_shader_get_entrypoint(nir);
++      nir_builder b = nir_builder_create(impl);
++      nir_foreach_pred(pred, impl->end_block) {
++         b.cursor = nir_after_block_before_jump(pred);
++         u_foreach_bit(s, opts->stream_mask | 1)
++            nir_end_primitive(&b, .stream_id = s);
++      }
++      nir_progress(true, impl, nir_metadata_control_flow);
++   }
++
++   /* Give every EmitVertex/EndPrimitive a running counter, and make an
++    * incomplete trailing primitive discard itself.
++    */
++   nir->info.gs.active_stream_mask = opts->stream_mask | 1;
++   NIR_PASS(_, nir, nir_lower_gs_intrinsics,
++            nir_lower_gs_intrinsics_count_primitives |
++               nir_lower_gs_intrinsics_count_vertices_per_primitive |
++               nir_lower_gs_intrinsics_overwrite_incomplete |
++               ((opts->stream_mask & ~1u) ? nir_lower_gs_intrinsics_per_stream
++                                          : 0));
++
++   /* Inputs become load_per_vertex_input with a constant vertex index.
++    * Outputs stay variables: EmitVertex reads back what they hold NOW.
++    */
++   NIR_PASS(_, nir, nir_lower_var_copies);
++   NIR_PASS(_, nir, nir_lower_indirect_derefs_to_if_else_trees,
++            nir_var_shader_in, UINT32_MAX);
++   NIR_PASS(_, nir, nir_lower_io, nir_var_shader_in, gs_glsl_type_size, 0);
++   NIR_PASS(_, nir, nir_opt_constant_folding);
++
++   nir_function_impl *impl = nir_shader_get_entrypoint(nir);
++   nir_builder b = nir_builder_at(nir_before_impl(impl));
++
++   struct lower_gs_state st = {.opts = opts};
++
++   for (unsigned s = 0; s < 4; s++) {
++      st.prims_written[s] =
++         nir_local_variable_create(impl, glsl_uint_type(), "gs_prims_written");
++      nir_store_var(&b, st.prims_written[s], nir_imm_int(&b, 0), 1);
++   }
++
++#define P64(f) load_param_u64(&b, opts, offsetof(struct panvk_gs_push, f))
++#define P32(f) load_param_u32(&b, opts, offsetof(struct panvk_gs_push, f))
++   nir_def *in_pos_direct = P64(in_pos);
++   nir_def *in_general_direct = P64(in_general);
++   st.out_pos = P64(out_pos);
++   st.out_general = P64(out_general);
++   st.out_index = P64(out_index);
++   st.in_offsets = P64(in_offsets);
++   st.out_offsets = P64(out_offsets);
++   st.vp_scale =
++      load_param_vec3f(&b, opts, offsetof(struct panvk_gs_push, viewport_scale));
++   st.vp_offset =
++      load_param_vec3f(&b, opts, offsetof(struct panvk_gs_push, viewport_offset));
++   st.in_screen_space = P32(in_screen_space);
++   st.out_clip_space = P32(out_clip_space);
++   st.viewport_var = nir_find_variable_with_location(nir, nir_var_shader_out,
++                                                     VARYING_SLOT_VIEWPORT);
++   if (st.viewport_var)
++      st.viewports = P64(viewports);
++   st.in_general_stride = P32(in_general_stride);
++   st.out_general_stride = P32(out_general_stride);
++   st.tess_params = P64(tess_params);
++
++   nir_def *index_buf_direct = P64(index_buf);
++   st.index_size = P32(index_size);
++   st.topology = P32(topology);
++   nir_def *instance_stride_direct = P32(instance_stride);
++   nir_def *ppi_direct = P32(prims_per_instance);
++   nir_def *indirect_cmd = P64(indirect_cmd);
++
++   /* One invocation per (input primitive, gl_InvocationID) pair. */
++   nir_def *gid = nir_channel(&b, nir_load_global_invocation_id(&b, 32), 0);
++   const unsigned invocations = MAX2(opts->invocations, 1);
++   nir_def *prim_global = gid;
++   st.invocation_id = nir_imm_int(&b, 0);
++   if (invocations > 1) {
++      prim_global = nir_udiv_imm(&b, gid, invocations);
++      st.invocation_id = nir_umod_imm(&b, gid, invocations);
++   }
++
++   nir_def *num_prims = P32(num_input_prims);
++
++   st.out_vtx_base = nir_imul_imm(&b, gid, opts->max_output_verts);
++   st.out_idx_base =
++      nir_imul_imm(&b, gid, opts->max_output_prims * opts->output_verts_per_prim);
++
++   /* Trailing invocations of the last workgroup own no output slots. */
++   nir_push_if(&b, nir_uge(&b, prim_global, num_prims));
++   nir_jump(&b, nir_jump_return);
++   nir_pop_if(&b, NULL);
++
++   /* Transform feedback: every dispatched invocation owns a count, zeroed
++    * first in case it is past an indirect draw's real primitive count.
++    */
++   st.gid = gid;
++   uint32_t xfb_table[PANVK_XFB_MAX_RECORD_DWORDS];
++   const int xfb_dwords = panvk_gs_xfb_table(opts->xfb, xfb_table);
++   if (xfb_dwords < 0)
++      return false;
++   st.xfb_dwords = xfb_dwords;
++   if (st.xfb_dwords) {
++      st.xfb_counts = P64(xfb_counts);
++      st.xfb_staging = P64(xfb_staging);
++      st.stream_slots = P32(xfb_stream_slots);
++      st.stream_idx = P32(xfb_stream_idx);
++      st.stream_index = P64(xfb_stream_index);
++      st.xfb_invocations = P32(xfb_invocations);
++      nir_push_if(&b, nir_ine_imm(&b, st.xfb_counts, 0));
++      u_foreach_bit(s, opts->stream_mask | 1)
++         nir_store_global(&b, nir_imm_int(&b, 0), stream_count_addr(&b, &st, s),
++                          .align_mul = 4, .write_mask = 0x1);
++      nir_pop_if(&b, NULL);
++   }
++
++   /* An indirect draw: the real parameters are in the argument buffer, and
++    * where the vertex shader wrote is in the patched descriptors.
++    */
++   nir_def *prims_per_instance, *actual_prims;
++   nir_def *bias_direct = load_direct_bias(&b, opts, st.index_size);
++   nir_push_if(&b, nir_ine_imm(&b, indirect_cmd, 0));
++   nir_def *ppi_ind, *total_ind, *index_buf_ind, *stride_ind, *bias_ind,
++      *pos_ind, *gen_ind;
++   {
++      const unsigned vpp = MAX2(opts->input_verts_per_prim, 1);
++      nir_def *n = nir_load_global(&b, 1, 32, indirect_cmd, .align_mul = 4);
++      const struct indirect_inputs in =
++         load_indirect_inputs(&b, opts, indirect_cmd, index_buf_direct,
++                              st.index_size);
++
++      nir_def *list = nir_udiv_imm(&b, n, vpp);
++      nir_def *strip =
++         nir_bcsel(&b, nir_uge_imm(&b, n, vpp),
++                   nir_iadd_imm(&b, n, -(int)(vpp - 1)), nir_imm_int(&b, 0));
++      nir_def *fan = nir_bcsel(&b, nir_uge_imm(&b, n, 3), nir_iadd_imm(&b, n, -2),
++                               nir_imm_int(&b, 0));
++      nir_def *tsa =
++         nir_bcsel(&b, nir_uge_imm(&b, n, 6),
++                   nir_udiv_imm(&b, nir_iadd_imm(&b, n, -4), 2), nir_imm_int(&b, 0));
++      ppi_ind = nir_bcsel(
++         &b, nir_ieq_imm(&b, st.topology, PANVK_GS_TOPO_STRIP), strip,
++         nir_bcsel(&b, nir_ieq_imm(&b, st.topology, PANVK_GS_TOPO_FAN), fan,
++                   nir_bcsel(&b,
++                             nir_ieq_imm(&b, st.topology,
++                                         PANVK_GS_TOPO_TRI_STRIP_ADJ),
++                             tsa, list)));
++      total_ind = nir_umin(&b, nir_imul(&b, ppi_ind, in.inst), num_prims);
++      index_buf_ind = in.index_buf;
++      bias_ind = in.bias;
++      stride_ind = in.stride;
++      pos_ind = in.pos;
++      gen_ind = in.gen;
++   }
++   nir_pop_if(&b, NULL);
++   prims_per_instance = nir_if_phi(&b, ppi_ind, ppi_direct);
++   actual_prims = nir_if_phi(&b, total_ind, num_prims);
++   st.index_buf = nir_if_phi(&b, index_buf_ind, index_buf_direct);
++   st.instance_stride = nir_if_phi(&b, stride_ind, instance_stride_direct);
++   st.index_bias = nir_if_phi(&b, bias_ind, bias_direct);
++   st.in_pos = nir_if_phi(&b, pos_ind, in_pos_direct);
++   st.in_general = nir_if_phi(&b, gen_ind, in_general_direct);
++
++   /* A count only the GPU knows (the tessellator's index count). After the
++    * phis above: nir_if_phi merges the if just closed.
++    */
++   nir_def *count_addr = P64(num_prims_addr);
++   nir_push_if(&b, nir_ine_imm(&b, count_addr, 0));
++   nir_def *counted = nir_umin(
++      &b, nir_load_global(&b, 1, 32, count_addr, .align_mul = 4), num_prims);
++   nir_pop_if(&b, NULL);
++   actual_prims = nir_if_phi(&b, counted, actual_prims);
++
++   /* gl_PrimitiveIDIn restarts with every instance. */
++   nir_def *ppi = nir_umax(&b, prims_per_instance, nir_imm_int(&b, 1));
++   st.prims_per_instance = ppi;
++   st.instance = nir_udiv(&b, prim_global, ppi);
++   st.prim_id = nir_isub(&b, prim_global, nir_imul(&b, st.instance, ppi));
++
++   emit_degenerate_fill(&b, &st);
++
++   /* Invocation 0 tells the tiler how many indices there really are (stored
++    * minus one). No primitive at all still leaves one degenerate one.
++    */
++   nir_def *tiler_count_addr = P64(tiler_index_count);
++   nir_push_if(&b, nir_iand(&b, nir_ieq_imm(&b, gid, 0),
++                            nir_ine_imm(&b, tiler_count_addr, 0)));
++   {
++      const unsigned per_invocation =
++         opts->max_output_prims * opts->output_verts_per_prim;
++      nir_def *count =
++         nir_imul_imm(&b, actual_prims, invocations * per_invocation);
++      count = nir_umax(&b, count,
++                       nir_imm_int(&b, MAX2(opts->output_verts_per_prim, 1)));
++      nir_store_global(&b, nir_iadd_imm(&b, count, -1), tiler_count_addr,
++                       .align_mul = 4, .write_mask = 0x1);
++   }
++   nir_pop_if(&b, NULL);
++#undef P64
++#undef P32
++
++   /* Past the indirect draw's real primitive count: slots stay degenerate. */
++   nir_push_if(&b, nir_uge(&b, prim_global, actual_prims));
++   nir_jump(&b, nir_jump_return);
++   nir_pop_if(&b, NULL);
++
++   bool progress =
++      nir_shader_intrinsics_pass(nir, lower_gs_instr, nir_metadata_none, &st);
++
++   /* The output variables must stop being outputs: every EmitVertex is now
++    * explicit global stores, and leftover store_deref on shader_out does not
++    * compile on Bifrost. Retype to temporaries and lower to SSA.
++    */
++   nir_foreach_variable_with_modes_safe(var, nir, nir_var_shader_out)
++      var->data.mode = nir_var_shader_temp;
++   nir->info.outputs_written = 0;
++   nir_fixup_deref_modes(nir);
++   NIR_PASS(_, nir, nir_lower_global_vars_to_local);
++   NIR_PASS(_, nir, nir_lower_vars_to_ssa);
++   NIR_PASS(_, nir, nir_opt_dce);
++
++   /* It is a compute shader from here on. */
++   nir->info.stage = MESA_SHADER_COMPUTE;
++   nir->info.workgroup_size[0] = PANVK_GS_WORKGROUP_SIZE;
++   nir->info.workgroup_size[1] = 1;
++   nir->info.workgroup_size[2] = 1;
++   nir->info.workgroup_size_variable = false;
++
++   NIR_PASS(_, nir, nir_lower_returns);
++   NIR_PASS(_, nir, nir_opt_dce);
++
++   return progress;
++}
++
++/* -- TESSELLATION, see panvk_gs.h. */
++
++static bool
++lower_tcs_instr(nir_builder *b, nir_intrinsic_instr *intr, void *data)
++{
++   struct lower_gs_state *st = data;
++
++   b->cursor = nir_before_instr(&intr->instr);
++
++   switch (intr->intrinsic) {
++   case nir_intrinsic_load_per_vertex_input:
++      nir_def_replace(&intr->def, lower_per_vertex_input(b, intr, st));
++      return true;
++   case nir_intrinsic_barrier: {
++      /* The outputs become global memory (poly_nir_lower_tcs), and a patch
++       * does not fit in a Bifrost subgroup: keep workgroup scope and cover
++       * global memory.
++       */
++      nir_variable_mode modes = nir_intrinsic_memory_modes(intr);
++      if (!(modes & nir_var_shader_out))
++         return false;
++      nir_intrinsic_set_memory_modes(
++         intr, (modes & ~nir_var_shader_out) | nir_var_mem_global);
++      if (nir_intrinsic_execution_scope(intr) < SCOPE_WORKGROUP)
++         nir_intrinsic_set_execution_scope(intr, SCOPE_WORKGROUP);
++      if (nir_intrinsic_memory_scope(intr) < SCOPE_WORKGROUP)
++         nir_intrinsic_set_memory_scope(intr, SCOPE_WORKGROUP);
++      return true;
++   }
++   default:
++      return false;
++   }
++}
++
++static bool
++lower_tess_params_instr(nir_builder *b, nir_intrinsic_instr *intr, void *data)
++{
++   if (intr->intrinsic != nir_intrinsic_load_tess_param_buffer_poly)
++      return false;
++   nir_def_replace(&intr->def, (nir_def *)data);
++   return true;
++}
++
++bool
++panvk_nir_lower_tess_params(nir_shader *nir,
++                            const struct panvk_gs_lower_options *opts)
++{
++   nir_function_impl *impl = nir_shader_get_entrypoint(nir);
++   nir_builder b = nir_builder_at(nir_before_impl(impl));
++   nir_def *p =
++      load_param_u64(&b, opts, offsetof(struct panvk_gs_push, tess_params));
++   return nir_shader_intrinsics_pass(nir, lower_tess_params_instr,
++                                     nir_metadata_control_flow, p);
++}
++
++bool
++panvk_nir_lower_tcs_inputs(nir_shader *nir,
++                           const struct panvk_gs_lower_options *opts)
++{
++   nir_function_impl *impl = nir_shader_get_entrypoint(nir);
++   nir_builder b = nir_builder_at(nir_before_impl(impl));
++
++   struct lower_gs_state st = {.opts = opts};
++
++#define P64(f) load_param_u64(&b, opts, offsetof(struct panvk_gs_push, f))
++#define P32(f) load_param_u32(&b, opts, offsetof(struct panvk_gs_push, f))
++   nir_def *in_pos = P64(in_pos);
++   nir_def *in_general = P64(in_general);
++   st.in_offsets = P64(in_offsets);
++   st.in_general_stride = P32(in_general_stride);
++   st.vp_scale =
++      load_param_vec3f(&b, opts, offsetof(struct panvk_gs_push, viewport_scale));
++   st.vp_offset =
++      load_param_vec3f(&b, opts, offsetof(struct panvk_gs_push, viewport_offset));
++   st.in_screen_space = P32(in_screen_space);
++   nir_def *index_buf = P64(index_buf);
++   st.index_size = P32(index_size);
++   st.topology = nir_imm_int(&b, PANVK_GS_TOPO_LIST);
++   nir_def *instance_stride = P32(instance_stride);
++   st.prims_per_instance = P32(prims_per_instance);
++   st.vpp_dyn = P32(patch_size);
++
++   /* An indirect draw, read as panvk_nir_lower_gs reads one. */
++   nir_def *indirect_cmd = P64(indirect_cmd);
++   nir_def *bias_direct = load_direct_bias(&b, opts, st.index_size);
++   nir_push_if(&b, nir_ine_imm(&b, indirect_cmd, 0));
++   const struct indirect_inputs in =
++      load_indirect_inputs(&b, opts, indirect_cmd, index_buf, st.index_size);
++   nir_pop_if(&b, NULL);
++   st.index_buf = nir_if_phi(&b, in.index_buf, index_buf);
++   st.index_bias = nir_if_phi(&b, in.bias, bias_direct);
++   st.instance_stride = nir_if_phi(&b, in.stride, instance_stride);
++   st.in_pos = nir_if_phi(&b, in.pos, in_pos);
++   st.in_general = nir_if_phi(&b, in.gen, in_general);
++   st.tess_params = P64(tess_params);
++#undef P64
++#undef P32
++
++   /* One workgroup per patch: x the patch within its instance, y the
++    * instance.
++    */
++   nir_def *wg = nir_load_workgroup_id(&b);
++   st.prim_id = nir_channel(&b, wg, 0);
++   st.instance = nir_channel(&b, wg, 1);
++
++   return nir_shader_intrinsics_pass(nir, lower_tcs_instr, nir_metadata_none,
++                                     &st);
++}
++
++void
++panvk_nir_tes_to_gs(nir_shader *nir)
++{
++   nir->info.stage = MESA_SHADER_GEOMETRY;
++   memset(&nir->info.gs, 0, sizeof(nir->info.gs));
++   nir->info.gs.input_primitive = MESA_PRIM_POINTS;
++   nir->info.gs.output_primitive = MESA_PRIM_POINTS;
++   nir->info.gs.vertices_in = 1;
++   nir->info.gs.vertices_out = 1;
++   nir->info.gs.invocations = 1;
++   nir->info.gs.active_stream_mask = 1;
++
++   /* The outputs are copied out of their temporaries at the very end of the
++    * shader (nir_lower_io_vars_to_temporaries in panvk_preprocess_nir), so a
++    * single EmitVertex after everything flushes the finished vertex.
++    */
++   NIR_PASS(_, nir, nir_lower_returns);
++   nir_function_impl *impl = nir_shader_get_entrypoint(nir);
++   nir_builder b = nir_builder_at(nir_after_impl(impl));
++   nir_emit_vertex(&b, 0);
++   nir_progress(true, impl, nir_metadata_none);
++}
+diff --git a/src/panfrost/vulkan/panvk_shader.h b/src/panfrost/vulkan/panvk_shader.h
+index bf2904f4a68..6066cff5716 100644
+--- a/src/panfrost/vulkan/panvk_shader.h
++++ b/src/panfrost/vulkan/panvk_shader.h
+@@ -21,6 +21,8 @@
+ #include "panvk_mempool.h"
+ #if PAN_ARCH >= 9
+ #include "panvk_gpu_prerast.h"
++#else
++#include "panvk_gs.h"
+ #endif
+ 
+ #include "vk_pipeline_layout.h"
+@@ -238,6 +240,12 @@ struct panvk_compute_sysvals {
+    struct {
+       aligned_u64 sets[PANVK_DESC_TABLE_COMPUTE_COUNT];
+    } desc;
++
++   /* Geometry shader emulation: a lowered geometry shader runs as compute
++    * and reads its buffer addresses from here (panvk_nir_lower_gs.c
++    * addresses struct panvk_gs_push with offsetof()).
++    */
++   struct panvk_gs_push gs;
+ #endif
+ } __attribute__((aligned(FAU_WORD_SIZE)));
+ 
+@@ -250,6 +258,9 @@ static_assert((sizeof(struct panvk_compute_sysvals) % FAU_WORD_SIZE) == 0,
+ static_assert((offsetof(struct panvk_compute_sysvals, desc) % FAU_WORD_SIZE) ==
+                  0,
+               "panvk_compute_sysvals::desc must be 8-byte aligned");
++static_assert((offsetof(struct panvk_compute_sysvals, gs) % FAU_WORD_SIZE) ==
++                 0,
++              "panvk_compute_sysvals::gs must be 8-byte aligned");
+ #endif
+ 
+ /* This is not the final offset in the push constant buffer (AKA FAU), but
+@@ -433,6 +444,29 @@ struct panvk_shader_variant {
+       } fs;
+    };
+ 
++#if PAN_ARCH < 9
++   /* Geometry shaders are compiled as compute (panvk_nir_lower_gs.c), so
++    * this sits outside the stage union. The draw path reads it to size the
++    * output buffers and the dispatch.
++    */
++   struct {
++      uint32_t input_verts_per_prim;
++      uint32_t output_verts_per_prim;
++      uint32_t max_output_verts;
++      uint32_t max_output_prims;
++      uint32_t invocations;
++      uint64_t outputs_written;
++      enum mesa_prim output_prim;
++      /* Writes gl_ViewportIndex. */
++      bool writes_viewport;
++      /* Vertex shader variants: compiled to feed the emulation, so
++       * gl_Position stays in clip space (skip_viewport_transform) and is
++       * stored unsnapped.
++       */
++      bool vs_clip_space;
++   } gs;
++#endif
++
+    struct panvk_shader_fau_info fau;
+ 
+    const void *bin_ptr;
+@@ -606,10 +640,24 @@ struct panvk_shader_link {
+       struct panvk_priv_mem attribs;
+    } vs, fs;
+    unsigned buf_strides[PANVK_VARY_BUF_MAX];
++
++   /* Byte offset of each varying slot in the vertex shader's generic buffer,
++    * PANVK_GS_SLOT_UNUSED for a slot nothing reads. The geometry shader
++    * emulation reads them at draw time.
++    */
++   uint32_t buf_offsets[VARYING_SLOT_MAX];
++
++   /* With a geometry shader, the fragment shader reads the emulation's own
++    * generic buffer: one 16-byte slot per location the geometry shader writes
++    * and the fragment shader reads.
++    */
++   uint32_t gs_out_offsets[VARYING_SLOT_MAX];
++   uint32_t gs_out_stride;
+ };
+ 
+ VkResult panvk_per_arch(link_shaders)(struct panvk_pool *desc_pool,
+                                       const struct panvk_shader_variant *vs,
++                                      const struct panvk_shader_variant *gs,
+                                       const struct panvk_shader_variant *fs,
+                                       struct panvk_shader_link *link);
+ 
+diff --git a/src/panfrost/vulkan/panvk_vX_cmd_push_constant.c b/src/panfrost/vulkan/panvk_vX_cmd_push_constant.c
+index 7c762bb46e4..0e8eebd8373 100644
+--- a/src/panfrost/vulkan/panvk_vX_cmd_push_constant.c
++++ b/src/panfrost/vulkan/panvk_vX_cmd_push_constant.c
+@@ -95,6 +95,17 @@ panvk_per_arch(cmd_prepare_compute_push_uniforms)(
+                                 (uint64_t *)&cmdbuf->state.compute.sysvals);
+ }
+ 
++#if PAN_ARCH < 9
++VkResult
++panvk_per_arch(cmd_prepare_gs_push_uniforms)(
++   struct panvk_cmd_buffer *cmdbuf, const struct panvk_shader_variant *shader,
++   const struct panvk_compute_sysvals *sysvals, struct pan_ptr *push_uniforms)
++{
++   return prepare_push_uniforms(cmdbuf, shader, push_uniforms, 1,
++                                (uint64_t *)sysvals);
++}
++#endif
++
+ VKAPI_ATTR void VKAPI_CALL
+ panvk_per_arch(CmdPushConstants2KHR)(
+    VkCommandBuffer commandBuffer,
+diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
+index 2389af31196..2e8c6209090 100644
+--- a/src/panfrost/vulkan/panvk_vX_physical_device.c
++++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
+@@ -317,7 +317,8 @@ panvk_per_arch(get_physical_device_features)(
+       .fullDrawIndexUint32 = true,
+       .imageCubeArray = true,
+       .independentBlend = true,
+-      .geometryShader = PAN_ARCH >= 9 && !PANVK_DEBUG(NO_GS),
++      /* v6/v7: emulated by a compute job (panvk_nir_lower_gs.c). */
++      .geometryShader = !PANVK_DEBUG(NO_GS),
+       .tessellationShader = PAN_ARCH >= 9,
+       .sampleRateShading = true,
+       .dualSrcBlend = true,
+@@ -359,8 +360,8 @@ panvk_per_arch(get_physical_device_features)(
+       .shaderSampledImageArrayDynamicIndexing = true,
+       .shaderStorageBufferArrayDynamicIndexing = true,
+       .shaderStorageImageArrayDynamicIndexing = true,
+-      .shaderClipDistance = PAN_ARCH >= 9,
+-      .shaderCullDistance = PAN_ARCH >= 9,
++      .shaderClipDistance = true,
++      .shaderCullDistance = true,
+       .shaderFloat64 = false,
+       .shaderInt64 = true,
+       .shaderInt16 = true,
+@@ -953,11 +954,11 @@ panvk_per_arch(get_physical_device_properties)(
+       .maxTessellationControlTotalOutputComponents = PAN_ARCH >= 9 ? 4096 : 0,
+       .maxTessellationEvaluationInputComponents = PAN_ARCH >= 9 ? 128 : 0,
+       .maxTessellationEvaluationOutputComponents = PAN_ARCH >= 9 ? 128 : 0,
+-      .maxGeometryShaderInvocations = PAN_ARCH >= 9 ? 64 : 0,
+-      .maxGeometryInputComponents = PAN_ARCH >= 9 ? 64 : 0,
+-      .maxGeometryOutputComponents = PAN_ARCH >= 9 ? 128 : 0,
+-      .maxGeometryOutputVertices = PAN_ARCH >= 9 ? 256 : 0,
+-      .maxGeometryTotalOutputComponents = PAN_ARCH >= 9 ? 1024 : 0,
++      .maxGeometryShaderInvocations = PAN_ARCH >= 9 ? 64 : 32,
++      .maxGeometryInputComponents = 64,
++      .maxGeometryOutputComponents = 128,
++      .maxGeometryOutputVertices = 256,
++      .maxGeometryTotalOutputComponents = 1024,
+       /* 32 vec4 varyings. */
+       .maxFragmentInputComponents = 128,
+       /* 8 render targets. */
+@@ -1033,9 +1034,9 @@ panvk_per_arch(get_physical_device_properties)(
+          PAN_ARCH >= 9 && device->kmod.dev->props.gpu_can_query_timestamp,
+       .timestampPeriod =
+          PAN_ARCH >= 9 ? panvk_get_gpu_system_timestamp_period(device) : 0,
+-      .maxClipDistances = PAN_ARCH >= 9 ? 8 : 0,
+-      .maxCullDistances = PAN_ARCH >= 9 ? 8 : 0,
+-      .maxCombinedClipAndCullDistances = PAN_ARCH >= 9 ? 8 : 0,
++      .maxClipDistances = 8,
++      .maxCullDistances = 8,
++      .maxCombinedClipAndCullDistances = 8,
+       .discreteQueuePriorities = 2,
+       .pointSizeRange = {pointSizeRangeMin, pointSizeRangeMax},
+       .lineWidthRange = {0.0, 7.9921875},
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index 1683d089212..ac5b75f305d 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -3445,6 +3445,14 @@ panvk_compile_shader(struct panvk_device *dev,
+     * the separate vertex job as well.
+     */
+    inputs.no_idvs = true;
++
++   /* The geometry shader emulation reads the vertex shader's output in clip
++    * space and does the viewport transform itself (panvk_nir_lower_gs.c).
++    */
++   const bool vs_clip_space =
++      info->stage == MESA_SHADER_VERTEX &&
++      (info->next_stage_mask & VK_SHADER_STAGE_GEOMETRY_BIT);
++   inputs.skip_viewport_transform = vs_clip_space;
+ #endif
+ 
+ #if PAN_ARCH == 9
+@@ -3491,6 +3499,9 @@ panvk_compile_shader(struct panvk_device *dev,
+ #endif
+       for (enum panvk_vs_variant v = 0; v <= last_variant; v++) {
+          struct panvk_shader_variant *variant = &shader->variants[v];
++#if PAN_ARCH < 9
++         variant->gs.vs_clip_space = vs_clip_space;
++#endif
+ 
+          /* Each variant gets its own NIR. To save an extra clone, we use the
+           * original NIR for the last stage.
+@@ -3835,6 +3846,78 @@ panvk_compile_shader(struct panvk_device *dev,
+       t->compiled = true;
+       break;
+    }
++#else
++   case MESA_SHADER_GEOMETRY: {
++      /* Mali has no geometry stage: the shader is lowered into a compute
++       * shader that runs between the vertex job and the tiler job. See
++       * panvk_nir_lower_gs.c.
++       */
++      struct panvk_shader_variant *variant =
++         (struct panvk_shader_variant *)panvk_shader_only_variant(shader);
++      nir_shader *nir = info->nir;
++
++      const unsigned in_verts =
++         mesa_vertices_per_prim(nir->info.gs.input_primitive);
++      const unsigned out_verts =
++         mesa_vertices_per_prim(nir->info.gs.output_primitive);
++
++      variant->gs.input_verts_per_prim = in_verts;
++      variant->gs.output_verts_per_prim = out_verts;
++      variant->gs.max_output_verts = nir->info.gs.vertices_out;
++      variant->gs.invocations = MAX2(nir->info.gs.invocations, 1);
++      variant->gs.max_output_prims =
++         nir->info.gs.vertices_out >= out_verts
++            ? nir->info.gs.vertices_out - (out_verts - 1)
++            : 0;
++      variant->gs.output_prim = nir->info.gs.output_primitive;
++      /* From the variables: nothing gathered info on this NIR yet. */
++      variant->gs.outputs_written = 0;
++      nir_foreach_shader_out_variable(var, nir) {
++         if (var->data.compact)
++            continue;
++         const unsigned slots = glsl_count_attribute_slots(var->type, false);
++         variant->gs.outputs_written |=
++            BITFIELD64_RANGE(var->data.location, slots);
++      }
++      variant->gs.writes_viewport =
++         variant->gs.outputs_written & BITFIELD64_BIT(VARYING_SLOT_VIEWPORT);
++      if (variant->gs.writes_viewport)
++         variant->gs.outputs_written |=
++            BITFIELD64_BIT(PANVK_GS_VIEWPORT_INDEX_SLOT);
++
++      const struct panvk_gs_lower_options gs_opts = {
++         .stream_mask = 1,
++         .input_verts_per_prim = in_verts,
++         .output_verts_per_prim = out_verts,
++         .max_output_verts = variant->gs.max_output_verts,
++         .max_output_prims = variant->gs.max_output_prims,
++         .invocations = variant->gs.invocations,
++         .pos_stride = sizeof(uint32_t) * 4,
++         .params_base = SYSVALS_PUSH_CONST_BASE +
++                        offsetof(struct panvk_compute_sysvals, gs),
++      };
++
++      if (!panvk_nir_lower_gs(nir, &gs_opts)) {
++         panvk_shader_destroy(&dev->vk, &shader->vk, pAllocator);
++         return panvk_error(dev, VK_ERROR_FEATURE_NOT_PRESENT);
++      }
++
++      /* A compute shader from here on. */
++      panvk_lower_nir(dev, nir, info->set_layout_count, info->set_layouts,
++                      info->robustness, state, &shader->desc_info, false);
++
++      struct pan_compile_inputs k_inputs = inputs;
++      k_inputs.varying_layout = NULL;
++      k_inputs.view_mask = 0;
++      variant->own_bin = true;
++      result = panvk_compile_nir(dev, nir, info->flags, &k_inputs, state, NULL,
++                                 &shader->desc_info, variant);
++      if (result != VK_SUCCESS) {
++         panvk_shader_destroy(&dev->vk, &shader->vk, pAllocator);
++         return result;
++      }
++      break;
++   }
+ #endif
+ 
+    case MESA_SHADER_FRAGMENT: {
+@@ -4218,6 +4301,9 @@ panvk_deserialize_shader_variant(struct vk_device *vk_dev,
+ 
+    shader->info = info;
+    blob_copy_bytes(blob, &shader->fau, sizeof(shader->fau));
++#if PAN_ARCH < 9
++   blob_copy_bytes(blob, &shader->gs, sizeof(shader->gs));
++#endif
+ 
+    switch (shader->info.stage) {
+    case MESA_SHADER_COMPUTE:
+@@ -4393,6 +4479,9 @@ panvk_shader_serialize_variant(struct vk_device *vk_dev,
+ {
+    blob_write_bytes(blob, &shader->info, sizeof(shader->info));
+    blob_write_bytes(blob, &shader->fau, sizeof(shader->fau));
++#if PAN_ARCH < 9
++   blob_write_bytes(blob, &shader->gs, sizeof(shader->gs));
++#endif
+ 
+    switch (shader->info.stage) {
+    case MESA_SHADER_COMPUTE:
+@@ -4720,7 +4809,7 @@ static VkResult
+ emit_varying_attrs(struct panvk_pool *desc_pool,
+                    const struct pan_varying_layout *varyings,
+                    const unsigned *bit_sizes, const unsigned *buf_offsets,
+-                   struct panvk_priv_mem *mem)
++                   bool pos_clip_space, struct panvk_priv_mem *mem)
+ {
+    const unsigned varying_count = varyings->count;
+    if (!varying_count) {
+@@ -4767,6 +4856,13 @@ emit_varying_attrs(struct panvk_pool *desc_pool,
+                cfg.buffer_index = varying_buf_id(loc);
+                cfg.offset = buf_offsets[loc];
+                cfg.format = varying_format(loc, pfmt);
++               /* SNAP_4 is the tiler's fixed-point position. A vertex shader
++                * feeding the geometry emulation writes clip space, which the
++                * emulation reads back as plain floats.
++                */
++               if (loc == VARYING_SLOT_POS && pos_clip_space)
++                  cfg.format = GENX(pan_format_from_pipe_format)(
++                                  PIPE_FORMAT_R32G32B32A32_FLOAT)->hw;
+             }
+             cfg.offset_enable = false;
+          }
+@@ -4779,6 +4875,7 @@ emit_varying_attrs(struct panvk_pool *desc_pool,
+ VkResult
+ panvk_per_arch(link_shaders)(struct panvk_pool *desc_pool,
+                              const struct panvk_shader_variant *vs,
++                             const struct panvk_shader_variant *gs,
+                              const struct panvk_shader_variant *fs,
+                              struct panvk_shader_link *link)
+ {
+@@ -4816,10 +4913,26 @@ panvk_per_arch(link_shaders)(struct panvk_pool *desc_pool,
+    }
+    buf_strides[PANVK_VARY_BUF_GENERAL] = vs_layout->generic_size_B;
+ 
++   /* A geometry shader may read any generic slot the vertex shader writes,
++    * so all of them are kept, and the fragment shader is linked against the
++    * emulation's own output buffer below.
++    */
++   if (gs) {
++      for (uint32_t i = 0; i < vs_layout->count; i++) {
++         const struct pan_varying_slot *vs_slot =
++            pan_varying_layout_slot_at(vs_layout, i);
++         if (!vs_slot || vs_slot->section != PAN_VARYING_SECTION_GENERIC)
++            continue;
++         buf_offsets[vs_slot->location] = vs_slot->offset;
++         buf_sizes[vs_slot->location] =
++            nir_alu_type_get_type_size(vs_slot->alu_type);
++      }
++   }
++
+    /* When no fragment shader is present we can just ignore all
+     * generic varyings writes.
+     */
+-   const uint32_t fs_var_count = fs ? fs->info.varyings.formats.count : 0;
++   const uint32_t fs_var_count = !gs && fs ? fs->info.varyings.formats.count : 0;
+    for (uint32_t i = 0; i < fs_var_count; i++) {
+       const struct pan_varying_slot *fs_var =
+          pan_varying_layout_slot_at(&fs->info.varyings.formats, i);
+@@ -4845,19 +4958,51 @@ panvk_per_arch(link_shaders)(struct panvk_pool *desc_pool,
+    }
+ 
+    panvk_shader_link_cleanup(link);
+-   VkResult result = emit_varying_attrs(desc_pool, vs_layout, buf_sizes,
+-                                        buf_offsets, &link->vs.attribs);
++   VkResult result =
++      emit_varying_attrs(desc_pool, vs_layout, buf_sizes, buf_offsets,
++                         vs->gs.vs_clip_space, &link->vs.attribs);
+    if (result != VK_SUCCESS)
+       return result;
+ 
++   /* The geometry shader's output layout: a vec4 of 32-bit components per
++    * location it writes and the fragment shader reads, which is what the
++    * emulation stores (panvk_nir_lower_gs.c).
++    */
++   unsigned gs_sizes[VARYING_SLOT_MAX] = {0};
++   unsigned gs_offsets[VARYING_SLOT_MAX] = {0};
++   link->gs_out_stride = 0;
++   for (unsigned i = 0; i < VARYING_SLOT_MAX; i++)
++      link->gs_out_offsets[i] = PANVK_GS_SLOT_UNUSED;
++   if (gs && fs) {
++      for (uint32_t i = 0; i < fs->info.varyings.formats.count; i++) {
++         const struct pan_varying_slot *fs_var =
++            pan_varying_layout_slot_at(&fs->info.varyings.formats, i);
++         if (!fs_var || fs_var->section != PAN_VARYING_SECTION_GENERIC ||
++             !(gs->gs.outputs_written & BITFIELD64_BIT(fs_var->location)))
++            continue;
++         gs_offsets[fs_var->location] = link->gs_out_stride;
++         gs_sizes[fs_var->location] = 32;
++         link->gs_out_offsets[fs_var->location] = link->gs_out_stride;
++         link->gs_out_stride += 16;
++      }
++   }
++
+    if (fs) {
+       pan_varying_layout_require_format(&fs->info.varyings.formats);
+       result = emit_varying_attrs(desc_pool, &fs->info.varyings.formats,
+-                                  buf_sizes, buf_offsets, &link->fs.attribs);
++                                  gs ? gs_sizes : buf_sizes,
++                                  gs ? gs_offsets : buf_offsets, false,
++                                  &link->fs.attribs);
+       if (result != VK_SUCCESS)
+          return result;
+    }
+ 
++   /* Slot offsets for the geometry shader emulation; a slot nothing reads
++    * must say so, or the emulation stores through a zero-sized buffer.
++    */
++   for (unsigned i = 0; i < VARYING_SLOT_MAX; i++)
++      link->buf_offsets[i] = buf_sizes[i] ? buf_offsets[i] : PANVK_GS_SLOT_UNUSED;
++
+    memcpy(link->buf_strides, buf_strides, sizeof(link->buf_strides));
+    return VK_SUCCESS;
+ }
+@@ -4953,6 +5098,12 @@ panvk_cmd_bind_shader(struct panvk_cmd_buffer *cmd, const mesa_shader_stage stag
+       }
+       break;
+ #else
++   case MESA_SHADER_GEOMETRY:
++      if (cmd->state.gfx.gs.shader != shader) {
++         cmd->state.gfx.gs.shader = shader;
++         gfx_state_set_dirty(cmd, GS);
++      }
++      break;
+    case MESA_SHADER_TESS_CTRL:
+    case MESA_SHADER_TESS_EVAL:
+       assert(shader == NULL);
+-- 
+2.56.0
+
