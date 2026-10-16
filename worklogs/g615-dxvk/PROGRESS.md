@@ -2,6 +2,32 @@
 
 Snapshot: 2026-10-08. beta.17 is released (Mesa 5a07217f + csf-v11 up to 121, plus android/014 and jm-v9). beta.18-rc1 was released on 2026-10-07 as a prerelease (series up to 180); PanProbe 37/37 on G610, G710, G615, G715, G720 and G925. beta.18-rc2 (rc1 plus csf-v11/181 `robustImageAccess2` on v10+) will be released soon. Device: Mali G615 (PAN_ARCH 11, gpu_id 0xb8a31030). Fallout 4 hangs before the driver loads; the root cause is two bugs in the bundled Proton arm64ec, not the driver (worklogs/driver-remaining/fo4-hang-before-driver.md).
 
+Update 2026-10-16: 0.1.0-rc3 (2026-10-12) and rc3-lowmem (2026-10-13) are released as prereleases. Work for Mali v9 through v13 is done: PanProbe passes 38/38 on v9, v10, v11, v12 and v13 devices in the cloud uploads. The cloud log review for both builds, the refreshed "what's left" list, and the new v14 and v7 sections are at the end of this file ("RC3 and RC3-lowmem cloud log findings", "Mali v14 support", "Mali v7 (Bifrost) support").
+
+Test devices (2026-10-16): the Mali devices on Samsung RTL, Firebase Test Lab and our own, by arch, and the gaps are in [TEST_DEVICES.md](TEST_DEVICES.md).
+
+## Status 2026-10-16 (goal loop)
+
+Done/built, not device-tested:
+- [x] App items 11-16: glibc refuse, vendor ICD flag, swapchain no-surface SKIP, depth_bounds best-of-5, Bifrost message, Firebase Game Loop + `scripts/firebase-panprobe.sh`.
+- [x] jm-v7 001-004: variant, gate, JIT skip, stride 64.
+- [x] API 29 build (no `call_once` shim needed).
+- [x] C ION fallback: jm-v7 005. VERIFIED on S20+ G77 (see Verified).
+- [x] D: patch csf-v11/186 (MTK SLC MEM_IMPORT 40-byte layout retry) built at `/var/tmp/panvk/dist-v14imp` (BuildID `acdb9594`), untested. Needs G1-Ultra tester.
+
+Analysed, no code change:
+- [x] E (user-exit artefact).
+- [x] F (cause unknown, needs G57 rerun).
+
+Open:
+- [ ] A: not one bug. Tiler heap OOM; VT progress timeout; CS_UNRECOVERABLE on G610; RE7/SMB3D are MMU faults.
+- [ ] B: stale pointer hypothesis. Needs a real Mali CSF device.
+- [ ] D: needs G1-Ultra run of 186 (built, untested).- [ ] Items 18-21: need devices.
+
+Verified:
+- [x] S20+ G77 rc3-lowmem 38/38.
+- [x] C on S20+ G77 (kernel 4.19, ION path): 32-bit D3D9 cube passes, no placed-map error. API 29 build + jm-v7 001-005: no regression on v9 (38/38).
+
 Launcher scope correction (2026-10-02): ARM64EC DX8/9/10/11 clear + source
 readback + X11 Present passes, including actual app path-only launches. Evidence:
 `apps/panvk-launcher/tests/results/arm64ec-matrix/README.md` and sibling
@@ -229,6 +255,20 @@ Series: rc1 plus the patches below. To be released soon.
 
 ## What's left for DXVK (driver)
 
+### Refreshed list (2026-10-16, after the rc3 and rc3-lowmem cloud logs)
+
+The numbered items below are the history. This is the current order of work. Evidence for each line is in "RC3 and RC3-lowmem cloud log findings" at the end of this file.
+
+1. **CSF DEVICE_LOST in real games (v10-v13).** 14 PanPlay sessions on rc3 lost the device after a CS subqueue timeout with `stream progress 0x0` and `error 0x0` (Stray, Mafia II, Dead Space 3, Castlevania Lords of Shadow 2, Dead Cells, RE7, Super Meat Boy 3D, Rubinite), on G610, G615, G715, G720 and G925. Two more (Dark Souls on G615 MC6) were a CSF group fatal error with exception 0xC1 (an MMU translation fault). This is now the most common driver failure and the main blocker for a final release.
+2. **v9 JM placed maps for 32-bit (WOW64) games.** On v9 the driver refuses placed maps of BOs that are not dma-bufs (`kbase: placed map of a non-dma-buf BO is not supported`), so DXVK gets `VK_ERROR_MEMORY_MAP_FAILED` in every x86 game (RE6, RE Revelations, Tomb Raider, MXGP, the x86 D3D8 cube) on G57, G77 and G78. x64 and ARM64EC games are not affected. The CSF fix (091, dma-heap placed maps) needs a JM equivalent.
+3. **v14 (G1-Ultra) dma-buf import.** Memory allocation works since the ALLOC_EX fallback (PanProbe 37/38), but `KBASE_IOCTL_MEM_IMPORT` also returns ENOTTY. That breaks the Android swapchain and all 32-bit DXVK games. See "Mali v14 support".
+4. **v7 Bifrost bring-up**, if wanted: gpu_id variant matching, the `PAN_I_WANT_A_BROKEN_VULKAN_DRIVER` gate, `MEM_JIT_INIT` failing, and a full feature gap. See "Mali v7 (Bifrost) support".
+5. **Android 10 (API 29) devices cannot load the ICD.** The .so is built with the android35 toolchain and imports `call_once` (bionic API 30+), so `dlopen` fails on Android 10 (Redmi Note 8 Pro, Huawei P40, vivo 1806). Either build with an API 29 target and avoid `call_once`, or state "Android 11+" in the apps and release notes.
+6. **v9 `large_draw` query DEVICE_LOST** on one G57 MC2 (Infinix X6711, rc3, 2 of 2 runs): `points_indirect` passes, then `GetQueryPoolResults r=-4`. Other G57 MC2 devices pass 38/38 on lowmem. Ask for a lowmem rerun on that phone before debugging. Also one v9 G57 MC1 game session hit `kbase: JM atom N failed: event=0x4`.
+7. **X11 surface re-creation returns `VK_ERROR_OUT_OF_HOST_MEMORY`.** 11 PanPlay sessions (mostly v9 G68/G57, once each on v10-v13): after `VK_ERROR_OUT_OF_DATE_KHR`, DXVK cannot get surface capabilities (`SURFACE_LOST`) and re-creating the Xlib surface fails with OOHM. All 11 ended as user exits, so this is probably the window going away at exit or on backgrounding, but the error code is wrong and Just Cause 2 hit it twice on G68. Check the X11 WSI surface error mapping.
+8. **App-side fixes (PanProbe/PanPlay):** reject a glibc .so on import with a clear message (9 PanProbe reports imported the glibc build and failed on `libdrm.so.2`); detect when the test processes fall back to the vendor ICD (two G615 lowmem runs ran the tests on the vendor driver while the manifest said "Bundled PanVK"); make `swapchain_lifecycle` report "no surface" / `ANativeWindow_getWidth -19` as SKIP or a harness error, not a driver FAIL; the `depth_bounds` perf case `I_perf_dyn_off` (ratio 2.64 on one G720 MC8) is timing-sensitive and should not fail the suite on its own.
+9. Older open items below that still apply: 11 (asynchronous submission), 24 (fan `gl_BaseInstance`), 25 (small follow-ups), 26 (series-order fragility), 29 (v13 D3D8/D3D9 frame rate), 38 (denorm independence), 39 (`maxFragmentDualSrcAttachments`), and the CTS failures under "Open problems".
+
 3. DXVK FL11_1 re-check: **done (static + existing G615 logs).** DXVK 3.1.1 needs `logicOp` + `vertexPipelineStoresAndAtomics` for 11_1; both are on for v10-v12. G615 launcher logs (2026-10-03) already show `Maximum supported feature level: D3D_FEATURE_LEVEL_11_1`; the FL 11_0 in the done table predates 078. Expected: v10 11_1 (after 108), v11/v12 11_1, v13/v14 11_0 (VPSA is drirc opt-in). 12_0 is blocked by sparse/tiled resources (NO-GO on kbase), 12_1 by fragment shader interlock. [Worklog](../driver-remaining/fl11_1-recheck.md).
   - Tester data (2026-10-06) confirms it: stock G615 cubes get FL11_1, v13 Immortalis-G925 cubes and Core Keeper get FL11_0 (`vertexPipelineStoresAndAtomics : 0`). Open question in item 23.
 4. `shaderOutputViewportIndex`: v12+ bit on with run splitting since 109 (untested on hardware; see item 16). **FS `gl_PrimitiveID` across viewport runs: csf-v11/115, released in beta.17, G615 PanProbe 36/36.** The run builder packs the per-draw primitive ID into index bits 16+, and the passthrough VS outputs it. Limits: IDs wrap past 65535, polygon-mode LINE/POINT gets 0, GPU-chunked draws restart the ID per chunk. [Worklog](../driver-remaining/115-viewport-run-primitive-id.md).
@@ -305,6 +345,7 @@ New driver gaps from tester data ([docs/universal/README.md](../../docs/universa
     - Tester check (G1-Ultra PanPlay/PanProbe logcat): `kbase: CSF driver, uAPI version X.Y`, `kbase: KBASE_IOCTL_MEM_ALLOC_EX failed: ... trying KBASE_IOCTL_MEM_ALLOC`, `kbase: mem_alloc via ALLOC`, then the queue_group_create/tiler_heap_init layout lines.
     - If group create or heap init also fail with ENOTTY, the kernel's CSF uAPI differs more widely; send the version line.
     - No new v14 data on 2026-10-06.
+    - **2026-10-16: the fallback works on hardware.** rc3 and rc3-lowmem uploads from four G1-Ultra phones (CSF uAPI 1.38) log `KBASE_IOCTL_MEM_ALLOC_EX failed ... trying KBASE_IOCTL_MEM_ALLOC`, `mem_alloc via ALLOC`, `queue_group_create layout=112 bytes`, `tiler_heap_init layout=16 bytes`, and PanProbe passes 37/38. The new blocker is `KBASE_IOCTL_MEM_IMPORT` ENOTTY; see "Mali v14 support" at the end of this file.
 
 beta.17 review follow-ups (2026-10-06; details in the review table above). None blocks the release; each needs a check or a small fix.
 
@@ -346,7 +387,7 @@ New findings from tester data (2026-10-06, D1 ids 54-90).
   - v11 G715 (Pixel 8, Firebase): 37/37 on rc1.
   - v12: G720 14/17 in six runs on beta.14/15 (item 16); Immortalis-G720 MC12 37/37 on rc1.
   - v13: two Immortalis-G925 devices, 14/17 on beta.15 (item 16); G925 MC12 37/37 on rc1. First DXVK runs: cubes exit 0 at FL11_0 (item 23), D3D8/D3D9 slow (item 29), Core Keeper reaches Steamworks init (item 32).
-  - v14: G1-Ultra fails `vkCreateDevice` on `MEM_ALLOC_EX` ENOTTY in all 8 runs (item 20; no new data).
+  - v14: G1-Ultra fails `vkCreateDevice` on `MEM_ALLOC_EX` ENOTTY in all 8 runs (item 20; no new data). Superseded 2026-10-16: on rc3 the device works (PanProbe 37/38); only dma-buf import (`MEM_IMPORT` ENOTTY) fails. See "Mali v14 support".
   - Still-unseen gpu_ids: G510, G310, G620, Immortalis-G720, G68, G78, G625, plain G725, G1-Premium, G1-Pro. G710 and G715 are now seen (Firebase, rc1 37/37).
 
 - CTS (beta.13, G615): 188 old failures, same on beta.10 and beta.12: `clipping.user_defined.clip_distance*`/`clip_cull_distance*` through GS or tessellation (128), and `draw.*shader_viewport_index.fragment_shader_2..16` (60). 16 of the clip cases pass when run alone, so some state leaks between cases. Evidence: `validation/driver-remaining/beta13-device/`.
@@ -397,3 +438,141 @@ Seen once under Xvfb in the glibc chroot (`x11_wait_for_present` in `destroySwap
 | Pixel 7a (lynx:33) | G710 (v10) | Firebase `matrix-1rshhvtwvqtmf` | 38/38 | |
 
 - No failures. Firebase: 5/5 daily physical runs used (0 left today); one device at a time, no retries. Results: `/var/tmp/panvk/firebase-panprobe/res/rc3cand-*`, RTL: `/var/tmp/panvk/rc3-cand/rtl-x920/`.
+
+## RC3 and RC3-lowmem cloud log findings (2026-10-16)
+
+### Source and method
+
+- Uploads go to the `panvk-upload` Cloudflare Worker (`cloud/upload-worker`, `https://panvk-upload.panvk.workers.dev`). Metadata is in the D1 database `panvk-uploads` (table `uploads`); the zips are in Workers KV and are served at `/blob/<sha256>`. Some older clients uploaded to Catbox or Gofile instead.
+- Query (read-only): every row whose `driver_so_sha256` starts with `b46b9f04` (rc3 Android), `43d4783f` (rc3 glibc), `f550a006` (rc3-lowmem Android) or `96e92576` (rc3-lowmem glibc). That gives 303 rows from 2026-10-11 to 2026-10-16 (D1 ids up to 884), from 79 device models.
+- Downloaded and sha256-checked: 254 from KV and 42 from Catbox, so 296 of 303. Six Gofile-only uploads could not be fetched (Gofile answers `error-notPremium` / `error-rateLimit`), and one row has no link.
+- Data: `/var/tmp/panvk/cloud-rc3/` (`rows.json`, `blobs/`, extracted zips in `x/`, `probe_fails.json`, `play_sessions.json`).
+
+| Build | PanProbe uploads | PanPlay uploads |
+|---|---|---|
+| rc3 Android (`b46b9f04`, BuildID `4ec75e25`) | 78 | 151 |
+| rc3 glibc (`43d4783f`) | 5 (imported into PanProbe by mistake) | 0 |
+| rc3-lowmem Android (`f550a006`, BuildID `9d975491`) | 59 | 5 |
+| rc3-lowmem glibc (`96e92576`) | 4 (imported into PanProbe by mistake) | 1 |
+
+PanPlay was not re-released with lowmem, so almost all game sessions are on rc3.
+
+### Device coverage
+
+PanProbe (Android builds only; "full" = 38/38):
+
+| Arch | GPUs seen | rc3 reports (full) / devices | lowmem reports (full) / devices |
+|---|---|---|---|
+| v6 | G72 MP3 | none | 1 (0) / 1, dlopen fails on Android 10 |
+| v7 | G52, G52 MC2, G76, G76 MC4 | 5 (0) / 4 | none |
+| v9 | G57 MC1/MC2, G68 MC2/MC4/MC5, G77 MC9, G78 MC14/MC20 | 16 (13) / 12 | 12 (11) / 8 |
+| v10 | G610 MC4/MC6, G710 MC7/MC10 | 6 (5) / 4 | 1 (1) / 1 |
+| v11 | G615 MC2/MC5/MC6, G715 MC7, Immortalis-G715 MC11 | 19 (18) / 12 | 20 (18) / 11 |
+| v12 | G720 MC7/MC8, Immortalis-G720 MC12 | 8 (8) / 4 | 11 (9) / 5 |
+| v13 | Immortalis-G925 MC11/MC12 | 19 (19) / 6 | 11 (11) / 5 |
+| v14 | G1-Ultra MC12 | 3 (0, all 37/38) / 2 | 2 (0, all 37/38) / 2 |
+
+PanPlay (153 sessions with logs; "clean" = normal exit or user exit with no driver error in the logs):
+
+| Arch | rc3 sessions (clean) / devices | lowmem sessions (clean) |
+|---|---|---|
+| v6 / v7 | 1 (0) / 1 each | none |
+| v9 | 14 (9) / 7 | 4 (2), plus 1 glibc |
+| v10 | 19 (11) / 3 | none |
+| v11 | 28 (14) / 8 | 1 (1) |
+| v12 | 21 (10) / 3 | none |
+| v13 | 55 (52) / 5 | none |
+| v14 | 8 (5 really clean; 3 hit `MEM_IMPORT`) / 2 | none |
+
+Many non-clean sessions on v10-v12 are game-side exits with no driver error (Wine exit codes 1, 3, 5, 45 and 53, for example Little Nightmares, Assassin's Creed III/Unity, Skyrim, Sekiro, The Witcher 2, Tales of Berseria), plus three Wine crashes (signal 125/127, one SIGKILL on Crysis 3) and four Wine page faults in the game (Mafia II, Sekiro, Sleeping Dogs, Detention). None of these show a Mesa or kbase error, so they are not counted as driver bugs here.
+
+### Errors grouped by root cause
+
+| # | Root cause | App | Build | Devices (GPU, gpu_id, arch) | Test or game | Exact error line |
+|---|---|---|---|---|---|---|
+| A | CSF subqueue timeout, then DEVICE_LOST (driver, open) | PanPlay | rc3 | G720 MC8 `0xc8700010` v12 (2511FPC34G) x3; G715 MC7 `0xb8a21020` v11 (Pixel 8, 8 Pro) x3; G610 MC6 `0xa8670000` v10 (Infinix X6871) x3; Immortalis-G925 MC12 `0xd8300015` v13 (2506BPN68G) x2; G615 MC6 `0xb8a31030` v11 (2311DRK48G, 2406APNFAG) x2; G610 MC4 v10 (23090RA98I) x1 | Stray (x4), Mafia II (x2), Dead Space 3 (x2), Super Meat Boy 3D (x2), Castlevania LoS2, Dead Cells, RE7, Rubinite | `E MESA : kbase: timeout on subqueue 0: seqno 38635, ls_copy 0, target 38636, marks pre/post-call/post-wait 0x0/0x0/0x0, stream progress 0x0, ... error 0x0`, then `err: DxvkSubmissionQueue: Command submission failed: VK_ERROR_DEVICE_LOST` |
+| B | CSF group fatal error, MMU translation fault (driver, open) | PanPlay | rc3 | G615 MC6 `0xb8a31030` v11 (Infinix X6873) x2 | Dark Souls | `E MESA : kbase: CSF group 1 fatal error: status 0x222002c1 (exception 0xc1), sideband 0x0000000000175300` |
+| C | v9 JM refuses placed maps of non-dma-buf BOs (driver, open) | PanPlay | rc3, lowmem | G78 MC14 `0x92020010` v9 (SM-S901B) x2; G77 MC9 `0x90800011` v9 (21061110AG) x2; G57 MC4 `0x90910010` v9 (GammaOS) x1 | RE6, RE Revelations, Tomb Raider, MXGP, D3D8 cube x86 (all 32-bit) | `E MESA : kbase: placed map of a non-dma-buf BO is not supported`, `bo_mmap(...) failed: Operation not supported on transport endpoint`, `err: Failed to map Vulkan memory: VK_ERROR_MEMORY_MAP_FAILED` |
+| D | v14 `KBASE_IOCTL_MEM_IMPORT` ENOTTY (driver, open) | PanProbe, PanPlay | rc3, lowmem | G1-Ultra MC12 `0xe8800010` v14 (2602EPTC0G, PLG110, V2514, CPH2797) | PanProbe `swapchain_lifecycle` (5 of 5 reports); PanPlay x86 cubes (3 sessions) | `kbase: KBASE_IOCTL_MEM_IMPORT failed: Inappropriate ioctl for device`, `FAIL vkCreateSwapchainKHR res=-1000072003 phase=create_swapchain` (VK_ERROR_INVALID_EXTERNAL_HANDLE) |
+| E | X11 surface re-creation fails with OOHM after OUT_OF_DATE (driver WSI, low) | PanPlay | rc3 | G68 MC4 `0x92041010` v9 x4; G57 MC2/MC1 v9 x3; once each on G610 v10, G615 MC2 v11, Immortalis-G720 v12, G925 v13 | D3D8/D3D9 cubes, Just Cause 2 (x2), Dead Space 2 | `err: Presenter: Failed to get surface capabilities: VK_ERROR_SURFACE_LOST_KHR`, `err: Presenter: Failed to create Vulkan surface: VK_ERROR_OUT_OF_HOST_MEMORY` |
+| F | v9 JM DEVICE_LOST (driver, one device each) | PanProbe, PanPlay | rc3 | G57 MC2 `0x90930010` v9 (Infinix X6711) 2 of 2 runs; G57 MC1 `0x90910010` v9 (itel C671L) | `large_draw` after `points_indirect`; one game | `FAIL GetQueryPoolResults r=-4 line=467`; `E MESA : kbase: JM atom 103 failed: event=0x4 core_req=0x1` |
+| G | ICD needs Android 11 (`call_once`) (build) | PanProbe | rc3, lowmem | G76 MC4 `0x72110000` v7 (Redmi Note 8 Pro, Android 10) x3; G76 v7 (ANA-NX9, Android 10); G72 MP3 `0x62210030` v6 (vivo 1806, Android 10) | all 38 tests | `FAIL dlopen dlopen failed: cannot locate symbol "call_once" referenced by ".../libvulkan_panfrost.so"` |
+| H | v7 Bifrost not enabled (driver, by design) | PanProbe, PanPlay | rc3 | G52 MC2 `0x74021000` variant 0x2 v7 (SM-A315F, TECNO KJ5n); G52 `0x72120000` v7 (SM-M127F); G72 `0x62210010` v6 (SM-A515F, PanPlay) | all tests; D3D8 cubes | `panvk: Unknown gpu_id (0x74021000) or variant (0x2)`; `not well-tested on v7, pass PAN_I_WANT_A_BROKEN_VULKAN_DRIVER=1 ...`; PanPlay: `err:vulkan:init_physical_devices Failed to enumerate physical devices, res -3` |
+| I | glibc .so imported into PanProbe (app/user) | PanProbe | rc3 glibc, lowmem glibc | G615 MC2/MC6 v11 (A001, TECNO CM7, 2311DRK48G x3), G715 v11 (Pixel 8 Pro), G77 MC9 v9, G57 MC2 v9 (SM-A155F x2) | all tests | `FAIL dlopen dlopen failed: library "libdrm.so.2" not found: needed by .../imported/libimported.so` |
+| J | Test processes ran on the vendor ICD (app) | PanProbe | lowmem | G615 MC6 `0xb8a31030` v11 (2311DRK48G, ids 828 and 832; same tester passed 38/38 in id 768) | 12 and 21 tests failed | `ICD device=Mali-G615 MC6 ... fillModeNonSolid=0 multiViewport=0 shaderClipDistance=0`, `FAIL CreateDevice r=-8 line=160`, `FAIL depthBounds not reported`; no Mesa lines in the test logs although `vulkan-info.json` shows panvk |
+| K | Harness / surface state (app) | PanProbe | rc3, lowmem | G57 MC1 v9 (Infinix X6528), G615 MC2 v11 (TECNO CM7), G710 MC10 v10 (CPH2493); G720 MC7 v12 (2412DPC0AG); G68 MC4 v9 (CPH2491) | `swapchain_lifecycle`; `large_draw` onwards | `FAIL no surface`; `FAIL ANativeWindow_getWidth res=-19 phase=resize`; `FAIL dlopen dlopen failed: library ".../imported/libimported.so" not found` (the imported file vanished mid-run) |
+| L | Timing-sensitive perf case | PanProbe | lowmem | G720 MC8 `0xc8700010` v12 (2511FPC34G), 1 of 1 lowmem runs | `depth_bounds` | `FAIL case I_perf_dyn_off plain=2.657ms dyn_off=7.008ms ratio=2.64` (all correctness cases pass) |
+
+### gpu_id table check
+
+- Every gpu_id seen on v9-v14 matches a row in `pan_model.c` (v9 through the product-major fallback from `jm-v9/021`). G77 `0x90800011`, G78 `0x92020010` and G68 `0x92041010` now enumerate and pass 38/38.
+- The only lookup miss is the v7 Mali-G52 r1 `0x74021000`: it reports variant 0x2 (0x3 on an earlier HiPad-Air upload), but the Bifrost rows are variant 0, so `pan_get_model` returns NULL. G52 `0x72120000` (variant 0) and G76 `0x72110000` have rows.
+- Still never seen in any upload: G510, G310, G620, G625, plain G725, G1-Premium, G1-Pro.
+
+### Takeaways
+
+- rc3-lowmem shows no regression against rc3 on the devices that ran both (v9, v11, v12, v13); the only lowmem-only failures are app or harness issues (groups J, K, L).
+- PanProbe is clean on v9-v13. The remaining driver bugs only show up in real games (groups A, B, C) or on v14 (group D).
+
+## Mali v14 support (status 2026-10-16)
+
+**What v14 is:** the fifth-generation "Mali G1" parts (G1-Ultra, G1-Premium, G1-Pro). The table has a G1-Ultra row `(14, 8, 0)` variant 4 for gpu_id `0xe8800010`, and the name is reported correctly. All uploads so far are G1-Ultra MC12 on MediaTek MT6993 phones (vivo V2515/V2514, 2602EPTC0G, PLG110, CPH2797), Linux 6.12 android16 4 KiB-page kernels, kbase CSF uAPI 1.38.
+
+**Status:** works for PanProbe except the Android swapchain; the 64-bit DXVK test cubes run; 32-bit (x86) ones do not.
+
+- The `MEM_ALLOC_EX` ENOTTY blocker from item 20 is solved by the csf-v11/110 fallback: the driver logs `KBASE_IOCTL_MEM_ALLOC_EX failed: Inappropriate ioctl for device; trying KBASE_IOCTL_MEM_ALLOC`, then `mem_alloc via ALLOC`, and queue group create (112-byte layout) and tiler heap init (16-byte layout) succeed.
+- PanProbe rc3 and rc3-lowmem: 37/38 in all 5 reports from 3 phones. The only failure is `swapchain_lifecycle` (`vkCreateSwapchainKHR res=-1000072003`, VK_ERROR_INVALID_EXTERNAL_HANDLE).
+- PanPlay rc3: x64 and ARM64EC D3D10/D3D11 cubes create a swapchain and run (5 sessions). x86 (WOW64) cubes fail: no swapchain is created and the log shows `KBASE_IOCTL_MEM_IMPORT failed: Inappropriate ioctl for device` (3 sessions). No DEVICE_LOST or GPU fault was seen on v14. No real game has been tried yet.
+
+**Blocker:** `KBASE_IOCTL_MEM_IMPORT` returns ENOTTY on this kernel, like `MEM_ALLOC_EX` did. ENOTTY means the ioctl number, which encodes the struct size, does not match what the kernel expects, so the vendor kbase (uAPI 1.38) has changed the layout of `struct kbase_ioctl_mem_import` or renumbered it. Dma-buf import is used for Android swapchain images (AHardwareBuffer) and for the dma-heap placed maps that 32-bit games need (091), so both paths fail.
+
+**Root cause found (2026-10-16), fix csf-v11/186, build-only:** the ioctl numbers are unchanged; MediaTek grew the structs. The MT6993 kbase is public in the OnePlus/OPPO GPL drop (`OnePlusOSS/android_kernel_modules_and_devicetree_oneplus_mt6993`, `vendor/mediatek/kernel_modules/gpu/gpu_mali/mali_avalon/a16w/`, uAPI 1.38, copies in `/var/tmp/panvk/kbase-src-new/mtk6993/`). `config/fragment/mt6993.fragment:92` sets `CONFIG_MALI_MTK_SLC_DYNAMIC_POLICY_V2=y`, and under that option `mali_kbase_ioctl.h` adds `vkAllocateMemoryCallID`, `numOfPlanes`, `in_pbha_8bit` to `mem_import.in` and `out_pbha_8bit` to `mem_import.out` (union 24 -> 40 bytes), and `mali_kbase_csf_ioctl.h:654-666` adds `have_pbha_hint` / `pbha_8bit` to `mem_alloc_ex` (64 -> 72 bytes). `_IOWR` encodes the size, so the Arm requests hit no `case` in `kbase_ioctl()` and get ENOTTY. This is also the real cause of item 20. Stock Arm uAPI 1.38 (`rockchip-linux/kernel`, `Sky1-Linux/cix-gpu-kmd`) keeps the 24-byte `MEM_IMPORT` nr 22 and 64-byte `ALLOC_EX` nr 59. In `kbase_api_mem_import` (`mali_kbase_core_linux.c`), `vkAllocateMemoryCallID == 0` takes the "no PBHA hint" path, so zeroed extras are safe.
+- csf-v11/186 (`186-retry-mem-import-with-the-mtk-slc-layout.patch`): on `MEM_IMPORT` ENOTTY, `kbase_kmod_import_dmabuf` retries nr 22 with the 40-byte MTK layout (extras zero), latches the layout per process, and logs `mem_import via MEM_IMPORT (24 bytes)` or `KBASE_IOCTL_MEM_IMPORT failed: ...; trying the MTK SLC layout` then `mem_import via MTK SLC layout (40 bytes)`. Arm kernels are unchanged. The JM host-pointer import is not touched (CSF does not use it). `ALLOC_EX` keeps the legacy `MEM_ALLOC` fallback; a 72-byte MTK `ALLOC_EX` is not needed.
+- Built (API 29) into `/var/tmp/panvk/dist-v14imp/` from `/var/tmp/panvk/wt-v9-fix` (jm-v7 001-005 + 186): unstripped .so sha256 `e15c6f94`, BuildID `acdb9594fe5160c912ac58a6ffa0bcd2df490948`. No v14 device, so this is untested.
+
+**Next steps:**
+
+0. G1-Ultra tester: PanProbe `swapchain_lifecycle` and the PanPlay x86 cube; logcat must show `mem_import via MTK SLC layout (40 bytes)` and no `KBASE_IOCTL_MEM_IMPORT failed: ... ` error line.
+1. ~~Find the uAPI 1.38 kbase headers.~~ Done, see above. Look for the MT6993 / Dimensity 9500 kernel source drop (vivo, OPPO or Xiaomi GPL releases) or the Arm "Valhall/5th Gen" kbase release that introduced uAPI 1.38, and diff `mali_kbase_ioctl.h` / `mali_kbase_csf_ioctl.h` against the version the driver uses. Check `MEM_IMPORT`, `MEM_ALLOC_EX` and any other ioctl whose size changed.
+2. If the layout is found: add a version-gated `MEM_IMPORT` layout to `kbase_kmod.c` (same pattern as the 110 layout probes). If not: probe a short list of candidate sizes on ENOTTY, as 110 does for queue group create, and log which one the kernel accepts.
+3. If import cannot be fixed quickly: for the Android swapchain, allocate the swapchain image memory in the driver and export it, instead of importing the AHB; for 32-bit games, fall back to the older shadow-copy placed map path (pre-091) on v14.
+4. Log the kbase uAPI version and every ENOTTY ioctl number once at `mesa_logw`, so the next upload shows all ABI mismatches at once.
+5. Verify on a G1-Ultra tester: PanProbe 38/38, PanPlay x86 cube, then one real 32-bit and one 64-bit game. Check also the open v13/v14 points: VPSA default (item 23, FL11_0 vs 11_1) and the D3D8/D3D9 frame rate gap (item 29).
+6. Ask for any G1-Premium or G1-Pro gpu_id; neither has been seen.
+
+## Mali v7 (Bifrost) support (status 2026-10-16)
+
+**What v7 is:** Bifrost second generation: Mali-G51, G31, G52, G52 r1 and G76 (`PAN_PROD_ID(7, x, y)` rows exist in `pan_model.c`). v6 is the first Bifrost generation (G71, G72). These GPUs use the job manager (JM) kbase interface, like v9, not CSF. They are common in 2018-2021 budget and mid-range phones (Helio G85/G88/G90/G95/G99 with G52 MC2, Exynos 850 with G52, Helio G90T and Kirin 980/990 with G76).
+
+**Research (2026-10-16):** upstream, fork survey (JimVulkan/mali-panvk already runs DXVK D3D9-11 on Bifrost kbase), feature gaps and port plan in [BIFROST_V6_V7_RESEARCH.md](BIFROST_V6_V7_RESEARCH.md).
+
+**Update 2026-10-16 (jm-v7 driver):** item 17 (v7 unblock) VERIFIED on Exynos 850 G52 (Galaxy A14 SM-A145F, `0x72120000`): device creation works, atom stride 56 OK, `MEM_JIT_INIT` skip OK (growable GROW_ON_GPF tiler heap). Variant fix (jm-v7 001) VERIFIED on G52 r1 `0x74021000` (variant 0x2). Item 18 baselines done on both G52 MC1 (Exynos 850, A14) and G52 MC2 r1 (Helio G85, A06 SM-A065F): PanProbe 14/38 on each; failures are missing DXVK features (item 19 port), no DEVICE_LOST. Note to check: `u_gralloc_get_buffer_basic_info failed` on mt6768 (A06). The "Status" below is the state before jm-v7. Apps now show the Bifrost "not supported" message only when no device exists; failing tests on v6/v7 get "Bifrost (v7): feature not implemented yet".
+
+**Status (before jm-v7):** not supported. The Android ICD already builds the v6 and v7 backends (`bifrost_archs = [6, 7]`, `jm_archs = [6, 7, 9]`), and kbase opens on these devices (`kbase: JM driver, uAPI version 11.27 / 11.35 / 11.38`, `stock JM atom layout (stride 72 refused), stride 56`), but no physical device is created:
+
+| Device | GPU / gpu_id | What stops it |
+|---|---|---|
+| SM-M127F (Exynos 850, Android 13) | G52 `0x72120000`, variant 0 | Model row found, then the upstream gate: `not well-tested on v7, pass PAN_I_WANT_A_BROKEN_VULKAN_DRIVER=1`. |
+| SM-A315F, TECNO KJ5n (Helio G80/G85, Android 12/13) | G52 MC2 (G52 r1) `0x74021000`, variant 0x2 | `panvk: Unknown gpu_id (0x74021000) or variant (0x2)`: the `(7, 4, 2)` row is variant 0, and Bifrost has no variants, so this is a lookup bug. Also `KBASE_IOCTL_MEM_JIT_INIT failed: Out of memory (tiler heap creation will not work)`. |
+| Redmi Note 8 Pro, Huawei P40 (Android 10) | G76 `0x72110000` | The ICD does not load at all: `cannot locate symbol "call_once"` (needs Android 11). |
+
+**Blockers:**
+
+1. The `PAN_I_WANT_A_BROKEN_VULKAN_DRIVER` gate for v6/v7 in `panvk_physical_device.c`.
+2. Variant matching: `pan_get_model` compares the kbase-reported variant, which is non-zero on G52 r1. It should be ignored (treated as 0) for arch < 9.
+3. `MEM_JIT_INIT` fails with ENOMEM on the G52 r1 kernels, so the JM tiler heap path will not work as it is.
+4. Feature level: upstream PanVK on v6/v7 reports about Vulkan 1.1 and has none of the DXVK requirements implemented on JM (geometry shaders, tessellation, transform feedback, multiViewport, clip/cull distance, fillModeNonSolid, BC emulation path checks). The v9 JM work (jm-v9 001-030) implemented these for Valhall JM; Bifrost has a different shader ISA (the Bifrost compiler, not Valhall) and different descriptors, so the v9 code does not carry over directly.
+5. Android 10 devices need an API 29 build (item 5 in the refreshed list).
+
+**Next steps (only if v7 is in scope; it was "not a PanVK target" so far):**
+
+1. Cheap, 1-2 h: ignore the variant for arch < 9 in `pan_get_model`, and allow v7 behind a PanVK-kbase option (or drop the gate for kbase builds) so that testers can at least create a device. Log the result of `MEM_JIT_INIT` and try the 110-style fallback (smaller JIT region, or skip JIT and use a plain growable heap).
+2. Run PanProbe on a G52 MC2 (Helio G85/G99 phones are the most common) to get a baseline; expect most DXVK feature tests to be unsupported.
+3. Scope the DXVK minimum on Bifrost: Vulkan 1.3 core features, geometry shader and transform feedback emulation (the v9 compute pre-raster path would need a Bifrost port), BC emulation. This is several weeks of work, similar to or larger than the v9 effort (item 12), with no device in hand. Decide whether a D3D9-only target (DXVK d3d9 needs fewer features) is good enough.
+4. In the apps, show "Bifrost (v6/v7): not supported yet" instead of the current generic "no Mali" / INCOMPATIBLE_DRIVER result.
+
+## v9 follow-up: groups C, E, F (2026-10-16)
+
+- **C (placed map, non-dma-buf BO).** Root cause: the failing devices run kernels without `/dev/dma_heap` (G77 MediaTek 4.14.186; G57 Unisoc 5.4.233; G78 handheld 5.4.302). `dma_heap_fd` stays -1, so host-visible BOs come from the native `MEM_ALLOC` path (`mem_alloc via ALLOC` right before the error) and have no dma-buf. v9 devices on 5.10/5.15 (G57 5.15.189, G615-class, G78 6.1) allocate via dma-heap and pass. mremap/MAP_FIXED on SAME_VA regions is rejected by kbase (see `kbase_kmod_bo_mmap`). Fix: `patches/jm-v7/005` adds an ION fallback (`/dev/ion`, new ABI, system heap found by `ION_IOC_HEAP_QUERY`, cached) feeding the same dma-buf import path. Limits: kernels with the legacy ION ABI (pre-4.12 style `ION_IOC_SHARE`) are not covered; the driver logs `kbase: using ION system heap` / `no usable ION system heap` / `/dev/ion unavailable` at info level. Not device-tested. Needs an RTL G77/G78 (4.14/5.4) 32-bit run.
+- **E (SURFACE_LOST then OOHM).** Not a driver bug. All 11 sessions are user exits (overlay EXIT/Stop, 10-209 s); the two errors are the last lines of the log, and the Winlator X server logs `BadWindow` for the destroyed window. Mesa's x11 WSI correctly returns SURFACE_LOST_KHR for a destroyed window, DXVK then tries to recreate a surface and Wine fails with OOHM because the window is gone. Teardown noise only; the launcher summary could filter it.
+- **F (large_draw r=-4).** Infinix X6711 G57 MC2 (MediaTek, uAPI 11.38): `points_direct`/`points_indirect` pass, the next case (after the 8-chunk truncation warning) takes 8.6 s and `vkGetQueryPoolResults(WAIT)` returns DEVICE_LOST; the probe logs have no kbase error lines, so the first fault is unknown. Not reproducible elsewhere (other G57 MC2 pass 38/38). The game session (UMS9230E G57, 5.15.189) shows 130 atoms with event 0x42 (JOB_READ_FAULT, GPU read of an unmapped address) followed by 37 with 0x4 (TERMINATED, victims of the fault). Root cause unknown; needs a rerun on the own G57 MC2 with `LARGE_DRAW_ONLY=` narrowing and kernel log (`dmesg` fault address) to tell a read of dropped-chunk data from a stale VA.
