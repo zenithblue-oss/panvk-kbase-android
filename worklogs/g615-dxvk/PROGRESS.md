@@ -605,3 +605,29 @@ Next: PanProbe on RTL A06/A14 (baseline 14/38) with the 013 build, including `te
 - **C (placed map, non-dma-buf BO).** Root cause: the failing devices run kernels without `/dev/dma_heap` (G77 MediaTek 4.14.186; G57 Unisoc 5.4.233; G78 handheld 5.4.302). `dma_heap_fd` stays -1, so host-visible BOs come from the native `MEM_ALLOC` path (`mem_alloc via ALLOC` right before the error) and have no dma-buf. v9 devices on 5.10/5.15 (G57 5.15.189, G615-class, G78 6.1) allocate via dma-heap and pass. mremap/MAP_FIXED on SAME_VA regions is rejected by kbase (see `kbase_kmod_bo_mmap`). Fix: `patches/jm-v7/005` adds an ION fallback (`/dev/ion`, new ABI, system heap found by `ION_IOC_HEAP_QUERY`, cached) feeding the same dma-buf import path. Limits: kernels with the legacy ION ABI (pre-4.12 style `ION_IOC_SHARE`) are not covered; the driver logs `kbase: using ION system heap` / `no usable ION system heap` / `/dev/ion unavailable` at info level. Not device-tested. Needs an RTL G77/G78 (4.14/5.4) 32-bit run.
 - **E (SURFACE_LOST then OOHM).** Not a driver bug. All 11 sessions are user exits (overlay EXIT/Stop, 10-209 s); the two errors are the last lines of the log, and the Winlator X server logs `BadWindow` for the destroyed window. Mesa's x11 WSI correctly returns SURFACE_LOST_KHR for a destroyed window, DXVK then tries to recreate a surface and Wine fails with OOHM because the window is gone. Teardown noise only; the launcher summary could filter it.
 - **F (large_draw r=-4).** Infinix X6711 G57 MC2 (MediaTek, uAPI 11.38): `points_direct`/`points_indirect` pass, the next case (after the 8-chunk truncation warning) takes 8.6 s and `vkGetQueryPoolResults(WAIT)` returns DEVICE_LOST; the probe logs have no kbase error lines, so the first fault is unknown. Not reproducible elsewhere (other G57 MC2 pass 38/38). The game session (UMS9230E G57, 5.15.189) shows 130 atoms with event 0x42 (JOB_READ_FAULT, GPU read of an unmapped address) followed by 37 with 0x4 (TERMINATED, victims of the fault). Root cause unknown; needs a rerun on the own G57 MC2 with `LARGE_DRAW_ONLY=` narrowing and kernel log (`dmesg` fault address) to tell a read of dropped-chunk data from a stale VA.
+
+## Cloud session 2026-10-16: code done, device runs left
+
+Every item in this file that can be closed in code is now patched, built and pushed (branch `claude/new-session-6i5cyb`). Nothing below has run on a Mali device. Test build of the full series (191 patches, strict, zero offsets, API 29, NDK r30): BuildID `e90d9ed40527172765dddf0f7bf888c2369d8f24`. Bifrost testing needs the series plus `patches/jm-v7-wip/0006-0013` (`git am`), BuildID `09587b23` (before 195/196, which are CSF-only).
+
+Done in code this session (build-only):
+| Item | Patch | Device proof needed |
+|---|---|---|
+| 11 async submission | scoped; csf-v11/192 heap TERM off the submit thread (`PANVK_KBASE_ASYNC_HEAP_TERM=0` to disable) | G615 PanProbe, CTS sync/memory, NFS simpleperf A/B |
+| 19 Bifrost DXVK port | jm-v7-wip 0006-0013: GS, XFB (GS + VS), robustness2, meta GS restore, tessellation (`PANVK_DEBUG=no_tess`); BC via jm-v9/031 | RTL A06/A14 PanProbe vs 14/38, CTS tessellation, DXVK D3D11 at FL11_0 |
+| 24 base instance + fans | csf-v11/191, 195 (default on), 196 (`PANVK_FAN_CHUNKS=1`) | G615 large_draw x5 with/without 196, CTS fan/xfb/geometry/PG |
+| 25 follow-ups | csf-v11/190, android/016 | trace run of a cut secondary |
+| 26 strict series | apply-patches.sh fails on offsets, 40 patches refreshed | none |
+| 28 G925 row | csf-v11/187 | none |
+| 38 denorm | csf-v11/189 (32_BIT_ONLY on v9+) | CTS float_controls on v10+; revert if mixed FP16/FP32 fails |
+| 39 dual source | csf-v11/188 (1 attachment) | none (RT1-7 test not written) |
+| CTS clip/cull + viewport index (188 cases) | csf-v11/193, 194 | rerun `validation/driver-remaining/rerun-193.txt` (458 cases) |
+| v9 BC zero-init | jm-v9/031 | v9 BC upload from ZERO_INITIALIZED |
+
+Left, all need hardware or tester data:
+- A (CSF DEVICE_LOST in games) and B (Dark Souls MMU fault): a real Mali CSF device (G610/G615/G720/G925).
+- D (v14 MEM_IMPORT, csf-v11/186): a G1-Ultra tester.
+- F (G57 `large_draw` r=-4): rerun on the Infinix X6711 with `LARGE_DRAW_ONLY`.
+- API 29 load on Android 10 (Firebase `starlte`/`a10`), and one `scripts/firebase-panprobe.sh` run.
+- 21 (116 depth-bounds rework) on G615; 29 (v13 D3D8/9 frame rate, `DXVK_HUD=full` on G925); 16 KiB page kernels; `depth_bias_patch_list_tri_line` (run alone with `PANVK_DEBUG=dump`); GTA IV issue #2 (needs the reporter's full log and RAM size); the intermittent items under "Open problems".
+- 6 v7 G76 and 21 (goal) G72 v6: not on RTL; G76 only via Firebase.
