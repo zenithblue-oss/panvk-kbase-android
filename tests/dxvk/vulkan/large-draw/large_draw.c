@@ -32,6 +32,16 @@
  *                                        predicate: no XFB, no primitives
  *                                        generated
  *  cond_pass_indirect                    the same with a non-zero predicate
+ *  base_inst_direct / _indirect          4 points x 60000 instances,
+ *                                        firstInstance 3: CPU instance split
+ *                                        chunks (each a GPU chunk loop)
+ *  base_inst_windows                     70001 points x 3 instances: per
+ *                                        instance vertex windows
+ *  base_inst_fan / base_inst_fan_windows 4 vertex fan x 5000 instances, and
+ *                                        150001 vertex fan x 2 instances
+ *    The base_inst cases capture gl_BaseInstance and a per-instance
+ *    attribute (divisor 3 with vertexAttributeInstanceRateDivisor, else 1):
+ *    every chunk must see the API firstInstance and instance index.
  *
  * The pipelines all use rasterizer discard, so every case also checks that
  * XFB and the primitives generated query run without the raster draws.
@@ -71,7 +81,10 @@ static VkPhysicalDeviceFeatures enabled_features;
 static VkPhysicalDeviceTransformFeedbackFeaturesEXT xfb_features;
 static VkPhysicalDeviceVulkan12Features v12_features;
 static VkPhysicalDevicePrimitivesGeneratedQueryFeaturesEXT pg_features;
+static VkPhysicalDeviceShaderDrawParametersFeatures dp_features;
+static VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT div_features;
 static int pg_ok; /* usable together with rasterizer discard */
+static int has_div_ext, dp_ok, div_ok;
 
 #define NPTS 200000u
 #define FV 7u
@@ -123,6 +136,9 @@ device_hook(struct dx7 *t, VkDeviceCreateInfo *dci)
       else if (!strcmp(exts[i].extensionName,
                        VK_EXT_CONDITIONAL_RENDERING_EXTENSION_NAME))
          has_cond_ext = 1;
+      else if (!strcmp(exts[i].extensionName,
+                       VK_EXT_VERTEX_ATTRIBUTE_DIVISOR_EXTENSION_NAME))
+         has_div_ext = 1;
    }
    free(exts);
    if (!has_xfb_ext)
@@ -134,7 +150,14 @@ device_hook(struct dx7 *t, VkDeviceCreateInfo *dci)
    v12_features.pNext = &xfb_features;
    pg_features.sType =
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRIMITIVES_GENERATED_QUERY_FEATURES_EXT;
-   xfb_features.pNext = has_pg_ext ? (void *)&pg_features : NULL;
+   dp_features.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
+   div_features.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_FEATURES_EXT;
+   div_features.pNext = has_pg_ext ? (void *)&pg_features : NULL;
+   dp_features.pNext = has_div_ext ? (void *)&div_features
+                                   : div_features.pNext;
+   xfb_features.pNext = &dp_features;
    VkPhysicalDeviceFeatures2 f2 = {
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
       .pNext = &v12_features,
@@ -154,9 +177,28 @@ device_hook(struct dx7 *t, VkDeviceCreateInfo *dci)
    dci->pNext = &en_v12;
 
    static VkPhysicalDevicePrimitivesGeneratedQueryFeaturesEXT en_pg;
-   static const char *ext_names[3];
+   static const char *ext_names[4];
    uint32_t n = 0;
    ext_names[n++] = VK_EXT_TRANSFORM_FEEDBACK_EXTENSION_NAME;
+   if (dp_features.shaderDrawParameters) {
+      static VkPhysicalDeviceShaderDrawParametersFeatures en_dp;
+      en_dp.sType =
+         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
+      en_dp.pNext = (void *)dci->pNext;
+      en_dp.shaderDrawParameters = VK_TRUE;
+      dci->pNext = &en_dp;
+      dp_ok = 1;
+   }
+   if (has_div_ext && div_features.vertexAttributeInstanceRateDivisor) {
+      static VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT en_div;
+      en_div.sType =
+         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_FEATURES_EXT;
+      en_div.pNext = (void *)dci->pNext;
+      en_div.vertexAttributeInstanceRateDivisor = VK_TRUE;
+      dci->pNext = &en_div;
+      ext_names[n++] = VK_EXT_VERTEX_ATTRIBUTE_DIVISOR_EXTENSION_NAME;
+      div_ok = 1;
+   }
    if (has_pg_ext && pg_features.primitivesGeneratedQuery &&
        pg_features.primitivesGeneratedQueryWithRasterizerDiscard) {
       en_pg.sType =
@@ -192,6 +234,8 @@ struct pipe_desc {
    size_t tes_size;
    VkPrimitiveTopology topology;
    VkBool32 restart;
+   /* A per-instance float at location 0 with this divisor, 0 for none. */
+   uint32_t inst_divisor;
 };
 
 static VkPipeline
@@ -221,6 +265,23 @@ make_pipe(struct dx7 *t, const struct pipe_desc *d)
 
    VkPipelineVertexInputStateCreateInfo vi = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+   VkVertexInputBindingDescription vb = {
+      .binding = 0, .stride = 4, .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE};
+   VkVertexInputAttributeDescription va = {
+      .location = 0, .binding = 0, .format = VK_FORMAT_R32_SFLOAT};
+   VkVertexInputBindingDivisorDescriptionEXT vd = {
+      .binding = 0, .divisor = d->inst_divisor};
+   VkPipelineVertexInputDivisorStateCreateInfoEXT vds = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_DIVISOR_STATE_CREATE_INFO_EXT,
+      .vertexBindingDivisorCount = 1, .pVertexBindingDivisors = &vd};
+   if (d->inst_divisor) {
+      vi.vertexBindingDescriptionCount = 1;
+      vi.pVertexBindingDescriptions = &vb;
+      vi.vertexAttributeDescriptionCount = 1;
+      vi.pVertexAttributeDescriptions = &va;
+      if (d->inst_divisor != 1)
+         vi.pNext = &vds;
+   }
    VkPipelineInputAssemblyStateCreateInfo ia = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
       .topology = d->topology, .primitiveRestartEnable = d->restart};
@@ -270,6 +331,8 @@ struct job {
    VkDeviceSize xfb_bytes;
    /* 0 no conditional rendering, 1 zero predicate, 2 non-zero predicate */
    int cond;
+   /* A vertex buffer at binding 0 holding the floats 0..attr_floats-1. */
+   uint32_t attr_floats;
 };
 
 struct result {
@@ -381,6 +444,14 @@ run_job(struct dx7 *t, const struct job *j, struct result *r)
                              &nb, &nm);
       nw[0] = j->count_value;
    }
+   VkBuffer ab = VK_NULL_HANDLE;
+   VkDeviceMemory am;
+   if (j->attr_floats) {
+      float *aw = map_buf(t, j->attr_floats * 4ull,
+                          VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | host, &ab, &am);
+      for (uint32_t i = 0; i < j->attr_floats; i++)
+         aw[i] = (float)i;
+   }
    VkBuffer pb = VK_NULL_HANDLE;
    VkDeviceMemory pm;
    if (j->cond) {
@@ -410,6 +481,10 @@ run_job(struct dx7 *t, const struct job *j, struct result *r)
    vkCmdBindTransformFeedbackBuffersEXT(t->cmd, 0, 1, &xb, &off, &size);
    if (j->indexed)
       vkCmdBindIndexBuffer(t->cmd, ib, 0, VK_INDEX_TYPE_UINT32);
+   if (ab) {
+      VkDeviceSize aoff = 0;
+      vkCmdBindVertexBuffers(t->cmd, 0, 1, &ab, &aoff);
+   }
    vkCmdBeginQueryIndexedEXT(t->cmd, xq, 0, 0, 0);
    if (pq)
       vkCmdBeginQueryIndexedEXT(t->cmd, pq, 0, 0, 0);
@@ -726,6 +801,48 @@ check_fan_inst(const char *name, struct dx7 *t, const struct job *j,
    return report(name, bad, &r, (uint64_t)n * 3 * 16, n, 1);
 }
 
+/* gl_BaseInstance and per-instance attribute capture (vs_base): every record
+ * of instance i (gl_InstanceIndex fi + i) reads attribute element
+ * fi + i / div and gl_BaseInstance fi. With vpi, record r is also vertex
+ * fv + r % vpi of instance r / vpi (points); vpi 0 only checks that each
+ * instance has a sane index (fans, checked in order by fan_instanced).
+ */
+static int
+check_base(const char *name, struct dx7 *t, const struct job *j, uint32_t n,
+           uint32_t vpi, uint32_t insts, uint32_t fv, uint32_t fi,
+           uint32_t div)
+{
+   if (!want(name))
+      return 0;
+   struct result r;
+   if (run_job(t, j, &r)) {
+      printf("FAIL case %s did not complete\n", name);
+      return 1;
+   }
+   uint64_t prims = vpi ? n : n / 3;
+   int bad = 0;
+   for (uint32_t k = 0; k < n; k++) {
+      float y = wf(r.words, k, 1);
+      uint32_t inst = y >= (float)fi ? (uint32_t)y - fi : UINT32_MAX;
+      int wrong = inst >= insts ||
+                  wf(r.words, k, 2) != (float)(fi + inst / div) ||
+                  wf(r.words, k, 3) != (float)(fi + 1);
+      if (vpi)
+         wrong |= wf(r.words, k, 0) != (float)(fv + k % vpi) ||
+                  inst != k / vpi;
+      if (wrong) {
+         if (bad < 4)
+            printf("  rec %u: vtx %g inst %g attr %g base+1 %g, want attr "
+                   "%u base+1 %u\n",
+                   k, wf(r.words, k, 0), y, wf(r.words, k, 2),
+                   wf(r.words, k, 3), inst < insts ? fi + inst / div : 0,
+                   fi + 1);
+         bad++;
+      }
+   }
+   return report(name, bad, &r, (uint64_t)n * 16, prims, 1);
+}
+
 /* Triangle GS: record k is primitive k, the sum of its vertex indices and
  * gl_PrimitiveIDIn == k.
  */
@@ -998,6 +1115,49 @@ main(int argc, char **argv)
    jsi.draws = 1;
    fails += check_points("small_inst_indirect", &t, &jsi, 27000, 3, FV, FI,
                          27000);
+
+   /* gl_BaseInstance and instance-rate attributes across instance splits. */
+   if (dp_ok) {
+      const uint32_t div = div_ok ? 3 : 1;
+      struct pipe_desc b = {.vs = vs_base, .vs_size = sizeof(vs_base),
+                            .topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST,
+                            .inst_divisor = div};
+      VkPipeline p_bpts = make_pipe(&t, &b);
+      b.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+      VkPipeline p_bfan = make_pipe(&t, &b);
+      printf("base_inst divisor=%u\n", div);
+
+      struct job jb = {.pipe = p_bpts, .attr_floats = FI + NINST,
+                       .xfb_bytes = (VPI * NINST + 64) * 16ull};
+      jb.cmd[0] = (struct cmd){VPI, NINST, FV, 0, FI};
+      fails += check_base("base_inst_direct", &t, &jb, VPI * NINST, VPI, NINST,
+                          FV, FI, div);
+      jb.mode = 1;
+      jb.draws = 1;
+      fails += check_base("base_inst_indirect", &t, &jb, VPI * NINST, VPI,
+                          NINST, FV, FI, div);
+
+      const uint32_t nw = 70001;
+      jb = (struct job){.pipe = p_bpts, .attr_floats = FI + 3,
+                        .xfb_bytes = (3ull * nw + 64) * 16};
+      jb.cmd[0] = (struct cmd){nw, 3, FV, 0, FI};
+      fails += check_base("base_inst_windows", &t, &jb, 3 * nw, nw, 3, FV, FI,
+                          div);
+
+      jb = (struct job){.pipe = p_bfan, .attr_floats = FI + 5000,
+                        .xfb_bytes = 2ull * 5000 * 48 + 1024};
+      jb.cmd[0] = (struct cmd){4, 5000, FV, 0, FI};
+      fails += check_base("base_inst_fan", &t, &jb, 2 * 5000 * 3, 0, 5000, FV,
+                          FI, div);
+
+      jb = (struct job){.pipe = p_bfan, .attr_floats = FI + 2,
+                        .xfb_bytes = 2ull * (NSTRIP - 2) * 48 + 1024};
+      jb.cmd[0] = (struct cmd){NSTRIP, 2, FV, 0, FI};
+      fails += check_base("base_inst_fan_windows", &t, &jb,
+                          2 * (NSTRIP - 2) * 3, 0, 2, FV, FI, div);
+   } else {
+      printf("SKIP base_inst cases: shaderDrawParameters not exposed\n");
+   }
 
    /* Conditional rendering: a zero predicate skips XFB and the queries. */
    if (has_cond_ext && vkCmdBeginConditionalRenderingEXT) {

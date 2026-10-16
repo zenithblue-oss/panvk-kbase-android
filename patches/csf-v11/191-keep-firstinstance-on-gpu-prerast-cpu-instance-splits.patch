@@ -1,0 +1,222 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Fri, 16 Oct 2026 15:00:00 +0530
+Subject: [PATCH] panvk: keep firstInstance on gpu_prerast CPU instance splits
+ biblioklept
+
+gpu_prerast_split() and gpu_prerast_split_fan() cut a draw over the
+prerast arena on the CPU: by instance ranges when one instance fits,
+else per instance into vertex windows. Each chunk was drawn with
+instance.base = firstInstance + its first instance. The lowered VS adds
+gl_BaseInstance (the vs.base_instance sysval) to its instance ID for
+gl_InstanceIndex, and the attribute descriptors add base * stride to
+per-instance attributes, so gl_InstanceIndex stayed right but every
+chunk saw gl_BaseInstance = firstInstance + offset, and an
+instance-rate attribute with divisor d read element
+firstInstance + offset + i / d instead of firstInstance +
+(offset + i) / d (divisor 0 read element firstInstance + offset).
+
+The GPU chunk loop already does this right: it keeps the API
+firstInstance in the chunk record and hands the chunk start to the
+lowered VS as params.chunk_instance, which the VS adds to
+load_instance_id (the ID the attribute fetch and gl_InstanceIndex use).
+Do the same for the CPU splits: the chunks keep instance.base, and
+gpu_prerast_draw_split() sets cmdbuf->state.gpu_prerast_inst_base to
+the chunk's instance offset around its panvk_cmd_draw(). gpu_prerast_vs()
+stores it as chunk_instance for a direct lowering, or adds it to the
+planner's chunk_instance when the chunk goes through the GPU chunk loop
+(an instance range over the 2048 instance cap). Nested splits add up.
+The value is CS-builder state only, not a struct panvk_draw_info field,
+so the shared panvk_cmd_draw.h (which jm-v9 patches) is not touched.
+
+A chunk that is not lowered after all (IDVS fallback of a VS with
+side effects whose lowered variants are missing) has no instance ID
+offset: panvk_cmd_draw() folds the offset back into instance.base
+there, which is the old behaviour. gpu_prerast_lowers() is the
+lowering decision gpu_prerast_draw() already made, factored out so the
+fold uses the same test.
+
+Generated draws (the raster passthrough of the arena) never read the
+offset; their records are indexed by the compute invocation IDs.
+
+Not changed: indexed triangle fans with primitive restart over the
+arena and indirect triangle fans over the arena are still
+gpu_prerast_unhandled (see worklogs/driver-remaining/
+191-base-instance-splits.md for the plan).
+
+PanProbe large_draw gains base_inst_* cases that capture
+gl_BaseInstance and a per-instance attribute (divisor 3 when
+vertexAttributeInstanceRateDivisor is exposed) across instance splits,
+per-instance vertex windows and fan splits.
+
+Build-only; not device-tested.
+
+Generated-by: LLM
+---
+ src/panfrost/vulkan/csf/panvk_cmd_buffer.h  |  6 ++
+ src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c | 64 ++++++++++++++++-----
+ 2 files changed, 57 insertions(+), 13 deletions(-)
+
+diff --git a/src/panfrost/vulkan/csf/panvk_cmd_buffer.h b/src/panfrost/vulkan/csf/panvk_cmd_buffer.h
+index bdc295e..c2bcdca 100644
+--- a/src/panfrost/vulkan/csf/panvk_cmd_buffer.h
++++ b/src/panfrost/vulkan/csf/panvk_cmd_buffer.h
+@@ -608,6 +608,12 @@ struct panvk_cmd_buffer {
+       /* CPU-side estimate used by the kbase queue to choose a conservative
+        * tiler-heap renewal cadence. */
+       uint64_t tiler_work_estimate;
++      /* Instances before the CPU split chunk being drawn (gpu_prerast_split).
++       * The chunk keeps the API firstInstance (gl_BaseInstance, per-instance
++       * attribute offsets) and the lowered VS adds this to its instance IDs,
++       * so gl_InstanceIndex and attribute divisors see the API instance.
++       */
++      uint32_t gpu_prerast_inst_base;
+ 
+       struct panvk_cond_render_state cond_render;
+    } state;
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+index 1733fa3..f4c1b7e 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+@@ -4266,13 +4266,17 @@ gpu_prerast_vs(struct panvk_cmd_buffer *cmdbuf,
+       cs_load32_to(compute, value, addr, 0);
+       cs_load32_to(compute, first_index_reg, addr, 4);
+       cs_wait_slot(compute, SB_ID(LS));
++      /* A GPU chunk of a CPU instance split chunk. */
++      if (cmdbuf->state.gpu_prerast_inst_base)
++         cs_add_imm32(compute, first_index_reg, first_index_reg,
++                      cmdbuf->state.gpu_prerast_inst_base);
+       cs_store32(compute, value, draw_params,
+                  offsetof(struct panvk_gpu_prerast_params, chunk_vertex));
+       cs_store32(compute, first_index_reg, draw_params,
+                  offsetof(struct panvk_gpu_prerast_params, chunk_instance));
+    } else {
+       STORE_PARAM32(chunk_vertex, 0);
+-      STORE_PARAM32(chunk_instance, 0);
++      STORE_PARAM32(chunk_instance, cmdbuf->state.gpu_prerast_inst_base);
+    }
+    if (poly_mode != PANVK_GPU_PRERAST_POLY_NONE) {
+       const struct vk_dynamic_graphics_state *dyns =
+@@ -4321,20 +4325,31 @@ gpu_prerast_vs(struct panvk_cmd_buffer *cmdbuf,
+    return true;
+ }
+ 
++/* Whether gpu_prerast_draw() lowers the draw, or leaves it to IDVS. */
++static bool
++gpu_prerast_lowers(const struct panvk_cmd_buffer *cmdbuf,
++                   const struct panvk_draw_info *source)
++{
++   const struct panvk_shader *shader = cmdbuf->state.gfx.vs.shader;
++   /* The chunk loop has no per-draw capacity, only the shaders matter. */
++   struct panvk_draw_info probe = *source;
++   if (gpu_prerast_chunk_wanted(cmdbuf, source) &&
++       !probe.indirect.buffer_dev_addr)
++      probe.vertex.count = probe.instance.count = 1;
++
++   return panvk_per_arch(gpu_prerast_can_lower)(cmdbuf, &probe,
++                                                &shader->gpu_prerast);
++}
++
+ static bool
+ gpu_prerast_draw(struct panvk_cmd_buffer *cmdbuf,
+                  const struct panvk_draw_info *source)
+ {
+    struct panvk_device *dev = to_panvk_device(cmdbuf->vk.base.device);
+    const struct panvk_shader *shader = cmdbuf->state.gfx.vs.shader;
+-   /* The chunk loop has no per-draw capacity, only the shaders matter. */
+    const bool chunked = gpu_prerast_chunk_wanted(cmdbuf, source);
+-   struct panvk_draw_info probe = *source;
+-   if (chunked && !probe.indirect.buffer_dev_addr)
+-      probe.vertex.count = probe.instance.count = 1;
+ 
+-   if (!panvk_per_arch(gpu_prerast_can_lower)(cmdbuf, &probe,
+-                                               &shader->gpu_prerast))
++   if (!gpu_prerast_lowers(cmdbuf, source))
+       return false;
+ 
+    if (chunked) {
+@@ -5649,6 +5664,23 @@ gpu_prerast_chunk_loop(struct panvk_cmd_buffer *cmdbuf,
+       vk_command_buffer_set_error(&cmdbuf->vk, VK_ERROR_OUT_OF_DEVICE_MEMORY);
+ }
+ 
++/* Draws a CPU split chunk that starts inst instances into the draw. The
++ * chunk keeps the API firstInstance: gl_BaseInstance and the per-instance
++ * attribute offsets stay the API ones, and gpu_prerast_vs() adds the offset
++ * to the lowered VS instance IDs, like the GPU chunk loop's chunk_instance.
++ * Nested splits add up.
++ */
++static void
++gpu_prerast_draw_split(struct panvk_cmd_buffer *cmdbuf,
++                       const struct panvk_draw_info *chunk, uint32_t inst)
++{
++   const uint32_t saved = cmdbuf->state.gpu_prerast_inst_base;
++
++   cmdbuf->state.gpu_prerast_inst_base = saved + inst;
++   panvk_cmd_draw(cmdbuf, *chunk);
++   cmdbuf->state.gpu_prerast_inst_base = saved;
++}
++
+ /* A triangle fan over the arena, as indexed fans of the hub and the next
+  * window of vertices. Windows share one vertex, so each API triangle is drawn
+  * once with its own vertices, winding and primitive ID. The 32-bit chunk
+@@ -5671,7 +5703,6 @@ gpu_prerast_split_fan(struct panvk_cmd_buffer *cmdbuf,
+    chunk.instance.count = 1;
+ 
+    for (uint32_t inst = 0; inst < draw->instance.count; inst++) {
+-      chunk.instance.base = draw->instance.base + inst;
+       for (uint32_t s = 1; s + 1 < draw->vertex.count; s += win - 1) {
+          const uint32_t n = MIN2(win, draw->vertex.count - s);
+          struct pan_ptr ib =
+@@ -5696,7 +5727,7 @@ gpu_prerast_split_fan(struct panvk_cmd_buffer *cmdbuf,
+          chunk.index.buffer_size = (n + 1) * sizeof(uint32_t);
+          chunk.vertex.count = n + 1;
+          chunk.gpu_prerast_prim_base = s - 1;
+-         panvk_cmd_draw(cmdbuf, chunk);
++         gpu_prerast_draw_split(cmdbuf, &chunk, inst);
+       }
+    }
+    return true;
+@@ -5746,9 +5777,8 @@ gpu_prerast_split(struct panvk_cmd_buffer *cmdbuf,
+          MIN2(max_verts / draw->vertex.count,
+               fan ? PANLIB_CHUNK_MAX_INSTANCES : UINT32_MAX);
+       for (uint32_t i = 0; i < draw->instance.count; i += step) {
+-         chunk.instance.base = draw->instance.base + i;
+          chunk.instance.count = MIN2(step, draw->instance.count - i);
+-         panvk_cmd_draw(cmdbuf, chunk);
++         gpu_prerast_draw_split(cmdbuf, &chunk, i);
+       }
+       return true;
+    }
+@@ -5787,7 +5817,6 @@ gpu_prerast_split(struct panvk_cmd_buffer *cmdbuf,
+ 
+    chunk.instance.count = 1;
+    for (uint32_t inst = 0; inst < draw->instance.count; inst++) {
+-      chunk.instance.base = draw->instance.base + inst;
+       for (uint32_t i = 0; i + overlap < draw->vertex.count; i += step) {
+          chunk.vertex.count = MIN2(step + overlap, draw->vertex.count - i);
+          if (draw->index.index_size)
+@@ -5795,7 +5824,7 @@ gpu_prerast_split(struct panvk_cmd_buffer *cmdbuf,
+          else
+             chunk.vertex.base = draw->vertex.base + i;
+          chunk.gpu_prerast_prim_base = i / prim_div;
+-         panvk_cmd_draw(cmdbuf, chunk);
++         gpu_prerast_draw_split(cmdbuf, &chunk, inst);
+       }
+    }
+    return true;
+@@ -5852,6 +5881,15 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info draw)
+    if (gpu_prerast_wanted(cmdbuf, &draw) && gpu_prerast_split(cmdbuf, &draw))
+       return;
+ 
++   /* A split chunk that falls back to IDVS has no instance ID offset: shift
++    * the base instead, which keeps gl_InstanceIndex but not gl_BaseInstance.
++    */
++   if (cmdbuf->state.gpu_prerast_inst_base && !draw.gpu_prerast_generated &&
++       (draw.prim == MESA_PRIM_PATCHES || !gpu_prerast_lowers(cmdbuf, &draw))) {
++      draw.instance.base += cmdbuf->state.gpu_prerast_inst_base;
++      cmdbuf->state.gpu_prerast_inst_base = 0;
++   }
++
+    if (draw.indirect.buffer_dev_addr)
+       account_tiler_work(cmdbuf, (uint64_t)draw.indirect.draw_count * 256);
+    else
