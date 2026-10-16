@@ -1,9 +1,11 @@
 #!/bin/sh
 # build-android.sh — Android/Bionic arm64-v8a PanVK (hot-loadable ICD + Android/X11 WSI + AHB + Kbase)
-# Usage: ./scripts/build-android.sh --profile g615-v11-csf [--api 35] [--ndk $ANDROID_NDK_ROOT]
+# Usage: ./scripts/build-android.sh --profile g615-v11-csf [--api 29] [--ndk $ANDROID_NDK_ROOT]
+# Default API 29: bionic's <threads.h> then inlines call_once & co. (libc
+# exports them only from API 30), so the ICD loads on Android 10.
 set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PROFILE=""; API="${ANDROID_API:-35}"; NDK="${ANDROID_NDK_ROOT:-${ANDROID_HOME:-/opt/android-sdk}/ndk}"
+PROFILE=""; API="${ANDROID_API:-29}"; NDK="${ANDROID_NDK_ROOT:-${ANDROID_HOME:-/opt/android-sdk}/ndk}"
 while [ $# -gt 0 ]; do case "$1" in
   --profile) PROFILE="$2"; shift 2;; --api) API="$2"; shift 2;; --ndk) NDK="$2"; shift 2;; *) echo "unknown $1" >&2; exit 2;; esac; done
 [ -n "$PROFILE" ] || { echo "--profile required" >&2; exit 2; }
