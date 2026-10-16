@@ -23,7 +23,7 @@ diff --git a/src/panfrost/lib/kmod/kbase_kmod.c b/src/panfrost/lib/kmod/kbase_km
 index 41d9db8..2af90a8 100644
 --- a/src/panfrost/lib/kmod/kbase_kmod.c
 +++ b/src/panfrost/lib/kmod/kbase_kmod.c
-@@ -1378,6 +1378,25 @@ kbase_kmod_dev_create(int fd, uint32_t flags,
+@@ -1458,6 +1458,25 @@ kbase_kmod_dev_create(int fd, uint32_t flags,
        goto err_unmap_tracking;
     }
  
@@ -49,7 +49,7 @@ index 41d9db8..2af90a8 100644
     /* Initialise the JIT allocator.  This must happen before any allocation
      * is made: besides setting up JIT, on 64-bit clients this is what carves
      * the CUSTOM_VA zone out of the top of the SAME_VA zone
-@@ -1396,19 +1415,6 @@ kbase_kmod_dev_create(int fd, uint32_t flags,
+@@ -1476,19 +1495,6 @@ kbase_kmod_dev_create(int fd, uint32_t flags,
                  "(tiler heap creation will not work)", strerror(errno));
     }
  

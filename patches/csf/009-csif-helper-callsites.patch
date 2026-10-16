@@ -62,7 +62,7 @@ Validation test: Gates D+E (vkCreateDevice + compute 10/10).
        struct cs_builder *b = &cmdbuf->state.cs[i].builder;
 --- a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
 +++ b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
-@@ -1585,7 +1585,7 @@
+@@ -1602,7 +1602,7 @@
  
     struct cs_builder b;
     const struct drm_panthor_csif_info *csif_info =
@@ -73,7 +73,7 @@ Validation test: Gates D+E (vkCreateDevice + compute 10/10).
        .cpu = panvk_priv_mem_host_addr(subq->req_resource.buf),
 --- a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
 +++ b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
-@@ -1775,7 +1775,7 @@
+@@ -1792,7 +1792,7 @@
        .queue_index = subqueue,
        .stream_size = cs_root_chunk_size(&b),
        .stream_addr = cs_root_chunk_gpu_addr(&b),
@@ -82,7 +82,7 @@ Validation test: Gates D+E (vkCreateDevice + compute 10/10).
        .syncs = DRM_PANTHOR_OBJ_ARRAY(1, &syncop),
     };
     struct drm_panthor_group_submit gsubmit = {
-@@ -2446,7 +2446,7 @@
+@@ -2463,7 +2463,7 @@
        return;
  
     struct panvk_device *dev = submit->dev;
@@ -91,7 +91,7 @@ Validation test: Gates D+E (vkCreateDevice + compute 10/10).
  
     u_foreach_bit(i, submit->req_resource_subqueue_mask) {
        struct panvk_subqueue *subq = &submit->queue->subqueues[i];
-@@ -2537,7 +2537,7 @@
+@@ -2554,7 +2554,7 @@
        }
  
        if (util_bitcount(submit->utrace.queue_mask) > 0)

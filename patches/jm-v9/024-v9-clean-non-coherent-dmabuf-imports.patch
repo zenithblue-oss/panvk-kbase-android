@@ -92,7 +92,7 @@ index 1b7035b..bb7eaee 100644
  
     if (!kbase_dev->is_csf) {
        simple_mtx_destroy(&kbase_dev->atoms_read_lock);
-@@ -1942,6 +1957,24 @@ kbase_kmod_import_dmabuf(struct pan_kmod_dev *dev,
+@@ -1999,6 +2014,24 @@ kbase_kmod_import_dmabuf(struct pan_kmod_dev *dev,
  
     pan_kmod_bo_init(&kbase_bo->base, dev, exclusive_vm, bo_size, flags,
                      handle);
@@ -117,7 +117,7 @@ index 1b7035b..bb7eaee 100644
     mesa_logi("kbase_kmod_bo_alloc_dmabuf: succeeded for %d, bo_size=%lu, handle=%u", kbase_bo->dmabuf_fd, bo_size, handle);
     mesa_logi("kbase: import flags=0x%llx -> va=0x%llx pages=%llu outflags=0x%llx",
               (unsigned long long)import_flags,
-@@ -2174,6 +2207,14 @@ kbase_kmod_bo_free(struct pan_kmod_bo *bo)
+@@ -2231,6 +2264,14 @@ kbase_kmod_bo_free(struct pan_kmod_bo *bo)
  {
     struct kbase_kmod_bo *kbase_bo =
        container_of(bo, struct kbase_kmod_bo, base);
@@ -132,7 +132,7 @@ index 1b7035b..bb7eaee 100644
  
     pan_kmod_bo_cleanup(bo);
  
-@@ -2851,6 +2892,32 @@ kbase_kmod_job_submit_retry(struct pan_kmod_dev *dev, uint64_t jc,
+@@ -2908,6 +2949,32 @@ kbase_kmod_job_submit_retry(struct pan_kmod_dev *dev, uint64_t jc,
     return false;
  }
  

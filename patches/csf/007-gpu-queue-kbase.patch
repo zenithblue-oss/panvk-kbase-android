@@ -1127,7 +1127,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
  static void
  finish_render_desc_ringbuf(struct panvk_gpu_queue *queue)
  {
-@@ -46,6 +1116,15 @@
+@@ -62,6 +1132,15 @@
                                 ringbuf->size);
     }
  
@@ -1143,7 +1143,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
     if (ringbuf->addr.dev) {
        panvk_address_binding_report(dev, NULL, ringbuf->addr.dev, ringbuf->size,
                                     VK_DEVICE_ADDRESS_BINDING_TYPE_UNBIND_EXT);
-@@ -109,6 +1188,45 @@
+@@ -125,6 +1204,45 @@
                               "Failed to CPU map ringbuf BO");
     }
  
@@ -1189,7 +1189,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
     /* We choose the alignment to guarantee that we won't ever cross a 4G
      * boundary when accessing the mapping. This way we can encode the wraparound
      * using 32-bit operations. */
-@@ -156,9 +1274,11 @@
+@@ -172,9 +1290,11 @@
  
     ringbuf->addr.dev = dev_addr;
  
@@ -1202,7 +1202,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
     if (dev->debug.decode_ctx) {
        pandecode_inject_mmap(dev->debug.decode_ctx, ringbuf->addr.dev,
                              ringbuf->addr.host, ringbuf->size, NULL);
-@@ -183,6 +1303,11 @@
+@@ -199,6 +1319,11 @@
           .seqno = RENDER_DESC_RINGBUF_SIZE,
        };
     }
@@ -1214,7 +1214,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
  
     return VK_SUCCESS;
  }
-@@ -231,6 +1357,49 @@
+@@ -247,6 +1373,49 @@
     vk_free(&dev->vk.alloc, subq->reg_file);
  }
  
@@ -1264,7 +1264,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
  static VkResult
  init_subqueue_tracing(struct panvk_gpu_queue *queue,
                        enum panvk_subqueue_id subqueue)
-@@ -322,6 +1491,9 @@
+@@ -338,6 +1507,9 @@
     panvk_pool_free_mem(&queue->subqueues[subqueue].context);
     panvk_pool_free_mem(&queue->subqueues[subqueue].req_resource.buf);
     panvk_pool_free_mem(&queue->subqueues[subqueue].regs_save);
@@ -1274,7 +1274,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
     finish_subqueue_tracing(queue, subqueue);
  }
  
-@@ -334,8 +1506,22 @@
+@@ -350,8 +1522,22 @@
     VkResult result;
  
     const struct vk_sync_type *sync_type = phys_dev->sync_types[0];
@@ -1299,7 +1299,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
  
     result = vk_sync_create(&dev->vk, sync_type, VK_SYNC_IS_TIMELINE, 0,
                             &queue->utrace.sync);
-@@ -450,6 +1636,14 @@
+@@ -466,6 +1652,14 @@
           .reg_dump_addr = panvk_priv_mem_dev_addr(subq->regs_save),
        };
  
@@ -1314,7 +1314,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
        if (subqueue != PANVK_SUBQUEUE_COMPUTE) {
           cs_ctx->render.tiler_heap =
              panvk_priv_mem_dev_addr(queue->tiler_heap.desc);
-@@ -478,13 +1672,36 @@
+@@ -494,13 +1688,36 @@
              panvk_priv_mem_dev_addr(queue->tiler_heap.oom_fbd);
        }
     }
@@ -1356,7 +1356,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
     conf = (struct cs_builder_conf){
        .nr_registers = csif_info->cs_reg_count,
        .nr_kernel_registers = MAX2(csif_info->unpreserved_cs_reg_count, 4),
-@@ -519,6 +1736,13 @@
+@@ -535,6 +1752,13 @@
                          struct panvk_cs_sync64, syncobj) {
        syncobj->seqno = 1;
     }
@@ -1370,7 +1370,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
  
     if (subqueue != PANVK_SUBQUEUE_COMPUTE) {
        struct cs_index heap_ctx_addr = cs_scratch_reg64(&b, 0);
-@@ -531,7 +1755,16 @@
+@@ -547,7 +1771,16 @@
  
     assert(cs_is_valid(&b));
  
@@ -1388,7 +1388,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
  
     struct drm_panthor_sync_op syncop = {
        .flags =
-@@ -555,19 +1788,29 @@
+@@ -571,19 +1804,29 @@
  
     pan_kmod_flush_bo_map_syncs(dev->kmod.dev);
  
@@ -1430,7 +1430,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
  
     if (PANVK_DEBUG(TRACE)) {
        pandecode_user_msg(dev->debug.decode_ctx, "Init subqueue %d binary\n\n",
-@@ -594,6 +1837,10 @@
+@@ -610,6 +1853,10 @@
     finish_render_desc_ringbuf(queue);
  
     panvk_pool_free_mem(&queue->syncobjs);
@@ -1441,7 +1441,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
  }
  
  static VkResult
-@@ -608,11 +1855,37 @@
+@@ -624,11 +1871,37 @@
        .alignment = 64,
     };
  
@@ -1480,7 +1480,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
     result = init_render_desc_ringbuf(queue);
     if (result != VK_SUCCESS)
        goto err_cleanup_queue;
-@@ -627,6 +1900,14 @@
+@@ -643,6 +1916,14 @@
           goto err_cleanup_queue;
     }
  
@@ -1495,7 +1495,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
     if (PANVK_DEBUG(TRACE))
        pandecode_next_frame(dev->debug.decode_ctx);
  
-@@ -746,32 +2027,78 @@
+@@ -762,32 +2043,78 @@
        goto err_free_desc;
     }
  
@@ -1591,7 +1591,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
     return VK_SUCCESS;
  
  err_free_desc:
-@@ -785,17 +2112,110 @@
+@@ -801,17 +2128,110 @@
  {
     struct panvk_device *dev = to_panvk_device(queue->vk.base.device);
     struct panvk_tiler_heap *tiler_heap = &queue->tiler_heap;
@@ -1708,7 +1708,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
  struct panvk_queue_submit {
     const struct panvk_physical_device *phys_dev;
     struct panvk_device *dev;
-@@ -808,11 +2228,16 @@
+@@ -824,11 +2244,16 @@
     uint32_t wait_queue_mask;
     uint32_t signal_queue_mask;
     uint32_t req_resource_subqueue_mask;
@@ -1763,7 +1763,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
           submit->qsubmits[submit->qsubmit_count++] =
              (struct drm_panthor_queue_submit){
                 .queue_index = j,
-@@ -1167,6 +2620,13 @@
+@@ -1171,6 +2624,13 @@
     PAN_TRACE_FUNC(PAN_TRACE_VK_CSF);
     struct panvk_gpu_queue *queue = submit->queue;
  
@@ -1777,7 +1777,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
     uint32_t signal_op = 0;
     u_foreach_bit(i, submit->signal_queue_mask) {
        submit->signal_ops[signal_op] = (struct drm_panthor_sync_op){
-@@ -1184,6 +2644,185 @@
+@@ -1188,6 +2648,185 @@
     }
  }
  
@@ -1963,7 +1963,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
  static VkResult
  panvk_queue_submit_ioctl(struct panvk_queue_submit *submit)
  {
-@@ -1368,6 +3007,18 @@
+@@ -1372,6 +3011,18 @@
     panvk_queue_submit_init_cmdbufs(&submit, vk_submit);
     panvk_queue_submit_init_signals(&submit, vk_submit);
  
@@ -1982,7 +1982,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
     result = panvk_queue_submit_ioctl(&submit);
     if (result != VK_SUCCESS)
        goto out;
-@@ -1420,42 +3071,82 @@
+@@ -1424,42 +3075,82 @@
     if (result != VK_SUCCESS)
        goto err_free_queue;
  
@@ -2085,7 +2085,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
  
  err_finish_queue:
     vk_queue_finish(&queue->vk);
-@@ -1471,10 +3162,25 @@
+@@ -1475,10 +3166,25 @@
     struct panvk_gpu_queue *queue = container_of(vk_queue, struct panvk_gpu_queue, vk);
     struct panvk_device *dev = to_panvk_device(queue->vk.base.device);
  
@@ -2114,7 +2114,7 @@ Validation test: x86 smoke build; runtime Gates C-H on Poco.
     vk_queue_finish(&queue->vk);
     vk_free(&dev->vk.alloc, queue);
  }
-@@ -1488,6 +3194,22 @@
+@@ -1492,6 +3198,22 @@
        .group_handle = queue->group_handle,
     };
  

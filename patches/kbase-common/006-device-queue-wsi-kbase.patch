@@ -402,7 +402,7 @@ Validation test: build with kbase; DRM path unchanged.
        uint64_t next_value;
 --- a/src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c
 +++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c
-@@ -41,6 +42,45 @@
+@@ -40,6 +41,45 @@
  #include "vk_format.h"
  #include "vk_synchronization.h"
  
@@ -448,7 +448,7 @@ Validation test: build with kbase; DRM path unchanged.
  static void
  emit_tls(struct panvk_cmd_buffer *cmdbuf)
  {
-@@ -105,7 +145,11 @@
+@@ -104,7 +144,11 @@
     struct panvk_device *dev = to_panvk_device(cmdbuf->vk.base.device);
     struct cs_builder *b = panvk_get_cs_builder(cmdbuf, subqueue);
  
@@ -460,7 +460,7 @@ Validation test: build with kbase; DRM path unchanged.
  
     /* save CS error if non-zero */
     if (cmdbuf->vk.level == VK_COMMAND_BUFFER_LEVEL_PRIMARY) {
-@@ -188,6 +232,8 @@
+@@ -187,6 +231,8 @@
     panvk_per_arch(panvk_instr_end_work)(
        subqueue, cmdbuf, PANVK_INSTR_WORK_TYPE_CMDBUF, &instr_info_cmdbuf);
  
@@ -516,7 +516,7 @@ Validation test: build with kbase; DRM path unchanged.
  
 --- a/src/panfrost/vulkan/csf/panvk_cmd_buffer.h
 +++ b/src/panfrost/vulkan/csf/panvk_cmd_buffer.h
-@@ -58,6 +51,34 @@
+@@ -65,6 +58,34 @@
     uint32_t pad;
  };
  
@@ -551,7 +551,7 @@ Validation test: build with kbase; DRM path unchanged.
  struct panvk_cs_desc_ringbuf {
     uint64_t syncobj;
     uint64_t ptr;
-@@ -566,6 +562,9 @@
+@@ -598,6 +594,9 @@
        struct panvk_cs_state cs[PANVK_SUBQUEUE_COUNT];
        struct panvk_tls_state tls;
        bool contains_timestamp_queries;
@@ -561,7 +561,7 @@ Validation test: build with kbase; DRM path unchanged.
  
        struct panvk_cond_render_state cond_render;
     } state;
-@@ -1001,6 +1000,10 @@
+@@ -1033,6 +1032,10 @@
  void panvk_per_arch(emit_barrier)(struct panvk_cmd_buffer *cmdbuf,
                                    struct panvk_cs_deps deps);
  
@@ -574,7 +574,7 @@ Validation test: build with kbase; DRM path unchanged.
  cs_emit_layer_fragment_state(struct cs_builder *b, struct cs_index fbd_ptr)
 --- a/src/panfrost/vulkan/csf/panvk_cmd_buffer.h
 +++ b/src/panfrost/vulkan/csf/panvk_cmd_buffer.h
-@@ -195,6 +195,7 @@
+@@ -223,6 +223,7 @@
     } tiler_oom_ctx;
     struct {
        struct {
@@ -584,7 +584,7 @@ Validation test: build with kbase; DRM path unchanged.
     } debug;
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
-@@ -292,9 +292,12 @@
+@@ -293,9 +293,12 @@
  void
  panvk_per_arch(get_physical_device_features)(
     const struct panvk_instance *instance,

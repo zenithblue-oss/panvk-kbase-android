@@ -15,7 +15,7 @@ diff --git a/src/panfrost/lib/kmod/kbase_kmod.c b/src/panfrost/lib/kmod/kbase_km
 index fd56f145478..66eafbd2a38 100644
 --- a/src/panfrost/lib/kmod/kbase_kmod.c
 +++ b/src/panfrost/lib/kmod/kbase_kmod.c
-@@ -1931,6 +1931,23 @@ kbase_kmod_bo_wait(struct pan_kmod_bo *bo, int64_t timeout_ns,
+@@ -1962,6 +1962,23 @@ kbase_kmod_bo_wait(struct pan_kmod_bo *bo, int64_t timeout_ns,
     return true;
  }
  
@@ -39,7 +39,7 @@ index fd56f145478..66eafbd2a38 100644
  static int
  kbase_kmod_flush_bo_map_syncs(struct pan_kmod_dev *dev)
  {
-@@ -2103,6 +2120,7 @@ const struct pan_kmod_ops kbase_kmod_ops = {
+@@ -2135,6 +2152,7 @@ const struct pan_kmod_ops kbase_kmod_ops = {
     .bo_mmap                = kbase_kmod_bo_mmap,
     .bo_munmap              = kbase_kmod_bo_munmap,
     .flush_bo_map_syncs     = kbase_kmod_flush_bo_map_syncs,

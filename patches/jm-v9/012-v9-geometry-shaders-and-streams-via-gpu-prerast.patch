@@ -382,7 +382,7 @@ index eab134a..2b682c0 100644
        /* 32 vec4 varyings. */
        .maxFragmentInputComponents = 128,
        /* 8 render targets. */
-@@ -1324,8 +1324,11 @@ panvk_per_arch(get_physical_device_properties)(
+@@ -1334,8 +1334,11 @@ panvk_per_arch(get_physical_device_properties)(
        .maxMultiDrawCount = 2048,
  
        /* VK_EXT_transform_feedback */
@@ -396,7 +396,7 @@ index eab134a..2b682c0 100644
        .maxTransformFeedbackBuffers = PAN_ARCH >= 9 ? 4 : 0,
        .maxTransformFeedbackBufferSize = UINT32_MAX,
        .maxTransformFeedbackStreamDataSize = 512,
-@@ -1333,8 +1336,9 @@ panvk_per_arch(get_physical_device_properties)(
+@@ -1343,8 +1346,9 @@ panvk_per_arch(get_physical_device_properties)(
        .maxTransformFeedbackBufferDataStride = 2048,
        /* v9 JM queries are occlusion only. */
        .transformFeedbackQueries = PAN_ARCH >= 10,

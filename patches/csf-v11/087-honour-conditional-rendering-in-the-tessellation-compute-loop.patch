@@ -15,7 +15,7 @@ diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/c
 index 7b40ea4fd06..d6bcf58eb02 100644
 --- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
-@@ -4440,6 +4440,40 @@ gpu_prerast_load_flag(struct cs_builder *b, uint64_t addr)
+@@ -4443,6 +4443,40 @@ gpu_prerast_load_flag(struct cs_builder *b, uint64_t addr)
     return flag;
  }
  
@@ -56,7 +56,7 @@ index 7b40ea4fd06..d6bcf58eb02 100644
  /* GPU tessellation, as one CS loop on each of the compute and vertex/tiler
   * queues, handshaking through the queue's tessellation ready/free syncs.
   * Each compute iteration either runs VS -> TCS -> tessellator on the next
-@@ -4549,10 +4583,23 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
+@@ -4552,10 +4586,23 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
     struct panvk_gpu_prerast_tess_layout l;
     panvk_gpu_prerast_tess_layout(arena, max_patches, tc->stride_el * 4, &l);
  
@@ -84,7 +84,7 @@ index 7b40ea4fd06..d6bcf58eb02 100644
  
  #define TD(f) (td.gpu + offsetof(struct panlib_tess_draw, f))
     const struct panvk_pstats_query_state *pstats =
-@@ -4592,20 +4639,23 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
+@@ -4595,20 +4642,23 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
     t->range = range;
     t->verts_per_prim = vpp;
  
@@ -122,7 +122,7 @@ index 7b40ea4fd06..d6bcf58eb02 100644
  
     struct cs_builder *b = panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_COMPUTE);
     struct cs_builder *vt =
-@@ -4685,6 +4735,27 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
+@@ -4688,6 +4738,27 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
     gpu_prerast_acquire_arena(cmdbuf, arena);
     if (nested)
        gpu_prerast_acquire_arena(cmdbuf, prerast_arena);
@@ -150,7 +150,7 @@ index 7b40ea4fd06..d6bcf58eb02 100644
     panlib_tess_setup(&ctx, panlib_1d(1), PANLIB_BARRIER_NONE, td.gpu, src,
                       draw->indirect.count_buffer_dev_addr,
                       draw->indirect.buffer_dev_addr ? draw->indirect.draw_index : 0);
-@@ -4698,6 +4769,45 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
+@@ -4701,6 +4772,45 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
        gpu_prerast_sync32_take(cmdbuf, PANVK_SUBQUEUE_COMPUTE,
                                PANVK_QUEUE_TESS_FREE_SYNC_OFFSET);
  
@@ -196,7 +196,7 @@ index 7b40ea4fd06..d6bcf58eb02 100644
        panlib_tess_step(&ctx, panlib_1d(1), PANLIB_BARRIER_NONE, td.gpu,
                         tcs_stat);
        cs_wait_slots(b, dev->csf.sb.all_iters_mask);
-@@ -4779,10 +4889,21 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
+@@ -4782,10 +4892,21 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
        cmdbuf->state.gfx.vs.shader = tes;
        gfx_state_set_dirty(cmdbuf, VS);
        gfx_state_set_dirty(cmdbuf, VS_PUSH_UNIFORMS);

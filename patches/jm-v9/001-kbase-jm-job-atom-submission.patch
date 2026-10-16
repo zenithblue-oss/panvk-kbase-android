@@ -77,7 +77,7 @@ index 68aed39..41d9db8 100644
  struct kbase_kmod_dev {
     struct pan_kmod_dev base;
  
-@@ -115,6 +163,16 @@ struct kbase_kmod_dev {
+@@ -126,6 +174,16 @@ struct kbase_kmod_dev {
        base_kcpu_queue_id id;
        bool valid;
     } kcpu_export;
@@ -94,7 +94,7 @@ index 68aed39..41d9db8 100644
  };
  
  struct kbase_kmod_vm {
-@@ -1214,6 +1272,42 @@ kbase_kmod_alias_destroy(struct pan_kmod_dev *dev, uint64_t va, uint64_t size,
+@@ -1293,6 +1351,42 @@ kbase_kmod_alias_destroy(struct pan_kmod_dev *dev, uint64_t va, uint64_t size,
     munmap((void *)(uintptr_t)va, size * nents);
  }
  
@@ -137,7 +137,7 @@ index 68aed39..41d9db8 100644
  static struct pan_kmod_dev *
  kbase_kmod_dev_create(int fd, uint32_t flags,
                        UNUSED const struct pan_kmod_driver *drv_info,
-@@ -1258,6 +1352,14 @@ kbase_kmod_dev_create(int fd, uint32_t flags,
+@@ -1338,6 +1432,14 @@ kbase_kmod_dev_create(int fd, uint32_t flags,
        return NULL;
     }
  
@@ -152,7 +152,7 @@ index 68aed39..41d9db8 100644
     /* Map the tracking page.  The kernel requires this before any memory
      * operation. */
     void *tracking_page = mmap(NULL, 4096, PROT_NONE, MAP_SHARED, fd,
-@@ -1300,6 +1402,8 @@ kbase_kmod_dev_create(int fd, uint32_t flags,
+@@ -1380,6 +1482,8 @@ kbase_kmod_dev_create(int fd, uint32_t flags,
      * automatically and this is a no-op.  Failure is not fatal for
      * enumeration, but executable allocations will fail later, so warn. */
     struct kbase_ioctl_mem_exec_init exec_init = { .va_pages = 0x100000 };
@@ -161,7 +161,7 @@ index 68aed39..41d9db8 100644
     if (ioctl(fd, KBASE_IOCTL_MEM_EXEC_INIT, &exec_init)) {
        mesa_logw("kbase: KBASE_IOCTL_MEM_EXEC_INIT failed: %s "
                  "(executable BO allocation will not work)", strerror(errno));
-@@ -1341,6 +1445,11 @@ kbase_kmod_dev_create(int fd, uint32_t flags,
+@@ -1421,6 +1525,11 @@ kbase_kmod_dev_create(int fd, uint32_t flags,
     kbase_dev->kcpu.fence_fd = -1;
     simple_mtx_init(&kbase_dev->kcpu.lock, mtx_plain);
     simple_mtx_init(&kbase_dev->kcpu_export.lock, mtx_plain);
@@ -173,7 +173,7 @@ index 68aed39..41d9db8 100644
  
     if (is_csf && kbase_query_csif_info(fd, &kbase_dev->csif_info)) {
        mesa_loge("kbase: failed to query the CSF global interface");
-@@ -1389,6 +1498,10 @@ kbase_kmod_dev_create(int fd, uint32_t flags,
+@@ -1429,6 +1538,10 @@ kbase_kmod_dev_create(int fd, uint32_t flags,
        kbase_dev->base.flags &= ~PAN_KMOD_DEV_FLAG_OWNS_FD;
        pan_kmod_dev_cleanup(&kbase_dev->base);
        simple_mtx_destroy(&kbase_dev->kcpu.lock);
@@ -184,7 +184,7 @@ index 68aed39..41d9db8 100644
        pan_kmod_free(allocator, kbase_dev);
        return NULL;
     }
-@@ -1452,6 +1565,11 @@ kbase_kmod_dev_destroy(struct pan_kmod_dev *dev)
+@@ -1532,6 +1645,11 @@ kbase_kmod_dev_destroy(struct pan_kmod_dev *dev)
     }
     simple_mtx_destroy(&kbase_dev->kcpu_export.lock);
  
@@ -196,7 +196,7 @@ index 68aed39..41d9db8 100644
     if (kbase_dev->user_reg_page)
        munmap(kbase_dev->user_reg_page, 4096);
  
-@@ -1535,6 +1653,75 @@ to_kbase_mem_flags(uint32_t kmod_flags)
+@@ -1615,6 +1733,75 @@ to_kbase_mem_flags(uint32_t kmod_flags)
     return flags;
  }
  
@@ -272,7 +272,7 @@ index 68aed39..41d9db8 100644
  static struct pan_kmod_bo *
  kbase_kmod_import_dmabuf(struct pan_kmod_dev *dev,
                           struct pan_kmod_vm *exclusive_vm, int fd,
-@@ -2143,6 +2330,373 @@ kbase_kmod_bo_set_label(UNUSED struct pan_kmod_dev *dev,
+@@ -2303,6 +2490,373 @@ kbase_kmod_bo_set_label(UNUSED struct pan_kmod_dev *dev,
   * ops vtable
   * ---------------------------------------------------------------------- */
  

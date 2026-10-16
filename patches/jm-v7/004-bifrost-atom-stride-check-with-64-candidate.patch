@@ -117,7 +117,7 @@ index 9830f5d3efe..8322de67327 100644
        simple_mtx_init(&kbase_dev->atoms_lock, mtx_plain);
        simple_mtx_init(&kbase_dev->atoms_read_lock, mtx_plain);
     }
-@@ -2794,8 +2855,12 @@ kbase_kmod_job_submit(struct pan_kmod_dev *dev, uint64_t jc,
+@@ -2851,8 +2912,12 @@ kbase_kmod_job_submit(struct pan_kmod_dev *dev, uint64_t jc,
        atom.core_req |= BASE_JD_REQ_EXTERNAL_RESOURCES;
     }
  
@@ -131,7 +131,7 @@ index 9830f5d3efe..8322de67327 100644
        .nr_atoms = 1,
        .stride = kd->atom_stride,
     };
-@@ -2841,8 +2906,12 @@ kbase_kmod_job_submit_dep(struct pan_kmod_dev *dev, uint64_t jc,
+@@ -2898,8 +2963,12 @@ kbase_kmod_job_submit_dep(struct pan_kmod_dev *dev, uint64_t jc,
        atom.pre_dep[i].dependency_type = use ? types[i] : 0;
     }
  

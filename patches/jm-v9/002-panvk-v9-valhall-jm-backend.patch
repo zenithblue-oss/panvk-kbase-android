@@ -50,7 +50,7 @@ diff --git a/src/panfrost/libpan/draw_helper.cl b/src/panfrost/libpan/draw_helpe
 index 33e92fa..c9dc7a9 100644
 --- a/src/panfrost/libpan/draw_helper.cl
 +++ b/src/panfrost/libpan/draw_helper.cl
-@@ -1400,3 +1400,65 @@ panlib_draw_index_minmax_search_helper(global uint8_t *index_buffer_ptr,
+@@ -1514,3 +1514,65 @@ panlib_draw_index_minmax_search_helper(global uint8_t *index_buffer_ptr,
  }
  
  #endif
@@ -2249,7 +2249,7 @@ index 7465627..7aa9d6a 100644
  static VkResult
  kbase_cpu_sync_wait_one(struct vk_device *device, struct kbase_cpu_sync *ks,
                          enum vk_sync_wait_flags wait_flags,
-@@ -1329,6 +1360,7 @@ panvk_physical_device_init_kbase(struct panvk_physical_device *device,
+@@ -1367,6 +1398,7 @@ panvk_physical_device_init_kbase(struct panvk_physical_device *device,
        }
        break;
  
@@ -2300,7 +2300,7 @@ diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_v
 index f3e2a37..8ff1fb5 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
-@@ -3465,8 +3465,8 @@ panvk_compile_shader(struct panvk_device *dev,
+@@ -3458,8 +3458,8 @@ panvk_compile_shader(struct panvk_device *dev,
              clone_nir ? nir_shader_clone(NULL, info->nir) : info->nir;
  #endif
  
