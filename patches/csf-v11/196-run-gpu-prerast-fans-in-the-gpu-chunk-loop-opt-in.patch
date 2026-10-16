@@ -1,0 +1,527 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Fri, 16 Oct 2026 20:30:00 +0530
+Subject: [PATCH] panvk: run gpu_prerast triangle fans in the GPU chunk loop,
+ opt-in, on v10+ biblioklept
+
+Two kinds of fans over the gpu_prerast arena were not handled: indexed
+fans with primitive restart (dropped as gpu_prerast_unhandled: the CPU
+split cannot see where a restart starts a new hub) and indirect fans
+(lowered in one pass, clamped to the arena since the previous patch).
+Indirect fans over 2048 instances also ran as one grid.
+
+With PANVK_FAN_CHUNKS=1 (Android: debug.mesa.panvk.fan.chunks=1) both
+run in gpu_prerast_chunk_loop() like strips. Off (the default),
+nothing changes.
+
+- panlib_fan_chunk_step (fan_chunks.cl) plans each chunk: whole
+  instances when one fits max_verts (at most 2048), else a window of
+  one instance. A window that cuts a fan keeps its hub: the next
+  window is [hub, i .. i + max_verts - 2] with i the last vertex of the
+  one before, so every API triangle is drawn once with its vertices,
+  winding and primitive ID (the CPU fan split does the same).
+- With restart the window is scanned with the whole workgroup (as
+  chunk_scan does for strips). A window that holds a restart and does
+  not reach the end ends at its last restart; the fans in it are drawn
+  whole from their own hubs and the next window starts after it. The
+  window of a cut fan is scanned from i - 1, a vertex of that fan, so
+  its first fan counts the hub. The primitive counts are exact, so
+  prims_done gives the GS primitive ID base and primitives generated.
+  Each window moves on by at least one position: the loop ends.
+- panlib_fan_chunk_fill writes the chunk as 32-bit indices into a
+  per-draw buffer of max_verts + 1 entries (element numbers for
+  non-indexed fans, whose vertexOffset is then firstVertex; restart
+  indices as 0xffffffff). The chunk is always drawn as an indexed fan
+  of that buffer: c->draw is the 5-word indexed layout, firstIndex 0.
+- Direct fans without restart keep the CPU split.
+- Restart fans in polygon line/point mode stay off the chunk loop: the
+  polygon kernel walks back to the hub per vertex, quadratic in a
+  max_verts chunk (the pattern of the 120 GS hang).
+
+The fan state is its own struct (fan_chunks.h) next to struct
+panlib_chunk_draw, and the kernels are in fan_chunks.cl, so tess_draw.h
+and draw_helper.cl, which jm-v9 patches later in the series, keep their
+lines. The switch is a DEBUG_GET_ONCE option in the csf draw file, not
+a PANVK_DEBUG flag, for the same reason.
+
+Build-only; not device-tested.
+
+Generated-by: LLM
+---
+ src/panfrost/libpan/fan_chunks.cl           | 270 ++++++++++++++++++++
+ src/panfrost/libpan/fan_chunks.h            |  32 +++
+ src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c |  84 +++++-
+ 3 files changed, 384 insertions(+), 2 deletions(-)
+ create mode 100644 src/panfrost/libpan/fan_chunks.h
+
+diff --git a/src/panfrost/libpan/fan_chunks.cl b/src/panfrost/libpan/fan_chunks.cl
+index cb6a714..9a29a2a 100644
+--- a/src/panfrost/libpan/fan_chunks.cl
++++ b/src/panfrost/libpan/fan_chunks.cl
+@@ -7,9 +7,279 @@
+ #include "compiler/libcl/libcl_vk.h"
+ #include "compiler/shader_enums.h"
+ #include "genxml/gen_macros.h"
++#include "fan_chunks.h"
++#include "tess_draw.h"
+ 
+ #if PAN_ARCH >= 10
+ 
++#define FAN_WG 256
++
++/* Index at position pos of the API draw (from firstIndex). Restart indices
++ * and indices past the buffer read as restart when restart is on, past the
++ * buffer as 0 otherwise.
++ */
++static uint32_t
++fan_index(global struct panlib_chunk_draw *c, uint32_t pos, bool *restart)
++{
++   uint64_t at = (uint64_t)c->in_draw[2] + pos;
++
++   *restart = false;
++   if (at >= c->index_count_el) {
++      *restart = c->restart;
++      return 0;
++   }
++
++   uintptr_t addr = (uintptr_t)(c->index_buffer + at * c->index_size);
++   uint32_t v, rv;
++
++   if (c->index_size == 4) {
++      v = *(global uint32_t *)addr;
++      rv = 0xffffffff;
++   } else if (c->index_size == 2) {
++      v = *(global uint16_t *)addr;
++      rv = 0xffff;
++   } else {
++      v = *(global uint8_t *)addr;
++      rv = 0xff;
++   }
++
++   *restart = c->restart && v == rv;
++   return v;
++}
++
++static bool
++fan_is_restart(global struct panlib_chunk_draw *c, uint32_t pos)
++{
++   bool r;
++   fan_index(c, pos, &r);
++   return r;
++}
++
++struct fan_scan {
++   /* Last restart position, UINT32_MAX if none. */
++   uint32_t last;
++   /* Triangles of the fans that a restart ends. */
++   uint32_t closed;
++   /* Vertices after the last restart. */
++   uint32_t run;
++};
++
++/* Restart scan of [start, start + len) with the whole workgroup, like
++ * chunk_scan() in draw_helper.cl. Every invocation gets the same result.
++ */
++static struct fan_scan
++fan_scan(global struct panlib_chunk_draw *c, uint32_t start, uint32_t len,
++         local uint32_t *tmp)
++{
++   const uint32_t tid = cl_local_id.x;
++   const uint32_t seg = (len + FAN_WG - 1) / FAN_WG;
++   const uint32_t b = min(tid * seg, len), e = min(b + seg, len);
++   uint32_t last = UINT32_MAX, lead = 0, inner = 0, run = 0;
++
++   for (uint32_t j = b; j < e; j++) {
++      if (fan_is_restart(c, start + j)) {
++         if (last == UINT32_MAX)
++            lead = run;
++         else
++            inner += u_decomposed_prims_for_vertices(MESA_PRIM_TRIANGLE_FAN,
++                                                     run);
++         last = j;
++         run = 0;
++      } else {
++         run++;
++      }
++   }
++
++   tmp[tid] = last;
++   tmp[FAN_WG + tid] = lead;
++   tmp[2 * FAN_WG + tid] = inner;
++   tmp[3 * FAN_WG + tid] = run;
++   barrier(CLK_LOCAL_MEM_FENCE);
++
++   struct fan_scan r = {UINT32_MAX, 0, 0};
++   for (uint32_t t = 0; t < FAN_WG; t++) {
++      if (tmp[t] == UINT32_MAX) {
++         r.run += tmp[3 * FAN_WG + t];
++      } else {
++         r.closed += u_decomposed_prims_for_vertices(
++                        MESA_PRIM_TRIANGLE_FAN, r.run + tmp[FAN_WG + t]) +
++                     tmp[2 * FAN_WG + t];
++         r.run = tmp[3 * FAN_WG + t];
++         r.last = start + tmp[t];
++      }
++   }
++   barrier(CLK_LOCAL_MEM_FENCE);
++   return r;
++}
++
++/* panlib_chunk_step() for triangle fans. Plans the next chunk of the draw
++ * into c->draw (always the 5-word indexed layout: the chunk is drawn from
++ * f->indices) and f->c_*, which panlib_fan_chunk_fill() turns into indices.
++ *
++ * Whole instances when an instance fits max_verts (at most
++ * PANLIB_CHUNK_MAX_INSTANCES). Else a window of one instance:
++ * - no cut fan: positions [i, i + max_verts), hub i;
++ * - after a cut: the hub of the cut fan, then [i, i + max_verts - 1). i is
++ *   the last vertex of the window before, so the triangle across the cut is
++ *   drawn once.
++ * With restart, a window that holds a restart and does not reach the end of
++ * the draw ends at its last restart, the next one starts after it with no
++ * cut fan. The fans in it are drawn whole, each from its own hub. The count
++ * of a cut fan's window is scanned from i - 1, a vertex of that fan, which
++ * stands for its hub. Each window moves on by at least one position.
++ */
++KERNEL(FAN_WG)
++panlib_fan_chunk_step(global struct panlib_chunk_draw *c,
++                      global struct panlib_fan_chunk *f)
++{
++   local uint32_t tmp[4 * FAN_WG];
++   const uint32_t verts = c->in_draw[0], insts = c->in_draw[1];
++   const uint32_t inst = c->next_inst;
++   const uint32_t max_v = c->max_verts;
++   const bool restart = c->restart;
++   const bool live = verts && inst < insts && max_v >= 3;
++   const uint32_t hub = f->hub;
++   const bool cut = hub != PANLIB_FAN_NO_HUB;
++   uint32_t i = c->next_vertex;
++
++   /* Every invocation has read c and f: invocation 0 may write them from
++    * here on. */
++   barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
++
++   uint32_t len = 0;
++   struct fan_scan sc = {UINT32_MAX, 0, 0};
++   if (live) {
++      if (verts <= max_v) {
++         if (restart)
++            sc = fan_scan(c, 0, verts, tmp);
++      } else {
++         while (restart && !cut && i < verts && fan_is_restart(c, i))
++            i++;
++         if (i < verts) {
++            len = min(cut ? max_v - 1 : max_v, verts - i);
++            if (restart)
++               sc = cut ? fan_scan(c, i - 1, len + 1, tmp)
++                        : fan_scan(c, i, len, tmp);
++         }
++      }
++   }
++
++   if (cl_local_id.x != 0)
++      return;
++
++   c->draw[0] = 0;
++   c->draw[1] = 0;
++   c->draw[2] = 0;
++   c->draw[3] = c->indexed ? c->in_draw[3] : c->in_draw[2];
++   c->draw[4] = c->indexed ? c->in_draw[4] : c->in_draw[3];
++   c->chunk_vertex = 0;
++   c->chunk_instance = 0;
++   c->more = 0;
++   f->c_count = 0;
++
++   if (!live) {
++      c->next_inst = insts;
++      return;
++   }
++
++   uint32_t n_insts = 1, count, prims;
++
++   if (verts <= max_v) {
++      n_insts = min(max(max_v / verts, 1u), insts - inst);
++      n_insts = min(n_insts, c->max_insts ? c->max_insts
++                                          : PANLIB_CHUNK_MAX_INSTANCES);
++      prims = restart ? sc.closed + u_decomposed_prims_for_vertices(
++                                       MESA_PRIM_TRIANGLE_FAN, sc.run)
++                      : u_decomposed_prims_for_vertices(
++                           MESA_PRIM_TRIANGLE_FAN, verts);
++      count = verts;
++      f->c_hub = 0;
++      f->c_first = 1;
++      f->hub = PANLIB_FAN_NO_HUB;
++      c->prim_base = 0;
++      c->prims_done = 0;
++      c->next_inst = inst + n_insts;
++      c->next_vertex = 0;
++   } else if (i >= verts) {
++      /* Only restart indices were left. */
++      f->hub = PANLIB_FAN_NO_HUB;
++      c->next_inst = inst + 1;
++      c->next_vertex = 0;
++      c->prims_done = 0;
++      c->more = c->next_inst < insts;
++      return;
++   } else {
++      const bool end = i + len >= verts;
++      uint32_t next;
++
++      f->c_hub = cut ? hub : i;
++      f->c_first = cut ? i : i + 1;
++
++      if (restart && sc.last != UINT32_MAX && !end) {
++         /* Draw the fans up to the last restart whole. */
++         count = sc.last - i + (cut ? 1 : 0);
++         prims = sc.closed;
++         next = sc.last + 1;
++         f->hub = PANLIB_FAN_NO_HUB;
++      } else {
++         count = len + (cut ? 1 : 0);
++         prims = restart ? sc.closed + u_decomposed_prims_for_vertices(
++                                          MESA_PRIM_TRIANGLE_FAN, sc.run)
++                         : u_decomposed_prims_for_vertices(
++                              MESA_PRIM_TRIANGLE_FAN, count);
++         next = i + len - 1;
++         f->hub = f->c_hub;
++      }
++
++      c->prim_base = c->prims_done;
++      c->prims_done += prims;
++      c->next_vertex = next;
++      if (end || next >= verts) {
++         f->hub = PANLIB_FAN_NO_HUB;
++         c->next_inst = inst + 1;
++         c->next_vertex = 0;
++         c->prims_done = 0;
++      }
++   }
++
++   f->c_count = count;
++   c->draw[0] = count;
++   c->draw[1] = n_insts;
++   c->chunk_instance = inst;
++   c->more = c->next_inst < insts;
++
++   if (c->prims_generated) {
++      atomic_fetch_add((global atomic_uint *)(uintptr_t)c->prims_generated,
++                       prims * n_insts * c->view_count);
++   }
++}
++
++/* The chunk panlib_fan_chunk_step() planned, as 32-bit indices. Without an
++ * index buffer the positions are the indices (the chunk's vertexOffset is
++ * firstVertex). Restart indices become 0xffffffff.
++ */
++KERNEL(64)
++panlib_fan_chunk_fill(global struct panlib_chunk_draw *c,
++                      global struct panlib_fan_chunk *f)
++{
++   const uint32_t j = cl_global_id.x;
++
++   if (j >= f->c_count)
++      return;
++
++   const uint32_t pos = j ? f->c_first + j - 1 : f->c_hub;
++   global uint32_t *dst = (global uint32_t *)(uintptr_t)f->indices;
++
++   if (!c->indexed) {
++      dst[j] = pos;
++      return;
++   }
++
++   bool restart;
++   uint32_t v = fan_index(c, pos, &restart);
++   dst[j] = restart ? 0xffffffff : v;
++}
++
+ /* An indirect fan lowered in one pass (not chunked): clamps its counts to
+  * what the arena holds, so the triangles past it are dropped instead of
+  * drawn from stale records and indices. The words are the lowered VS
+diff --git a/src/panfrost/libpan/fan_chunks.h b/src/panfrost/libpan/fan_chunks.h
+new file mode 100644
+index 0000000..169b8a0
+--- /dev/null
++++ b/src/panfrost/libpan/fan_chunks.h
+@@ -0,0 +1,32 @@
++/*
++ * Copyright 2026 Abhay Byte
++ * SPDX-License-Identifier: MIT
++ */
++
++#pragma once
++
++#include "compiler/libcl/libcl.h"
++
++/* Triangle fans in the gpu_prerast chunk loop (v10+ CSF), next to the
++ * struct panlib_chunk_draw of the draw, see fan_chunks.cl.
++ *
++ * Each chunk is an indexed fan of 32-bit indices in a per-draw buffer of
++ * max_verts + 1 entries: the hub, then a window of API vertices. A window
++ * that cuts a fan keeps its hub for the next window, which starts on the
++ * window's last vertex, so every API triangle is drawn once with its own
++ * vertices, winding and primitive ID.
++ */
++#define PANLIB_FAN_NO_HUB 0xffffffffu
++
++struct panlib_fan_chunk {
++   /* Chunk index buffer, max_verts + 1 uint32_t. */
++   uint64_t indices;
++   /* Position of the hub of the fan the last window cut, else
++    * PANLIB_FAN_NO_HUB. Positions count from firstIndex (indexed) or 0. */
++   uint32_t hub;
++   /* The current chunk: index 0 is position c_hub, index j > 0 is
++    * position c_first + j - 1, c_count indices. */
++   uint32_t c_hub;
++   uint32_t c_first;
++   uint32_t c_count;
++} PACKED;
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+index 1b63788..1e32e82 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+@@ -46,8 +46,10 @@
+ #include "pan_samples.h"
+ #include "pan_shader.h"
+ #include "libpan/draw_helper_vp.h"
++#include "libpan/fan_chunks.h"
+ 
+ #include "util/bitscan.h"
++#include "util/u_debug.h"
+ #include "vk_format.h"
+ #include "vk_meta.h"
+ #include "vk_pipeline_layout.h"
+@@ -5440,6 +5442,40 @@ gpu_prerast_chunkable(enum mesa_prim prim)
+    }
+ }
+ 
++/* Fans in the GPU chunk loop (panlib_fan_chunk_step) are opt-in until a
++ * device run proves them: PANVK_FAN_CHUNKS=1 (Android:
++ * debug.mesa.panvk.fan.chunks=1). Off, indirect fans are lowered in one pass
++ * and clamped to the arena (panlib_fan_clamp_draw), and indexed fans with
++ * primitive restart over the arena are skipped.
++ */
++DEBUG_GET_ONCE_BOOL_OPTION(fan_chunks, "PANVK_FAN_CHUNKS", false)
++
++/* Indirect fans, and direct indexed fans with restart over the arena, which
++ * the CPU split cannot cut. The other direct fans are split on the CPU, see
++ * gpu_prerast_split_fan().
++ */
++static bool
++gpu_prerast_fan_chunks(const struct panvk_cmd_buffer *cmdbuf,
++                       const struct panvk_draw_info *draw)
++{
++   if (!debug_get_option_fan_chunks() || gpu_prerast_max_verts(cmdbuf) < 3)
++      return false;
++
++   /* The polygon kernel walks back to the fan hub per vertex: with restart,
++    * a chunk of one long fan makes that quadratic (the 120 GS hang). */
++   if (draw->index.index_size && draw->index.restart_enable &&
++       !cmdbuf->state.gfx.gs.shader &&
++       panvk_per_arch(gpu_prerast_poly_mode)(cmdbuf, draw) !=
++          PANVK_GPU_PRERAST_POLY_NONE)
++      return false;
++
++   if (draw->indirect.buffer_dev_addr)
++      return true;
++
++   return draw->index.index_size && draw->index.restart_enable &&
++          draw->vertex.count > gpu_prerast_max_verts(cmdbuf);
++}
++
+ /* Indirect draws have no vertex count when recording, and strips with
+  * primitive restart need the restart positions to be cut: both run as a GPU
+  * chunk loop.
+@@ -5451,6 +5487,9 @@ gpu_prerast_chunk_wanted(const struct panvk_cmd_buffer *cmdbuf,
+    uint32_t align, overlap, div;
+    const uint32_t max_verts = gpu_prerast_max_verts(cmdbuf);
+ 
++   if (draw->prim == MESA_PRIM_TRIANGLE_FAN)
++      return gpu_prerast_fan_chunks(cmdbuf, draw);
++
+    if (!gpu_prerast_chunkable(draw->prim))
+       return false;
+ 
+@@ -5487,6 +5526,7 @@ gpu_prerast_chunk_loop(struct panvk_cmd_buffer *cmdbuf,
+    const struct panvk_shader *gs = cmdbuf->state.gfx.gs.shader;
+    const bool indirect = draw->indirect.buffer_dev_addr != 0;
+    const bool indexed = draw->index.index_size != 0;
++   const bool fan = draw->prim == MESA_PRIM_TRIANGLE_FAN;
+    const uint64_t arena = panvk_priv_mem_dev_addr(dev->gpu_prerast_arena);
+ 
+    struct pan_ptr cd =
+@@ -5495,10 +5535,27 @@ gpu_prerast_chunk_loop(struct panvk_cmd_buffer *cmdbuf,
+    struct pan_ptr direct = {0};
+    if (!indirect)
+       direct = panvk_cmd_alloc_dev_mem(cmdbuf, desc, 8 * sizeof(uint32_t), 16);
+-   if (!cd.gpu || (!indirect && !direct.gpu)) {
++   /* Fans: the fan state and the chunk index buffer, see fan_chunks.h. */
++   struct pan_ptr fd = {0}, fib = {0};
++   const uint32_t fan_indices = gpu_prerast_max_verts(cmdbuf) + 1;
++   if (fan) {
++      fd = panvk_cmd_alloc_dev_mem(cmdbuf, desc,
++                                   sizeof(struct panlib_fan_chunk), 16);
++      fib = panvk_cmd_alloc_dev_mem(cmdbuf, desc,
++                                    fan_indices * sizeof(uint32_t), 16);
++   }
++   if (!cd.gpu || (!indirect && !direct.gpu) ||
++       (fan && (!fd.gpu || !fib.gpu))) {
+       vk_command_buffer_set_error(&cmdbuf->vk, VK_ERROR_OUT_OF_DEVICE_MEMORY);
+       return;
+    }
++   if (fan) {
++      struct panlib_fan_chunk *f = fd.cpu;
++
++      memset(f, 0, sizeof(*f));
++      f->indices = fib.gpu;
++      f->hub = PANLIB_FAN_NO_HUB;
++   }
+ 
+ #define CD(f) (cd.gpu + offsetof(struct panlib_chunk_draw, f))
+    struct panlib_chunk_draw *c = cd.cpu;
+@@ -5548,6 +5605,17 @@ gpu_prerast_chunk_loop(struct panvk_cmd_buffer *cmdbuf,
+    chunk.pstats_counted = true;
+    chunk.prims_generated_counted = true;
+    chunk.gpu_prerast_prim_base = 0;
++   /* A fan chunk is an indexed fan of 32-bit indices from the chunk index
++    * buffer. Its vertexOffset is the API vertexOffset, or firstVertex for a
++    * non-indexed fan, whose chunk indices are the element numbers.
++    */
++   if (fan) {
++      chunk.index.index_size = 4;
++      chunk.index.buffer_dev_addr = fib.gpu;
++      chunk.index.buffer_size = fan_indices * sizeof(uint32_t);
++      chunk.index.offset = 0;
++      chunk.index.restart_enable = c->restart;
++   }
+ 
+    const enum panvk_gpu_prerast_poly_mode poly_mode =
+       gs ? PANVK_GPU_PRERAST_POLY_NONE
+@@ -5605,7 +5673,15 @@ gpu_prerast_chunk_loop(struct panvk_cmd_buffer *cmdbuf,
+       gpu_prerast_sync32_take(cmdbuf, PANVK_SUBQUEUE_COMPUTE,
+                               PANVK_QUEUE_TESS_FREE_SYNC_OFFSET);
+ 
+-      panlib_chunk_step(&ctx, panlib_1d(1), PANLIB_BARRIER_NONE, cd.gpu);
++      if (fan) {
++         panlib_fan_chunk_step(&ctx, panlib_1d(1), PANLIB_BARRIER_NONE, cd.gpu,
++                               fd.gpu);
++         cs_wait_slots(b, dev->csf.sb.all_iters_mask);
++         panlib_fan_chunk_fill(&ctx, panlib_1d(DIV_ROUND_UP(fan_indices, 64)),
++                               PANLIB_BARRIER_NONE, cd.gpu, fd.gpu);
++      } else {
++         panlib_chunk_step(&ctx, panlib_1d(1), PANLIB_BARRIER_NONE, cd.gpu);
++      }
+       cs_wait_slots(b, dev->csf.sb.all_iters_mask);
+ 
+       ok &= gpu_prerast_vs(cmdbuf, &chunk, vs, arena, poly_mode, false,
+@@ -5806,6 +5882,10 @@ gpu_prerast_split(struct panvk_cmd_buffer *cmdbuf,
+        max_verts >= 3)
+       return gpu_prerast_split_fan(cmdbuf, draw, max_verts);
+ 
++   /* Restart fans over the arena are cut on the GPU, if enabled. */
++   if (fan && gpu_prerast_fan_chunks(cmdbuf, draw))
++      return false;
++
+    if (!gpu_prerast_chunkable(draw->prim)) {
+       /* ponytail: a restart index starts a new fan hub, which this CPU
+        * split cannot see. Indexed fans with restart over the arena are

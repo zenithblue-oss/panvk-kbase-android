@@ -39,6 +39,19 @@
  *                                        instance vertex windows
  *  base_inst_fan / base_inst_fan_windows 4 vertex fan x 5000 instances, and
  *                                        150001 vertex fan x 2 instances
+ *  fan_indirect / fan_indexed_indirect   fan_direct / fan_indexed, indirect
+ *  fan_restart_direct / _indirect        indexed fans with primitive restart
+ *                                        (the restart strip lengths, one
+ *                                        70001 vertex fan)
+ *  gs_fan_restart_direct / _indirect     triangle GS on the restart fans
+ *  fan_instanced_indirect                fan_instanced, indirect
+ *  base_inst_fan_indirect / _windows_indirect  the base_inst_fan cases,
+ *                                        indirect
+ *    Fans in the GPU chunk loop are a driver opt-in (PANVK_FAN_CHUNKS=1 or
+ *    debug.mesa.panvk.fan.chunks=1). Set PANVK_FAN_CHUNKS=1 or
+ *    LARGE_DRAW_FAN_CHUNKS=1 here too, or only fan_indirect and
+ *    fan_indexed_indirect run: the driver then clamps an indirect fan to the
+ *    arena, so they check that the captured triangles are the first ones.
  *    The base_inst cases capture gl_BaseInstance and a per-instance
  *    attribute (divisor 3 with vertexAttributeInstanceRateDivisor, else 1):
  *    every chunk must see the API firstInstance and instance index.
@@ -801,6 +814,44 @@ check_fan_inst(const char *name, struct dx7 *t, const struct job *j,
    return report(name, bad, &r, (uint64_t)n * 3 * 16, n, 1);
 }
 
+/* Fan with a tail the driver may drop (indirect fans clamped to the arena
+ * without PANVK_FAN_CHUNKS): the captured triangles must be the first ones,
+ * and all of them when need_all.
+ */
+static int
+check_fan_prefix(const char *name, struct dx7 *t, const struct job *j,
+                 const uint32_t *exp, uint32_t nprims, int need_all)
+{
+   if (!want(name))
+      return 0;
+   struct result r;
+   if (run_job(t, j, &r)) {
+      printf("FAIL case %s did not complete\n", name);
+      return 1;
+   }
+   uint32_t got = r.written <= nprims ? (uint32_t)r.written : nprims;
+   int bad = check_strip_prims(&r, exp, got, name);
+   if (need_all && got != nprims) {
+      printf("  %u of %u triangles captured\n", got, nprims);
+      bad++;
+   }
+   if (r.written > nprims)
+      bad++;
+   if (!need_all)
+      printf("  %u of %u triangles captured (clamped to the arena)\n", got,
+             nprims);
+   return report(name, bad, &r, (uint64_t)got * 3 * 16, got, 1);
+}
+
+static int
+fan_chunks_on(void)
+{
+   const char *a = getenv("PANVK_FAN_CHUNKS");
+   const char *b = getenv("LARGE_DRAW_FAN_CHUNKS");
+
+   return (a && atoi(a)) || (b && atoi(b));
+}
+
 /* gl_BaseInstance and per-instance attribute capture (vs_base): every record
  * of instance i (gl_InstanceIndex fi + i) reads attribute element
  * fi + i / div and gl_BaseInstance fi. With vpi, record r is also vertex
@@ -1077,6 +1128,10 @@ main(int argc, char **argv)
    struct job jf = {.pipe = p_fan, .xfb_bytes = (uint64_t)nprims * 48 + 1024};
    jf.cmd[0] = (struct cmd){NSTRIP, 1, FV, 0, 0};
    fails += check_strip("fan_direct", &t, &jf, exp, nprims);
+   const int fan_chunks = fan_chunks_on();
+   jf.mode = 1;
+   jf.draws = 1;
+   fails += check_fan_prefix("fan_indirect", &t, &jf, exp, nprims, fan_chunks);
    free(exp);
 
    /* Indexed fan, descending indices after LEAD ignored ones. */
@@ -1099,6 +1154,10 @@ main(int argc, char **argv)
                      .xfb_bytes = (uint64_t)nprims * 48 + 1024};
    jfi.cmd[0] = (struct cmd){nfi, 1, LEAD, VOFF, 0};
    fails += check_strip("fan_indexed", &t, &jfi, exp, nprims);
+   jfi.mode = 1;
+   jfi.draws = 1;
+   fails += check_fan_prefix("fan_indexed_indirect", &t, &jfi, exp, nprims,
+                             fan_chunks);
    free(idx);
    free(exp);
 
@@ -1106,6 +1165,74 @@ main(int argc, char **argv)
    struct job jfn = {.pipe = p_fan, .xfb_bytes = 2ull * 5000 * 48 + 1024};
    jfn.cmd[0] = (struct cmd){4, 5000, FV, 0, FI};
    fails += check_fan_inst("fan_instanced", &t, &jfn, 4, 5000, FV, FI);
+
+   if (fan_chunks) {
+      /* Without the chunk loop this is one 5000 instance grid. */
+      jfn.mode = 1;
+      jfn.draws = 1;
+      fails += check_fan_inst("fan_instanced_indirect", &t, &jfn, 4, 5000, FV,
+                              FI);
+
+      /* Indexed fans with primitive restart, the restart strip lengths:
+       * fan k's triangle i is {hub, i + 1, i + 2}, ascending. */
+      nidx = LEAD;
+      nexp = 0;
+      for (uint32_t k = 0; k < NLENS; k++) {
+         nidx += strip_lens[k] + 1;
+         nexp += strip_lens[k] >= 3 ? strip_lens[k] - 2 : 0;
+      }
+      nidx--;
+      idx = malloc((size_t)nidx * 4);
+      exp = malloc((size_t)nexp * 12);
+      pos = 0;
+      e = 0;
+      v = 100000;
+      for (; pos < LEAD; pos++)
+         idx[pos] = 999999;
+      for (uint32_t k = 0; k < NLENS; k++) {
+         uint32_t first = pos;
+         for (uint32_t i = 0; i < strip_lens[k]; i++)
+            idx[pos++] = v++;
+         for (uint32_t i = 0; i + 2 < strip_lens[k]; i++) {
+            exp[e++] = idx[first] + VOFF;
+            exp[e++] = idx[first + i + 1] + VOFF;
+            exp[e++] = idx[first + i + 2] + VOFF;
+         }
+         if (k + 1 < NLENS)
+            idx[pos++] = 0xffffffffu;
+      }
+      if (pos != nidx || e != nexp * 3) {
+         printf("FAIL test setup fan pos=%u nidx=%u\n", pos, nidx);
+         return 1;
+      }
+      pd.restart = VK_TRUE;
+      struct job jfr = {.pipe = make_pipe(&t, &pd), .indexed = 1,
+                        .indices = idx, .index_count = nidx,
+                        .xfb_bytes = (uint64_t)nexp * 48 + 1024};
+      pd.restart = VK_FALSE;
+      jfr.cmd[0] = (struct cmd){nidx - LEAD, 1, LEAD, VOFF, 0};
+      fails += check_strip("fan_restart_direct", &t, &jfr, exp, nexp);
+      jfr.mode = 1;
+      jfr.draws = 1;
+      fails += check_strip("fan_restart_indirect", &t, &jfr, exp, nexp);
+
+      if (t.feats.geometryShader) {
+         struct pipe_desc g = {.vs = vs_feed, .vs_size = sizeof(vs_feed),
+                               .gs = gs_tri, .gs_size = sizeof(gs_tri),
+                               .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN,
+                               .restart = VK_TRUE};
+         jfr.pipe = make_pipe(&t, &g);
+         jfr.xfb_bytes = (uint64_t)nexp * 16 + 1024;
+         jfr.mode = 0;
+         fails += check_gs_tri("gs_fan_restart_direct", &t, &jfr, exp, nexp);
+         jfr.mode = 1;
+         fails += check_gs_tri("gs_fan_restart_indirect", &t, &jfr, exp, nexp);
+      }
+      free(idx);
+      free(exp);
+   } else {
+      printf("SKIP fan chunk loop cases: PANVK_FAN_CHUNKS unset\n");
+   }
 
    /* Instances over the cap that fit one arena. */
    struct job jsi = {.pipe = p_points, .xfb_bytes = (3 * 9000 + 64) * 16ull};
@@ -1155,6 +1282,19 @@ main(int argc, char **argv)
       jb.cmd[0] = (struct cmd){NSTRIP, 2, FV, 0, FI};
       fails += check_base("base_inst_fan_windows", &t, &jb,
                           2 * (NSTRIP - 2) * 3, 0, 2, FV, FI, div);
+
+      if (fan_chunks) {
+         jb.mode = 1;
+         jb.draws = 1;
+         fails += check_base("base_inst_fan_windows_indirect", &t, &jb,
+                             2 * (NSTRIP - 2) * 3, 0, 2, FV, FI, div);
+         jb = (struct job){.pipe = p_bfan, .attr_floats = FI + 5000,
+                           .mode = 1, .draws = 1,
+                           .xfb_bytes = 2ull * 5000 * 48 + 1024};
+         jb.cmd[0] = (struct cmd){4, 5000, FV, 0, FI};
+         fails += check_base("base_inst_fan_indirect", &t, &jb, 2 * 5000 * 3,
+                             0, 5000, FV, FI, div);
+      }
    } else {
       printf("SKIP base_inst cases: shaderDrawParameters not exposed\n");
    }

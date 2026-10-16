@@ -1,0 +1,132 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Fri, 16 Oct 2026 20:00:00 +0530
+Subject: [PATCH] panvk: clamp indirect gpu_prerast fans to the arena on v10+
+ biblioklept
+
+Indirect triangle fans are not in the GPU chunk loop, so gpu_prerast
+lowers them in one pass. With more vertices (times instances) than the
+arena holds, the lowered VS skips the records past record_capacity and
+writes no generated index past 65536, but the generated raster draw,
+the XFB kernel, the GS kernel and the polygon kernel still used the
+API counts: the triangles past the arena were drawn from stale records
+and indices of earlier draws.
+
+A one-invocation kernel (panlib_fan_clamp_draw, new fan_chunks.cl) now
+runs on the compute queue after the CS has stored the indirect counts
+and before the lowered VS. If vertices x instances is over the record
+capacity, it clamps the vertex count to the capacity and the instance
+count to capacity / vertices in the VS params, the VS dispatch grid and
+the generated draw. Every consumer reads those words, so the record
+layout stays consistent: the first triangles are drawn right and the
+rest is dropped. Draws that fit are unchanged (the kernel returns).
+
+Still open: indirect fans over 2048 instances that fit the arena run as
+one grid (the G615 hang size), the primitives generated query counts
+the clamped draw. Both go away with the fan chunk loop (next patch,
+opt-in).
+
+The new kernel lives in its own file so draw_helper.cl, which jm-v9
+patches later in the series, keeps its lines.
+
+Build-only; not device-tested.
+
+Generated-by: LLM
+---
+ src/panfrost/libpan/fan_chunks.cl           | 43 +++++++++++++++++++++
+ src/panfrost/libpan/meson.build             |  1 +
+ src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c | 19 +++++++++
+ 3 files changed, 63 insertions(+)
+ create mode 100644 src/panfrost/libpan/fan_chunks.cl
+
+diff --git a/src/panfrost/libpan/fan_chunks.cl b/src/panfrost/libpan/fan_chunks.cl
+new file mode 100644
+index 0000000..cb6a714
+--- /dev/null
++++ b/src/panfrost/libpan/fan_chunks.cl
+@@ -0,0 +1,43 @@
++/*
++ * Copyright 2026 Abhay Byte
++ * SPDX-License-Identifier: MIT
++ */
++
++#include "compiler/libcl/libcl.h"
++#include "compiler/libcl/libcl_vk.h"
++#include "compiler/shader_enums.h"
++#include "genxml/gen_macros.h"
++
++#if PAN_ARCH >= 10
++
++/* An indirect fan lowered in one pass (not chunked): clamps its counts to
++ * what the arena holds, so the triangles past it are dropped instead of
++ * drawn from stale records and indices. The words are the lowered VS
++ * params (vertex count, instance count, vertices per instance), its
++ * dispatch grid and the generated draw.
++ */
++KERNEL(1)
++panlib_fan_clamp_draw(global uint32_t *vertex_count,
++                      global uint32_t *instance_count,
++                      global uint32_t *verts_per_instance,
++                      global uint32_t *dispatch, global uint32_t *gen_draw,
++                      uint32_t cap)
++{
++   uint32_t n = *vertex_count, k = *instance_count;
++
++   if ((uint64_t)n * k <= cap)
++      return;
++
++   n = min(n, cap);
++   k = min(k, cap / n);
++
++   *vertex_count = n;
++   *instance_count = k;
++   *verts_per_instance = n;
++   dispatch[0] = n;
++   dispatch[1] = k;
++   gen_draw[0] = n;
++   gen_draw[1] = k;
++}
++
++#endif
+diff --git a/src/panfrost/libpan/meson.build b/src/panfrost/libpan/meson.build
+index f035f4a..e266a47 100644
+--- a/src/panfrost/libpan/meson.build
++++ b/src/panfrost/libpan/meson.build
+@@ -6,6 +6,7 @@ libpan_shader_files = files(
+   'libpan_copy.cl',
+   'query_pool.cl',
+   'draw_helper.cl',
++  'fan_chunks.cl',
+   'indirect_dispatch.cl',
+ )
+ 
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+index f4c1b7e..1b63788 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+@@ -4304,6 +4304,25 @@ gpu_prerast_vs(struct panvk_cmd_buffer *cmdbuf,
+       cs_flush_stores(compute);
+    }
+ 
++   /* An indirect fan lowered in one pass draws what fits the arena. The
++    * rest has no records or generated indices: drop it.
++    */
++   if (source->indirect.buffer_dev_addr && !chunk_addr &&
++       source->prim == MESA_PRIM_TRIANGLE_FAN) {
++      struct panvk_precomp_ctx ctx = panvk_per_arch(precomp_cs)(cmdbuf);
++
++      panlib_fan_clamp_draw(
++         &ctx, panlib_1d(1), PANLIB_BARRIER_NONE,
++         params + offsetof(struct panvk_gpu_prerast_params, vertex_count),
++         params + offsetof(struct panvk_gpu_prerast_params, instance_count),
++         params + offsetof(struct panvk_gpu_prerast_params,
++                           vertex.verts_per_instance),
++         dispatch_params, generated_draw,
++         panvk_gpu_prerast_record_capacity(
++            shader->gpu_prerast.io.record_stride));
++      cs_wait_slots(compute, dev->csf.sb.all_iters_mask);
++   }
++
+    struct panvk_dispatch_info dispatch = {
+       .direct.wg_count = {vertex_count, instance_count, 1},
+       .barrier = barrier,
