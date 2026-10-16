@@ -1,7 +1,8 @@
-From 5d24e4eb859b2bd2d6af74ced125f07aa20f8fe0 Mon Sep 17 00:00:00 2001
+From e7300098a598f3c9089b5f98feff7656d99a9c9b Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Fri, 16 Oct 2026 13:37:35 +0530
-Subject: [PATCH 7/8] jm-v7 007: Bifrost geometry shader emulation via compute
+Subject: [PATCH 07/13] jm-v7 007: Bifrost geometry shader emulation via
+ compute
 
 ---
  src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c    |  453 +++++-
@@ -19,7 +20,7 @@ Subject: [PATCH 7/8] jm-v7 007: Bifrost geometry shader emulation via compute
  create mode 100644 src/panfrost/vulkan/panvk_nir_lower_gs.c
 
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index d7f74233b1d..b80aa4a4ebd 100644
+index d7f7423..b80aa4a 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 @@ -81,6 +81,18 @@ struct panvk_draw_data {
@@ -654,7 +655,7 @@ index d7f74233b1d..b80aa4a4ebd 100644
  
     panvk_cmd_draw_indirect(cmdbuf, &draw);
 diff --git a/src/panfrost/vulkan/meson.build b/src/panfrost/vulkan/meson.build
-index 437a8e73063..947ee796f88 100644
+index 437a8e7..947ee79 100644
 --- a/src/panfrost/vulkan/meson.build
 +++ b/src/panfrost/vulkan/meson.build
 @@ -60,6 +60,7 @@ libpanvk_files = files(
@@ -666,7 +667,7 @@ index 437a8e73063..947ee796f88 100644
    'panvk_physical_device.c',
    'panvk_priv_bo.c',
 diff --git a/src/panfrost/vulkan/panvk_cmd_draw.h b/src/panfrost/vulkan/panvk_cmd_draw.h
-index 9943277a32c..44f625caa40 100644
+index 9943277..44f625c 100644
 --- a/src/panfrost/vulkan/panvk_cmd_draw.h
 +++ b/src/panfrost/vulkan/panvk_cmd_draw.h
 @@ -157,6 +157,9 @@ enum panvk_cmd_graphics_dirty_state {
@@ -706,7 +707,7 @@ index 9943277a32c..44f625caa40 100644
  
     struct {
 diff --git a/src/panfrost/vulkan/panvk_cmd_push_constant.h b/src/panfrost/vulkan/panvk_cmd_push_constant.h
-index a8088b4b878..706ebc4229c 100644
+index a8088b4..706ebc4 100644
 --- a/src/panfrost/vulkan/panvk_cmd_push_constant.h
 +++ b/src/panfrost/vulkan/panvk_cmd_push_constant.h
 @@ -27,4 +27,15 @@ VkResult panvk_per_arch(cmd_prepare_compute_push_uniforms)(
@@ -727,7 +728,7 @@ index a8088b4b878..706ebc4229c 100644
  #endif
 diff --git a/src/panfrost/vulkan/panvk_gs.h b/src/panfrost/vulkan/panvk_gs.h
 new file mode 100644
-index 00000000000..70ddad00458
+index 0000000..70ddad0
 --- /dev/null
 +++ b/src/panfrost/vulkan/panvk_gs.h
 @@ -0,0 +1,227 @@
@@ -960,7 +961,7 @@ index 00000000000..70ddad00458
 +#endif /* PANVK_GS_H */
 diff --git a/src/panfrost/vulkan/panvk_nir_lower_gs.c b/src/panfrost/vulkan/panvk_nir_lower_gs.c
 new file mode 100644
-index 00000000000..17f7f20b84c
+index 0000000..17f7f20
 --- /dev/null
 +++ b/src/panfrost/vulkan/panvk_nir_lower_gs.c
 @@ -0,0 +1,1239 @@
@@ -2204,7 +2205,7 @@ index 00000000000..17f7f20b84c
 +   nir_progress(true, impl, nir_metadata_none);
 +}
 diff --git a/src/panfrost/vulkan/panvk_shader.h b/src/panfrost/vulkan/panvk_shader.h
-index bf2904f4a68..6066cff5716 100644
+index bf2904f..6066cff 100644
 --- a/src/panfrost/vulkan/panvk_shader.h
 +++ b/src/panfrost/vulkan/panvk_shader.h
 @@ -21,6 +21,8 @@
@@ -2295,7 +2296,7 @@ index bf2904f4a68..6066cff5716 100644
                                        struct panvk_shader_link *link);
  
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_push_constant.c b/src/panfrost/vulkan/panvk_vX_cmd_push_constant.c
-index 7c762bb46e4..0e8eebd8373 100644
+index 7c762bb..0e8eebd 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_push_constant.c
 +++ b/src/panfrost/vulkan/panvk_vX_cmd_push_constant.c
 @@ -95,6 +95,17 @@ panvk_per_arch(cmd_prepare_compute_push_uniforms)(
@@ -2317,7 +2318,7 @@ index 7c762bb46e4..0e8eebd8373 100644
  panvk_per_arch(CmdPushConstants2KHR)(
     VkCommandBuffer commandBuffer,
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index 2389af31196..2e8c6209090 100644
+index 4005c56..20f40ae 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
 @@ -317,7 +317,8 @@ panvk_per_arch(get_physical_device_features)(
@@ -2358,7 +2359,7 @@ index 2389af31196..2e8c6209090 100644
        /* 32 vec4 varyings. */
        .maxFragmentInputComponents = 128,
        /* 8 render targets. */
-@@ -1033,9 +1034,9 @@ panvk_per_arch(get_physical_device_properties)(
+@@ -1037,9 +1038,9 @@ panvk_per_arch(get_physical_device_properties)(
           PAN_ARCH >= 9 && device->kmod.dev->props.gpu_can_query_timestamp,
        .timestampPeriod =
           PAN_ARCH >= 9 ? panvk_get_gpu_system_timestamp_period(device) : 0,
@@ -2372,7 +2373,7 @@ index 2389af31196..2e8c6209090 100644
        .pointSizeRange = {pointSizeRangeMin, pointSizeRangeMax},
        .lineWidthRange = {0.0, 7.9921875},
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index 1683d089212..ac5b75f305d 100644
+index 1683d08..ac5b75f 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
 @@ -3445,6 +3445,14 @@ panvk_compile_shader(struct panvk_device *dev,
@@ -2627,5 +2628,5 @@ index 1683d089212..ac5b75f305d 100644
     case MESA_SHADER_TESS_EVAL:
        assert(shader == NULL);
 -- 
-2.56.0
+2.43.0
 

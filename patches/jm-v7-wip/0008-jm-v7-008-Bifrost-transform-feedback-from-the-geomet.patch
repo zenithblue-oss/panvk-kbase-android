@@ -1,7 +1,7 @@
-From 0850d05dd38e73343e4bfc77da37dbf2a06e37ce Mon Sep 17 00:00:00 2001
+From afeb265d37c07d7d7d5523cb1e2adf4ab4b04a08 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Fri, 16 Oct 2026 13:42:01 +0530
-Subject: [PATCH 8/8] jm-v7 008: Bifrost transform feedback from the geometry
+Subject: [PATCH 08/13] jm-v7 008: Bifrost transform feedback from the geometry
  emulation
 
 ---
@@ -16,7 +16,7 @@ Subject: [PATCH 8/8] jm-v7 008: Bifrost transform feedback from the geometry
  8 files changed, 425 insertions(+), 9 deletions(-)
 
 diff --git a/src/panfrost/libpan/draw_helper.cl b/src/panfrost/libpan/draw_helper.cl
-index 7dc889cf6fe..0d5f864ea63 100644
+index 7dc889c..0d5f864 100644
 --- a/src/panfrost/libpan/draw_helper.cl
 +++ b/src/panfrost/libpan/draw_helper.cl
 @@ -1557,6 +1557,107 @@ panlib_draw_index_minmax_search_helper(global uint8_t *index_buffer_ptr,
@@ -128,7 +128,7 @@ index 7dc889cf6fe..0d5f864ea63 100644
  
  #if PAN_ARCH == 9
 diff --git a/src/panfrost/libpan/draw_helper.h b/src/panfrost/libpan/draw_helper.h
-index 841eee8d545..615c9c43a37 100644
+index 841eee8..615c9c4 100644
 --- a/src/panfrost/libpan/draw_helper.h
 +++ b/src/panfrost/libpan/draw_helper.h
 @@ -44,6 +44,30 @@ struct libpan_draw_helper_attrib_info {
@@ -163,7 +163,7 @@ index 841eee8d545..615c9c43a37 100644
  
  #if PAN_ARCH == 9
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
-index b7845edfb82..effe0651b46 100644
+index b7845ed..effe065 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
 @@ -118,6 +118,9 @@ panvk_per_arch(cmd_close_batch)(struct panvk_cmd_buffer *cmdbuf)
@@ -188,7 +188,7 @@ index b7845edfb82..effe0651b46 100644
  
  VkResult
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index b80aa4a4ebd..a361aaf91b3 100644
+index b80aa4a..a361aaf 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 @@ -665,6 +665,39 @@ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
@@ -460,7 +460,7 @@ index b80aa4a4ebd..a361aaf91b3 100644
  
  static enum mali_draw_mode
 diff --git a/src/panfrost/vulkan/panvk_cmd_draw.h b/src/panfrost/vulkan/panvk_cmd_draw.h
-index 44f625caa40..c0a0b0f5d85 100644
+index 44f625c..c0a0b0f 100644
 --- a/src/panfrost/vulkan/panvk_cmd_draw.h
 +++ b/src/panfrost/vulkan/panvk_cmd_draw.h
 @@ -185,6 +185,21 @@ struct panvk_cmd_graphics_state {
@@ -502,7 +502,7 @@ index 44f625caa40..c0a0b0f5d85 100644
  #endif
  
 diff --git a/src/panfrost/vulkan/panvk_shader.h b/src/panfrost/vulkan/panvk_shader.h
-index 6066cff5716..64a410ed92a 100644
+index 6066cff..64a410e 100644
 --- a/src/panfrost/vulkan/panvk_shader.h
 +++ b/src/panfrost/vulkan/panvk_shader.h
 @@ -459,6 +459,18 @@ struct panvk_shader_variant {
@@ -525,7 +525,7 @@ index 6066cff5716..64a410ed92a 100644
         * gl_Position stays in clip space (skip_viewport_transform) and is
         * stored unsnapped.
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index 2e8c6209090..dfeea58f440 100644
+index 20f40ae..a3eb731 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
 @@ -216,7 +216,7 @@ panvk_per_arch(get_physical_device_extensions)(
@@ -549,7 +549,7 @@ index 2e8c6209090..dfeea58f440 100644
  
        /* v7 doesn't support AFBC(BGR). We need to tweak the texture swizzle to
         * make it work, which forces us to apply the same swizzle on the border
-@@ -1329,9 +1330,8 @@ panvk_per_arch(get_physical_device_properties)(
+@@ -1339,9 +1340,8 @@ panvk_per_arch(get_physical_device_properties)(
        /* Streams come from a GS (v9: one without it). */
        .maxTransformFeedbackStreams =
           PAN_ARCH >= 10  ? 4
@@ -561,7 +561,7 @@ index 2e8c6209090..dfeea58f440 100644
        .maxTransformFeedbackBufferSize = UINT32_MAX,
        .maxTransformFeedbackStreamDataSize = 512,
        .maxTransformFeedbackBufferDataSize = 512,
-@@ -1340,7 +1340,7 @@ panvk_per_arch(get_physical_device_properties)(
+@@ -1350,7 +1350,7 @@ panvk_per_arch(get_physical_device_properties)(
        .transformFeedbackStreamsLinesTriangles = PAN_ARCH >= 9,
        .transformFeedbackRasterizationStreamSelect =
           PAN_ARCH >= 10 || (PAN_ARCH == 9 && !PANVK_DEBUG(NO_GS)),
@@ -571,7 +571,7 @@ index 2e8c6209090..dfeea58f440 100644
        /* VK_EXT_shader_tile_image */
        .shaderTileImageCoherentReadAccelerated = PAN_ARCH >= 9,
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index ac5b75f305d..b3602bdb8dc 100644
+index ac5b75f..b3602bd 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
 @@ -3885,8 +3885,43 @@ panvk_compile_shader(struct panvk_device *dev,
@@ -620,5 +620,5 @@ index ac5b75f305d..b3602bdb8dc 100644
           .output_verts_per_prim = out_verts,
           .max_output_verts = variant->gs.max_output_verts,
 -- 
-2.56.0
+2.43.0
 
