@@ -1,4 +1,4 @@
-From 8cf211cf0e57741f24c0398da95c8b921d7af135 Mon Sep 17 00:00:00 2001
+From f0bfabd9ff1f3ab0535fed2e9e1408d7c0a0a00c Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 16 Oct 2026 11:52:08 +0000
 Subject: [PATCH 10/13] jm-v7 010: Bifrost robustBufferAccess2 and
@@ -508,7 +508,7 @@ index cb75601..9bc0288 100644
        /* VK_EXT_shader_tile_image */
        .shaderTileImageColorReadAccess = PAN_ARCH >= 9,
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index f93b33a..7223df6 100644
+index 1ab0b76..4d00226 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
 @@ -408,6 +408,19 @@ panvk_buffer_ubo_addr_format(VkPipelineRobustnessBufferBehaviorEXT robustness)

@@ -1,4 +1,4 @@
-From e7300098a598f3c9089b5f98feff7656d99a9c9b Mon Sep 17 00:00:00 2001
+From f2b80dac9418fc4037b593de361b75d8f762373e Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Fri, 16 Oct 2026 13:37:35 +0530
 Subject: [PATCH 07/13] jm-v7 007: Bifrost geometry shader emulation via
@@ -2373,7 +2373,7 @@ index 4005c56..20f40ae 100644
        .pointSizeRange = {pointSizeRangeMin, pointSizeRangeMax},
        .lineWidthRange = {0.0, 7.9921875},
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index 1683d08..ac5b75f 100644
+index ef7a623..f8057d3 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
 @@ -3445,6 +3445,14 @@ panvk_compile_shader(struct panvk_device *dev,

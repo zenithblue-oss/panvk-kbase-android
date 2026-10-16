@@ -1,4 +1,4 @@
-From 6e714690721a17591fed90c5d19c9441e4638e07 Mon Sep 17 00:00:00 2001
+From 6c1ac2474089add9c3291c4e7700b5c700058c68 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Fri, 16 Oct 2026 13:21:27 +0530
 Subject: [PATCH 06/13] jm-v7 006: Bifrost draw prerequisites (no IDVS, MDI,
@@ -138,7 +138,7 @@ index 5091109..4005c56 100644
        .maxSamplerAnisotropy = 16,
        .maxViewports = PAN_ARCH >= 9 ? 16 : 1,
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index 6c65ebe..1683d08 100644
+index a69c148..ef7a623 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
 @@ -3438,6 +3438,15 @@ panvk_compile_shader(struct panvk_device *dev,

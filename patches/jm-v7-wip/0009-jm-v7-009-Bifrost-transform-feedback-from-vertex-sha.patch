@@ -1,4 +1,4 @@
-From 3c10b5d6574e054450e94ac812aca6a1e958512a Mon Sep 17 00:00:00 2001
+From cbcf91b67a8bbe48b503339e22f58b76bd1a103f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 16 Oct 2026 11:47:59 +0000
 Subject: [PATCH 09/13] jm-v7 009: Bifrost transform feedback from vertex
@@ -407,7 +407,7 @@ index a3eb731..cb75601 100644
        /* VK_EXT_shader_tile_image */
        .shaderTileImageCoherentReadAccelerated = PAN_ARCH >= 9,
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index b3602bd..f93b33a 100644
+index 1a2e285..1ab0b76 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
 @@ -31,6 +31,7 @@

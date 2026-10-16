@@ -1,7 +1,7 @@
-From 5995e819069fe0cdc44f2bb9938b9ec007910b0a Mon Sep 17 00:00:00 2001
+From 608f61d3d88bb0388e024ae23edf71217c0f19bc Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 16 Oct 2026 12:56:06 +0000
-Subject: [PATCH] jm-v7 014: Bifrost tessellation
+Subject: [PATCH 13/13] jm-v7 014: Bifrost tessellation
 
 tessellationShader and extendedDynamicState2PatchControlPoints on v6/v7,
 with the v9 tessellation limits. PANVK_DEBUG=no_tess turns them off.
@@ -1323,7 +1323,7 @@ index 9bc0288..80f675d 100644
        .maxGeometryInputComponents = 64,
        .maxGeometryOutputComponents = 128,
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index 7223df6..dd63b80 100644
+index 4d00226..541dc99 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
 @@ -25,6 +25,12 @@

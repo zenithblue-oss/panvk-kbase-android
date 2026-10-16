@@ -2,7 +2,7 @@
 
 `scripts/apply-patches.sh` does not apply these. Apply them with `git am`, in order, on top of the full series (`apply-patches.sh --profile g615-v11-csf`, which already applies jm-v7 001-005). They are `git format-patch` files and depend on each other, so plain `git apply` of one alone fails.
 
-Worktrees: `work/mesa-b2` (branch `v7port2`) is the current base: the full series as one commit `30a2037`, with 006-014 on top (014 = `5995e81`). `work/mesa-b` (branch `v7port`) has the same 006-013 on the older series (98c8b2f).
+Worktrees: `work/mesa-b2` (branch `v7port2`) is the previous base: the full series as one commit `30a2037`, with the old 006-013 on top (014 = `5995e81`; old numbering, includes the dropped BC patch). `work/mesa-j` is the current base: the strict series as one commit `a709962` on Mesa `98c8b2f~1`, with the new 006-013 on top (013 = tessellation, `608f61d`). `work/mesa-b` (branch `v7port`) is the oldest base.
 
 **Nothing here has run on a Bifrost device.** All results below are from builds and code review.
 
@@ -17,18 +17,17 @@ Worktrees: `work/mesa-b2` (branch `v7port2`) is the current base: the full serie
 | 0010 | `robustBufferAccess2` and `nullDescriptor`. Bifrost has no NULL descriptor, so a null write copies a descriptor built on a zeroed BO or a 1x1 image with a ZERO swizzle. Null SSBOs force the bounds-checked SSBO address format. Ported from JimVulkan/mesa-unified-drivers (MIT, Copyright 2026 XclipseTools). |
 | 0011 | Fixes 007/008: invalid NIR (phi else-values built after `nir_pop_if`), the GS `xfb_info` and union info left on the compute shader, and Instance Primitive Size 0 in the GS tiler DCD (a padded field that cannot encode 0). |
 | 0012 | New (review of 009-011): `meta_gfx_start`/`meta_gfx_end` did not save or restore the bound geometry shader on v6/v7. A meta pipeline bind clears it, so the first draw after a blit, clear or resolve ran without the app's GS and without XFB capture. It is now saved, cleared and restored, as v9+ does. |
-| 0013 | New: BC emulation on v6/v7. See "BC texture compression" below. |
-| 0014 | New: tessellation on v6/v7 (`tessellationShader`, `extendedDynamicState2PatchControlPoints`). See "Tessellation (0014)" below. |
+| (old 0013) | Dropped. The BC zero-init decode call in the JM `CmdPipelineBarrier2` is now `patches/jm-v9/031`, which adds it without a PAN_ARCH gate, so v6/v7 get it from the series. See "BC texture compression" below. |
+| 0013 | New: tessellation on v6/v7 (`tessellationShader`, `extendedDynamicState2PatchControlPoints`). See "Tessellation (0013)" below. The subject line still says "jm-v7 014" (old numbering). |
 
 ## Build status (2026-10-16, cloud session)
 
-- Series: Mesa 5a07217f + the current full series (186 patches, `apply-patches.sh --profile g615-v11-csf`, strict: no offsets, no fuzz). This includes android/016 and csf-v11/187-192.
-- `git am` of 0006-0014 on a fresh worktree of `30a2037` applies cleanly and gives a tree identical to `v7port2` (checked after 0014).
-- `git am` of 0006-0013 on a fresh tree with that series applies cleanly. The patches were made with `git format-patch` from that same tree, so no hunk has an offset.
-- Rebasing 006-013 onto the new series needed no conflict resolution. The combined diff is identical to the old one on `work/mesa-b`. Of the series changes since 98c8b2f, the only ones in files these patches touch are csf-v11/188 and 189 (`maxFragmentDualSrcAttachments`, denorm properties), and they do not overlap.
-- `scripts/build-android.sh --profile g615-v11-csf` (API 29, NDK r30 30.0.16248370) builds the universal ICD with no errors and no warnings in the files 006-013 touch. The full build has 6 warnings, all from the series itself: 5x `-Wc23-extensions` at `csf/panvk_vX_gpu_queue.c:858` (csf-v11/192) and 1 deprecation in `android_stub/backtrace/BacktraceMap.h`. libpanvk_v6/v7/v9/v10-v14 are all built.
-- `libvulkan_panfrost.so` from `work/mesa-b2` with 006-014: BuildID `5e59814c33319fdf66c69ca4a40a9f411c8e275f`, sha256 `aac8a07e9ca2eb49...`, in `dist/b2/`. It is unstripped, 26.57 MB. No warnings in the files 014 touches (checked by rebuilding them). Before 014 (006-013): BuildID `4f07459194dd25e244169faf1e1d8a0cbe3b2028`, 25.98 MB. NEEDED: liblog, libnativewindow, libsync, libm, libz, libdl, libc. It does not import `call_once`.
-- From `work/mesa-b` (old series, same 006-013): BuildID `7a670a0ecfd47d3dae02ec3670973af1680e5017`, in `dist/b/`.
+- Series: Mesa 98c8b2f~1 + the current full series (`apply-patches.sh --profile g615-v11-csf`, 189 patches applied, strict: no offsets, no fuzz). This includes jm-v9/031 and csf-v11 up to 194.
+- `git am -3` of the old 0006-0012 and old 0014 on that series applied with no conflict (0014 did not need 0013's context). `git am` of the new 0006-0013 on a second fresh tree of the series gives a tree identical to `work/mesa-j` HEAD (same tree hash `b226095`).
+- Only one call to `cmd_bc_decode_zero_initialized` exists in the JM barrier (from jm-v9/031), one in CSF.
+- `scripts/build-android.sh --profile g615-v11-csf` (API 29, NDK r30) ends OK with no warnings in the build log.
+- `libvulkan_panfrost.so` from `work/mesa-j` with 006-013: BuildID `09587b23aab8a8ac2787c49f75823aefbc765632`, in `dist/j/`. Unstripped.
+- Older builds (previous base and numbering, 006-013 with the dropped BC patch): `5e59814c33319fdf66c69ca4a40a9f411c8e275f` (`dist/b2/`); 006-013 on the 98c8b2f series: `7a670a0ecfd47d3dae02ec3670973af1680e5017` (`dist/b/`).
 
 ## Feature state on v6/v7 after 013
 
@@ -43,22 +42,22 @@ Worktrees: `work/mesa-b2` (branch `v7port2`) is the current base: the full serie
 | shaderClipDistance/CullDistance | on, through the arch-independent VS store + FS discard lowering. The passthrough also forwards them (009). |
 | multiDrawIndirect | 006 |
 | textureCompressionBC | on (emulated), see below |
-| tessellationShader, extendedDynamicState2PatchControlPoints | 014 (on; `PANVK_DEBUG=no_tess` turns them off) |
+| tessellationShader, extendedDynamicState2PatchControlPoints | 013 (on; `PANVK_DEBUG=no_tess` turns them off) |
 | shaderTessellationAndGeometryPointSize | off |
 | fillModeNonSolid, multiViewport, depthBounds, pipelineStatisticsQuery | off (v9+ only) |
 
 ## BC texture compression
 
-BC emulation does not depend on the arch. It was already on for v6/v7 before 013:
+BC emulation does not depend on the arch. It is on for v6/v7:
 - `panvk_bc_emul_enabled()` (csf-v11/108) does not check the arch. It emulates unless every BC format is native. `textureCompressionBC` is `native || emulated`.
 - A BC image is LINEAR (`panvk_image_get_mod`). It gets a decoded plane after the raw blocks. Uploads (`CmdCopyMemoryToImage`, `CmdCopyBufferToImage2`) and `CmdCopyImage2` into it decode with the compute shaders in `panvk_vX_cmd_meta.c` (`bc/*.comp`: buffer_reference loads and stores only, 8x8 workgroups). Views sample the decoded plane (`panvk_vX_image_view.c`). The decoded formats (RGBA8, RG16 unorm/snorm, RGBA16F) are plain Bifrost texture formats.
 - The fragment decode into compact or AFRC shadows (csf-v11/150, 180, 185) is v10+ only (`image->bc_gfx`, gated on arch >= 10). v6/v7 and v9 always use the compute path. The PanProbe `bc_decode`/`bc_perf` results on the v9 G57 come from that same compute path.
 
-The one gap was on JM: only the CSF `CmdPipelineBarrier2` called `cmd_bc_decode_zero_initialized()` (csf-v11/040). On v6/v7, an image leaving `VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT` kept a zeroed decoded plane. It should hold the decode of zero blocks: opaque black for BC1. 013 adds the call on v6/v7. v9 JM has the same gap, and this patch leaves v9 alone.
+The one gap was on JM: only the CSF `CmdPipelineBarrier2` called `cmd_bc_decode_zero_initialized()` (csf-v11/040), so an image leaving `VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT` kept a zeroed decoded plane. The former 0013 added the call on v6/v7; `patches/jm-v9/031` now adds it for all JM archs, so 0013 was dropped.
 
-## Tessellation (0014)
+## Tessellation (0013)
 
-0014 implements `tessellationShader` and `extendedDynamicState2PatchControlPoints` on v6/v7, with the v9 limits (level 64, patch size 32, 128/120/4096 TCS components). `PANVK_DEBUG=no_tess` turns both off again. `shaderTessellationAndGeometryPointSize` stays off. v9+ is unchanged: every new path is `PAN_ARCH < 9` (the JM draw file, the v6/v7 libpan section, a `#else` in the shader compiler).
+0013 implements `tessellationShader` and `extendedDynamicState2PatchControlPoints` on v6/v7, with the v9 limits (level 64, patch size 32, 128/120/4096 TCS components). `PANVK_DEBUG=no_tess` turns both off again. `shaderTessellationAndGeometryPointSize` stays off. v9+ is unchanged: every new path is `PAN_ARCH < 9` (the JM draw file, the v6/v7 libpan section, a `#else` in the shader compiler).
 
 **Design.** A tessellated draw is recorded as two draws in one job chain (`panvk_tess_draw()` in `jm/panvk_vX_cmd_draw.c`):
 
@@ -95,13 +94,13 @@ Every tess kernel is a barrier job. The TCS output, the counts and the tessellat
 
 - 009: gl_PointSize is not captured (it reads 0), and points drawn through the passthrough rasterize at size 1. gl_PrimitiveID in the FS counts across instances.
 - 010: robustBufferAccess2 relies on the hardware bounds of UBO, attribute and texel-buffer descriptors, as JimVulkan reports for G52/G72/G76. That is unverified here.
-- No device has run 006-014. A host recording check under the panfrost drm-shim (PAN_GPU_ID 6221, 7212, 7211) is described in 011's message. It covers command recording only: the drm-shim cannot run kbase JM atoms.
+- No device has run 006-013. A host recording check under the panfrost drm-shim (PAN_GPU_ID 6221, 7212, 7211) is described in 011's message. It covers command recording only: the drm-shim cannot run kbase JM atoms.
 
 ## What needs a device
 
 - RTL A06 (G52 MC2 r1, `0x74021000`) and A14 (G52 MC1, `0x72120000`). Baseline PanProbe was 14/38 before 006. Run PanProbe with this build. Expected gains:
   - geometry, xfb, clip_cull, robustness2/null descriptor, bc_decode/bc_perf, vertex_stores, MDI;
-  - tessellation cases are now expected to run (014): PanProbe `tessellation`, `gs_tess_primitive_id`, `large_draw`.
+  - tessellation cases are now expected to run (0013): PanProbe `tessellation`, `gs_tess_primitive_id`, `large_draw`.
 - CTS subsets: `dEQP-VK.tessellation.*` (watch for TCS barrier hangs, truncated large draws, winding), `dEQP-VK.geometry.*`, `transform_feedback.*`, `robustness.robustness2.*`, `texture.compressed.*bc*`, `draw.*indirect*`.
-- DXVK D3D9 and D3D11 in PanPlay. With 014, DXVK can report FL11_0, so check that D3D11 titles that ran at FL10_x before still run (fall back with `PANVK_DEBUG=no_tess`).
+- DXVK D3D9 and D3D11 in PanPlay. With 0013, DXVK can report FL11_0, so check that D3D11 titles that ran at FL10_x before still run (fall back with `PANVK_DEBUG=no_tess`).
 - Move the series to `patches/jm-v7` (006+) once A06/A14 gets past 14/38.

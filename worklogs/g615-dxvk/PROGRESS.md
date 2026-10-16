@@ -552,7 +552,7 @@ Many non-clean sessions on v10-v12 are game-side exits with no driver error (Win
 
 **Update 2026-10-16 (jm-v7 driver):** item 17 (v7 unblock) VERIFIED on Exynos 850 G52 (Galaxy A14 SM-A145F, `0x72120000`): device creation works, atom stride 56 OK, `MEM_JIT_INIT` skip OK (growable GROW_ON_GPF tiler heap). Variant fix (jm-v7 001) VERIFIED on G52 r1 `0x74021000` (variant 0x2). Item 18 baselines done on both G52 MC1 (Exynos 850, A14) and G52 MC2 r1 (Helio G85, A06 SM-A065F): PanProbe 14/38 on each; failures are missing DXVK features (item 19 port), no DEVICE_LOST. Note to check: `u_gralloc_get_buffer_basic_info failed` on mt6768 (A06). The "Status" below is the state before jm-v7. Apps now show the Bifrost "not supported" message only when no device exists; failing tests on v6/v7 get "Bifrost (v7): feature not implemented yet".
 
-**Update 2026-10-16 (item 19, jm-v7-wip 006-014):** builds; **not device-tested**. The patches are in `patches/jm-v7-wip/`; apply them with `git am` on top of the current full series (186 patches, strict). Details, BuildID and the per-patch list are in that directory's README.
+**Update 2026-10-16 (item 19, jm-v7-wip 006-013):** builds; **not device-tested**. The patches are in `patches/jm-v7-wip/`; apply them with `git am` on top of the current full series (strict; rebased 2026-10-16 onto the series with jm-v9/031, old BC patch 0013 dropped, tessellation is now 0013). Details, BuildID and the per-patch list are in that directory's README.
 
 What each patch adds on v6/v7:
 - 006: draw prerequisites (no IDVS, MDI, position buffer).
@@ -561,21 +561,21 @@ What each patch adds on v6/v7:
 - 010: robustBufferAccess2 and nullDescriptor, emulated null descriptors (from JimVulkan, MIT).
 - 011: NIR and tiler DCD fixes.
 - 012: the meta save/restore lost the bound GS on v6/v7. This was found in review and is fixed.
-- 013: BC.
-- 014 (new): tessellationShader and extendedDynamicState2PatchControlPoints, with the v9 limits.
+- (old 013 BC call dropped: jm-v9/031 does it for all JM archs)
+- 013 (new): tessellationShader and extendedDynamicState2PatchControlPoints, with the v9 limits.
   - Design: the VS draw runs with a TCS compute job instead of its tiler job. Then come libpoly tessellator kernels built for v6/v7: count, a serial prefix sum (the 1024-wide one is not used), and write. Last, an indirect draw over the tessellator indices with the TES as its vertex shader. The GS emulation and XFB after the TES reuse 007-009.
   - A 64 MB device arena holds the tess data. Every kernel is a barrier job, and there is no CPU readback.
   - Limits: 8192 patches, 2^20 indices, and 8192 primitives into a GS or XFB per draw. Whole patches past these are dropped.
   - `PANVK_DEBUG=no_tess` turns it off.
   - Host check under the panfrost drm-shim (G52/G72/G76 IDs): compile with NIR validation, recording of direct, indexed, indirect, byte-count, GS and XFB tessellated draws, and valgrind are all clean. This is not submission and not a device run.
-  - New BuildID `5e59814c33319fdf66c69ca4a40a9f411c8e275f` (`dist/b2/`).
+  - New BuildID `09587b23aab8a8ac2787c49f75823aefbc765632` (`dist/j/`, 006-013 on the current series).
 
-BC emulation is arch-independent and was already on for v6/v7 (compute decode; the fragment/AFRC shadow path is v10+). 013 adds the missing JM decode of images leaving `ZERO_INITIALIZED` (v6/v7 only; v9 JM has the same gap).
+BC emulation is arch-independent and was already on for v6/v7 (compute decode; the fragment/AFRC shadow path is v10+). The missing JM decode of images leaving `ZERO_INITIALIZED` now comes from jm-v9/031 (all JM archs).
 
 Still off on v6/v7:
 - fillModeNonSolid, multiViewport, depthBounds, pipelineStatisticsQuery, robustImageAccess2, transformFeedbackQueries.
 
-Next: PanProbe on RTL A06/A14 (baseline 14/38) with the 014 build, including `tessellation`, `gs_tess_primitive_id` and `large_draw`. Then CTS `dEQP-VK.tessellation.*`, and DXVK D3D11 titles, which can now pick FL11_0 (`PANVK_DEBUG=no_tess` falls back).
+Next: PanProbe on RTL A06/A14 (baseline 14/38) with the 013 build, including `tessellation`, `gs_tess_primitive_id` and `large_draw`. Then CTS `dEQP-VK.tessellation.*`, and DXVK D3D11 titles, which can now pick FL11_0 (`PANVK_DEBUG=no_tess` falls back).
 
 **Status (before jm-v7):** not supported. The Android ICD already builds the v6 and v7 backends (`bifrost_archs = [6, 7]`, `jm_archs = [6, 7, 9]`), and kbase opens on these devices (`kbase: JM driver, uAPI version 11.27 / 11.35 / 11.38`, `stock JM atom layout (stride 72 refused), stride 56`), but no physical device is created:
 

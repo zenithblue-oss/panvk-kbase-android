@@ -1,4 +1,4 @@
-From afeb265d37c07d7d7d5523cb1e2adf4ab4b04a08 Mon Sep 17 00:00:00 2001
+From 2ca436d23909898271eb0f80f9b1448865887e89 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Fri, 16 Oct 2026 13:42:01 +0530
 Subject: [PATCH 08/13] jm-v7 008: Bifrost transform feedback from the geometry
@@ -163,7 +163,7 @@ index 841eee8..615c9c4 100644
  
  #if PAN_ARCH == 9
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
-index b7845ed..effe065 100644
+index 86b5ce8..a292ebc 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
 @@ -118,6 +118,9 @@ panvk_per_arch(cmd_close_batch)(struct panvk_cmd_buffer *cmdbuf)
@@ -571,7 +571,7 @@ index 20f40ae..a3eb731 100644
        /* VK_EXT_shader_tile_image */
        .shaderTileImageCoherentReadAccelerated = PAN_ARCH >= 9,
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index ac5b75f..b3602bd 100644
+index f8057d3..1a2e285 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
 @@ -3885,8 +3885,43 @@ panvk_compile_shader(struct panvk_device *dev,
