@@ -233,6 +233,8 @@ object DriverManager {
                 throw IllegalArgumentException("Library file '$libraryName' specified in meta.json was not found in archive")
             }
 
+            if (DriverUpdate.isGlibcSo(libFile)) throw IllegalArgumentException(DriverUpdate.GLIBC_MSG)
+
             val rawName = metaJson.optString("name", "driver")
             var sanitized = rawName.replace(Regex("[^A-Za-z0-9._-]"), "_").ifEmpty { "driver" }
             if (sanitized == "bundled" || sanitized == bundledId(context) || sanitized == "."|| sanitized == ".." || sanitized.startsWith(".")) {

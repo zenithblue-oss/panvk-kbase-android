@@ -126,6 +126,10 @@ class DriverUpdate(private val ctx: Context) {
                 h[18] == 183.toByte() && h[19] == 0.toByte()
         } catch (_: Exception) { false }
 
+        const val GLIBC_MSG = "This .so is built for glibc (needs libc.so.6), not Android. Use an Android (bionic) build of the driver."
+        fun isGlibcBytes(b: ByteArray): Boolean = String(b, Charsets.ISO_8859_1).contains("libc.so.6")
+        fun isGlibcSo(f: File): Boolean = try { isGlibcBytes(f.readBytes()) } catch (_: Exception) { false }
+
         private fun open(url: String): HttpURLConnection {
             require(url.startsWith("https://")) { "Only https URLs are allowed: $url" }
             val c = URL(url).openConnection() as HttpURLConnection

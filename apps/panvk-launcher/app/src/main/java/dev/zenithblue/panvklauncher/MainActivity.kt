@@ -307,6 +307,7 @@ fun LauncherApp(
                     isWineRunning = ContainerManager.isRunning()
                     isContainerSetup = ContainerManager.isSetup(context)
                 }
+                UploadLogs.bifrostFromLogcat()?.let { m -> mainHandler.post { addLog(m); android.widget.Toast.makeText(context, m, android.widget.Toast.LENGTH_LONG).show() } }
                 // Game returned (exit, crash or driver failure): collect every log and show the Session logs screen.
                 if (!gaming) try {
                     val dir = SessionLogs.collect(context, sc, exePath, startMs, launcherLog.toString(), launched)
@@ -505,8 +506,9 @@ fun LauncherApp(
                 } catch (t: Throwable) {
                     "FAIL exception: ${t}"
                 }
-                probeResult = result
-                addLog("Probe (${driver.name}):\n$result")
+                val bifrost = if (result.startsWith("FAIL")) withContext(Dispatchers.IO) { UploadLogs.bifrostFromLogcat() } else null
+                probeResult = if (bifrost != null) "$bifrost\n\n$result" else result
+                addLog("Probe (${driver.name}):\n$probeResult")
                 Log.i("PanVKLauncher", result)
             } finally {
                 isProbing = false

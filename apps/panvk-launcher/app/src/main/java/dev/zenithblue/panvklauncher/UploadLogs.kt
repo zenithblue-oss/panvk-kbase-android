@@ -65,6 +65,27 @@ object UploadLogs {
             .put("error", err ?: JSONObject.NULL)
     }
 
+    const val BIFROST_MSG = "Mali Bifrost (v6/v7) is not supported yet"
+    // gpu_id top nibble = arch major: 6 = G71/G72, 7 = G31/G51/G52/G76. Also the v6/v7 "not well-tested" refusal.
+    private val BIFROST_ID = Regex("""gpu_id \(?0x[67][0-9a-fA-F]{7}\b""")
+    // No PanVK device: gpu_id rejected by the table or the v6/v7 gate.
+    private val BIFROST_NODEV = Regex("""Unknown gpu_id \(?0x[67][0-9a-fA-F]{7}\b|not well-tested on v[67]""")
+    const val BIFROST_TAG = "Bifrost (v7): feature not implemented yet"
+
+    /** [BIFROST_MSG] only when [text] shows a Bifrost GPU with no PanVK device, else null. */
+    fun bifrostMessage(text: String): String? = if (BIFROST_NODEV.containsMatchIn(text)) BIFROST_MSG else null
+
+    /** True when [text] shows a v6/v7 gpu_id (device may exist). */
+    fun isBifrost(text: String): Boolean = BIFROST_ID.containsMatchIn(text)
+
+    /** Same check on this app's recent logcat (own uid): the driver's gpu_id line from a failed init. */
+    fun bifrostFromLogcat(): String? = try {
+        val p = ProcessBuilder("logcat", "-d", "-t", "600", "-b", "main").redirectErrorStream(true).start()
+        val t = p.inputStream.bufferedReader().readText()
+        p.waitFor()
+        bifrostMessage(t)
+    } catch (_: Throwable) { null }
+
     private val DRIVER_LINE = Regex(
         "kbase: .*(uAPI version|MEM_EXEC_INIT|(?i:queue_group_create|tiler_heap_init)|mem_alloc via|failed)|panvk: (gpu_id|BC emulation|Unknown gpu_id)|" +
             "Unknown gpu_id|FULLPLANE\\] (init|mapper)|VKDBG"

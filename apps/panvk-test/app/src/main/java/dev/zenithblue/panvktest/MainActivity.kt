@@ -225,7 +225,7 @@ class MainActivity : ComponentActivity() {
         }
 
         // Read intent extras for headless testing
-        val driverExtra = intent.getStringExtra("driver")
+        val driverExtra = intent.getStringExtra("driver") ?: if (gameLoop) "bundled" else null
         if (driverExtra != null) {
             when (driverExtra.lowercase(Locale.US)) {
                 "bundled" -> {
@@ -698,6 +698,9 @@ class MainActivity : ComponentActivity() {
                     put("soSha256", runtimeDriverSha256 ?: JSONObject.NULL)
                     put("buildId", driverBuildId ?: JSONObject.NULL)
                     put("driverName", optVal("driverName"))
+                    // true = Vulkan reported a non-PanVK driver (vendor ICD fallback)
+                    put("vendorIcdFallback", resolvedDriverType != DriverType.SYSTEM && loaded &&
+                        firstDevProps?.optString("driverName")?.contains("panvk", ignoreCase = true) != true)
                     put("driverVersion", optVal("driverVersion"))
                     put("driverInfo", optVal("driverInfo"))
                     if (bundledMeta != null) put("bundledRelease", JSONObject().apply {
@@ -896,7 +899,9 @@ class MainActivity : ComponentActivity() {
             refreshLogsList()
         }
 
-        Pair(jsonObject, if (jsonObject != null) jsonObject.toString(2) else "Result: $res\n$logContent")
+        val bifrost = UploadLogs.bifrostMessage(logContent)
+        if (bifrost != null) jsonObject?.put("notSupported", bifrost)
+        Pair(jsonObject, if (jsonObject != null) jsonObject.toString(2) else (bifrost?.plus("\n\n") ?: "") + "Result: $res\n$logContent")
     }
 
 
@@ -914,6 +919,10 @@ class MainActivity : ComponentActivity() {
 
         var hasFail = false
         var hasSkip = false
+        var sawIcd = false
+        var bifrost: String? = null
+        var bifrostGpu = false
+        var sawPanvk = false // PanVK prints "MESA: info: panvk: ..." at init; the vendor ICD prints none
         var mismatchSum = 0L
         var fps: String? = null
         val mismatchRegex = Regex("""mismatch=(\d+)""")
@@ -925,6 +934,10 @@ class MainActivity : ComponentActivity() {
             if (trimmed.startsWith("FAIL") || trimmed.startsWith("RESULT FAIL")) hasFail = true
             if (trimmed.startsWith("BENCH ")) bench.add(trimmed.removePrefix("BENCH "))
             if (trimmed.startsWith("RESULT SKIP")) hasSkip = true
+            if (bifrost == null) bifrost = UploadLogs.bifrostMessage(line)
+            if (UploadLogs.isBifrost(line)) bifrostGpu = true
+            if (trimmed.startsWith("ICD device=")) sawIcd = true
+            if (trimmed.contains("panvk", ignoreCase = true) || trimmed.startsWith("MESA:")) sawPanvk = true
             mismatchSum += mismatchRegex.findAll(line)
                 .sumOf { it.groupValues[1].toLongOrNull() ?: 0L }
             if (fps == null) fps = fpsRegex.find(line)?.groupValues?.get(1)
@@ -932,7 +945,9 @@ class MainActivity : ComponentActivity() {
             last40.addLast(line)
         }
 
+        val vendorIcd = driverTypeState.value != DriverType.SYSTEM && sawIcd && !sawPanvk
         val status = when {
+            vendorIcd && !hasFail && res == "exit:0" -> "FAIL" // passed on the wrong driver: not a PanVK result
             res == "timeout" -> "TIMEOUT"
             res.startsWith("signal:") -> {
                 try {
@@ -957,7 +972,8 @@ class MainActivity : ComponentActivity() {
             durationMs = durationMs,
             logFile = logFile,
             lastLines = last40.toList(),
-            extra = bench.takeIf { it.isNotEmpty() }?.joinToString(" | ")
+            extra = (listOfNotNull(bifrost ?: if (bifrostGpu && (status == "FAIL" || status == "SKIP")) UploadLogs.BIFROST_TAG else null, if (vendorIcd) "VENDOR ICD: test ran on the phone's own Vulkan driver, NOT PanVK (driver .so not used)" else null) + bench)
+                .takeIf { it.isNotEmpty() }?.joinToString(" | ")
         )
     }
 
@@ -984,9 +1000,9 @@ class MainActivity : ComponentActivity() {
             surfaceTestState.value = null
             return@withContext TestResult(
                 name = "swapchain_lifecycle",
-                status = "FAIL",
+                status = "SKIP",
                 durationMs = System.currentTimeMillis() - t0,
-                lastLines = listOf("FAIL no surface")
+                lastLines = listOf("SKIP no surface: the live surface was not created in 5s (app in background, screen off or another tab open). Keep the app in front and rerun.")
             )
         }
         Thread.sleep(400)
@@ -1030,6 +1046,7 @@ class MainActivity : ComponentActivity() {
 
         val result = holder.result ?: ""
         var hasFail = false
+        var surfaceLost = false // -ENODEV: the Android surface was destroyed mid-test (app backgrounded)
         var fps: String? = null
         var resized: String? = null
         val fpsRegex = Regex("""FPS ([0-9.]+)""")
@@ -1039,6 +1056,7 @@ class MainActivity : ComponentActivity() {
         val last40 = ArrayDeque<String>(40)
         if (logFile.exists()) scanLog(logFile) { line ->
             if (line.trimStart().startsWith("FAIL")) hasFail = true
+            if (line.contains("ANativeWindow_getWidth res=-19")) surfaceLost = true
             if (fps == null) fps = fpsRegex.find(line)?.groupValues?.get(1)
             if (resized == null) resized = resizedRegex.find(line)?.groupValues?.get(1)
             phaseRegex.findAll(line).forEach {
@@ -1047,8 +1065,10 @@ class MainActivity : ComponentActivity() {
             if (last40.size == 40) last40.removeFirst()
             last40.addLast(line)
         }
-        val status = if (hangPhase == null && result == "exit:0" && !hasFail) "PASS" else "FAIL"
+        val status = if (hangPhase == null && result == "exit:0" && !hasFail) "PASS"
+            else if (surfaceLost && hangPhase == null) "SKIP" else "FAIL"
         val extra = (if (hangPhase != null) "hang in $hangPhase | " else "") +
+            (if (status == "SKIP") "SKIP surface lost mid-test (app backgrounded?) | " else "") +
             "resized FPS ${resized ?: ""} | ${phases.joinToString(", ")}"
 
         refreshLogsList()
@@ -1179,6 +1199,10 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this, "Imported driver is not a valid aarch64 ELF .so. Re-import a real .so. Run blocked.", Toast.LENGTH_LONG).show()
             return
         }
+        if (driverTypeState.value == DriverType.IMPORTED && DriverUpdate.isGlibcSo(drv)) {
+            Toast.makeText(this, DriverUpdate.GLIBC_MSG + " Run blocked.", Toast.LENGTH_LONG).show()
+            return
+        }
         lifecycleScope.launch(Dispatchers.Main) {
             isRunningAllState.value = true
             val runResults = mutableListOf<TestResult>()
@@ -1246,6 +1270,11 @@ class MainActivity : ComponentActivity() {
                     if (!DriverUpdate.isAarch64So(tmpFile)) {
                         tmpFile.delete()
                         Toast.makeText(context, "Not an aarch64 ELF .so (zip or wrong file?). Import rejected.", Toast.LENGTH_LONG).show()
+                        return@rememberLauncherForActivityResult
+                    }
+                    if (DriverUpdate.isGlibcSo(tmpFile)) {
+                        tmpFile.delete()
+                        Toast.makeText(context, DriverUpdate.GLIBC_MSG + " Import rejected.", Toast.LENGTH_LONG).show()
                         return@rememberLauncherForActivityResult
                     }
                     if (!tmpFile.renameTo(destFile)) { tmpFile.delete(); throw java.io.IOException("Could not store driver") }
@@ -1438,7 +1467,12 @@ class MainActivity : ComponentActivity() {
             coroutineScope.launch {
                 infoLoadingState.value = true
                 val (json, raw) = runInfo()
-                if (json != null) {
+                val unsupported = json?.optString("notSupported")?.takeIf { it.isNotEmpty() }
+                if (unsupported != null && (json?.optJSONArray("devices")?.length() ?: 0) == 0) {
+                    infoParsedState.value = null
+                    infoRawJsonState.value = null
+                    infoRawTextState.value = unsupported + "\n\n" + raw
+                } else if (json != null) {
                     infoParsedState.value = parseVulkanInfo(json)
                     infoRawJsonState.value = json.toString(2)
                     infoRawTextState.value = null
