@@ -1,0 +1,1619 @@
+From 5995e819069fe0cdc44f2bb9938b9ec007910b0a Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 16 Oct 2026 12:56:06 +0000
+Subject: [PATCH] jm-v7 014: Bifrost tessellation
+
+tessellationShader and extendedDynamicState2PatchControlPoints on v6/v7,
+with the v9 tessellation limits. PANVK_DEBUG=no_tess turns them off.
+A tessellated draw is recorded as two draws in one job chain
+(panvk_tess_draw()):
+
+1. The vertex shader over the API draw, compiled for clip space when a
+   tess control shader follows and linked with every generic slot kept.
+   Its tiler job is replaced by the tess control job: the TCS is
+   compiled as compute (panvk_nir_lower_tcs_inputs() from 007, then
+   poly_nir_lower_tcs() and panvk_nir_lower_tess_params()), one
+   workgroup per patch and instance, one invocation per output vertex.
+   New panlib_v7_tess_setup sizes it from the draw's command (written on
+   the CPU for vkCmdDraw), a NULL job without patches.
+2. The libpoly tessellator as new v6/v7 libpan kernels:
+   panlib_v7_tessellate (COUNT), panlib_v7_tess_prefix (serial, one
+   thread: the 1024-wide panlib_prefix_sum_tess is not used) and
+   panlib_v7_tessellate (WITH_COUNTS, with the ccw swap). The prefix sum
+   keeps the whole patches that fit 2^20 indices and the indirect
+   varying buffer, and writes a VkDrawIndirectCommand.
+3. That indirect draw, with the TES as its vertex shader
+   (poly_nir_lower_tes(to_hw_vs), vertex i loads raw id index_buffer[i],
+   the tess params come from a new graphics sysval). It is a normal JM
+   indirect draw, so layers, views, the geometry emulation after the TES
+   and transform feedback (passthrough built from the TES) apply as for
+   any vertex shader.
+
+Every tess kernel is a barrier job; the TCS output, counts and
+tessellator output share one 64 MB device arena (allocated only when
+tessellationShader is enabled). No CPU readback: direct, indexed,
+indirect, multi-draw and byte-count draws take the same path. TCS/TES
+are saved across meta operations. panvk_nir_tes_to_gs() (007, unused by
+this design) is removed, and per-vertex inputs with a dynamic array index
+now look the slot up at run time.
+
+Limits: 8192 patches per draw (less with large TCS outputs), 2^20
+indices, 8192 primitives into a GS or XFB; whole patches past them are
+dropped (direct draws log once). FS gl_PrimitiveID without a GS is the
+tiler primitive index. Points draw at size 1. v9+ is unchanged.
+
+Build-tested, and recorded/submitted under the panfrost drm-shim on a
+host debug build (see the README); no Bifrost device run. biblioklept
+
+Generated-by: LLM
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_0153VvtSm6m7BrM4NCBq8MMc
+---
+ src/panfrost/libpan/draw_helper.cl            | 106 ++++
+ src/panfrost/libpan/draw_helper.h             |  28 +
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c    | 561 +++++++++++++++++-
+ src/panfrost/vulkan/panvk_cmd_draw.h          |  19 +
+ src/panfrost/vulkan/panvk_cmd_meta.h          |   6 +-
+ src/panfrost/vulkan/panvk_device.h            |   2 +
+ src/panfrost/vulkan/panvk_gs.h                |  57 +-
+ src/panfrost/vulkan/panvk_instance.c          |   1 +
+ src/panfrost/vulkan/panvk_instance.h          |   2 +
+ src/panfrost/vulkan/panvk_nir_lower_gs.c      |  42 +-
+ src/panfrost/vulkan/panvk_shader.h            |  10 +
+ src/panfrost/vulkan/panvk_vX_cmd_meta.c       |   6 +
+ src/panfrost/vulkan/panvk_vX_device.c         |  16 +
+ .../vulkan/panvk_vX_physical_device.c         |  27 +-
+ src/panfrost/vulkan/panvk_vX_shader.c         | 225 ++++++-
+ 15 files changed, 1020 insertions(+), 88 deletions(-)
+
+diff --git a/src/panfrost/libpan/draw_helper.cl b/src/panfrost/libpan/draw_helper.cl
+index 6a23546..d57c108 100644
+--- a/src/panfrost/libpan/draw_helper.cl
++++ b/src/panfrost/libpan/draw_helper.cl
+@@ -1659,6 +1659,112 @@ panlib_xfb_counters(global uint32_t *offsets, uint64_t c0, uint64_t c1,
+    }
+ }
+ 
++/* Tessellation (jm-v7 014), see struct panlib_v7_tess. src_draw is the
++ * Vk[Indexed]DrawIndirectCommand of the API draw: the patches are whole
++ * instances when they fit max_patches, else the first max_patches patches of
++ * the first instance. Sizes the tess control job, a NULL job when there is
++ * no patch.
++ */
++KERNEL(1)
++panlib_v7_tess_setup(global struct panlib_v7_tess *t,
++                     constant uint32_t *src_draw, global uint8_t *tcs_job)
++{
++   global struct poly_tess_params *p = &t->p;
++   uint32_t ps = max(t->input_patch_size, 1u);
++   uint32_t ppi = min(src_draw[0] / ps, t->max_patches);
++   uint32_t inst = ppi ? min(src_draw[1], t->max_patches / ppi) : 0;
++   uint32_t n = ppi * inst;
++
++   p->patches_per_instance = max(ppi, 1u);
++   p->nr_patches = n;
++   t->heap.bottom = 0;
++   t->draw[0] = 0;
++   t->draw[1] = 1;
++   t->draw[2] = 0;
++   t->draw[3] = 0;
++
++   panlib_patch_job_type_header((global struct mali_job_header_packed *)tcs_job,
++                                n ? MALI_JOB_TYPE_COMPUTE : MALI_JOB_TYPE_NULL);
++   if (n) {
++      pan_pack_work_groups_compute(
++         (global struct mali_invocation_packed *)(tcs_job +
++                                                  pan_section_offset(
++                                                     COMPUTE_JOB, INVOCATION)),
++         ppi, inst, 1, t->out_patch_size, 1, 1, false, false);
++   }
++}
++
++/* domain: 0 triangles, 1 quads, 2 isolines. Same as panlib_tessellate(). */
++KERNEL(64)
++panlib_v7_tessellate(constant struct poly_tess_params *p, uint32_t domain__3,
++                     uint32_t mode__2)
++{
++   uint32_t patch = cl_global_id.x;
++   enum poly_tess_mode mode = mode__2;
++
++   if (patch >= p->nr_patches)
++      return;
++
++   if (domain__3 == 0)
++      poly_tess_tri_process(p, patch, mode);
++   else if (domain__3 == 1)
++      poly_tess_quad_process(p, patch, mode);
++   else
++      poly_tess_isoline_process(p, patch, mode);
++
++   /* The tessellator emits clockwise triangles, swap two vertices of each
++    * one for the other winding.
++    */
++   if (mode == POLY_TESS_MODE_WITH_COUNTS && p->ccw && domain__3 != 2 &&
++       !p->points_mode) {
++      global uint32_t *idx = p->index_buffer;
++      uint32_t end = p->counts[patch];
++
++      for (uint32_t i = patch ? p->counts[patch - 1] : 0; i + 2 < end;
++           i += 3) {
++         uint32_t tmp = idx[i + 1];
++         idx[i + 1] = idx[i + 2];
++         idx[i + 2] = tmp;
++      }
++   }
++}
++
++/* Inclusive prefix sum of the per-patch index counts. Whole patches are kept
++ * while their indices fit max_indices and, with varying_info, the indirect
++ * varying buffer the tess eval draw allocates from. The tessellator then
++ * writes the kept patches only, and the tess eval draw covers them.
++ * ponytail: serial, a draw holds at most PANVK_TESS_MAX_PATCHES patches.
++ */
++KERNEL(1)
++panlib_v7_tess_prefix(global struct panlib_v7_tess *t)
++{
++   global struct poly_tess_params *p = &t->p;
++   uint32_t budget = t->max_indices;
++
++   if (t->varying_info && t->varying_bytes) {
++      global struct libpan_draw_helper_varying_buf_info *vi =
++         (global struct libpan_draw_helper_varying_buf_info *)t->varying_info;
++      uint32_t used =
++         atomic_fetch_add_explicit(&vi->offset, 0, memory_order_relaxed);
++      uint32_t left = vi->size > used + t->varying_margin
++                         ? vi->size - used - t->varying_margin
++                         : 0;
++      budget = min(budget, left / t->varying_bytes);
++   }
++
++   uint32_t sum = 0, n = 0;
++   for (; n < p->nr_patches; n++) {
++      uint32_t c = p->counts[n];
++      if (c > budget - sum)
++         break;
++      sum += c;
++      p->counts[n] = sum;
++   }
++
++   p->nr_patches = n;
++   t->draw[0] = sum;
++}
++
+ #endif
+ 
+ #if PAN_ARCH == 9
+diff --git a/src/panfrost/libpan/draw_helper.h b/src/panfrost/libpan/draw_helper.h
+index 615c9c4..594422f 100644
+--- a/src/panfrost/libpan/draw_helper.h
++++ b/src/panfrost/libpan/draw_helper.h
+@@ -10,6 +10,11 @@
+ 
+ #pragma once
+ 
++#if (PAN_ARCH == 6 || PAN_ARCH == 7)
++#include "poly/geometry.h"
++#include "poly/tessellator.h"
++#endif
++
+ #if (PAN_ARCH == 6 || PAN_ARCH == 7)
+ /* Keep in sync with panvk_varying_buf_id */
+ enum panlib_varying_buf_id {
+@@ -68,6 +73,29 @@ struct libpan_xfb_draw {
+     uint32_t written;        /* scan: primitives captured */
+     uint32_t needed;         /* scan: primitives emitted */
+ };
++
++/* Tessellation, one per tessellated draw (jm-v7 014). The draw path fills
++ * the parameters, panlib_v7_tess_setup/_prefix and the tessellator the
++ * rest. The buffers p points at live in the device's tess arena.
++ */
++struct panlib_v7_tess {
++   struct poly_tess_params p;
++   struct poly_heap heap;
++   /* VkDrawIndirectCommand of the tess eval draw. */
++   uint32_t draw[4];
++   uint32_t input_patch_size;
++   uint32_t out_patch_size;
++   uint32_t max_patches;
++   uint32_t max_indices;
++   /* struct libpan_draw_helper_varying_buf_info the tess eval draw
++    * allocates its varyings from, and what one output vertex takes there
++    * (all layers), plus a margin left free: the index count is cut so that
++    * the draw fits. 0 for no limit.
++    */
++   uint64_t varying_info;
++   uint32_t varying_bytes;
++   uint32_t varying_margin;
++};
+ #endif
+ 
+ #if PAN_ARCH == 9
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index 1bfe741..27bd910 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -97,6 +97,12 @@ struct panvk_draw_data {
+     * command (vkCmdDrawIndirectByteCountEXT), 0 for none.
+     */
+    unsigned indirect_dep_job;
++   /* Tessellation (jm-v7 014): which part of a tessellated draw this is
++    * (enum panvk_tess_phase), and for the tess eval draw the input primitive
++    * cap of the geometry emulation (0: PANVK_GS_INDIRECT_MAX_PRIMS).
++    */
++   uint32_t tess_phase;
++   uint32_t gs_max_prims;
+    uint64_t position;
+    union {
+       uint64_t psiz;
+@@ -124,6 +130,17 @@ struct panvk_draw_data {
+    } indirect_info;
+ };
+ 
++/* A tessellated draw is recorded as two draws (panvk_tess_draw()): the
++ * vertex shader over the API draw followed by the tess control job instead
++ * of a tiler job, then the tess eval shader as the vertex shader of an
++ * indirect draw over the tessellator indices.
++ */
++enum panvk_tess_phase {
++   PANVK_TESS_PHASE_NONE = 0,
++   PANVK_TESS_PHASE_VS_TCS,
++   PANVK_TESS_PHASE_TES,
++};
++
+ static bool
+ is_indirect_draw(const struct panvk_draw_data *draw)
+ {
+@@ -177,7 +194,8 @@ gs_input_prims(const struct panvk_draw_data *draw,
+                const struct panvk_shader_variant *gs)
+ {
+    if (draw->info.indirect.buffer_dev_addr && !draw->cpu_count)
+-      return PANVK_GS_INDIRECT_MAX_PRIMS;
++      return draw->gs_max_prims ? draw->gs_max_prims
++                                : PANVK_GS_INDIRECT_MAX_PRIMS;
+ 
+    const uint32_t n =
+       draw->cpu_count ? draw->cpu_count : draw->info.vertex.count;
+@@ -503,6 +521,34 @@ panvk_draw_prepare_tiler_context(struct panvk_cmd_buffer *cmdbuf,
+    return VK_SUCCESS;
+ }
+ 
++/* The allocator indirect draws take their varyings from, see
++ * panlib_patch_varying_bufs(). One per batch (or per ~1024 indirect draws).
++ */
++static VkResult
++panvk_draw_get_indirect_varying_info(struct panvk_cmd_buffer *cmdbuf)
++{
++   struct panvk_device *dev = to_panvk_device(cmdbuf->vk.base.device);
++
++   if (cmdbuf->state.gfx.vs.indirect_varying_bufs_infos)
++      return VK_SUCCESS;
++
++   struct pan_ptr bufs_info_storage = panvk_cmd_alloc_dev_mem(
++      cmdbuf, desc, sizeof(struct libpan_draw_helper_varying_buf_info), 8);
++
++   if (!bufs_info_storage.gpu)
++      return VK_ERROR_OUT_OF_DEVICE_MEMORY;
++
++   cmdbuf->state.gfx.vs.indirect_varying_bufs_infos = bufs_info_storage.gpu;
++
++   struct libpan_draw_helper_varying_buf_info *vary_bufs_info =
++      bufs_info_storage.cpu;
++   vary_bufs_info->address = dev->indirect_varying_buffer->addr.dev;
++   vary_bufs_info->size = PANVK_JM_MAX_PER_VTX_ATTRIBUTES_INDIRECT_SIZE *
++                          PANVK_JM_MAX_VERTICES_INDIRECT;
++   vary_bufs_info->offset = 0;
++   return VK_SUCCESS;
++}
++
+ static VkResult
+ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+                             struct panvk_draw_data *draw)
+@@ -525,22 +571,10 @@ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+       ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+    uint64_t psiz_buf = 0, general_buf = 0;
+ 
+-   if (is_indirect_draw(draw) &&
+-       !cmdbuf->state.gfx.vs.indirect_varying_bufs_infos) {
+-      struct pan_ptr bufs_info_storage = panvk_cmd_alloc_dev_mem(
+-         cmdbuf, desc, sizeof(struct libpan_draw_helper_varying_buf_info), 8);
+-
+-      if (!bufs_info_storage.gpu)
+-         return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+-
+-      cmdbuf->state.gfx.vs.indirect_varying_bufs_infos = bufs_info_storage.gpu;
+-
+-      struct libpan_draw_helper_varying_buf_info *vary_bufs_info =
+-         bufs_info_storage.cpu;
+-      vary_bufs_info->address = dev->indirect_varying_buffer->addr.dev;
+-      vary_bufs_info->size = PANVK_JM_MAX_PER_VTX_ATTRIBUTES_INDIRECT_SIZE *
+-                             PANVK_JM_MAX_VERTICES_INDIRECT;
+-      vary_bufs_info->offset = 0;
++   if (is_indirect_draw(draw)) {
++      VkResult result = panvk_draw_get_indirect_varying_info(cmdbuf);
++      if (result != VK_SUCCESS)
++         return result;
+    }
+ 
+    for (unsigned i = 0; i < PANVK_VARY_BUF_MAX; i++) {
+@@ -584,12 +618,19 @@ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+    if (writes_point_size)
+       draw->psiz = psiz_buf;
+    else if (ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_LINE_LIST ||
+-            ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_LINE_STRIP)
++            ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_LINE_STRIP ||
++            (draw->tess_phase == PANVK_TESS_PHASE_TES &&
++             draw->info.prim == MESA_PRIM_LINES))
+       draw->line_width = cmdbuf->vk.dynamic_graphics_state.rs.line.width;
+    else
+       draw->line_width = 1.0f;
+ 
+    draw->varying_bufs = bufs.gpu;
++   /* The geometry emulation and the tess control job read the vertex
++    * shader's generic varyings from here (for an indirect draw, from the
++    * patched descriptor instead).
++    */
++   cmdbuf->state.gfx.gs.in_general = general_buf;
+ 
+    /* Geometry shader emulation: a second set of varying buffers, written by
+     * the emulation job and read by the tiler. Sized for the worst case
+@@ -653,7 +694,6 @@ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+       draw->gs_varying_bufs = gs_bufs.gpu;
+       cmdbuf->state.gfx.gs.out_pos = gs_addrs[PANVK_VARY_BUF_POSITION];
+       cmdbuf->state.gfx.gs.out_general = gs_addrs[PANVK_VARY_BUF_GENERAL];
+-      cmdbuf->state.gfx.gs.in_general = general_buf;
+       cmdbuf->state.gfx.gs.out_index = idx;
+       cmdbuf->state.gfx.gs.in_offsets = offs.gpu;
+       cmdbuf->state.gfx.gs.out_offsets = offs.gpu + VARYING_SLOT_MAX * 4;
+@@ -1183,9 +1223,13 @@ panvk_emit_tiler_primitive_size(struct panvk_cmd_buffer *cmdbuf,
+ {
+    const struct panvk_shader_variant *vs =
+       panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
++   /* A tess eval shader in point mode writes gl_PointSize 1.0, but the API
++    * topology is a patch list: panvk_emit_tiler_primitive() sets no point
++    * size array, so the fixed size (1.0) is the one.
++    */
+    const bool writes_point_size =
+-      !draw->gs_varying_bufs && vs->info.vs.writes_point_size &&
+-      draw->info.prim == MESA_PRIM_POINTS;
++      !draw->gs_varying_bufs && draw->tess_phase != PANVK_TESS_PHASE_TES &&
++      vs->info.vs.writes_point_size && draw->info.prim == MESA_PRIM_POINTS;
+ 
+    pan_pack(primsz, PRIMITIVE_SIZE, cfg) {
+       if (writes_point_size) {
+@@ -1459,6 +1503,15 @@ panvk_cmd_prepare_draw_link_shaders(struct panvk_cmd_buffer *cmd)
+       cmd->state.gfx.gs.emu ? panvk_shader_only_variant(cmd->state.gfx.gs.emu)
+                             : NULL;
+ 
++   /* The vertex shader of a tessellated draw feeds the tess control job:
++    * every generic slot is kept, as for a geometry shader, and nothing is
++    * rasterized.
++    */
++   if (gfx->tess.phase == PANVK_TESS_PHASE_VS_TCS) {
++      gs = panvk_shader_only_variant(gfx->tcs.shader);
++      fs = NULL;
++   }
++
+    VkResult result =
+       panvk_per_arch(link_shaders)(&cmd->desc_pool, vs, gs, fs, &gfx->link);
+    if (result != VK_SUCCESS) {
+@@ -1500,7 +1553,10 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+     * matching this draw's topology. Switching between them relinks.
+     */
+    const struct panvk_shader *emu = cmdbuf->state.gfx.gs.shader;
+-   if (!emu && vs->gs.vs_clip_space) {
++   if (draw->tess_phase == PANVK_TESS_PHASE_VS_TCS) {
++      /* The geometry shader runs after the tess eval shader. */
++      emu = NULL;
++   } else if (!emu && vs->gs.vs_clip_space) {
+       emu = panvk_per_arch(passthrough_gs)(
+          to_panvk_device(cmdbuf->vk.base.device), cmdbuf->state.gfx.vs.shader,
+          draw->info.prim);
+@@ -1714,7 +1770,7 @@ prepare_draw_layer(struct panvk_cmd_buffer *cmdbuf,
+             : pan_varying_layout_find_slot(&vs->info.varyings.formats,
+                                            VARYING_SLOT_POS) != NULL;
+       bool needs_tiling =
+-         writes_pos &&
++         writes_pos && draw->tess_phase != PANVK_TESS_PHASE_VS_TCS &&
+          (!cmdbuf->vk.dynamic_graphics_state.rs.rasterizer_discard_enable ||
+           cmdbuf->state.gfx.occlusion_query.mode !=
+              MALI_OCCLUSION_MODE_DISABLED);
+@@ -2017,6 +2073,151 @@ emit_xfb_jobs(struct panvk_cmd_buffer *cmdbuf, unsigned dep_job_id)
+    }
+ }
+ 
++/*
++ * Tessellation, after the vertex job of the API draw (dep_job_id):
++ * panlib_v7_tess_setup() sizes the tess control job from the draw's command,
++ * then the tess control shader runs as compute, one workgroup per patch and
++ * instance, one invocation per output vertex. It reads the vertex shader's
++ * varyings like the geometry emulation does (panvk_nir_lower_tcs_inputs()).
++ * Returns the tess control job index, 0 on failure.
++ */
++static unsigned
++emit_tess_tcs_job(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw,
++                  unsigned dep_job_id)
++{
++   struct panvk_batch *batch = cmdbuf->cur_batch;
++   const struct panvk_shader *tcs_shader = cmdbuf->state.gfx.tcs.shader;
++   const struct panvk_shader_variant *tcs =
++      panvk_shader_only_variant(tcs_shader);
++   const struct panvk_shader_variant *vs =
++      panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
++   const struct panvk_shader_link *link = &cmdbuf->state.gfx.link;
++   const struct panvk_graphics_sysvals *gfx_sysvals = &cmdbuf->state.gfx.sysvals;
++   const bool indirect = is_indirect_draw(draw);
++   const uint32_t local_size = MAX2(tcs->gs.tess.out_patch_size, 1);
++
++   if (!panvk_priv_mem_check_alloc(tcs->rsd))
++      return 0;
++
++   /* The vertex shader's generic layout, by slot. */
++   struct pan_ptr offs =
++      panvk_cmd_alloc_dev_mem(cmdbuf, desc, VARYING_SLOT_MAX * 4, 4);
++   if (!offs.gpu)
++      return 0;
++   memcpy(offs.cpu, link->buf_offsets, VARYING_SLOT_MAX * 4);
++
++   /* The grid is written by panlib_v7_tess_setup(), the shader does not read
++    * the workgroup count.
++    */
++   struct panvk_compute_sysvals sysvals = {0};
++   sysvals.num_work_groups.x = 1;
++   sysvals.num_work_groups.y = 1;
++   sysvals.num_work_groups.z = 1;
++   sysvals.local_group_size.x = local_size;
++   sysvals.local_group_size.y = 1;
++   sysvals.local_group_size.z = 1;
++   sysvals.gs = (struct panvk_gs_push){
++      .in_pos = draw->position,
++      .in_general = cmdbuf->state.gfx.gs.in_general,
++      .in_offsets = offs.gpu,
++      .in_general_stride = link->buf_strides[PANVK_VARY_BUF_GENERAL],
++      /* Indexed draws always take the indirect path: index_buf is the
++       * buffer base, the command supplies firstIndex.
++       */
++      .index_buf = draw->info.index.index_size
++                      ? draw->info.index.buffer_dev_addr
++                      : 0,
++      .index_size = draw->info.index.index_size,
++      .topology = PANVK_GS_TOPO_LIST,
++      .instance_stride =
++         !indirect && draw->info.instance.count > 1
++            ? draw->padded_vertex_count
++            : 0,
++      .indirect_cmd = indirect ? draw->info.indirect.buffer_dev_addr : 0,
++      .in_pos_desc = indirect ? draw->varying_bufs +
++                                   PANVK_VARY_BUF_POSITION *
++                                      pan_size(ATTRIBUTE_BUFFER)
++                              : 0,
++      .in_general_desc = indirect ? draw->varying_bufs +
++                                       PANVK_VARY_BUF_GENERAL *
++                                          pan_size(ATTRIBUTE_BUFFER)
++                                  : 0,
++      .vertex_dcd = indirect ? draw->jobs.vertex.gpu +
++                                  pan_section_offset(COMPUTE_JOB, DRAW)
++                             : 0,
++      .index_min = draw->index_min_addr,
++      .in_screen_space = !vs->gs.vs_clip_space,
++      .viewport_scale = {gfx_sysvals->viewport.scale.x,
++                         gfx_sysvals->viewport.scale.y,
++                         gfx_sysvals->viewport.scale.z},
++      .viewport_offset = {gfx_sysvals->viewport.offset.x,
++                          gfx_sysvals->viewport.offset.y,
++                          gfx_sysvals->viewport.offset.z},
++      .tess_params =
++         cmdbuf->state.gfx.tess.td + offsetof(struct panlib_v7_tess, p),
++      .patch_size =
++         MAX2(cmdbuf->vk.dynamic_graphics_state.ts.patch_control_points, 1),
++   };
++
++   struct panvk_shader_desc_state ds;
++   unsigned copy_job;
++   if (!emu_prepare_descs(cmdbuf, tcs_shader, &sysvals, &ds, &copy_job))
++      return 0;
++
++   struct pan_ptr push_uniforms;
++   if (panvk_per_arch(cmd_prepare_gs_push_uniforms)(
++          cmdbuf, tcs, &sysvals, &push_uniforms) != VK_SUCCESS)
++      return 0;
++
++   struct pan_compute_dim dim = {1, 1, 1};
++   uint64_t tls =
++      panvk_per_arch(cmd_dispatch_prepare_tls)(cmdbuf, tcs, &dim, false);
++   if (!tls)
++      return 0;
++
++   struct pan_ptr job = panvk_cmd_alloc_desc(cmdbuf, COMPUTE_JOB);
++   if (!job.gpu)
++      return 0;
++
++   pan_pack_work_groups_compute(
++      pan_section_ptr(job.cpu, COMPUTE_JOB, INVOCATION), 1, 1, 1, local_size,
++      1, 1, false, false);
++
++   pan_section_pack(job.cpu, COMPUTE_JOB, PARAMETERS, cfg) {
++      cfg.job_task_split = util_logbase2_ceil(local_size + 1) + 2;
++   }
++
++   pan_section_pack(job.cpu, COMPUTE_JOB, DRAW, cfg) {
++      cfg.state = panvk_priv_mem_dev_addr(tcs->rsd);
++      cfg.attributes = ds.img_attrib_table;
++      cfg.attribute_buffers = ds.tables[PANVK_BIFROST_DESC_TABLE_IMG];
++      cfg.uniform_buffers = ds.tables[PANVK_BIFROST_DESC_TABLE_UBO];
++      cfg.textures = ds.tables[PANVK_BIFROST_DESC_TABLE_TEXTURE];
++      cfg.samplers = ds.tables[PANVK_BIFROST_DESC_TABLE_SAMPLER];
++      cfg.push_uniforms = push_uniforms.gpu;
++      cfg.thread_storage = tls;
++   }
++
++   util_dynarray_append(&batch->jobs, job.cpu);
++
++   /* A barrier: the first write of this draw to the tess arena, after every
++    * earlier job of the chain (the previous tessellated draw is done with
++    * it). It patches the tess control job, which must not be prefetched.
++    */
++   struct panvk_precomp_ctx precomp_ctx = panvk_per_arch(precomp_cs)(cmdbuf);
++   panlib_v7_tess_setup(&precomp_ctx, panlib_1d(1),
++                        (enum panlib_barrier)(PANLIB_BARRIER_JM_BARRIER |
++                                              PANLIB_BARRIER_JM_SUPPRESS_PREFETCH),
++                        cmdbuf->state.gfx.tess.td,
++                        cmdbuf->state.gfx.tess.src_draw, job.gpu);
++
++   return pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_COMPUTE, true, true,
++                         dep_job_id, copy_job, &job, false);
++}
++
++static void panvk_tess_draw(struct panvk_cmd_buffer *cmdbuf,
++                            const struct panvk_draw_data *draw);
++
+ static void
+ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+ {
+@@ -2027,6 +2228,11 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+    if (!panvk_priv_mem_check_alloc(vs->rsd))
+       return;
+ 
++   if (draw->info.prim == MESA_PRIM_PATCHES && !draw->tess_phase) {
++      panvk_tess_draw(cmdbuf, draw);
++      return;
++   }
++
+    /* Needs to be done before get_fs() is called because it depends on
+     * fs.required being initialized. */
+    cmdbuf->state.gfx.fs.required =
+@@ -2063,6 +2269,12 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+                                      ? util_bitcount(view_mask)
+                                      : cmdbuf->state.gfx.render.layer_count;
+ 
++   /* The vertex shader of a tessellated draw runs once, the layers are the
++    * tess eval draw's.
++    */
++   if (draw->tess_phase == PANVK_TESS_PHASE_VS_TCS)
++      enabled_layer_count = 1;
++
+    for (uint32_t i = 0; i < enabled_layer_count; i++) {
+       const uint32_t layer = (view_mask != 0) ? u_bit_scan(&view_mask) : i;
+       result = prepare_draw_layer(cmdbuf, draw, layer);
+@@ -2077,6 +2289,15 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+             pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_VERTEX, false, false,
+                            0, copy_desc_job_id, &draw->jobs.vertex, false);
+ 
++         /* Tessellation: the tess control job instead of a tiler job. The
++          * rest of the draw is recorded by panvk_tess_draw().
++          */
++         if (draw->tess_phase == PANVK_TESS_PHASE_VS_TCS) {
++            cmdbuf->state.gfx.tess.tcs_job =
++               emit_tess_tcs_job(cmdbuf, draw, vjob_id);
++            return;
++         }
++
+          /* Geometry shader emulation between the vertex and tiler jobs. */
+          if (draw->gs_varying_bufs) {
+             vjob_id = emit_gs_job(cmdbuf, draw, vjob_id);
+@@ -2107,6 +2328,11 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+    if (!panvk_priv_mem_check_alloc(vs->rsd))
+       return;
+ 
++   if (draw->info.prim == MESA_PRIM_PATCHES && !draw->tess_phase) {
++      panvk_tess_draw(cmdbuf, draw);
++      return;
++   }
++
+    /* Needs to be done before get_fs() is called because it depends on
+     * fs.required being initialized. */
+    cmdbuf->state.gfx.fs.required =
+@@ -2196,6 +2422,10 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+          offsetof(struct libpan_draw_helper_index_min_max_result, min);
+    }
+ 
++   /* The vertex shader of a tessellated draw runs once. */
++   if (draw->tess_phase == PANVK_TESS_PHASE_VS_TCS)
++      enabled_layer_count = 1;
++
+    for (uint32_t i = 0; i < enabled_layer_count; i++) {
+       const uint32_t layer = (view_mask != 0) ? u_bit_scan(&view_mask) : i;
+ 
+@@ -2305,6 +2535,16 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+             pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_VERTEX, false, true, 0,
+                            prev_job, &draw->jobs.vertex, false);
+ 
++         /* Tessellation: the tess control job instead of a tiler job, the
++          * rest of the draw is recorded by panvk_tess_draw(). No batch split
++          * and no dirty state reset in between.
++          */
++         if (draw->tess_phase == PANVK_TESS_PHASE_VS_TCS) {
++            cmdbuf->state.gfx.tess.tcs_job =
++               emit_tess_tcs_job(cmdbuf, draw, vjob_id);
++            return;
++         }
++
+          /* Geometry shader emulation; it writes the tiler's index count,
+           * so the tiler descriptor must not be prefetched.
+           */
+@@ -2343,6 +2583,273 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+    clear_dirty_after_draw(cmdbuf);
+ }
+ 
++/* Job slots a tessellated draw may take in the batch, see panvk_tess_draw():
++ * the vertex shader draw and the tess control job, the tessellator kernels,
++ * and per layer the tess eval draw with its geometry emulation and transform
++ * feedback jobs.
++ */
++static uint32_t
++panvk_tess_draw_jobs(uint32_t layers)
++{
++   return 32 + 16 * layers;
++}
++
++/*
++ * Tessellation on v6/v7 (jm-v7 014). Mali has no tessellation stage, so a
++ * tessellated draw becomes, in one job chain:
++ *
++ * 1. the vertex shader over the API draw (compiled for clip space), with the
++ *    tess control job after it instead of a tiler job (emit_tess_tcs_job());
++ * 2. the libpoly tessellator: index counts per patch, an inclusive prefix
++ *    sum that keeps the whole patches that fit, then the indices;
++ * 3. an indirect draw of the tessellator indices with the tess eval shader as
++ *    its vertex shader, the draw command written by the prefix sum. A
++ *    geometry shader or transform feedback after it goes through the
++ *    geometry emulation of that draw, layers and views are its own.
++ *
++ * Every kernel is a barrier job: they share the device tess arena with the
++ * previous tessellated draw. No CPU readback, direct and indirect draws take
++ * the same path.
++ *
++ * Limits: at most max_patches patches (whole instances, or the first patches
++ * of the first instance), PANVK_TESS_MAX_INDICES indices, what the indirect
++ * varying buffer still holds, and PANVK_TESS_GS_MAX_PRIMS primitives into a
++ * geometry shader or transform feedback. Patches past them are dropped.
++ */
++static void
++panvk_tess_draw(struct panvk_cmd_buffer *cmdbuf,
++                const struct panvk_draw_data *draw)
++{
++   struct panvk_device *dev = to_panvk_device(cmdbuf->vk.base.device);
++   struct panvk_cmd_graphics_state *gfx = &cmdbuf->state.gfx;
++   const struct vk_dynamic_graphics_state *dyns =
++      &cmdbuf->vk.dynamic_graphics_state;
++   const struct panvk_shader *vs = gfx->vs.shader;
++   const struct panvk_shader *tcs = gfx->tcs.shader;
++   const struct panvk_shader *tes = gfx->tes.shader;
++
++   if (!vs || !tcs || !tes || !dev->tess_arena) {
++      mesa_logw_once("panvk: patch list draw without tessellation shaders");
++      return;
++   }
++
++   const struct panvk_shader_variant *tcs_v = panvk_shader_only_variant(tcs);
++   const struct panvk_shader_variant *tes_v = panvk_shader_hw_variant(tes);
++   const struct panvk_tess_info *tc = &tcs_v->gs.tess;
++   const struct panvk_tess_info *te = &tes_v->gs.tess;
++   const uint32_t domain =
++      te->domain != PANVK_TESS_UNSET ? te->domain : tc->domain;
++   const uint32_t spacing =
++      te->spacing != PANVK_TESS_UNSET ? te->spacing : tc->spacing;
++   const bool points = te->point_mode || tc->point_mode;
++   const bool ccw =
++      (te->ccw || tc->ccw) !=
++      (dyns->ts.domain_origin == VK_TESSELLATION_DOMAIN_ORIGIN_LOWER_LEFT);
++   const uint32_t ps = MAX2(dyns->ts.patch_control_points, 1);
++
++   if (domain == PANVK_TESS_UNSET || spacing == PANVK_TESS_UNSET ||
++       !tc->out_patch_size) {
++      mesa_logw_once("panvk: tessellation state incomplete, draw skipped");
++      return;
++   }
++
++   const bool indirect = is_indirect_draw(draw);
++   /* What the CPU knows of the draw: vkCmdDraw and vkCmdDrawIndexed. */
++   const bool cpu_known = !indirect || draw->cpu_count;
++   const uint32_t cpu_vertices =
++      draw->cpu_count ? draw->cpu_count : draw->info.vertex.count;
++   const uint32_t cpu_instances =
++      draw->cpu_count ? draw->cpu_instances : draw->info.instance.count;
++   if (cpu_known && (cpu_vertices < ps || !cpu_instances))
++      return;
++
++   const enum mesa_prim out_prim = points        ? MESA_PRIM_POINTS
++                                   : domain == 2 ? MESA_PRIM_LINES
++                                                 : MESA_PRIM_TRIANGLES;
++   const uint32_t vpp = mesa_vertices_per_prim(out_prim);
++
++   /* A geometry shader or transform feedback after the tess eval shader:
++    * the geometry emulation of the tess eval draw is sized for
++    * PANVK_TESS_GS_MAX_PRIMS input primitives, keep no more indices.
++    */
++   const bool nested = gfx->gs.shader || tes_v->gs.vs_clip_space;
++   uint32_t max_indices = PANVK_TESS_MAX_INDICES;
++   if (nested)
++      max_indices = MIN2(max_indices, PANVK_TESS_GS_MAX_PRIMS * vpp);
++
++   /* The tess arena: tess control output, counts and coordinate offsets per
++    * patch, the domain point heap and the index buffer. Every kept patch has
++    * at least as many indices as domain points, and an allocation is padded
++    * to 16 bytes, so the heap cannot overflow (poly_heap_alloc_offs() aborts
++    * on overflow).
++    */
++   const uint64_t tcs_stride_B = (uint64_t)tc->stride_el * 4;
++   const uint64_t heap_fixed_B =
++      (uint64_t)max_indices * sizeof(struct poly_tess_point) + 64;
++   const uint64_t fixed_B =
++      heap_fixed_B + (uint64_t)max_indices * sizeof(uint32_t) + 5 * 64;
++   const uint64_t per_patch_B =
++      tcs_stride_B + 2 * sizeof(uint32_t) + 32 /* heap padding */;
++   const uint32_t max_patches = MIN2(
++      PANVK_TESS_MAX_PATCHES, (PANVK_TESS_HEAP_SIZE - fixed_B) / per_patch_B);
++   if (!max_patches) {
++      mesa_logw_once("panvk: tess control output too large, draw skipped");
++      return;
++   }
++
++   if (cpu_known && (uint64_t)(cpu_vertices / ps) * cpu_instances > max_patches)
++      mesa_logw_once("panvk: tessellated draw of %" PRIu64
++                     " patches, only %u are drawn",
++                     (uint64_t)(cpu_vertices / ps) * cpu_instances,
++                     max_patches);
++
++   const uint64_t arena = dev->tess_arena->addr.dev;
++   uint64_t off = 0;
++   const uint64_t l_tcs = arena + off;
++   off += ALIGN_POT((uint64_t)max_patches * tcs_stride_B, 64);
++   const uint64_t l_counts = arena + off;
++   off += ALIGN_POT((uint64_t)max_patches * sizeof(uint32_t), 64);
++   const uint64_t l_coord_allocs = arena + off;
++   off += ALIGN_POT((uint64_t)max_patches * sizeof(uint32_t), 64);
++   const uint64_t l_heap = arena + off;
++   const uint32_t heap_size = heap_fixed_B + (uint64_t)max_patches * 32;
++   off += ALIGN_POT((uint64_t)heap_size, 64);
++   const uint64_t l_index = arena + off;
++   off += (uint64_t)max_indices * sizeof(uint32_t);
++   assert(off <= PANVK_TESS_HEAP_SIZE);
++
++   /* Every job of the draw goes in this batch: the tess eval draw depends on
++    * the tessellator by job index. vkCmdDrawIndirectByteCountEXT reserved
++    * the room already (its command job is a dependency).
++    */
++   uint32_t view_mask = gfx->render.view_mask;
++   const uint32_t layers =
++      view_mask ? util_bitcount(view_mask) : gfx->render.layer_count;
++   if (!cmdbuf->cur_batch)
++      panvk_per_arch(cmd_open_batch)(cmdbuf);
++   if (!draw->indirect_dep_job &&
++       cmdbuf->cur_batch->vtc_jc.job_index + panvk_tess_draw_jobs(layers) >=
++          UINT16_MAX) {
++      panvk_per_arch(cmd_close_batch)(cmdbuf);
++      panvk_per_arch(cmd_open_batch)(cmdbuf);
++   }
++
++   struct pan_ptr td =
++      panvk_cmd_alloc_dev_mem(cmdbuf, desc, sizeof(struct panlib_v7_tess), 16);
++   struct pan_ptr direct = {0};
++   if (!indirect)
++      direct = panvk_cmd_alloc_dev_mem(cmdbuf, desc,
++                                       sizeof(VkDrawIndirectCommand), 16);
++   if (!td.gpu || (!indirect && !direct.gpu) ||
++       panvk_draw_get_indirect_varying_info(cmdbuf) != VK_SUCCESS) {
++      vk_command_buffer_set_error(&cmdbuf->vk, VK_ERROR_OUT_OF_DEVICE_MEMORY);
++      return;
++   }
++
++#define TD(f) (td.gpu + offsetof(struct panlib_v7_tess, f))
++   struct panlib_v7_tess *t = td.cpu;
++   memset(t, 0, sizeof(*t));
++   t->p = (struct poly_tess_params){
++      .heap = TD(heap),
++      .patch_coord_buffer = l_heap,
++      .coord_allocs = l_coord_allocs,
++      .tcs_buffer = l_tcs,
++      .counts = l_counts,
++      .index_buffer = l_index,
++      .tcs_per_vertex_outputs = tc->per_vertex_outputs,
++      .input_patch_size = ps,
++      .output_patch_size = tc->out_patch_size,
++      .tcs_patch_constants = tc->patch_constants,
++      .tcs_stride_el = tc->stride_el,
++      .partitioning = spacing,
++      .points_mode = points,
++      .isolines = domain == 2,
++      .ccw = ccw,
++   };
++   t->heap.base = l_heap;
++   t->heap.size = heap_size;
++   t->input_patch_size = ps;
++   t->out_patch_size = tc->out_patch_size;
++   t->max_patches = max_patches;
++   t->max_indices = max_indices;
++
++   /* The tess eval draw takes 16 bytes of position, the point size and the
++    * generic varyings per vertex and layer from the indirect varying buffer
++    * (panlib_patch_varying_bufs()), each allocation padded to 64 bytes.
++    */
++   t->varying_info = gfx->vs.indirect_varying_bufs_infos;
++   t->varying_bytes =
++      layers * (16 + 4 + tes_v->info.varyings.formats.generic_size_B);
++   t->varying_margin = layers * 3 * 64 + (1u << 20);
++
++   if (!indirect) {
++      *(VkDrawIndirectCommand *)direct.cpu = (VkDrawIndirectCommand){
++         .vertexCount = draw->info.vertex.count,
++         .instanceCount = draw->info.instance.count,
++         .firstVertex = draw->info.vertex.base,
++         .firstInstance = draw->info.instance.base,
++      };
++   }
++
++   /* 1. The vertex shader and the tess control job. */
++   gfx->tess.td = td.gpu;
++   gfx->tess.src_draw =
++      indirect ? draw->info.indirect.buffer_dev_addr : direct.gpu;
++   gfx->tess.tcs_job = 0;
++   gfx->tess.phase = PANVK_TESS_PHASE_VS_TCS;
++   gfx_state_set_dirty(cmdbuf, VS);
++   gfx_state_set_dirty(cmdbuf, VS_PUSH_UNIFORMS);
++
++   struct panvk_draw_data vs_draw = *draw;
++   vs_draw.tess_phase = PANVK_TESS_PHASE_VS_TCS;
++   if (indirect)
++      panvk_cmd_draw_indirect(cmdbuf, &vs_draw);
++   else
++      panvk_cmd_draw(cmdbuf, &vs_draw);
++
++   gfx->tess.phase = PANVK_TESS_PHASE_NONE;
++   /* The next draw relinks and prepares the vertex shader again. */
++   gfx_state_set_dirty(cmdbuf, VS);
++   gfx_state_set_dirty(cmdbuf, VS_PUSH_UNIFORMS);
++   if (!gfx->tess.tcs_job) {
++      vk_command_buffer_set_error(&cmdbuf->vk, VK_ERROR_OUT_OF_DEVICE_MEMORY);
++      return;
++   }
++
++   /* 2. The tessellator. */
++   struct panvk_precomp_ctx precomp_ctx = panvk_per_arch(precomp_cs)(cmdbuf);
++   const struct panlib_precomp_grid tess_grid =
++      panlib_1d(DIV_ROUND_UP(max_patches, 64));
++   panlib_v7_tessellate(&precomp_ctx, tess_grid, PANLIB_BARRIER_JM_BARRIER,
++                        TD(p), domain, POLY_TESS_MODE_COUNT);
++   panlib_v7_tess_prefix(&precomp_ctx, panlib_1d(1), PANLIB_BARRIER_JM_BARRIER,
++                         td.gpu);
++   panlib_v7_tessellate(&precomp_ctx, tess_grid, PANLIB_BARRIER_JM_BARRIER,
++                        TD(p), domain, POLY_TESS_MODE_WITH_COUNTS);
++   const unsigned tess_job = cmdbuf->cur_batch->vtc_jc.job_index;
++
++   /* 3. The tess eval shader as the vertex shader of the generated draw. */
++   gfx->vs.shader = tes;
++   gfx->sysvals.tess_params = TD(p);
++   struct panvk_draw_data out = {
++      .info = {
++         .indirect.buffer_dev_addr = TD(draw),
++         .indirect.draw_count = 1,
++         .indirect.stride = sizeof(VkDrawIndirectCommand),
++         .prim = out_prim,
++      },
++      .indirect_dep_job = tess_job,
++      .tess_phase = PANVK_TESS_PHASE_TES,
++      .gs_max_prims = nested ? max_indices / vpp : 0,
++   };
++   panvk_cmd_draw_indirect(cmdbuf, &out);
++#undef TD
++
++   gfx->vs.shader = vs;
++   gfx_state_set_dirty(cmdbuf, VS);
++   gfx_state_set_dirty(cmdbuf, VS_PUSH_UNIFORMS);
++}
++
+ static unsigned
+ padded_vertex_count(struct panvk_cmd_buffer *cmdbuf, uint32_t vertex_count,
+                     uint32_t instance_count)
+@@ -2618,9 +3125,11 @@ panvk_per_arch(CmdDrawIndirectByteCountEXT)(
+     */
+    if (!cmdbuf->cur_batch)
+       panvk_per_arch(cmd_open_batch)(cmdbuf);
+-   if (cmdbuf->cur_batch->vtc_jc.job_index +
+-          (4 * cmdbuf->state.gfx.render.layer_count) + 1 >=
+-       UINT16_MAX) {
++   const uint32_t draw_jobs =
++      panvk_get_client_prim(cmdbuf) == MESA_PRIM_PATCHES
++         ? panvk_tess_draw_jobs(cmdbuf->state.gfx.render.layer_count)
++         : 4 * cmdbuf->state.gfx.render.layer_count;
++   if (cmdbuf->cur_batch->vtc_jc.job_index + draw_jobs + 1 >= UINT16_MAX) {
+       panvk_per_arch(cmd_close_batch)(cmdbuf);
+       panvk_per_arch(cmd_open_batch)(cmdbuf);
+    }
+diff --git a/src/panfrost/vulkan/panvk_cmd_draw.h b/src/panfrost/vulkan/panvk_cmd_draw.h
+index 1c668fc..ef7d763 100644
+--- a/src/panfrost/vulkan/panvk_cmd_draw.h
++++ b/src/panfrost/vulkan/panvk_cmd_draw.h
+@@ -280,6 +280,25 @@ struct panvk_cmd_graphics_state {
+       uint32_t xfb_stream_slots;
+       uint32_t xfb_stream_idx;
+    } gs;
++
++   /* Tessellation (jm-v7 014): the tess control shader runs as a compute
++    * job, the tess eval shader as the vertex shader of a second draw.
++    */
++   struct {
++      const struct panvk_shader *shader;
++   } tcs, tes;
++
++   /* The tessellated draw being recorded: which part (enum
++    * panvk_tess_phase), its struct panlib_v7_tess, the
++    * Vk*IndirectCommand the tess setup reads, and the tess control job
++    * index once emitted (0 on failure).
++    */
++   struct {
++      uint32_t phase;
++      uint64_t td;
++      uint64_t src_draw;
++      unsigned tcs_job;
++   } tess;
+ #endif
+ 
+    struct {
+diff --git a/src/panfrost/vulkan/panvk_cmd_meta.h b/src/panfrost/vulkan/panvk_cmd_meta.h
+index 2eed362..e468a38 100644
+--- a/src/panfrost/vulkan/panvk_cmd_meta.h
++++ b/src/panfrost/vulkan/panvk_cmd_meta.h
+@@ -65,8 +65,10 @@ struct panvk_cmd_meta_graphics_save_ctx {
+ #if PAN_ARCH >= 9
+    const struct panvk_shader *gs, *tcs, *tes;
+ #else
+-   /* The emulated geometry shader (jm-v7 007): meta pipelines bind none. */
+-   const struct panvk_shader *gs;
++   /* The emulated geometry shader (jm-v7 007) and the tessellation shaders
++    * (jm-v7 014): meta pipelines bind none.
++    */
++   const struct panvk_shader *gs, *tcs, *tes;
+ #endif
+ 
+    struct panvk_occlusion_query_state occlusion_query;
+diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
+index 2220120..9a13586 100644
+--- a/src/panfrost/vulkan/panvk_device.h
++++ b/src/panfrost/vulkan/panvk_device.h
+@@ -76,6 +76,8 @@ struct panvk_device {
+     * heap grows from its own base (kbase commits up to the faulting page). */
+    struct panvk_priv_bo *tiler_heap2;
+    struct panvk_priv_bo *indirect_varying_buffer;
++   /* v6/v7 tessellation (jm-v7 014), see panvk_gs.h. NULL elsewhere. */
++   struct panvk_priv_bo *tess_arena;
+    struct panvk_priv_bo *sample_positions;
+ 
+    struct {
+diff --git a/src/panfrost/vulkan/panvk_gs.h b/src/panfrost/vulkan/panvk_gs.h
+index d21b60c..aad4b5e 100644
+--- a/src/panfrost/vulkan/panvk_gs.h
++++ b/src/panfrost/vulkan/panvk_gs.h
+@@ -197,7 +197,7 @@ enum panvk_xfb_gs_class {
+ };
+ 
+ /* The passthrough class of a draw topology, -1 for one with no class
+- * (patches: there is no tessellation here).
++ * (patches: a tessellated draw picks the class of its output primitives).
+  */
+ static inline int
+ panvk_xfb_gs_class(enum mesa_prim prim)
+@@ -247,18 +247,50 @@ struct panvk_gs_lower_options {
+ bool panvk_nir_lower_gs(struct nir_shader *nir,
+                         const struct panvk_gs_lower_options *opts);
+ 
+-/* Tessellation: the tess control shader runs as a compute shader after the
+- * vertex job, one workgroup per patch (workgroup_id.x the patch, .y the
+- * instance), one invocation per output vertex. The tess eval shader becomes
+- * a point-in, point-out geometry shader run once per tessellator index.
++/* Tessellation (jm-v7 014). The tess control shader runs as a compute
++ * shader after the vertex job, one workgroup per patch (workgroup_id.x the
++ * patch, .y the instance), one invocation per output vertex. The libpoly
++ * tessellator kernels count, prefix sum and write the domain point indices,
++ * and the tess eval shader runs as the vertex shader of a non-indexed draw
++ * over them: vertex i is tessellator index i. A geometry shader or transform
++ * feedback after it goes through the geometry emulation of that draw.
++ *
++ * The tess control output, the per-patch counts and the tessellator output
++ * live in one device arena (panvk_device::tess_arena), reused by every
++ * tessellated draw: each draw's first arena write is a barrier job.
++ */
++#define PANVK_TESS_HEAP_SIZE (64u << 20)
++/* Tessellator indices one draw keeps, at most. Whole patches past it are
++ * dropped (panlib_v7_tess_prefix).
++ */
++#define PANVK_TESS_MAX_INDICES (1u << 20)
++/* Patches one draw tessellates, at most: the tessellator grid and the serial
++ * prefix sum are sized for it.
++ */
++#define PANVK_TESS_MAX_PATCHES 8192u
++/* With a geometry shader or transform feedback after the tess eval shader,
++ * the geometry emulation of the generated draw is sized for this many input
++ * primitives (instead of PANVK_GS_INDIRECT_MAX_PRIMS).
+  */
+-#define PANVK_TESS_HEAP_SIZE   (64u << 20)
+-#define PANVK_TESS_MAX_INDICES (1u << 18)
++#define PANVK_TESS_GS_MAX_PRIMS 8192u
++#define PANVK_TESS_UNSET 0xff
+ 
+-/* The tessellator's grid for an indirect draw: each thread walks the
+- * patches at this stride.
++/* What the draw path needs from a tess control or tess eval shader. The
++ * domain, spacing, winding and point mode may come from either stage.
+  */
+-#define PANVK_TESS_INDIRECT_GRID 1024
++struct panvk_tess_info {
++   /* 0 triangles, 1 quads, 2 isolines, PANVK_TESS_UNSET. */
++   uint8_t domain;
++   /* enum poly_tess_partitioning, PANVK_TESS_UNSET. */
++   uint8_t spacing;
++   uint8_t ccw;
++   uint8_t point_mode;
++   /* Tess control only. */
++   uint8_t out_patch_size;
++   uint8_t patch_constants;
++   uint16_t stride_el;
++   uint64_t per_vertex_outputs;
++};
+ 
+ /* opts: input_verts_per_prim 0 (panvk_gs_push::patch_size), pos_stride,
+  * params_base.
+@@ -270,9 +302,4 @@ bool panvk_nir_lower_tcs_inputs(struct nir_shader *nir,
+ bool panvk_nir_lower_tess_params(struct nir_shader *nir,
+                                  const struct panvk_gs_lower_options *opts);
+ 
+-/* A tess eval shader whose inputs src/poly already lowered, into the
+- * geometry emulation's input form: one point in, one point out.
+- */
+-void panvk_nir_tes_to_gs(struct nir_shader *nir);
+-
+ #endif /* PANVK_GS_H */
+diff --git a/src/panfrost/vulkan/panvk_instance.c b/src/panfrost/vulkan/panvk_instance.c
+index a0c9bd1..a87d6c0 100644
+--- a/src/panfrost/vulkan/panvk_instance.c
++++ b/src/panfrost/vulkan/panvk_instance.c
+@@ -67,6 +67,7 @@ static const struct debug_control panvk_debug_options[] = {
+    {"robust_ssbo_vec", PANVK_DEBUG_ROBUST_SSBO_VEC},
+    {"bc_compute", PANVK_DEBUG_BC_COMPUTE},
+    {"bc_wide", PANVK_DEBUG_BC_WIDE},
++   {"no_tess", PANVK_DEBUG_NO_TESS},
+    {NULL, 0},
+ };
+ 
+diff --git a/src/panfrost/vulkan/panvk_instance.h b/src/panfrost/vulkan/panvk_instance.h
+index 3a51098..a5fded7 100644
+--- a/src/panfrost/vulkan/panvk_instance.h
++++ b/src/panfrost/vulkan/panvk_instance.h
+@@ -42,6 +42,8 @@ enum panvk_debug_flags {
+    PANVK_DEBUG_ROBUST_SSBO_VEC = 1 << 24,
+    PANVK_DEBUG_BC_COMPUTE = 1 << 26,
+    PANVK_DEBUG_BC_WIDE = 1 << 27,
++   /* v6/v7: do not expose the tessellation emulation (jm-v7 014). */
++   PANVK_DEBUG_NO_TESS = 1 << 28,
+ };
+ 
+ extern uint64_t panvk_debug;
+diff --git a/src/panfrost/vulkan/panvk_nir_lower_gs.c b/src/panfrost/vulkan/panvk_nir_lower_gs.c
+index 07d912e..84e5491 100644
+--- a/src/panfrost/vulkan/panvk_nir_lower_gs.c
++++ b/src/panfrost/vulkan/panvk_nir_lower_gs.c
+@@ -519,15 +519,24 @@ lower_per_vertex_input(nir_builder *b, nir_intrinsic_instr *intr,
+    }
+ 
+    /* An input array element: the io semantics name the variable's first
+-    * location and src[1] the slot within it.
++    * location and src[1] the slot within it. The geometry shader lowers
++    * indirect input derefs first, a tess control shader may index an input
++    * array dynamically.
+     */
+-   const unsigned location =
+-      sem.location +
+-      (nir_src_is_const(intr->src[1]) ? nir_src_as_uint(intr->src[1]) : 0);
++   nir_def *offset;
++   if (nir_src_is_const(intr->src[1])) {
++      offset = load_slot_offset(b, st->in_offsets,
++                                sem.location + nir_src_as_uint(intr->src[1]));
++   } else {
++      nir_def *loc = nir_iadd_imm(b, intr->src[1].ssa, sem.location);
++      offset = nir_load_global(
++         b, 1, 32,
++         nir_iadd(b, st->in_offsets, nir_u2u64(b, nir_imul_imm(b, loc, 4))),
++         .align_mul = 4);
++   }
+ 
+    nir_def *base = st->in_general;
+    nir_def *stride = st->in_general_stride;
+-   nir_def *offset = load_slot_offset(b, st->in_offsets, location);
+ 
+    nir_def *byte =
+       nir_iadd(b, nir_imul(b, vtx, stride),
+@@ -1228,26 +1237,3 @@ panvk_nir_lower_tcs_inputs(nir_shader *nir,
+    return nir_shader_intrinsics_pass(nir, lower_tcs_instr, nir_metadata_none,
+                                      &st);
+ }
+-
+-void
+-panvk_nir_tes_to_gs(nir_shader *nir)
+-{
+-   nir->info.stage = MESA_SHADER_GEOMETRY;
+-   memset(&nir->info.gs, 0, sizeof(nir->info.gs));
+-   nir->info.gs.input_primitive = MESA_PRIM_POINTS;
+-   nir->info.gs.output_primitive = MESA_PRIM_POINTS;
+-   nir->info.gs.vertices_in = 1;
+-   nir->info.gs.vertices_out = 1;
+-   nir->info.gs.invocations = 1;
+-   nir->info.gs.active_stream_mask = 1;
+-
+-   /* The outputs are copied out of their temporaries at the very end of the
+-    * shader (nir_lower_io_vars_to_temporaries in panvk_preprocess_nir), so a
+-    * single EmitVertex after everything flushes the finished vertex.
+-    */
+-   NIR_PASS(_, nir, nir_lower_returns);
+-   nir_function_impl *impl = nir_shader_get_entrypoint(nir);
+-   nir_builder b = nir_builder_at(nir_after_impl(impl));
+-   nir_emit_vertex(&b, 0);
+-   nir_progress(true, impl, nir_metadata_none);
+-}
+diff --git a/src/panfrost/vulkan/panvk_shader.h b/src/panfrost/vulkan/panvk_shader.h
+index 4d850dd..4da02b9 100644
+--- a/src/panfrost/vulkan/panvk_shader.h
++++ b/src/panfrost/vulkan/panvk_shader.h
+@@ -203,6 +203,11 @@ struct panvk_graphics_sysvals {
+    struct {
+       aligned_u64 sets[PANVK_DESC_TABLE_GFX_COUNT];
+    } desc;
++
++   /* Tessellation: the draw's struct poly_tess_params, read by the tess eval
++    * shader running as the vertex shader.
++    */
++   aligned_u64 tess_params;
+ #endif
+ } __attribute__((aligned(FAU_WORD_SIZE)));
+ 
+@@ -485,6 +490,11 @@ struct panvk_shader_variant {
+       uint8_t xfb_streams_written;
+       uint8_t xfb_output_count;
+       struct panvk_xfb_output xfb_outputs[PANVK_XFB_MAX_RECORD_DWORDS];
++      /* Tessellation: a tess control shader (compiled as compute, see
++       * panvk_nir_lower_tcs_inputs()) or a tess eval shader (compiled as the
++       * vertex shader of a draw over the tessellator indices).
++       */
++      struct panvk_tess_info tess;
+    } gs;
+ #endif
+ 
+diff --git a/src/panfrost/vulkan/panvk_vX_cmd_meta.c b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
+index d3dd0a4..7e2ebff 100644
+--- a/src/panfrost/vulkan/panvk_vX_cmd_meta.c
++++ b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
+@@ -195,7 +195,11 @@ meta_gfx_start(struct panvk_cmd_buffer *cmdbuf,
+     * would bind the application's one again after the meta operation.
+     */
+    save_ctx->gs = cmdbuf->state.gfx.gs.shader;
++   save_ctx->tcs = cmdbuf->state.gfx.tcs.shader;
++   save_ctx->tes = cmdbuf->state.gfx.tes.shader;
+    cmdbuf->state.gfx.gs.shader = NULL;
++   cmdbuf->state.gfx.tcs.shader = NULL;
++   cmdbuf->state.gfx.tes.shader = NULL;
+    gfx_state_set_dirty(cmdbuf, GS);
+ #endif
+ 
+@@ -270,6 +274,8 @@ meta_gfx_end(struct panvk_cmd_buffer *cmdbuf,
+    cmdbuf->state.gfx.tes.shader = save_ctx->tes;
+ #else
+    cmdbuf->state.gfx.gs.shader = save_ctx->gs;
++   cmdbuf->state.gfx.tcs.shader = save_ctx->tcs;
++   cmdbuf->state.gfx.tes.shader = save_ctx->tes;
+    gfx_state_set_dirty(cmdbuf, GS);
+ #endif
+ 
+diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
+index 84b1e85..afefe0f 100644
+--- a/src/panfrost/vulkan/panvk_vX_device.c
++++ b/src/panfrost/vulkan/panvk_vX_device.c
+@@ -830,6 +830,20 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+       VK_SYSTEM_ALLOCATION_SCOPE_DEVICE, &device->indirect_varying_buffer);
+    if (result != VK_SUCCESS)
+       goto err_free_priv_bos;
++
++#if PAN_ARCH < 9
++   /* Tessellation (jm-v7 014): tess control output, per-patch counts and
++    * tessellator output, reused by every tessellated draw (panvk_gs.h).
++    */
++   if (device->vk.enabled_features.tessellationShader) {
++      result = panvk_priv_bo_create(
++         device, PANVK_TESS_HEAP_SIZE,
++         PAN_KMOD_BO_FLAG_NO_MMAP | PAN_KMOD_BO_FLAG_ALLOC_ON_FAULT,
++         VK_SYSTEM_ALLOCATION_SCOPE_DEVICE, &device->tess_arena);
++      if (result != VK_SUCCESS)
++         goto err_free_priv_bos;
++   }
++#endif
+ #endif
+ 
+    result = panvk_priv_bo_create(
+@@ -958,6 +972,7 @@ err_free_priv_bos:
+    panvk_priv_bo_unref(device->tiler_oom.handlers_bo);
+    panvk_priv_bo_unref(device->sample_positions);
+    panvk_priv_bo_unref(device->indirect_varying_buffer);
++   panvk_priv_bo_unref(device->tess_arena);
+    panvk_priv_bo_unref(device->tiler_heap);
+    panvk_priv_bo_unref(device->tiler_heap2);
+    panvk_device_cleanup_mempools(device);
+@@ -1016,6 +1031,7 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
+    panvk_priv_bo_unref(device->printf.bo);
+    panvk_priv_bo_unref(device->tiler_oom.handlers_bo);
+     panvk_priv_bo_unref(device->indirect_varying_buffer);
++    panvk_priv_bo_unref(device->tess_arena);
+     panvk_priv_bo_unref(device->tiler_heap);
+     panvk_priv_bo_unref(device->tiler_heap2);
+     panvk_priv_bo_unref(device->sample_positions);
+diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
+index 9bc0288..80f675d 100644
+--- a/src/panfrost/vulkan/panvk_vX_physical_device.c
++++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
+@@ -319,7 +319,11 @@ panvk_per_arch(get_physical_device_features)(
+       .independentBlend = true,
+       /* v6/v7: emulated by a compute job (panvk_nir_lower_gs.c). */
+       .geometryShader = !PANVK_DEBUG(NO_GS),
+-      .tessellationShader = PAN_ARCH >= 9,
++      /* v6/v7: the tess control shader runs as compute, the libpoly
++       * tessellator as compute kernels, the tess eval shader as the vertex
++       * shader of a second draw (jm-v7 014).
++       */
++      .tessellationShader = PAN_ARCH >= 9 || !PANVK_DEBUG(NO_TESS),
+       .sampleRateShading = true,
+       .dualSrcBlend = true,
+       .logicOp = true,
+@@ -544,7 +548,8 @@ panvk_per_arch(get_physical_device_features)(
+       /* VK_EXT_extended_dynamic_state2 */
+       .extendedDynamicState2 = true,
+       .extendedDynamicState2LogicOp = true,
+-      .extendedDynamicState2PatchControlPoints = PAN_ARCH >= 9,
++      .extendedDynamicState2PatchControlPoints =
++         PAN_ARCH >= 9 || !PANVK_DEBUG(NO_TESS),
+ 
+       /* VK_EXT_extended_dynamic_state3 */
+       .extendedDynamicState3TessellationDomainOrigin = false,
+@@ -861,6 +866,8 @@ panvk_per_arch(get_physical_device_properties)(
+    os_get_page_size(&os_page_size);
+ 
+    const bool has_disk_cache = device->vk.disk_cache != NULL;
++   /* v6/v7: tessellation emulation (jm-v7 014), same limits as v9+. */
++   const bool tess = PAN_ARCH >= 9 || !PANVK_DEBUG(NO_TESS);
+ 
+    /* Ensure that the max threads count per workgroup is valid for Bifrost */
+    assert(PAN_ARCH > 8 || device->kmod.dev->props.max_threads_per_wg <= 1024);
+@@ -955,14 +962,14 @@ panvk_per_arch(get_physical_device_properties)(
+       .maxVertexInputBindingStride = MESA_VK_MAX_VERTEX_BINDING_STRIDE,
+       /* 32 vec4 varyings. */
+       .maxVertexOutputComponents = 128,
+-      .maxTessellationGenerationLevel = PAN_ARCH >= 9 ? 64 : 0,
+-      .maxTessellationPatchSize = PAN_ARCH >= 9 ? 32 : 0,
+-      .maxTessellationControlPerVertexInputComponents = PAN_ARCH >= 9 ? 128 : 0,
+-      .maxTessellationControlPerVertexOutputComponents = PAN_ARCH >= 9 ? 128 : 0,
+-      .maxTessellationControlPerPatchOutputComponents = PAN_ARCH >= 9 ? 120 : 0,
+-      .maxTessellationControlTotalOutputComponents = PAN_ARCH >= 9 ? 4096 : 0,
+-      .maxTessellationEvaluationInputComponents = PAN_ARCH >= 9 ? 128 : 0,
+-      .maxTessellationEvaluationOutputComponents = PAN_ARCH >= 9 ? 128 : 0,
++      .maxTessellationGenerationLevel = tess ? 64 : 0,
++      .maxTessellationPatchSize = tess ? 32 : 0,
++      .maxTessellationControlPerVertexInputComponents = tess ? 128 : 0,
++      .maxTessellationControlPerVertexOutputComponents = tess ? 128 : 0,
++      .maxTessellationControlPerPatchOutputComponents = tess ? 120 : 0,
++      .maxTessellationControlTotalOutputComponents = tess ? 4096 : 0,
++      .maxTessellationEvaluationInputComponents = tess ? 128 : 0,
++      .maxTessellationEvaluationOutputComponents = tess ? 128 : 0,
+       .maxGeometryShaderInvocations = PAN_ARCH >= 9 ? 64 : 32,
+       .maxGeometryInputComponents = 64,
+       .maxGeometryOutputComponents = 128,
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index 7223df6..dd63b80 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -25,6 +25,12 @@
+ #include "libpan/draw_helper_vp.h"
+ #include "poly/nir/poly_nir.h"
+ #include "libpoly.h"
++#else
++/* Tessellation on v6/v7 (jm-v7 014). */
++#include "poly/geometry.h"
++#include "poly/tessellator.h"
++#include "poly/nir/poly_nir.h"
++#include "libpoly.h"
+ #endif
+ 
+ #include "spirv/nir_spirv.h"
+@@ -3410,7 +3416,9 @@ static const struct vk_shader_ops panvk_shader_ops;
+ static bool
+ panvk_vs_wants_xfb_passthrough(const struct vk_shader_compile_info *info)
+ {
+-   if (info->stage != MESA_SHADER_VERTEX || !info->nir->xfb_info)
++   if ((info->stage != MESA_SHADER_VERTEX &&
++        info->stage != MESA_SHADER_TESS_EVAL) ||
++       !info->nir->xfb_info)
+       return false;
+ 
+    uint32_t table[PANVK_XFB_MAX_RECORD_DWORDS];
+@@ -3625,6 +3633,124 @@ panvk_per_arch(passthrough_gs)(struct panvk_device *dev,
+ 
+    return gs;
+ }
++
++/* Tessellation (jm-v7 014), see panvk_gs.h. */
++static void
++panvk_v7_tess_record_info(struct panvk_tess_info *t, const nir_shader *nir)
++{
++   static const uint8_t spacing[] = {
++      [TESS_SPACING_EQUAL] = POLY_TESS_PARTITIONING_INTEGER,
++      [TESS_SPACING_FRACTIONAL_ODD] = POLY_TESS_PARTITIONING_FRACTIONAL_ODD,
++      [TESS_SPACING_FRACTIONAL_EVEN] = POLY_TESS_PARTITIONING_FRACTIONAL_EVEN,
++   };
++
++   t->domain = nir->info.tess._primitive_mode == TESS_PRIMITIVE_TRIANGLES ? 0
++               : nir->info.tess._primitive_mode == TESS_PRIMITIVE_QUADS   ? 1
++               : nir->info.tess._primitive_mode == TESS_PRIMITIVE_ISOLINES
++                  ? 2
++                  : PANVK_TESS_UNSET;
++   t->spacing = nir->info.tess.spacing != TESS_SPACING_UNSPECIFIED
++                   ? spacing[nir->info.tess.spacing]
++                   : PANVK_TESS_UNSET;
++   t->ccw = nir->info.tess.ccw;
++   t->point_mode = nir->info.tess.point_mode;
++}
++
++static bool
++panvk_v7_lower_tess_param_intr(nir_builder *b, nir_intrinsic_instr *intr,
++                               UNUSED void *data)
++{
++   if (intr->intrinsic != nir_intrinsic_load_tess_param_buffer_poly)
++      return false;
++
++   b->cursor = nir_before_instr(&intr->instr);
++   nir_def_replace(&intr->def, load_sysval(b, graphics, 64, tess_params));
++   return true;
++}
++
++/* The tess eval shader runs as the vertex shader of a non-indexed draw:
++ * vertex i is tessellator index i, and the raw id the libpoly helpers take
++ * (patch * POLY_TES_PATCH_ID_STRIDE + point) is index_buffer[i]. The
++ * tessellator already wrote the indices in the final winding.
++ */
++static bool
++panvk_v7_lower_tes_index(nir_shader *nir)
++{
++   nir_function_impl *impl = nir_shader_get_entrypoint(nir);
++   nir_builder b = nir_builder_at(nir_before_impl(impl));
++
++   nir_def *vid = nir_load_vertex_id(&b);
++   nir_def *p = nir_load_tess_param_buffer_poly(&b);
++   nir_def *ib = nir_load_global_constant(
++      &b, 1, 64,
++      nir_iadd_imm(&b, p, offsetof(struct poly_tess_params, index_buffer)),
++      .align_mul = 8);
++   nir_def *raw = nir_load_global_constant(
++      &b, 1, 32, nir_iadd(&b, ib, nir_u2u64(&b, nir_imul_imm(&b, vid, 4))),
++      .align_mul = 4);
++
++   nir_foreach_block(block, impl) {
++      nir_foreach_instr_safe(instr, block) {
++         if (instr->type != nir_instr_type_intrinsic)
++            continue;
++         nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
++         if (intr->intrinsic == nir_intrinsic_load_vertex_id &&
++             &intr->def != vid)
++            nir_def_replace(&intr->def, raw);
++      }
++   }
++
++   return nir_progress(true, impl, nir_metadata_control_flow);
++}
++
++/* TES inputs become loads from the tess control output buffer, then the TES
++ * is a vertex shader (poly_nir_lower_tes(to_hw_vs)).
++ */
++static void
++panvk_v7_lower_tes(nir_shader *nir, struct panvk_tess_info *t)
++{
++   memset(t, 0, sizeof(*t));
++   panvk_v7_tess_record_info(t, nir);
++
++   NIR_PASS(_, nir, nir_lower_io, nir_var_shader_in, glsl_type_size, 0);
++   NIR_PASS(_, nir, nir_opt_constant_folding);
++
++   /* PointMode may be set only on the TCS, and poly_nir_lower_tes() then
++    * emits a store_output with src_type 0 that varying collection ignores.
++    * A real output variable avoids that (same as v9). The tiler draws the
++    * points at the constant size 1 (no point size array: the API topology
++    * is a patch list).
++    */
++   nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
++   if (nir->info.tess.point_mode &&
++       !(nir->info.outputs_written & VARYING_BIT_PSIZ)) {
++      nir_function_impl *impl = nir_shader_get_entrypoint(nir);
++      nir_builder psiz_b = nir_builder_at(nir_after_impl(impl));
++      nir_variable *psiz = nir_variable_create(
++         nir, nir_var_shader_out, glsl_float_type(), "gl_PointSize");
++      psiz->data.location = VARYING_SLOT_PSIZ;
++      nir_store_var(&psiz_b, psiz, nir_imm_float(&psiz_b, 1.0f), 1);
++      nir->info.outputs_written |= VARYING_BIT_PSIZ;
++   }
++
++   NIR_PASS(_, nir, poly_nir_lower_tes, true);
++
++   /* Every input is a global load now, and the vertex shader path expects
++    * vertex attributes only: drop the dead derefs and variables.
++    */
++   NIR_PASS(_, nir, nir_opt_dce);
++   NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_shader_in, NULL);
++   nir->info.inputs_read = 0;
++   nir->num_inputs = 0;
++
++   NIR_PASS(_, nir, panvk_v7_lower_tes_index);
++   /* pan_preprocess_nir() saw a tess eval shader: the vertex ID lowering
++    * of a Bifrost vertex shader is still to do.
++    */
++   NIR_PASS(_, nir, pan_nir_lower_vertex_id);
++   NIR_PASS(_, nir, nir_shader_intrinsics_pass,
++            panvk_v7_lower_tess_param_intr, nir_metadata_control_flow, NULL);
++}
+ #endif
+ 
+ static VkResult
+@@ -3698,13 +3824,24 @@ panvk_compile_shader(struct panvk_device *dev,
+ 
+    /* The geometry shader emulation reads the vertex shader's output in clip
+     * space and does the viewport transform itself (panvk_nir_lower_gs.c).
++    * So does the tess control shader (panvk_nir_lower_tcs_inputs()). A tess
++    * eval shader runs as a vertex shader, and feeds the emulation when a
++    * geometry shader or transform feedback follows.
+     */
+    const bool vs_xfb_passthrough = panvk_vs_wants_xfb_passthrough(info);
+    const bool vs_clip_space =
+-      info->stage == MESA_SHADER_VERTEX &&
+-      ((info->next_stage_mask & VK_SHADER_STAGE_GEOMETRY_BIT) ||
+-       vs_xfb_passthrough);
++      (info->stage == MESA_SHADER_VERTEX &&
++       ((info->next_stage_mask & (VK_SHADER_STAGE_GEOMETRY_BIT |
++                                  VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT)) ||
++        vs_xfb_passthrough)) ||
++      (info->stage == MESA_SHADER_TESS_EVAL &&
++       ((info->next_stage_mask & VK_SHADER_STAGE_GEOMETRY_BIT) ||
++        vs_xfb_passthrough));
+    inputs.skip_viewport_transform = vs_clip_space;
++
++   struct panvk_tess_info tes_info = {0};
++   if (info->stage == MESA_SHADER_TESS_EVAL)
++      panvk_v7_lower_tes(info->nir, &tes_info);
+ #endif
+ 
+ #if PAN_ARCH == 9
+@@ -3715,9 +3852,7 @@ panvk_compile_shader(struct panvk_device *dev,
+ #endif
+ 
+    switch (info->stage) {
+-#if PAN_ARCH >= 9
+    case MESA_SHADER_TESS_EVAL:
+-#endif
+    case MESA_SHADER_VERTEX: {
+ #if PAN_ARCH >= 9
+       /* Lowered/passthrough variants only exist on the gpu_prerast path. */
+@@ -3755,6 +3890,7 @@ panvk_compile_shader(struct panvk_device *dev,
+          variant->gs.vs_clip_space = vs_clip_space;
+          if (vs_xfb_passthrough)
+             panvk_vs_store_xfb(variant, info->nir->xfb_info);
++         variant->gs.tess = tes_info;
+ #endif
+ 
+          /* Each variant gets its own NIR. To save an extra clone, we use the
+@@ -4207,6 +4343,78 @@ panvk_compile_shader(struct panvk_device *dev,
+       }
+       break;
+    }
++
++   case MESA_SHADER_TESS_CTRL: {
++      /* A compute shader run after the vertex job, one workgroup per patch,
++       * one invocation per output vertex (panvk_gs.h). Its inputs are the
++       * vertex shader's varyings, its outputs go to the poly tess control
++       * buffer the tessellator and the tess eval shader read.
++       */
++      struct panvk_shader_variant *variant =
++         (struct panvk_shader_variant *)panvk_shader_only_variant(shader);
++      struct panvk_tess_info *t = &variant->gs.tess;
++      nir_shader *nir = info->nir;
++
++      NIR_PASS(_, nir, nir_lower_var_copies);
++      NIR_PASS(_, nir, nir_lower_io, nir_var_shader_in | nir_var_shader_out,
++               glsl_type_size, 0);
++      NIR_PASS(_, nir, nir_opt_constant_folding);
++      nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
++
++      memset(t, 0, sizeof(*t));
++      panvk_v7_tess_record_info(t, nir);
++      t->per_vertex_outputs = poly_tcs_per_vertex_outputs(nir);
++      t->patch_constants = util_last_bit(nir->info.patch_outputs_written);
++      t->out_patch_size = nir->info.tess.tcs_vertices_out;
++      t->stride_el = poly_tcs_output_stride(nir) / 4;
++
++      const struct panvk_gs_lower_options tcs_opts = {
++         .input_verts_per_prim = 0,
++         .pos_stride = sizeof(uint32_t) * 4,
++         .params_base = SYSVALS_PUSH_CONST_BASE +
++                        offsetof(struct panvk_compute_sysvals, gs),
++      };
++
++      /* Inputs first: poly_nir_lower_tcs() would read them from its own
++       * vertex records. The barriers on outputs become workgroup barriers
++       * on global memory here, so poly leaves them alone.
++       */
++      NIR_PASS(_, nir, panvk_nir_lower_tcs_inputs, &tcs_opts);
++      NIR_PASS(_, nir, poly_nir_lower_tcs, false);
++      NIR_PASS(_, nir, panvk_nir_lower_tess_params, &tcs_opts);
++      NIR_PASS(_, nir, nir_remove_dead_variables,
++               nir_var_shader_in | nir_var_shader_out, NULL);
++
++      /* A compute shader from here on. The tess info shares a union with
++       * the compute info.
++       */
++      nir->info.stage = MESA_SHADER_COMPUTE;
++      memset(&nir->info.cs, 0, sizeof(nir->info.cs));
++      nir->info.workgroup_size[0] = t->out_patch_size;
++      nir->info.workgroup_size[1] = 1;
++      nir->info.workgroup_size[2] = 1;
++      nir->info.workgroup_size_variable = false;
++      nir->info.outputs_written = 0;
++      nir->info.inputs_read = 0;
++      nir->info.patch_outputs_written = 0;
++      nir->num_inputs = 0;
++      nir->num_outputs = 0;
++
++      panvk_lower_nir(dev, nir, info->set_layout_count, info->set_layouts,
++                      info->robustness, state, &shader->desc_info, false);
++
++      struct pan_compile_inputs k_inputs = inputs;
++      k_inputs.varying_layout = NULL;
++      k_inputs.view_mask = 0;
++      variant->own_bin = true;
++      result = panvk_compile_nir(dev, nir, info->flags, &k_inputs, state, NULL,
++                                 &shader->desc_info, variant);
++      if (result != VK_SUCCESS) {
++         panvk_shader_destroy(&dev->vk, &shader->vk, pAllocator);
++         return result;
++      }
++      break;
++   }
+ #endif
+ 
+    case MESA_SHADER_FRAGMENT: {
+@@ -5393,9 +5601,12 @@ panvk_cmd_bind_shader(struct panvk_cmd_buffer *cmd, const mesa_shader_stage stag
+          gfx_state_set_dirty(cmd, GS);
+       }
+       break;
++   /* Tessellated draws switch the vertex shader themselves (jm-v7 014). */
+    case MESA_SHADER_TESS_CTRL:
++      cmd->state.gfx.tcs.shader = shader;
++      break;
+    case MESA_SHADER_TESS_EVAL:
+-      assert(shader == NULL);
++      cmd->state.gfx.tes.shader = shader;
+       break;
+ #endif
+    default:
+-- 
+2.43.0
+

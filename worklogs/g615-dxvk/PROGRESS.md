@@ -300,6 +300,7 @@ New driver gaps from tester data ([docs/universal/README.md](../../docs/universa
 14. **BC emulation decision (v9/v10).** Native BC1 reported by kbase disables emulation, leaving `textureCompressionBC=false`; DXVK rejects G610. The partial native mask is inferred (uploads omit `TEXTURE_FEATURES`).
   - `src/panfrost/vulkan/panvk_physical_device.c:1815`, `:1837`; `src/panfrost/vulkan/panvk_vX_physical_device.c:294`, `:338`. Emulate unless full native BC mask is present; effort 4-8 h incl. validation. [Index](../../docs/universal/README.md).
   - **Status: released in beta.17; proven on G610 (37/37 on rc1).** `patches/csf-v11/108` emulates unless all ten BC formats are native. G57 deqp: `textureCompressionBC` 0 -> 1, format_properties.bc* 16/16. v10 G610 needs tester rerun. v9 compressed-texture image checks fail for native ETC2/ASTC too (separate issue). [Worklog](../driver-remaining/108-bc-emulation-decision.md).
+  - 2026-10-16 (`jm-v9/031`, build-only, not device-tested): the JM `CmdPipelineBarrier2` now calls `cmd_bc_decode_zero_initialized()` on v9 too (csf-v11/040 only called it from the CSF barrier), so a BC image leaving `ZERO_INITIALIZED` is decoded instead of sampling the zeroed decoded plane. v9 uses the same path as v6/v7: `panvk_bc_emul_enabled()` is arch-independent, `bc_gfx` needs arch >= 10 (v9 decodes by compute), and `VK_EXT_zero_initialize_device_memory` plus the layout are exposed on every arch. 031 is not gated by arch, so `jm-v7-wip/0013` (v6/v7 only) is redundant and conflicts with it; drop 0013.
   - 2026-10-06: the beta.17 candidate measured the G57 mask, `TEXTURE_FEATURES[0] = 0xf7fe03fe` (BC1-BC3 native, BC4-BC7 not), which proves the partial-native inference. A third G610 device now hits this: vivo V2284A (MT6896Z/CZA, 5.10.233, `5b799ebb`, beta.15), user D3D game exit 3 after DXVK skips the adapter.
 15. **Vendor-neutral gralloc mapper.** Hard-coded MediaTek stable-C mapper5 causes `vkCreateSwapchainKHR` / AHB import `VK_ERROR_INVALID_EXTERNAL_HANDLE` on stock ROMs and vendor API < 34; Pixel/Tensor reports are consistent with this gap (cause not yet proven).
   - `src/util/u_gralloc/u_gralloc_fallback.c:83`, `:427`; `patches/android/013-vendor-mapper-metadata.patch`; `src/vulkan/runtime/vk_android.c:152`. Vendor-neutral discovery + mapper4: 24-48 h; quick configurable mapper names: 4-8 h (does not cover mapper4-only vendors). [Index](../../docs/universal/README.md).
@@ -393,6 +394,7 @@ New findings from tester data (2026-10-06, D1 ids 54-90).
 
 - CTS (beta.13, G615): 188 old failures, same on beta.10 and beta.12: `clipping.user_defined.clip_distance*`/`clip_cull_distance*` through GS or tessellation (128), and `draw.*shader_viewport_index.fragment_shader_2..16` (60). 16 of the clip cases pass when run alone, so some state leaks between cases. Evidence: `validation/driver-remaining/beta13-device/`.
   - **Status 2026-10-16: root causes found in code; csf-v11/193 written (build-only, not device-tested, BuildID `972fee08`).** No patch up to 192 fixed them (115/132 do not touch FS ViewportIndex; beta.17 still fails the 60). Clip: the GS records keep arena garbage in unused clip lanes (the "state leak") and keep cull packed into the clip lanes. A GS/TCS reading `gl_CullDistance` reads the VS padding, and the FS read 0 for `gl_CullDistance`. Viewport: the vp passthrough drops ViewportIndex, so the FS reads 0. Device rerun list: `validation/driver-remaining/rerun-193.txt`. [Worklog](../driver-remaining/193-cts-clip-viewport-index.md).
+  - **2026-10-16 (csf-v11/194, build-only, not device-tested):** `panvk_create_depth_bounds_fs` compiled with `rs = {0}` (DEVICE_DEFAULT), which hits `UNREACHABLE` in `panvk_buffer_ubo_addr_format` / `panvk_buffer_ssbo_addr_format` in debug builds (undefined behaviour in release). It now passes the all-DISABLED state `panvk_create_shader()` uses, through `panvk_internal_robustness()` (one-line replacement in `panvk_vX_shader.c`, so the jm-v9 hunks keep their line numbers). The other debug-only problems listed in the 193 worklog (GS mediump asserts, compact-var validation, TES attribute locations, stale dominance metadata) remain.
 - 16 KiB pages (110 + jm-v9/005) are untested anywhere: every tester kernel with a page-size build suffix, including the v14 6.12 one, is a `-4k` build. Remaining 4 KiB-only assumption: the GPU MMU granule `pgsize_bitmap = 4K`, unused by the kbase paths. The rest of 110 is items 18 and 20.
 
 - 2 intermittent DeviceLost in `transform_feedback query_copy_*`: not seen in the 096 CTS run (36144-case list, 0 DeviceLost); keep watching.
@@ -550,7 +552,7 @@ Many non-clean sessions on v10-v12 are game-side exits with no driver error (Win
 
 **Update 2026-10-16 (jm-v7 driver):** item 17 (v7 unblock) VERIFIED on Exynos 850 G52 (Galaxy A14 SM-A145F, `0x72120000`): device creation works, atom stride 56 OK, `MEM_JIT_INIT` skip OK (growable GROW_ON_GPF tiler heap). Variant fix (jm-v7 001) VERIFIED on G52 r1 `0x74021000` (variant 0x2). Item 18 baselines done on both G52 MC1 (Exynos 850, A14) and G52 MC2 r1 (Helio G85, A06 SM-A065F): PanProbe 14/38 on each; failures are missing DXVK features (item 19 port), no DEVICE_LOST. Note to check: `u_gralloc_get_buffer_basic_info failed` on mt6768 (A06). The "Status" below is the state before jm-v7. Apps now show the Bifrost "not supported" message only when no device exists; failing tests on v6/v7 get "Bifrost (v7): feature not implemented yet".
 
-**Update 2026-10-16 (item 19, jm-v7-wip 006-013):** builds; **not device-tested**. The patches are in `patches/jm-v7-wip/`; apply them with `git am` on top of the current full series (186 patches, strict). Details, BuildID and the per-patch list are in that directory's README.
+**Update 2026-10-16 (item 19, jm-v7-wip 006-014):** builds; **not device-tested**. The patches are in `patches/jm-v7-wip/`; apply them with `git am` on top of the current full series (186 patches, strict). Details, BuildID and the per-patch list are in that directory's README.
 
 What each patch adds on v6/v7:
 - 006: draw prerequisites (no IDVS, MDI, position buffer).
@@ -560,14 +562,20 @@ What each patch adds on v6/v7:
 - 011: NIR and tiler DCD fixes.
 - 012: the meta save/restore lost the bound GS on v6/v7. This was found in review and is fixed.
 - 013: BC.
+- 014 (new): tessellationShader and extendedDynamicState2PatchControlPoints, with the v9 limits.
+  - Design: the VS draw runs with a TCS compute job instead of its tiler job. Then come libpoly tessellator kernels built for v6/v7: count, a serial prefix sum (the 1024-wide one is not used), and write. Last, an indirect draw over the tessellator indices with the TES as its vertex shader. The GS emulation and XFB after the TES reuse 007-009.
+  - A 64 MB device arena holds the tess data. Every kernel is a barrier job, and there is no CPU readback.
+  - Limits: 8192 patches, 2^20 indices, and 8192 primitives into a GS or XFB per draw. Whole patches past these are dropped.
+  - `PANVK_DEBUG=no_tess` turns it off.
+  - Host check under the panfrost drm-shim (G52/G72/G76 IDs): compile with NIR validation, recording of direct, indexed, indirect, byte-count, GS and XFB tessellated draws, and valgrind are all clean. This is not submission and not a device run.
+  - New BuildID `5e59814c33319fdf66c69ca4a40a9f411c8e275f` (`dist/b2/`).
 
 BC emulation is arch-independent and was already on for v6/v7 (compute decode; the fragment/AFRC shadow path is v10+). 013 adds the missing JM decode of images leaving `ZERO_INITIALIZED` (v6/v7 only; v9 JM has the same gap).
 
 Still off on v6/v7:
-- tessellationShader: not done. The README has a precise plan, and the NIR helpers are already in 007.
 - fillModeNonSolid, multiViewport, depthBounds, pipelineStatisticsQuery, robustImageAccess2, transformFeedbackQueries.
 
-Next: PanProbe on RTL A06/A14 (baseline 14/38), then tessellation.
+Next: PanProbe on RTL A06/A14 (baseline 14/38) with the 014 build, including `tessellation`, `gs_tess_primitive_id` and `large_draw`. Then CTS `dEQP-VK.tessellation.*`, and DXVK D3D11 titles, which can now pick FL11_0 (`PANVK_DEBUG=no_tess` falls back).
 
 **Status (before jm-v7):** not supported. The Android ICD already builds the v6 and v7 backends (`bifrost_archs = [6, 7]`, `jm_archs = [6, 7, 9]`), and kbase opens on these devices (`kbase: JM driver, uAPI version 11.27 / 11.35 / 11.38`, `stock JM atom layout (stride 72 refused), stride 56`), but no physical device is created:
 
