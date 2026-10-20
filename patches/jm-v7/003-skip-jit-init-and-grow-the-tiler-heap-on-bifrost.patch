@@ -49,7 +49,7 @@ index bb7eaee86fa..9830f5d3efe 100644
        mesa_logw("kbase: KBASE_IOCTL_MEM_JIT_INIT failed: %s "
                  "(tiler heap creation will not work)", strerror(errno));
     }
-@@ -2071,6 +2083,16 @@ kbase_kmod_bo_alloc(struct pan_kmod_dev *dev,
+@@ -2128,6 +2140,16 @@ kbase_kmod_bo_alloc(struct pan_kmod_dev *dev,
           alloc_flags |= KBASE_JM_MEM_TILER_ALIGN_TOP;
           commit_pages = MIN2(extension, va_pages);
        }

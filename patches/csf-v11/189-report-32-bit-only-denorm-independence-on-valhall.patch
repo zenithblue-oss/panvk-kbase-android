@@ -1,0 +1,83 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Fri, 16 Oct 2026 14:00:00 +0530
+Subject: [PATCH] panvk: report 32_BIT_ONLY denorm independence on Valhall
+ biblioklept
+
+Valhall (v9+) selects flush-to-zero with one 2-bit field per shader in
+the shader program descriptor (Preserve, DX11, Always, Abrupt) and has
+no per-instruction FTZ for ALU ops; the compiler only derives that
+field from float_controls_execution_mode (pan_shader_info ftz_fp16 /
+ftz_fp32, shader_ftz_mode). DX11 flushes FP32 and preserves FP16, so
+FP32 can be preserved or flushed independently of FP16. "Flush FP16,
+preserve FP32" does not exist, and FP16 and FP64 cannot be set apart.
+
+Report denormBehaviorIndependence = 32_BIT_ONLY on v9+ and stop
+reporting shaderDenormFlushToZeroFloat16/64 (preserve stays true for
+all three, FP32 reports both). The only combinations a shader can then
+request are the ones the descriptor can express, which unblocks
+vkd3d-proton SM6.2 (needs independence != NONE plus FP32 flush and
+preserve; native 16-bit needs FP16 preserve). Update the pan_compiler
+comment accordingly.
+
+Build-only; not device-tested. The DX11-preserves-FP16 behaviour is
+taken from the compiler and descriptor use; run
+dEQP-VK.spirv_assembly.instruction.*.float_controls.* on a v10+ device
+before release and revert to NONE if the mixed FP16/FP32 cases fail.
+
+Generated-by: LLM
+---
+ src/panfrost/compiler/pan_compiler.c           |    7 ++++---
+ src/panfrost/vulkan/panvk_vX_physical_device.c |   12 +++++++++---
+ 2 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/src/panfrost/compiler/pan_compiler.c b/src/panfrost/compiler/pan_compiler.c
+index 8c99ff4..ceb972c 100644
+--- a/src/panfrost/compiler/pan_compiler.c
++++ b/src/panfrost/compiler/pan_compiler.c
+@@ -355,9 +355,10 @@ pan_shader_update_info(struct pan_shader_info *info, nir_shader *s,
+ 
+    if (arch >= 9) {
+       /* Valhall hardware doesn't have a "flush FP16, preserve FP32" mode, and
+-       * we don't advertise independent FP16/FP32 denorm modes in panvk, but
+-       * it's still possible to have shaders that don't specify any denorm mode
+-       * for FP32. In that case, default to flush FP32. */
++       * panvk only reports FP32 as independent (FP16 flush-to-zero is not
++       * advertised), but it's still possible to have shaders that don't
++       * specify any denorm mode for FP32. In that case, default to flush
++       * FP32. */
+       if (info->ftz_fp16 && !info->ftz_fp32) {
+          assert(!nir_is_denorm_preserve(execution_mode, 32));
+          info->ftz_fp32 = true;
+diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
+index 802118c..2bbe741 100644
+--- a/src/panfrost/vulkan/panvk_vX_physical_device.c
++++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
+@@ -1093,8 +1093,14 @@ panvk_per_arch(get_physical_device_properties)(
+       /* VK_KHR_driver_properties */
+       .driverID = VK_DRIVER_ID_MESA_PANVK,
+       .conformanceVersion = get_conformance_version(),
++      /* Valhall has one 2-bit flush-to-zero mode per shader (Preserve, DX11
++       * = FP32 flushed and FP16 preserved, Always = both flushed) and no
++       * per-instruction override, so only FP32 can differ from the 16/64-bit
++       * types, and "flush FP16, preserve FP32" does not exist.
++       * shaderDenormFlushToZeroFloat16/64 are therefore not reported.
++       */
+       .denormBehaviorIndependence =
+-         PAN_ARCH >= 9 ? VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_NONE
++         PAN_ARCH >= 9 ? VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_32_BIT_ONLY
+                        : VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_ALL,
+       .roundingModeIndependence = VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_ALL,
+       .shaderSignedZeroInfNanPreserveFloat16 = true,
+@@ -1103,9 +1109,9 @@ panvk_per_arch(get_physical_device_properties)(
+       .shaderDenormPreserveFloat16 = true,
+       .shaderDenormPreserveFloat32 = true,
+       .shaderDenormPreserveFloat64 = true,
+-      .shaderDenormFlushToZeroFloat16 = true,
++      .shaderDenormFlushToZeroFloat16 = PAN_ARCH < 9,
+       .shaderDenormFlushToZeroFloat32 = true,
+-      .shaderDenormFlushToZeroFloat64 = true,
++      .shaderDenormFlushToZeroFloat64 = PAN_ARCH < 9,
+       .shaderRoundingModeRTEFloat16 = true,
+       .shaderRoundingModeRTEFloat32 = true,
+       .shaderRoundingModeRTEFloat64 = false,

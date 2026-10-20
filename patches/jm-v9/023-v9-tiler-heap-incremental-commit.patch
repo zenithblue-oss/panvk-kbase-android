@@ -47,7 +47,7 @@ index 477b548..1b7035b 100644
  #define BASE_JD_EVENT_DONE     0x01
  #define BASE_JD_EVENT_ERR_MASK 0x40
  
-@@ -2023,6 +2026,18 @@ kbase_kmod_bo_alloc(struct pan_kmod_dev *dev,
+@@ -2080,6 +2083,18 @@ kbase_kmod_bo_alloc(struct pan_kmod_dev *dev,
        commit_pages = (kmod_flags & PAN_KMOD_BO_FLAG_NO_MMAP)
                          ? 0
                          : MIN2(extension, va_pages);
@@ -66,7 +66,7 @@ index 477b548..1b7035b 100644
     }
  
     /* MEM_ALLOC_EX (nr 59, 64 bytes) exists on CSF uAPI 1.9+ and the kernel
-@@ -2077,7 +2092,16 @@ kbase_kmod_bo_alloc(struct pan_kmod_dev *dev,
+@@ -2134,7 +2149,16 @@ kbase_kmod_bo_alloc(struct pan_kmod_dev *dev,
           },
        };
  

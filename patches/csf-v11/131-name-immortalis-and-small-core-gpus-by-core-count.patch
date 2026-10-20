@@ -25,7 +25,7 @@ Measured on a G925 (gpu_id 0xd8300015, MC12):
 
 --- a/src/panfrost/vulkan/panvk_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_physical_device.c
-@@ -1192,6 +1192,28 @@
+@@ -1161,6 +1161,28 @@
     vk_physical_device_finish(&device->vk);
  }
 
@@ -54,7 +54,7 @@ Measured on a G925 (gpu_id 0xd8300015, MC12):
  VkResult
  panvk_physical_device_init(struct panvk_physical_device *device,
                             struct panvk_instance *instance,
-@@ -1252,7 +1274,8 @@
+@@ -1221,7 +1243,8 @@
        pan_query_core_count(&device->kmod.dev->props);
 
     memset(device->name, 0, sizeof(device->name));
@@ -64,7 +64,7 @@ Measured on a G925 (gpu_id 0xd8300015, MC12):
 
     result = get_core_masks(device, instance);
     if (result != VK_SUCCESS)
-@@ -1403,7 +1426,8 @@
+@@ -1371,7 +1394,8 @@
        pan_query_core_count(&device->kmod.dev->props);
 
     memset(device->name, 0, sizeof(device->name));

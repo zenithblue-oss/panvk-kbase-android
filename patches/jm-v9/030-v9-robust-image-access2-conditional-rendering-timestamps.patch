@@ -56,7 +56,7 @@ diff --git a/src/panfrost/libpan/draw_helper.cl b/src/panfrost/libpan/draw_helpe
 index c5699a8..ea82b45 100644
 --- a/src/panfrost/libpan/draw_helper.cl
 +++ b/src/panfrost/libpan/draw_helper.cl
-@@ -1793,4 +1793,34 @@ panlib_v9_vp_partition(global const struct panlib_vp_run_header *header,
+@@ -1837,4 +1837,34 @@ panlib_v9_vp_partition(global const struct panlib_vp_run_header *header,
        first += k;
     }
  }
@@ -164,7 +164,7 @@ diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_dispatch.c b/src/panfrost/vulka
 index 038634e..7fb5a6a 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_dispatch.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_dispatch.c
-@@ -356,7 +356,14 @@ panvk_per_arch(CmdDispatchBase)(VkCommandBuffer commandBuffer,
+@@ -371,7 +371,14 @@ panvk_per_arch(CmdDispatchBase)(VkCommandBuffer commandBuffer,
        .wg_base = {baseGroupX, baseGroupY, baseGroupZ},
        .direct.wg_count = {groupCountX, groupCountY, groupCountZ},
     };
@@ -179,7 +179,7 @@ index 038634e..7fb5a6a 100644
  }
  
  VKAPI_ATTR void VKAPI_CALL
-@@ -369,5 +376,12 @@ panvk_per_arch(CmdDispatchIndirect)(VkCommandBuffer commandBuffer,
+@@ -384,5 +391,12 @@ panvk_per_arch(CmdDispatchIndirect)(VkCommandBuffer commandBuffer,
     struct panvk_dispatch_info info = {
        .indirect.buffer_dev_addr = buffer_gpu,
     };
@@ -196,7 +196,7 @@ diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm
 index c5605c5..a826db4 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-@@ -4297,9 +4297,166 @@ v9_attachmentless_samples(struct panvk_cmd_buffer *cmdbuf)
+@@ -4426,9 +4426,166 @@ v9_attachmentless_samples(struct panvk_cmd_buffer *cmdbuf)
     render->fb.layout.sample_count = 0;
  }
  
@@ -363,7 +363,7 @@ index c5605c5..a826db4 100644
     v9_attachmentless_samples(cmdbuf);
  
     uint32_t view_mask = cmdbuf->state.gfx.render.view_mask;
-@@ -4339,6 +4496,8 @@ v9_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *info)
+@@ -4468,6 +4625,8 @@ v9_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *info)
  
     cmdbuf->state.gfx.pstats_query = pstats;
     cmdbuf->state.gfx.prims_generated_query.ptr = prims_generated;
@@ -372,7 +372,7 @@ index c5605c5..a826db4 100644
  }
  
  VKAPI_ATTR void VKAPI_CALL
-@@ -4665,5 +4824,9 @@ panvk_per_arch(CmdEndRendering)(VkCommandBuffer commandBuffer)
+@@ -4794,5 +4953,9 @@ panvk_per_arch(CmdEndRendering)(VkCommandBuffer commandBuffer)
        panvk_per_arch(cmd_close_batch)(cmdbuf);
        cmdbuf->cur_batch = NULL;
        panvk_per_arch(cmd_meta_resolve_attachments)(cmdbuf);
@@ -650,7 +650,7 @@ index e26b03c..2e0e5c5 100644
        .nullDescriptor = PAN_ARCH >= 9,
  
        /* VK_EXT_shader_tile_image */
-@@ -1029,9 +1031,9 @@ panvk_per_arch(get_physical_device_properties)(
+@@ -1033,9 +1035,9 @@ panvk_per_arch(get_physical_device_properties)(
        .storageImageSampleCounts = VK_SAMPLE_COUNT_1_BIT,
        .maxSampleMaskWords = 1,
        .timestampComputeAndGraphics =

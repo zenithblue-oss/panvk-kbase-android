@@ -24,14 +24,24 @@ for fam in $SERIES; do
   for p in "$ROOT"/patches/"$fam"/*.patch; do
     [ -e "$p" ] || continue
     echo "APPLY [$fam] $(basename "$p")"
-    if git -C "$MESA" apply --check "$p" 2>/dev/null; then
-      git -C "$MESA" apply "$p"
-    elif git -C "$MESA" apply --recount --check "$p"; then
-      git -C "$MESA" apply --recount "$p"
-    else
+    RECOUNT=""
+    if ! git -C "$MESA" apply --check "$p" 2>/dev/null; then
+      RECOUNT="--recount"
+    fi
+    # git apply accepts shifted hunks silently; -v reports them, so fail on any offset.
+    # shellcheck disable=SC2086
+    if ! VOUT="$(git -C "$MESA" apply $RECOUNT --check -v "$p" 2>&1)"; then
+      echo "$VOUT" >&2
       echo "PATCH-DRIFT: $p does not apply" >&2
       exit 1
     fi
+    if echo "$VOUT" | grep -qiE 'offset|fuzz'; then
+      echo "$VOUT" | grep -iE 'offset|fuzz|Checking' >&2
+      echo "PATCH-DRIFT: $p applies only with offset/fuzz (refresh hunk headers)" >&2
+      exit 1
+    fi
+    # shellcheck disable=SC2086
+    git -C "$MESA" apply $RECOUNT "$p"
     APPLIED=$((APPLIED+1))
   done
   if [ -d "$ROOT/patches/$fam/files" ]; then

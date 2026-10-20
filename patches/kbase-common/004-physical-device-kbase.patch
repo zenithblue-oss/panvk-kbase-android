@@ -57,7 +57,7 @@ Validation test: build with kbase; DRM enumeration unchanged.
  
 --- a/src/panfrost/vulkan/panvk_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_physical_device.c
-@@ -121,6 +133,269 @@
+@@ -109,6 +121,269 @@
     return VK_SUCCESS;
  }
  
@@ -327,7 +327,7 @@ Validation test: build with kbase; DRM enumeration unchanged.
  static VkResult
  get_drm_device_ids(struct panvk_physical_device *device,
                     const struct panvk_instance *instance,
-@@ -356,6 +629,509 @@
+@@ -346,6 +619,509 @@
     return VK_SUCCESS;
  }
  
@@ -837,7 +837,7 @@ Validation test: build with kbase; DRM enumeration unchanged.
  float
  panvk_get_gpu_system_timestamp_period(const struct panvk_physical_device *device)
  {
-@@ -509,6 +1311,143 @@
+@@ -473,6 +1275,143 @@
     return result;
  }
  
@@ -983,7 +983,7 @@ Validation test: build with kbase; DRM enumeration unchanged.
                             uint32_t family_idx,
 --- a/src/panfrost/vulkan/panvk_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_physical_device.c
-@@ -14,7 +14,17 @@
+@@ -13,7 +13,17 @@
 
  #include <sys/stat.h>
 

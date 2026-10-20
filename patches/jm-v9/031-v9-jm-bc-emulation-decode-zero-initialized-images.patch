@@ -1,0 +1,49 @@
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: 2026-10-16
+Subject: [PATCH jm-v9 031] panvk: v9 JM: decode BC images leaving ZERO_INITIALIZED biblioklept
+
+The BC decode of images leaving VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT
+(csf-v11/040, cmd_bc_decode_zero_initialized()) was only called from the
+CSF CmdPipelineBarrier2. On the v9 JM backend such an image sampled the
+zeroed decoded plane instead of the decode of zero blocks (opaque black
+for BC1).
+
+v9 is on the same path as the CSF parts that already work:
+- textureCompressionBC comes from panvk_bc_emul_enabled(), which looks
+  at the native mask, not the arch (csf-v11/108; G57 reports BC1-BC3
+  only, so it emulates).
+- image->bc_gfx needs pan_arch >= 10, so v9 always uses the compute
+  decode into the decoded plane after the raw blocks, as v6/v7 do.
+- VK_EXT_zero_initialize_device_memory and the ZERO_INITIALIZED layout
+  are exposed for every arch (zeroInitializeDeviceMemory = true, the
+  layout is listed for host image copy).
+- The JM barrier already closes the batch and opens a new one. The
+  decode records its internal barrier through CmdPipelineBarrier2 with
+  memory barriers only, so it does not recurse.
+
+The call is added for all JM arches (v6, v7, v9) without a PAN_ARCH
+gate. jm-v7-wip/0013 adds the same call for PAN_ARCH < 9 only and is now
+redundant with this.
+
+Build-only; not device-tested.
+
+Generated-by: LLM
+---
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
+index b7845ed..86b5ce8 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
+@@ -443,6 +443,13 @@ panvk_per_arch(CmdPipelineBarrier2)(VkCommandBuffer commandBuffer,
+       panvk_per_arch(cmd_close_batch)(cmdbuf);
+       panvk_per_arch(cmd_open_batch)(cmdbuf);
+    }
++
++   /* BC emulation: an image leaving VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT
++    * has zero blocks, whose decoded texels are not zero (BC1 decodes them
++    * to opaque black). Decode them as CSF does. The internal barriers it
++    * records have no image barriers, so this does not recurse.
++    */
++   panvk_per_arch(cmd_bc_decode_zero_initialized)(cmdbuf, pDependencyInfo);
+ }
+ 
+ static void

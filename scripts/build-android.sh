@@ -28,6 +28,7 @@ sed "s/aarch64-linux-android[0-9]*-clang/$CC_TRIPLE/g" "$ROOT/meson/android-aarc
 # Pin target pkg-config to our NDK-built deps prefix so host /usr/lib .pc
 # files (zlib, libudev, ...) can never leak host paths into the link.
 DEPS_PCDIR="$ROOT/work/android-deps/lib/pkgconfig"
+[ -f "$DEPS_PCDIR/libdrm.pc" ] || "$ROOT/scripts/build-android-deps.sh" --api "$API" --ndk "$NDK" >&2
 # X11 WSI: headers + pkg-config only, libxcb & co. are dlopened at runtime (csf-v11/083).
 X11_PCDIR="$ROOT/work/android-deps-x11/lib/pkgconfig"
 [ -f "$X11_PCDIR/xcb.pc" ] || "$ROOT/scripts/prepare-x11-headers.sh" "$ROOT/work/android-deps-x11" >&2

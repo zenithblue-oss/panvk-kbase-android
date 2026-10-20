@@ -1,0 +1,692 @@
+From cbcf91b67a8bbe48b503339e22f58b76bd1a103f Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 16 Oct 2026 11:47:59 +0000
+Subject: [PATCH 09/13] jm-v7 009: Bifrost transform feedback from vertex
+ shaders (passthrough GS)
+
+v6/v7 advertised transformFeedback but only captured from a geometry
+shader (008). A vertex shader with xfb outputs and no geometry shader
+now runs through the geometry shader emulation with a generated
+passthrough geometry shader, so the 008 capture path (staging records,
+panlib_xfb_scan/copy, counter buffers, pause/resume) is the only one.
+
+- A vertex shader with usable xfb outputs is compiled in clip space
+  (like one feeding a geometry shader) and keeps a compact copy of its
+  nir_xfb_info in the serialized variant.
+- At draw time, with no geometry shader bound, the emulation runs a
+  passthrough built from the vertex shader's varying layout for the
+  draw's input primitive class (points, lines, triangles, lines and
+  triangles with adjacency; adjacency vertices are dropped). It is
+  compiled once per class and cached on the vertex shader. A
+  clip-space vertex shader drawn without its geometry shader (shader
+  objects) uses the same passthrough without capture.
+- The emulation also forwards the vec4 clip/cull slots of a lowered
+  vertex shader to the fragment shader.
+- transformFeedbackDraw on v6/v7: vkCmdDrawIndirectByteCountEXT writes a
+  VkDrawIndirectCommand with a one-thread job and draws it indirectly.
+
+Limits: gl_PointSize is not captured (reads 0) and points drawn through
+the passthrough rasterize at size 1; gl_PrimitiveID in the fragment
+shader counts across instances; transformFeedbackQueries stays off on
+v6/v7. Build-tested only, no Bifrost device run. biblioklept
+
+Generated-by: LLM
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_0153VvtSm6m7BrM4NCBq8MMc
+---
+ src/panfrost/libpan/draw_helper.cl            |   7 +-
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c    | 103 +++++++-
+ src/panfrost/vulkan/panvk_cmd_draw.h          |   5 +
+ src/panfrost/vulkan/panvk_gs.h                |  51 ++++
+ src/panfrost/vulkan/panvk_nir_lower_gs.c      |  10 +-
+ src/panfrost/vulkan/panvk_shader.h            |  27 ++
+ .../vulkan/panvk_vX_physical_device.c         |   6 +-
+ src/panfrost/vulkan/panvk_vX_shader.c         | 240 +++++++++++++++++-
+ 8 files changed, 433 insertions(+), 16 deletions(-)
+
+diff --git a/src/panfrost/libpan/draw_helper.cl b/src/panfrost/libpan/draw_helper.cl
+index 0d5f864..6a23546 100644
+--- a/src/panfrost/libpan/draw_helper.cl
++++ b/src/panfrost/libpan/draw_helper.cl
+@@ -969,6 +969,10 @@ panlib_xfb_capture(constant struct panlib_xfb_params *x)
+    }
+ }
+ 
++#include "vp_runs.cl"
++#endif
++
++/* vkCmdDrawIndirectByteCountEXT: the VkDrawIndirectCommand. */
+ KERNEL(1)
+ panlib_xfb_byte_count_draw(constant uint32_t *counter, uint32_t counter_offset,
+                            uint32_t stride, uint32_t instance_count,
+@@ -984,9 +988,6 @@ panlib_xfb_byte_count_draw(constant uint32_t *counter, uint32_t counter_offset,
+    draw[3] = first_instance;
+ }
+ 
+-#include "vp_runs.cl"
+-#endif
+-
+ #if (PAN_ARCH == 6 || PAN_ARCH == 7)
+ struct panlib_draw_info {
+    struct {
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index a361aaf..cd94cb3 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -93,6 +93,10 @@ struct panvk_draw_data {
+     * known here: they size the geometry shader emulation exactly.
+     */
+    uint32_t cpu_count, cpu_instances;
++   /* A job the indirect draw helper must wait for: the one that writes the
++    * command (vkCmdDrawIndirectByteCountEXT), 0 for none.
++    */
++   unsigned indirect_dep_job;
+    uint64_t position;
+    union {
+       uint64_t psiz;
+@@ -515,7 +519,7 @@ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+    struct mali_attribute_buffer_packed *buf_descs = bufs.cpu;
+    const struct vk_input_assembly_state *ia =
+       &cmdbuf->vk.dynamic_graphics_state.ia;
+-   const struct panvk_shader *gs_shader = cmdbuf->state.gfx.gs.shader;
++   const struct panvk_shader *gs_shader = cmdbuf->state.gfx.gs.emu;
+    bool writes_point_size =
+       !gs_shader && vs->info.vs.writes_point_size &&
+       ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+@@ -1451,9 +1455,8 @@ panvk_cmd_prepare_draw_link_shaders(struct panvk_cmd_buffer *cmd)
+    const struct panvk_shader_variant *fs =
+       panvk_shader_only_variant(get_fs(cmd));
+    const struct panvk_shader_variant *gs =
+-      cmd->state.gfx.gs.shader
+-         ? panvk_shader_only_variant(cmd->state.gfx.gs.shader)
+-         : NULL;
++      cmd->state.gfx.gs.emu ? panvk_shader_only_variant(cmd->state.gfx.gs.emu)
++                            : NULL;
+ 
+    VkResult result =
+       panvk_per_arch(link_shaders)(&cmd->desc_pool, vs, gs, fs, &gfx->link);
+@@ -1490,6 +1493,30 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+       batch = panvk_per_arch(cmd_open_batch)(cmdbuf);
+    }
+ 
++   /* The geometry emulation runs the bound geometry shader, or for a vertex
++    * shader compiled to feed it (transform feedback, or a shader object
++    * linked to a geometry shader that is not bound) the passthrough
++    * matching this draw's topology. Switching between them relinks.
++    */
++   const struct panvk_shader *emu = cmdbuf->state.gfx.gs.shader;
++   if (!emu && vs->gs.vs_clip_space) {
++      emu = panvk_per_arch(passthrough_gs)(
++         to_panvk_device(cmdbuf->vk.base.device), cmdbuf->state.gfx.vs.shader,
++         draw->info.prim);
++      /* The vertex shader writes clip space: without the emulation there is
++       * nothing the tiler could draw.
++       */
++      if (!emu) {
++         vk_command_buffer_set_error(&cmdbuf->vk,
++                                     VK_ERROR_OUT_OF_DEVICE_MEMORY);
++         return VK_ERROR_OUT_OF_DEVICE_MEMORY;
++      }
++   }
++   if (emu != cmdbuf->state.gfx.gs.emu) {
++      cmdbuf->state.gfx.gs.emu = emu;
++      gfx_state_set_dirty(cmdbuf, GS);
++   }
++
+    if (fs_user_dirty(cmdbuf) || gfx_state_dirty(cmdbuf, VS) ||
+        gfx_state_dirty(cmdbuf, GS)) {
+       result = panvk_cmd_prepare_draw_link_shaders(cmdbuf);
+@@ -1757,7 +1784,7 @@ emit_gs_job(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw,
+             unsigned dep_job_id)
+ {
+    struct panvk_batch *batch = cmdbuf->cur_batch;
+-   const struct panvk_shader *gs_shader = cmdbuf->state.gfx.gs.shader;
++   const struct panvk_shader *gs_shader = cmdbuf->state.gfx.gs.emu;
+    const struct panvk_shader_variant *gs = panvk_shader_only_variant(gs_shader);
+    const struct panvk_shader_link *link = &cmdbuf->state.gfx.link;
+    const struct panvk_graphics_sysvals *gfx_sysvals = &cmdbuf->state.gfx.sysvals;
+@@ -1919,7 +1946,7 @@ emit_xfb_jobs(struct panvk_cmd_buffer *cmdbuf, unsigned dep_job_id)
+ {
+    struct panvk_batch *batch = cmdbuf->cur_batch;
+    const struct panvk_shader_variant *gs =
+-      panvk_shader_only_variant(cmdbuf->state.gfx.gs.shader);
++      panvk_shader_only_variant(cmdbuf->state.gfx.gs.emu);
+    const uint32_t n = cmdbuf->state.gfx.gs.xfb_invocations;
+    const uint32_t k_dw = gs->gs.xfb_dwords;
+    const uint32_t idx_per_invocation =
+@@ -2208,8 +2235,8 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+ 
+       enum panlib_barrier indirect_barrier =
+          PANLIB_BARRIER_JM_SUPPRESS_PREFETCH;
+-      struct panlib_precomp_grid indirect_grid =
+-         panlib_1d_with_jm_deps(1, 0, job_before_indirect_helper);
++      struct panlib_precomp_grid indirect_grid = panlib_1d_with_jm_deps(
++         1, draw->indirect_dep_job, job_before_indirect_helper);
+ 
+       if (draw->info.indirect.buffer_dev_addr != 0 &&
+           draw->info.index.index_size) {
+@@ -2562,6 +2589,66 @@ panvk_per_arch(CmdEndTransformFeedbackEXT)(
+                 pCounterBuffers, pCounterBufferOffsets, false);
+    cmdbuf->state.gfx.xfb.active = false;
+ }
++
++/* transformFeedbackDraw: a one-thread job turns the counter into a
++ * VkDrawIndirectCommand, then it is an ordinary indirect draw whose helper
++ * waits for that job.
++ */
++VKAPI_ATTR void VKAPI_CALL
++panvk_per_arch(CmdDrawIndirectByteCountEXT)(
++   VkCommandBuffer commandBuffer, uint32_t instanceCount,
++   uint32_t firstInstance, VkBuffer counterBuffer,
++   VkDeviceSize counterBufferOffset, uint32_t counterOffset,
++   uint32_t vertexStride)
++{
++   VK_FROM_HANDLE(panvk_cmd_buffer, cmdbuf, commandBuffer);
++   VK_FROM_HANDLE(panvk_buffer, counter, counterBuffer);
++
++   if (!instanceCount)
++      return;
++
++   struct pan_ptr cmd = panvk_cmd_alloc_dev_mem(
++      cmdbuf, desc, sizeof(VkDrawIndirectCommand), 16);
++   if (!cmd.gpu)
++      return;
++
++   /* The draw may open a new batch (job index overflow), which would leave
++    * this job behind in the old one: open it first.
++    */
++   if (!cmdbuf->cur_batch)
++      panvk_per_arch(cmd_open_batch)(cmdbuf);
++   if (cmdbuf->cur_batch->vtc_jc.job_index +
++          (4 * cmdbuf->state.gfx.render.layer_count) + 1 >=
++       UINT16_MAX) {
++      panvk_per_arch(cmd_close_batch)(cmdbuf);
++      panvk_per_arch(cmd_open_batch)(cmdbuf);
++   }
++
++   /* A barrier: the counter is written by an earlier End in this chain. */
++   struct panvk_precomp_ctx precomp_ctx = panvk_per_arch(precomp_cs)(cmdbuf);
++   const struct panlib_xfb_byte_count_draw_args args = {
++      .counter = panvk_buffer_gpu_ptr(counter, counterBufferOffset),
++      .counter_offset = counterOffset,
++      .stride = vertexStride,
++      .instance_count = instanceCount,
++      .first_instance = firstInstance,
++      .draw = cmd.gpu,
++   };
++   panlib_xfb_byte_count_draw_struct(&precomp_ctx, panlib_1d(1),
++                                     PANLIB_BARRIER_JM_BARRIER, args);
++
++   struct panvk_draw_data draw = {
++      .info = {
++         .indirect.buffer_dev_addr = cmd.gpu,
++         .indirect.draw_count = 1,
++         .indirect.stride = sizeof(VkDrawIndirectCommand),
++         .prim = panvk_get_client_prim(cmdbuf),
++      },
++      .indirect_dep_job = cmdbuf->cur_batch->vtc_jc.job_index,
++   };
++
++   panvk_cmd_draw_indirect(cmdbuf, &draw);
++}
+ #else /* PAN_ARCH == 9 */
+ 
+ static enum mali_draw_mode
+diff --git a/src/panfrost/vulkan/panvk_cmd_draw.h b/src/panfrost/vulkan/panvk_cmd_draw.h
+index c0a0b0f..1c668fc 100644
+--- a/src/panfrost/vulkan/panvk_cmd_draw.h
++++ b/src/panfrost/vulkan/panvk_cmd_draw.h
+@@ -254,6 +254,11 @@ struct panvk_cmd_graphics_state {
+     */
+    struct {
+       const struct panvk_shader *shader;
++      /* What the emulation runs for the current draw: the bound geometry
++       * shader, or the passthrough of a clip-space vertex shader
++       * (panvk_passthrough_gs()), or NULL.
++       */
++      const struct panvk_shader *emu;
+       struct panvk_shader_desc_state desc;
+       uint64_t out_pos;
+       uint64_t out_general;
+diff --git a/src/panfrost/vulkan/panvk_gs.h b/src/panfrost/vulkan/panvk_gs.h
+index 70ddad0..d21b60c 100644
+--- a/src/panfrost/vulkan/panvk_gs.h
++++ b/src/panfrost/vulkan/panvk_gs.h
+@@ -172,6 +172,57 @@ struct panvk_gs_push {
+  */
+ int panvk_gs_xfb_table(const struct nir_xfb_info *xfb, uint32_t *table);
+ 
++/* Transform feedback without a geometry shader: a vertex shader with xfb
++ * outputs runs through the geometry emulation with a generated passthrough
++ * geometry shader that emits every input primitive as it is, so the capture
++ * path above is the only one. The vertex shader keeps what the passthrough
++ * needs to rebuild its nir_xfb_info (struct panvk_xfb_output) and one
++ * passthrough exists per input primitive class.
++ */
++struct panvk_xfb_output {
++   uint8_t buffer;
++   uint8_t location;
++   uint8_t component_mask;
++   uint8_t pad;
++   uint16_t offset;
++};
++
++enum panvk_xfb_gs_class {
++   PANVK_XFB_GS_POINTS,
++   PANVK_XFB_GS_LINES,
++   PANVK_XFB_GS_TRIANGLES,
++   PANVK_XFB_GS_LINES_ADJ,
++   PANVK_XFB_GS_TRIANGLES_ADJ,
++   PANVK_XFB_GS_CLASS_COUNT,
++};
++
++/* The passthrough class of a draw topology, -1 for one with no class
++ * (patches: there is no tessellation here).
++ */
++static inline int
++panvk_xfb_gs_class(enum mesa_prim prim)
++{
++   switch (prim) {
++   case MESA_PRIM_POINTS:
++      return PANVK_XFB_GS_POINTS;
++   case MESA_PRIM_LINES:
++   case MESA_PRIM_LINE_STRIP:
++      return PANVK_XFB_GS_LINES;
++   case MESA_PRIM_TRIANGLES:
++   case MESA_PRIM_TRIANGLE_STRIP:
++   case MESA_PRIM_TRIANGLE_FAN:
++      return PANVK_XFB_GS_TRIANGLES;
++   case MESA_PRIM_LINES_ADJACENCY:
++   case MESA_PRIM_LINE_STRIP_ADJACENCY:
++      return PANVK_XFB_GS_LINES_ADJ;
++   case MESA_PRIM_TRIANGLES_ADJACENCY:
++   case MESA_PRIM_TRIANGLE_STRIP_ADJACENCY:
++      return PANVK_XFB_GS_TRIANGLES_ADJ;
++   default:
++      return -1;
++   }
++}
++
+ struct panvk_gs_lower_options {
+    unsigned input_verts_per_prim;
+    unsigned output_verts_per_prim;
+diff --git a/src/panfrost/vulkan/panvk_nir_lower_gs.c b/src/panfrost/vulkan/panvk_nir_lower_gs.c
+index 17f7f20..4f45703 100644
+--- a/src/panfrost/vulkan/panvk_nir_lower_gs.c
++++ b/src/panfrost/vulkan/panvk_nir_lower_gs.c
+@@ -649,9 +649,15 @@ lower_emit_vertex(nir_builder *b, nir_intrinsic_instr *intr,
+          }
+ 
+          /* Point size lives in its own fp16 buffer, and the other built-ins
+-          * (layer, clip distances) have no path to the tiler here.
++          * (layer, compact clip distances) have no path to the tiler here.
++          * The vec4 clip/cull slots a lowered vertex shader writes (see
++          * panvk_lower_clip_cull_vs) are generic, and the transform feedback
++          * passthrough carries them on to the fragment shader's discard.
+           */
+-         if (loc < VARYING_SLOT_VAR0 || var->data.compact)
++         const bool dist_slot =
++            loc == VARYING_SLOT_CLIP_DIST0 || loc == VARYING_SLOT_CLIP_DIST1 ||
++            loc == VARYING_SLOT_CULL_DIST0 || loc == VARYING_SLOT_CULL_DIST1;
++         if ((loc < VARYING_SLOT_VAR0 && !dist_slot) || var->data.compact)
+             continue;
+ 
+          /* One location per element of an output array, each at the
+diff --git a/src/panfrost/vulkan/panvk_shader.h b/src/panfrost/vulkan/panvk_shader.h
+index 64a410e..4d850dd 100644
+--- a/src/panfrost/vulkan/panvk_shader.h
++++ b/src/panfrost/vulkan/panvk_shader.h
+@@ -476,6 +476,15 @@ struct panvk_shader_variant {
+        * stored unsnapped.
+        */
+       bool vs_clip_space;
++      /* Vertex shader with xfb outputs and no geometry stage after it: every
++       * draw goes through a passthrough geometry shader built from these
++       * (panvk_passthrough_gs()), which captures.
++       */
++      bool xfb_passthrough;
++      uint8_t xfb_buffers_written;
++      uint8_t xfb_streams_written;
++      uint8_t xfb_output_count;
++      struct panvk_xfb_output xfb_outputs[PANVK_XFB_MAX_RECORD_DWORDS];
+    } gs;
+ #endif
+ 
+@@ -551,6 +560,14 @@ struct panvk_shader {
+    bool writes_layer;
+ #endif
+ 
++#if PAN_ARCH < 9
++   /* Vertex shaders with gs.vs_clip_space drawn without a geometry shader:
++    * the passthrough geometry shaders, created on first use by input
++    * primitive class.
++    */
++   struct panvk_shader *passthrough_gs[PANVK_XFB_GS_CLASS_COUNT];
++#endif
++
+    struct panvk_shader_variant variants[];
+ };
+ 
+@@ -727,4 +744,14 @@ VkResult panvk_per_arch(create_shader_from_binary)(
+ VkResult panvk_per_arch(create_shader)(
+    struct panvk_device *dev, nir_shader *nir, struct panvk_shader **shader_out);
+ 
++#if PAN_ARCH < 9
++/* The passthrough geometry shader a vertex shader with gs.vs_clip_space
++ * draws prim through when no geometry shader is bound (it captures the
++ * vertex shader's transform feedback), NULL when it cannot be made.
++ */
++const struct panvk_shader *panvk_per_arch(passthrough_gs)(
++   struct panvk_device *dev, const struct panvk_shader *vs,
++   enum mesa_prim prim);
++#endif
++
+ #endif
+diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
+index a3eb731..cb75601 100644
+--- a/src/panfrost/vulkan/panvk_vX_physical_device.c
++++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
+@@ -633,7 +633,9 @@ panvk_per_arch(get_physical_device_features)(
+       .transformFeedbackPreservesProvokingVertex = false,
+ 
+       /* VK_EXT_transform_feedback */
+-      /* v6/v7: captured from the geometry shader emulation only. */
++      /* v6/v7: captured from the geometry shader emulation, a vertex shader
++       * without a geometry shader through a passthrough one.
++       */
+       .transformFeedback = true,
+       .geometryStreams = !PANVK_DEBUG(NO_GS),
+ 
+@@ -1350,7 +1352,7 @@ panvk_per_arch(get_physical_device_properties)(
+       .transformFeedbackStreamsLinesTriangles = PAN_ARCH >= 9,
+       .transformFeedbackRasterizationStreamSelect =
+          PAN_ARCH >= 10 || (PAN_ARCH == 9 && !PANVK_DEBUG(NO_GS)),
+-      .transformFeedbackDraw = PAN_ARCH >= 9,
++      .transformFeedbackDraw = true,
+ 
+       /* VK_EXT_shader_tile_image */
+       .shaderTileImageCoherentReadAccelerated = PAN_ARCH >= 9,
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index 1a2e285..1ab0b76 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -31,6 +31,7 @@
+ #include "util/memstream.h"
+ #include "util/mesa-blake3.h"
+ #include "util/shader_stats.h"
++#include "util/u_atomic.h"
+ #include "util/u_dynarray.h"
+ #include "util/u_hexdump.h"
+ #include "util/u_memory.h"
+@@ -3353,6 +3354,11 @@ panvk_shader_destroy(struct vk_device *vk_dev, struct vk_shader *vk_shader,
+ 
+ #if PAN_ARCH < 9
+    panvk_pool_free_mem(&shader->desc_info.others.map);
++
++   for (unsigned i = 0; i < ARRAY_SIZE(shader->passthrough_gs); i++) {
++      if (shader->passthrough_gs[i])
++         panvk_shader_destroy(vk_dev, &shader->passthrough_gs[i]->vk, NULL);
++   }
+ #endif
+ 
+    vk_shader_free(vk_dev, pAllocator, &shader->vk);
+@@ -3378,6 +3384,234 @@ panvk_lower_cull_dist_flags_intr(nir_builder *b, nir_intrinsic_instr *intr,
+ 
+ static const struct vk_shader_ops panvk_shader_ops;
+ 
++#if PAN_ARCH < 9
++/* Transform feedback from a vertex shader that is the last pre-rasterization
++ * stage goes through the geometry shader emulation with a passthrough
++ * geometry shader (panvk_passthrough_gs()), so the vertex shader must
++ * write clip space for it. A capture the emulation cannot do (16-bit data)
++ * keeps the plain vertex shader and captures nothing. With a geometry shader
++ * bound that one runs instead, and the vertex shader's xfb is ignored.
++ */
++static bool
++panvk_vs_wants_xfb_passthrough(const struct vk_shader_compile_info *info)
++{
++   if (info->stage != MESA_SHADER_VERTEX || !info->nir->xfb_info)
++      return false;
++
++   uint32_t table[PANVK_XFB_MAX_RECORD_DWORDS];
++   return panvk_gs_xfb_table(info->nir->xfb_info, table) > 0;
++}
++
++static void
++panvk_vs_store_xfb(struct panvk_shader_variant *variant,
++                   const nir_xfb_info *xfb)
++{
++   /* panvk_gs_xfb_table() accepted it: at most one output per dword. */
++   assert(xfb->output_count <= ARRAY_SIZE(variant->gs.xfb_outputs));
++
++   variant->gs.xfb_passthrough = true;
++   variant->gs.xfb_buffers_written = xfb->buffers_written;
++   variant->gs.xfb_streams_written = xfb->streams_written;
++   variant->gs.xfb_output_count = xfb->output_count;
++   for (unsigned b = 0; b < 4; b++) {
++      variant->gs.xfb_strides[b] = xfb->buffers[b].stride;
++      variant->gs.xfb_buffer_stream[b] = xfb->buffer_to_stream[b];
++   }
++   for (unsigned i = 0; i < xfb->output_count; i++) {
++      variant->gs.xfb_outputs[i] = (struct panvk_xfb_output){
++         .buffer = xfb->outputs[i].buffer,
++         .location = xfb->outputs[i].location,
++         .component_mask = xfb->outputs[i].component_mask,
++         .offset = xfb->outputs[i].offset,
++      };
++   }
++}
++
++/* The passthrough geometry shader for a vertex shader's varying layout:
++ * every generic slot and gl_Position copied from each input vertex to an
++ * output vertex, in primitive order (adjacency vertices dropped), with the
++ * vertex shader's xfb outputs. 16-bit slots are widened, the emulation only
++ * carries 32-bit outputs.
++ */
++static nir_shader *
++panvk_build_passthrough_gs(const struct panvk_shader_variant *vs,
++                               enum panvk_xfb_gs_class cls)
++{
++   static const struct {
++      enum mesa_prim in, out;
++      uint8_t vin, nemit, emit[3];
++   } classes[] = {
++      [PANVK_XFB_GS_POINTS] = {MESA_PRIM_POINTS, MESA_PRIM_POINTS, 1, 1,
++                               {0}},
++      [PANVK_XFB_GS_LINES] = {MESA_PRIM_LINES, MESA_PRIM_LINE_STRIP, 2, 2,
++                              {0, 1}},
++      [PANVK_XFB_GS_TRIANGLES] = {MESA_PRIM_TRIANGLES,
++                                  MESA_PRIM_TRIANGLE_STRIP, 3, 3, {0, 1, 2}},
++      [PANVK_XFB_GS_LINES_ADJ] = {MESA_PRIM_LINES_ADJACENCY,
++                                  MESA_PRIM_LINE_STRIP, 4, 2, {1, 2}},
++      [PANVK_XFB_GS_TRIANGLES_ADJ] = {MESA_PRIM_TRIANGLES_ADJACENCY,
++                                      MESA_PRIM_TRIANGLE_STRIP, 6, 3,
++                                      {0, 2, 4}},
++   };
++   const struct pan_varying_layout *layout = &vs->info.varyings.formats;
++
++   nir_builder b = nir_builder_init_simple_shader(
++      MESA_SHADER_GEOMETRY,
++      pan_get_nir_shader_compiler_options(PAN_ARCH, MESA_SHADER_GEOMETRY,
++                                          false),
++      "panvk xfb passthrough");
++   nir_shader *nir = b.shader;
++
++   nir->info.gs.input_primitive = classes[cls].in;
++   nir->info.gs.output_primitive = classes[cls].out;
++   nir->info.gs.vertices_in = classes[cls].vin;
++   nir->info.gs.vertices_out = classes[cls].nemit;
++   nir->info.gs.invocations = 1;
++   nir->info.gs.active_stream_mask = 1;
++
++   /* A clip-space vertex shader drawn without its geometry shader (shader
++    * objects) still needs the emulation to rasterize, with nothing to
++    * capture.
++    */
++   if (vs->gs.xfb_passthrough) {
++      nir_xfb_info *xfb =
++         rzalloc_size(nir, nir_xfb_info_size(vs->gs.xfb_output_count));
++      xfb->buffers_written = vs->gs.xfb_buffers_written;
++      xfb->streams_written = vs->gs.xfb_streams_written;
++      for (unsigned i = 0; i < 4; i++) {
++         xfb->buffers[i].stride = vs->gs.xfb_strides[i];
++         xfb->buffer_to_stream[i] = vs->gs.xfb_buffer_stream[i];
++         nir->info.xfb_stride[i] = vs->gs.xfb_strides[i] / 4;
++      }
++      xfb->output_count = vs->gs.xfb_output_count;
++      for (unsigned i = 0; i < xfb->output_count; i++) {
++         const struct panvk_xfb_output *o = &vs->gs.xfb_outputs[i];
++         xfb->outputs[i] = (nir_xfb_output_info){
++            .buffer = o->buffer,
++            .offset = o->offset,
++            .location = o->location,
++            .component_mask = o->component_mask,
++            .component_offset = ffs(o->component_mask) - 1,
++         };
++      }
++      nir->xfb_info = xfb;
++      nir->info.has_transform_feedback_varyings = true;
++   }
++
++   nir_variable *in_vars[PAN_MAX_VARYINGS + 1], *out_vars[PAN_MAX_VARYINGS + 1];
++   nir_alu_type types[PAN_MAX_VARYINGS + 1];
++   unsigned n = 0;
++
++   /* gl_Position always: the emulation reads it from the position buffer. */
++   in_vars[n] = nir_variable_create(
++      nir, nir_var_shader_in, glsl_array_type(glsl_vec4_type(), 6, 0),
++      "in_pos");
++   in_vars[n]->data.location = VARYING_SLOT_POS;
++   out_vars[n] = nir_variable_create(nir, nir_var_shader_out,
++                                     glsl_vec4_type(), "out_pos");
++   out_vars[n]->data.location = VARYING_SLOT_POS;
++   types[n++] = nir_type_float32;
++
++   for (unsigned i = 0; i < layout->count; i++) {
++      const struct pan_varying_slot *slot =
++         pan_varying_layout_slot_at(layout, i);
++      if (!slot || slot->section != PAN_VARYING_SECTION_GENERIC ||
++          slot->location == VARYING_SLOT_POS)
++         continue;
++
++      const nir_alu_type base = nir_alu_type_get_base_type(slot->alu_type);
++      const unsigned bits = nir_alu_type_get_type_size(slot->alu_type);
++      if ((bits != 16 && bits != 32) ||
++          (base != nir_type_float && base != nir_type_int &&
++           base != nir_type_uint))
++         continue;
++
++      const unsigned ncomps = MAX2(slot->ncomps, 1);
++      in_vars[n] = nir_variable_create(
++         nir, nir_var_shader_in,
++         glsl_array_type(
++            glsl_vector_type(nir_get_glsl_base_type_for_nir_type(base | bits),
++                             ncomps),
++            6, 0),
++         "in_slot");
++      in_vars[n]->data.location = slot->location;
++      out_vars[n] = nir_variable_create(
++         nir, nir_var_shader_out,
++         glsl_vector_type(nir_get_glsl_base_type_for_nir_type(base | 32),
++                          ncomps),
++         "out_slot");
++      out_vars[n]->data.location = slot->location;
++      types[n++] = base | bits;
++   }
++
++   for (unsigned v = 0; v < classes[cls].nemit; v++) {
++      for (unsigned j = 0; j < n; j++) {
++         nir_def *val =
++            nir_load_array_var_imm(&b, in_vars[j], classes[cls].emit[v]);
++         if (val->bit_size == 16) {
++            switch (nir_alu_type_get_base_type(types[j])) {
++            case nir_type_float:
++               val = nir_f2f32(&b, val);
++               break;
++            case nir_type_int:
++               val = nir_i2i32(&b, val);
++               break;
++            default:
++               val = nir_u2u32(&b, val);
++               break;
++            }
++         }
++         nir_store_var(&b, out_vars[j], val, BITFIELD_MASK(val->num_components));
++      }
++      nir_emit_vertex(&b, 0);
++   }
++   nir_end_primitive(&b, 0);
++
++   nir_validate_shader(nir, "panvk xfb passthrough");
++   return nir;
++}
++
++const struct panvk_shader *
++panvk_per_arch(passthrough_gs)(struct panvk_device *dev,
++                                   const struct panvk_shader *vs_shader,
++                                   enum mesa_prim prim)
++{
++   const struct panvk_shader_variant *vs = panvk_shader_hw_variant(vs_shader);
++   const int cls = panvk_xfb_gs_class(prim);
++
++   if (!vs->gs.vs_clip_space || cls < 0)
++      return NULL;
++
++   /* Created by the first command buffer that needs it; a racing one
++    * throws its own away.
++    */
++   struct panvk_shader **slot =
++      (struct panvk_shader **)&vs_shader->passthrough_gs[cls];
++   struct panvk_shader *gs = p_atomic_read(slot);
++   if (gs)
++      return gs;
++
++   nir_shader *nir = panvk_build_passthrough_gs(vs, cls);
++   if (!nir)
++      return NULL;
++
++   panvk_per_arch(compiler_lock)();
++   VkResult result = panvk_per_arch(create_shader)(dev, nir, &gs);
++   panvk_per_arch(compiler_unlock)();
++   ralloc_free(nir);
++   if (result != VK_SUCCESS)
++      return NULL;
++
++   struct panvk_shader *old = p_atomic_cmpxchg_ptr(slot, NULL, gs);
++   if (old) {
++      panvk_shader_destroy(&dev->vk, &gs->vk, NULL);
++      return old;
++   }
++
++   return gs;
++}
++#endif
++
+ static VkResult
+ panvk_compile_shader(struct panvk_device *dev,
+                      struct vk_shader_compile_info *info,
+@@ -3449,9 +3683,11 @@ panvk_compile_shader(struct panvk_device *dev,
+    /* The geometry shader emulation reads the vertex shader's output in clip
+     * space and does the viewport transform itself (panvk_nir_lower_gs.c).
+     */
++   const bool vs_xfb_passthrough = panvk_vs_wants_xfb_passthrough(info);
+    const bool vs_clip_space =
+       info->stage == MESA_SHADER_VERTEX &&
+-      (info->next_stage_mask & VK_SHADER_STAGE_GEOMETRY_BIT);
++      ((info->next_stage_mask & VK_SHADER_STAGE_GEOMETRY_BIT) ||
++       vs_xfb_passthrough);
+    inputs.skip_viewport_transform = vs_clip_space;
+ #endif
+ 
+@@ -3501,6 +3737,8 @@ panvk_compile_shader(struct panvk_device *dev,
+          struct panvk_shader_variant *variant = &shader->variants[v];
+ #if PAN_ARCH < 9
+          variant->gs.vs_clip_space = vs_clip_space;
++         if (vs_xfb_passthrough)
++            panvk_vs_store_xfb(variant, info->nir->xfb_info);
+ #endif
+ 
+          /* Each variant gets its own NIR. To save an extra clone, we use the
+-- 
+2.43.0
+

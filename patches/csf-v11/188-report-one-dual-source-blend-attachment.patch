@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Fri, 16 Oct 2026 13:10:00 +0530
+Subject: [PATCH] panvk: report maxFragmentDualSrcAttachments = 1 biblioklept
+
+panvk reported maxFragmentDualSrcAttachments = max_cbuf_atts (8), but only
+render target 0 is a supported dual-source target:
+
+- bi_emit_intrinsic keeps one SRC1 type per shader
+  (info.bifrost->blend_src1_type) and asserts it is set once, so a shader
+  writing Index=1 outputs for two render targets trips the assert (debug
+  builds) or silently keeps the last type (release builds).
+- panvk_vX_blend.c builds every render target's blend shader from that one
+  src1_type, so a second dual-source target with a different output type
+  would blend with the wrong SRC1 format.
+- Gallium panfrost reports PIPE_CAP_MAX_DUAL_SOURCE_RENDER_TARGETS = 1.
+
+The Vulkan minimum is 1, D3D11/D3D12 only allow dual-source blending on
+render target 0 (the only users through DXVK/vkd3d-proton), and
+dualSrcBlend stays enabled. No behaviour change for render target 0.
+Build-only; no device test.
+---
+diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
+index 2bbe741..5091109 100644
+--- a/src/panfrost/vulkan/panvk_vX_physical_device.c
++++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
+@@ -957,7 +957,11 @@ panvk_per_arch(get_physical_device_properties)(
+       .maxFragmentInputComponents = 128,
+       /* 8 render targets. */
+       .maxFragmentOutputAttachments = MAX_RTS,
+-      .maxFragmentDualSrcAttachments = max_cbuf_atts,
++      /* Only render target 0 is validated for dual-source blending: the
++       * compiler keeps one SRC1 type per shader (blend_src1_type, asserted
++       * to be set once) and the blend shader is built from that single type
++       * for every render target. Gallium panfrost reports 1 as well. */
++      .maxFragmentDualSrcAttachments = 1,
+       /* 8 render targets, 2^12 storage buffers and 2^8 storage images (see
+        * above).
+        */

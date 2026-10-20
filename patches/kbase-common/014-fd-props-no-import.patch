@@ -26,7 +26,7 @@ Validation test: Gate G (single IMPORT per AHB, GPU clear lands).
 diff --git a/src/panfrost/vulkan/panvk_device_memory.c b/src/panfrost/vulkan/panvk_device_memory.c
 --- a/src/panfrost/vulkan/panvk_device_memory.c
 +++ b/src/panfrost/vulkan/panvk_device_memory.c
-@@ -479,5 +479,37 @@
+@@ -480,5 +480,37 @@
     assert(handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT);
  
 +#if defined(HAVE_PAN_KMOD_KBASE)

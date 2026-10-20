@@ -916,7 +916,7 @@ index ae29960..b9a7b4c 100644
  
  #include "spirv/nir_spirv.h"
  #include "util/memstream.h"
-@@ -502,6 +506,265 @@ panvk_preprocess_nir(struct vk_physical_device *vk_pdev,
+@@ -501,6 +505,265 @@ panvk_preprocess_nir(struct vk_physical_device *vk_pdev,
     pan_preprocess_nir(nir, pdev->kmod.dev->props.gpu_id);
  }
  
@@ -1182,7 +1182,7 @@ index ae29960..b9a7b4c 100644
  static void
  panvk_hash_state(struct vk_physical_device *device,
                   const struct vk_graphics_pipeline_state *state,
-@@ -511,6 +774,11 @@ panvk_hash_state(struct vk_physical_device *device,
+@@ -510,6 +773,11 @@ panvk_hash_state(struct vk_physical_device *device,
     struct mesa_blake3 blake3_ctx;
     _mesa_blake3_init(&blake3_ctx);
  
@@ -1194,7 +1194,7 @@ index ae29960..b9a7b4c 100644
     if (state != NULL) {
        /* This doesn't impact the shader compile but it does go in the
         * panvk_shader and gets [de]serialized along with the binary so
-@@ -1410,6 +1678,18 @@ panvk_compile_shader(struct panvk_device *dev,
+@@ -1409,6 +1677,18 @@ panvk_compile_shader(struct panvk_device *dev,
     if (shader == NULL)
        return panvk_error(dev, VK_ERROR_OUT_OF_HOST_MEMORY);
  
@@ -1213,7 +1213,7 @@ index ae29960..b9a7b4c 100644
     nir_variable_mode robust_modes = 0;
     if (info->robustness->uniform_buffers != VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED_EXT)
        robust_modes |= nir_var_mem_ubo;
-@@ -1426,20 +1706,40 @@ panvk_compile_shader(struct panvk_device *dev,
+@@ -1425,20 +1705,40 @@ panvk_compile_shader(struct panvk_device *dev,
  
     switch (info->stage) {
     case MESA_SHADER_VERTEX: {
@@ -1255,7 +1255,7 @@ index ae29960..b9a7b4c 100644
  
  #if PAN_ARCH >= 10 && PAN_ARCH < 14
           if (inputs.view_mask) {
-@@ -1469,14 +1746,43 @@ panvk_compile_shader(struct panvk_device *dev,
+@@ -1491,14 +1768,43 @@ panvk_compile_shader(struct panvk_device *dev,
            * vk_vertex_input_state where there are holes in the attribute
            * locations.
            */
@@ -1306,7 +1306,7 @@ index ae29960..b9a7b4c 100644
           /* This somehow folds the location for multi-slot nir_load/nir_store */
           NIR_PASS(_, nir, nir_opt_constant_folding);
  
-@@ -1486,14 +1789,32 @@ panvk_compile_shader(struct panvk_device *dev,
+@@ -1511,14 +1814,32 @@ panvk_compile_shader(struct panvk_device *dev,
              pan_build_varying_layout_compact(&varying_layout, nir,
                                               inputs.gpu_id);
              inputs.varying_layout = &varying_layout;
@@ -1339,7 +1339,7 @@ index ae29960..b9a7b4c 100644
           /* If we cloned, it's our job to clean up */
           if (clone_nir)
              ralloc_free(nir);
-@@ -1946,6 +2291,12 @@ panvk_deserialize_shader(struct vk_device *vk_dev, struct blob_reader *blob,
+@@ -1947,6 +2292,12 @@ panvk_deserialize_shader(struct vk_device *vk_dev, struct blob_reader *blob,
     if (shader == NULL)
        return panvk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
  
@@ -1352,7 +1352,7 @@ index ae29960..b9a7b4c 100644
     result = shader_desc_info_deserialize(device, blob, shader);
     if (result != VK_SUCCESS) {
        panvk_shader_destroy(vk_dev, &shader->vk, pAllocator);
-@@ -2060,6 +2411,10 @@ panvk_shader_serialize(struct vk_device *vk_dev,
+@@ -2061,6 +2412,10 @@ panvk_shader_serialize(struct vk_device *vk_dev,
  
     blob_write_uint8(blob, vk_shader->stage);
  

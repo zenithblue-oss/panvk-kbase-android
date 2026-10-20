@@ -1,0 +1,69 @@
+From ace8c71a8fe41a129e609854c1adee89a82f6d34 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 16 Oct 2026 12:07:56 +0000
+Subject: [PATCH 12/13] jm-v7 012: keep the emulated geometry shader across
+ meta operations
+
+On v6/v7 meta_gfx_start()/meta_gfx_end() did not save the bound geometry
+shader. Binding a meta pipeline clears it (vk_meta binds every graphics
+stage), so after a blit, clear or resolve inside a sequence of draws the
+next draw ran without the application's geometry shader and without its
+transform feedback capture. Save it, clear it and restore it as v9+ does
+for gs/tcs/tes, and mark the GS state dirty both ways.
+
+Found in review of 007-011. Build-tested only, no Bifrost device run.
+biblioklept
+
+Generated-by: LLM
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_0153VvtSm6m7BrM4NCBq8MMc
+---
+ src/panfrost/vulkan/panvk_cmd_meta.h    |  3 +++
+ src/panfrost/vulkan/panvk_vX_cmd_meta.c | 10 ++++++++++
+ 2 files changed, 13 insertions(+)
+
+diff --git a/src/panfrost/vulkan/panvk_cmd_meta.h b/src/panfrost/vulkan/panvk_cmd_meta.h
+index 6d5f698..2eed362 100644
+--- a/src/panfrost/vulkan/panvk_cmd_meta.h
++++ b/src/panfrost/vulkan/panvk_cmd_meta.h
+@@ -64,6 +64,9 @@ struct panvk_cmd_meta_graphics_save_ctx {
+ 
+ #if PAN_ARCH >= 9
+    const struct panvk_shader *gs, *tcs, *tes;
++#else
++   /* The emulated geometry shader (jm-v7 007): meta pipelines bind none. */
++   const struct panvk_shader *gs;
+ #endif
+ 
+    struct panvk_occlusion_query_state occlusion_query;
+diff --git a/src/panfrost/vulkan/panvk_vX_cmd_meta.c b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
+index bb299e0..d3dd0a4 100644
+--- a/src/panfrost/vulkan/panvk_vX_cmd_meta.c
++++ b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
+@@ -190,6 +190,13 @@ meta_gfx_start(struct panvk_cmd_buffer *cmdbuf,
+    cmdbuf->state.gfx.gs.shader = NULL;
+    cmdbuf->state.gfx.tcs.shader = NULL;
+    cmdbuf->state.gfx.tes.shader = NULL;
++#else
++   /* Binding the meta pipeline clears the geometry shader, and nothing
++    * would bind the application's one again after the meta operation.
++    */
++   save_ctx->gs = cmdbuf->state.gfx.gs.shader;
++   cmdbuf->state.gfx.gs.shader = NULL;
++   gfx_state_set_dirty(cmdbuf, GS);
+ #endif
+ 
+    save_ctx->dyn_state.all = cmdbuf->vk.dynamic_graphics_state;
+@@ -261,6 +268,9 @@ meta_gfx_end(struct panvk_cmd_buffer *cmdbuf,
+    cmdbuf->state.gfx.gs.shader = save_ctx->gs;
+    cmdbuf->state.gfx.tcs.shader = save_ctx->tcs;
+    cmdbuf->state.gfx.tes.shader = save_ctx->tes;
++#else
++   cmdbuf->state.gfx.gs.shader = save_ctx->gs;
++   gfx_state_set_dirty(cmdbuf, GS);
+ #endif
+ 
+ #if PAN_ARCH < 9
+-- 
+2.43.0
+

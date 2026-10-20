@@ -14,7 +14,7 @@ diff --git a/src/panfrost/lib/kmod/kbase_kmod.c b/src/panfrost/lib/kmod/kbase_km
 index 6473b3acb45..0d0cf3fffdf 100644
 --- a/src/panfrost/lib/kmod/kbase_kmod.c
 +++ b/src/panfrost/lib/kmod/kbase_kmod.c
-@@ -1676,6 +1676,20 @@ kbase_kmod_bo_alloc(struct pan_kmod_dev *dev,
+@@ -1685,6 +1685,20 @@ kbase_kmod_bo_alloc(struct pan_kmod_dev *dev,
     kbase_bo->gpu_mapping = cpu_ptr;
     kbase_bo->gpu_va = kbase_bo->same_va ? (uintptr_t)cpu_ptr : alloc_gpu_va;
  

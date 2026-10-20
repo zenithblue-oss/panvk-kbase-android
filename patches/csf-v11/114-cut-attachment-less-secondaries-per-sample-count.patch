@@ -255,7 +255,7 @@ diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/c
           } else if (fb->sample_count != 0 &&
                      fb->sample_count != rasterization_samples) {
              result = split_render_ctx(cmdbuf);
-@@ -5677,6 +5674,29 @@
+@@ -5761,6 +5758,29 @@
     return true;
  }
  
@@ -285,7 +285,7 @@ diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/c
  static void
  panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info draw)
  {
-@@ -5697,6 +5717,7 @@
+@@ -5781,6 +5801,7 @@
  
     /* Count once per API draw, before gpu_prerast splits or lowers it. */
     if (!draw.gpu_prerast_generated && !draw.pstats_counted) {
@@ -293,7 +293,7 @@ diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/c
        panvk_per_arch(cmd_pstats_draw)(cmdbuf, &draw);
        draw.pstats_counted = true;
     }
-@@ -5766,25 +5787,21 @@
+@@ -5850,25 +5871,21 @@
  VkResult
  panvk_per_arch(cmd_prepare_exec_cmd_for_draws)(
     struct panvk_cmd_buffer *primary,
@@ -325,7 +325,7 @@ diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/c
        if (fb->sample_count != 0 && fb->sample_count != sec_samples) {
           VkResult result = split_render_ctx(primary);
           if (result != VK_SUCCESS)
-@@ -6053,7 +6070,7 @@
+@@ -6137,7 +6154,7 @@
  
     assert(pBeginInfo->pInheritanceInfo);
     cmdbuf->state.gfx.render.vmr_samples = 0;
@@ -334,7 +334,7 @@ diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/c
     char gcbiar_data[VK_GCBIARR_DATA_SIZE(MAX_RTS)];
     const VkRenderingInfo *resume_info =
        vk_get_command_buffer_inheritance_as_rendering_resume(cmdbuf->vk.level,
-@@ -6216,6 +6233,13 @@
+@@ -6300,6 +6317,13 @@
        resuming ? state->render.fb.layout.tile_rt_alloc_B : 0;
  
     panvk_per_arch(cmd_init_render_state)(cmdbuf, pRenderingInfo);
@@ -348,7 +348,7 @@ diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/c
  
     if (suspended_sample_count != 0) {
        state->render.fb.layout.sample_count = suspended_sample_count;
-@@ -7186,6 +7210,8 @@
+@@ -7270,6 +7294,8 @@
  
     panvk_per_arch(cmd_pstats_flush_pending)(cmdbuf);
  
@@ -357,7 +357,7 @@ diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/c
     cmdbuf->state.gfx.render.oq.chain = 0;
     memset(&cmdbuf->state.gfx.render.fbds, 0,
            sizeof(cmdbuf->state.gfx.render.fbds));
-@@ -7242,6 +7268,13 @@
+@@ -7326,6 +7352,13 @@
  
           handle_deferred_queries(cmdbuf);
        }
@@ -374,7 +374,7 @@ diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/c
 diff --git a/src/panfrost/vulkan/panvk_cmd_draw.h b/src/panfrost/vulkan/panvk_cmd_draw.h
 --- a/src/panfrost/vulkan/panvk_cmd_draw.h
 +++ b/src/panfrost/vulkan/panvk_cmd_draw.h
-@@ -111,12 +111,11 @@
+@@ -109,12 +109,11 @@
      * inherited context, and the primary command buffer needs to know. */
     bool invalidate_inherited_ctx;
  

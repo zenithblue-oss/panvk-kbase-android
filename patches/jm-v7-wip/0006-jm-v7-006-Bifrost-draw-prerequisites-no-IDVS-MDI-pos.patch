@@ -1,7 +1,7 @@
-From 1b2abca2f4c15a4e86ce4064442490bd661de7de Mon Sep 17 00:00:00 2001
+From 6c1ac2474089add9c3291c4e7700b5c700058c68 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Fri, 16 Oct 2026 13:21:27 +0530
-Subject: [PATCH 6/8] jm-v7 006: Bifrost draw prerequisites (no IDVS, MDI,
+Subject: [PATCH 06/13] jm-v7 006: Bifrost draw prerequisites (no IDVS, MDI,
  position buffer)
 
 ---
@@ -11,7 +11,7 @@ Subject: [PATCH 6/8] jm-v7 006: Bifrost draw prerequisites (no IDVS, MDI,
  3 files changed, 59 insertions(+), 38 deletions(-)
 
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index e2d92e69272..d7f74233b1d 100644
+index e2d92e6..d7f7423 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 @@ -1455,10 +1455,17 @@ prepare_draw_layer(struct panvk_cmd_buffer *cmdbuf,
@@ -109,7 +109,7 @@ index e2d92e69272..d7f74233b1d 100644
  #else /* PAN_ARCH == 9 */
  
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index 802118c7366..2389af31196 100644
+index 5091109..4005c56 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
 @@ -322,7 +322,8 @@ panvk_per_arch(get_physical_device_features)(
@@ -122,7 +122,7 @@ index 802118c7366..2389af31196 100644
        .drawIndirectFirstInstance = true,
        .depthClamp = true,
        .depthBiasClamp = true,
-@@ -990,11 +991,9 @@ panvk_per_arch(get_physical_device_properties)(
+@@ -994,11 +995,9 @@ panvk_per_arch(get_physical_device_properties)(
        .mipmapPrecisionBits = 8,
        /* Software limit. */
        .maxDrawIndexedIndexValue = UINT32_MAX,
@@ -138,7 +138,7 @@ index 802118c7366..2389af31196 100644
        .maxSamplerAnisotropy = 16,
        .maxViewports = PAN_ARCH >= 9 ? 16 : 1,
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index 6c65ebe30de..1683d089212 100644
+index a69c148..ef7a623 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
 @@ -3438,6 +3438,15 @@ panvk_compile_shader(struct panvk_device *dev,
@@ -173,5 +173,5 @@ index 6c65ebe30de..1683d089212 100644
           nir_alu_type_get_type_size(vs_pos_slot->alu_type);
     }
 -- 
-2.56.0
+2.43.0
 

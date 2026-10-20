@@ -7,6 +7,7 @@ G="glslangValidator -V --target-env vulkan1.1"
 
 $G -S vert -DMODE=0 --vn vs_capture -o "$T/vs0.h" large_draw.vert >/dev/null
 $G -S vert -DMODE=1 --vn vs_feed -o "$T/vs1.h" large_draw.vert >/dev/null
+$G -S vert -DMODE=2 --vn vs_base -o "$T/vs2.h" large_draw.vert >/dev/null
 $G --vn gs_capture -o "$T/gs.h" large_draw.geom >/dev/null
 $G --vn tcs_levels -o "$T/tcs.h" large_draw.tesc >/dev/null
 $G --vn tes_capture -o "$T/tes.h" large_draw.tese >/dev/null
