@@ -631,3 +631,20 @@ Left, all need hardware or tester data:
 - API 29 load on Android 10 (Firebase `starlte`/`a10`), and one `scripts/firebase-panprobe.sh` run.
 - 21 (116 depth-bounds rework) on G615; 29 (v13 D3D8/9 frame rate, `DXVK_HUD=full` on G925); 16 KiB page kernels; `depth_bias_patch_list_tri_line` (run alone with `PANVK_DEBUG=dump`); GTA IV issue #2 (needs the reporter's full log and RAM size); the intermittent items under "Open problems".
 - 6 v7 G76 and 21 (goal) G72 v6: not on RTL; G76 only via Firebase.
+
+## RC4 and RC4 lowmem, source status, cloud branch merged (2026-10-20)
+
+**Releases (prereleases):**
+- RC4, tag `panvk-kbase-v0.1.0-rc4`: Mesa `5a07217f03`, driverInfo `PanVK-kbase RC4 (Mesa 26.3.0-devel (git-5a07217f03))`, `.so` SHA-256 `977c0c4c…`, BuildID `6654fada…`, NDK r30, API 29. PanProbe 39/0 on G615 (Poco X6 Pro, Android 16, 2026-10-20; also 39/0 on 2026-10-17). Includes jm-v7 001-005; PanProbe 14/38 on Galaxy A06 (G52 MC2) and A14 (G52 MC1).
+- RC4 lowmem, tag `panvk-kbase-v0.1.0-rc4-lowmem`: Mesa tree `git-5437602824`, original `.so` `595cf591…` (lowmem only with `PANVK_BC_MODE=lowmem`), binary-patched to lowmem by default `c395db09…` (one instruction at file offset `0xe91c68`, `cbz x0` now goes to the lowmem path), BuildID `aff7a07f…` unchanged. `PANVK_BC_MODE=exact` (or anything but `lowmem`) disables it. BC1-5/7 use about 1/2 to 1/3 of the memory. PanProbe 39/0 on G615. **Known issue: `vkCmdCopyImage` and raw readback are wrong for all 16 BC formats in lowmem** (sampling and blits are correct); `bc_decode` raw/copy/blit is 0/0/16.
+
+**Source status (important):**
+- **The exact source of the RC4 lowmem build was never committed and is lost.** The Mesa tree `git-5437602824` with the BC lowmem patches (`PANVK_BC_MODE`) is on no branch, and the `/var/tmp/panvk` worktrees do not exist on this machine (this repo is a fresh clone). The lowmem binary was recovered from a test APK on the reference device and then binary-patched. Do not expect to rebuild it from the repo.
+- RC4 (non-lowmem) is probably rebuildable: Mesa `5a07217f` plus the main series as of `5b87b74` (csf-v11 up to 186, jm-v9 up to 030, jm-v7 001-005; the jm-v7 001-005 patches were committed in `97d0e12` on 2026-10-16 and are applied by `scripts/apply-patches.sh` for g615-v11-csf). This is **not byte-verified**: there is no build log or BuildID record, and the "RC4" driverInfo string came from a build-time override (csf-v11/099 still hardcodes "RC3-lowmem").
+- The `jm-v7-wip` series (006-014, Bifrost geometry shader, transform feedback, tessellation and related) is a continuation written in the cloud. It is unbuilt and untested on a device.
+
+**Cloud branch `claude/new-session-6i5cyb` merged into main (merge `d7353ae`).** Commits: jm-v7-wip 006-008 building on API 29; csf-v11/189, 190 and android/016; csf-v11/191; `apply-patches` strict mode with 40 patches refreshed, csf-v11/187, 188; csf-v11/192; jm-v7-wip 006-013; csf-v11/193; jm-v7-wip 014 tessellation; csf-v11/194, jm-v9/031; jm-v7-wip rebased with 0013 dropped; csf-v11/195, 196; cloud-session summary above.
+
+**What remains:** all device runs. Build and run the merged series on G615 (csf-v11 187-196, jm-v9/031, android/016) and on a v7 device (jm-v7-wip 006-014: Galaxy A06 / A14 first), re-verify RC4 reproducibility from the series, and re-derive the BC lowmem source (including fixing `vkCmdCopyImage` for BC).
+
+**New rule:** commit and push all work to main continuously. The exact source must be on main before any release build, so a release can always be rebuilt from its tag.
