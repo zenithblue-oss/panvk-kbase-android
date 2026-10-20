@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://t.me/+E-NhUATmkqE5ODg1"><img src="https://img.shields.io/badge/Telegram-Join%20testers-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Join the Telegram testers group"></a>
-  <a href="https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc3-lowmem"><img src="https://img.shields.io/badge/driver-0.1.0%20RC3%20lowmem-orange?style=for-the-badge" alt="Driver 0.1.0 RC3 lowmem"></a>
+  <a href="https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc4"><img src="https://img.shields.io/badge/driver-0.1.0%20RC4-orange?style=for-the-badge" alt="Driver 0.1.0 RC4"></a>
   <a href="https://github.com/zenithblue-oss/panplay/releases/tag/panplay-v1.2.7"><img src="https://img.shields.io/badge/PanPlay-1.2.7-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanPlay 1.2.7"></a>
   <a href="https://github.com/zenithblue-oss/panprobe/releases/tag/panprobe-v1.2.7"><img src="https://img.shields.io/badge/PanProbe-1.2.7-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanProbe 1.2.7"></a>
 </p>
@@ -72,7 +72,10 @@ Both apps are tested on the Mali-G615. PanProbe also runs on the other devices i
 
 ## Tested devices
 
-The latest release is **0.1.0 RC3** (release candidate). All rows marked
+The latest release is **0.1.0 RC4** (release candidate, 2026-10-20). RC4 adds
+experimental Mali v7 Bifrost support (`jm-v7` 001-005). Only the G615 was
+retested on RC4 (Poco X6 Pro, PanProbe 39/39); v7 was tested on the Mali-G52
+in the Galaxy A06 and A14 (14/38). The rows below are from RC3. All rows marked
 2026-10-11 ran the RC3 binary itself (Android `.so` BuildID `4ec75e25`,
 `driverInfo` `PanVK-kbase RC3 (Mesa 26.3.0-devel)`) with PanProbe 38 tests.
 The Galaxy Tab S11 Ultra (v13) was not rerun on RC3; its row is from beta.18
@@ -106,6 +109,7 @@ from 19 devices, up to beta.15) is in
 
 | Arch | Frontend | Status | Evidence |
 |---|---|---|---|
+| v7 | JM | **Experimental from RC4** | RC4 (`jm-v7` 001-005): no env gate, GPU variant ignored, no `MEM_JIT_INIT`, growable tiler heap, atom stride 56/64 check, ION fallback. Mali-G52 MC2 r1 (Galaxy A06, `0x74021000`) and G52 MC1 (Galaxy A14, `0x72120000`): device creation works, PanProbe 14/38. GS, XFB, tessellation, robustness2 and MDI are in `patches/jm-v7-wip`, not in RC4. v6 takes the same path but is untested |
 | v9 | JM | **Supported from RC3** (RC2 and earlier: experimental, partly broken) | RC3 (`jm-v9` 001-030): Vulkan 1.3 and the DXVK FL11_0/FL11_1 features. G57 MC2 passes PanProbe 38/38, the D3D8-D3D11 cubes and NFS Most Wanted. G68/G77/G78/G78AE have model rows but are untested. RC2 and earlier: 2/17 real PanProbe passes, Vulkan 1.1 |
 | v10 | CSF | Works on RC3 | G610 MC3 and G710 MC7 (Pixel 7, Pixel 7a) pass 38/38. G710 needs the model row from csf-v11/140, so beta.17 does not recognise it |
 | v11 | CSF | **Release target**; works on RC3 | G615 MC6 (reference) and G715 MC7 (Pixel 8, Pixel 9) pass 38/38 |
@@ -164,7 +168,7 @@ One row per Mesa arch. Each GPU carries its own status mark.
 | v4 | Midgard 1st to 3rd gen | JM | ❌ Mali-T604, ❌ T658, ❌ T622, ❌ T624, ❌ T628, ❌ T678, ❌ T720 | No PanVK backend |
 | v5 | Midgard 3rd/4th gen | JM | ❌ Mali-T760, ❌ T820, ❌ T830, ❌ T860, ❌ T880 | No PanVK backend |
 | v6 | Bifrost 1st/2nd gen | JM | ❌ Mali-G71, ❔ G72 | Mesa marks G71 unsupported; G72 experimental upstream |
-| v7 | Bifrost 1st to 3rd gen | JM | 📋 Mali-G52, ❔ G31, ❔ G51, ❔ G76 | Profile `g52-v7-jm` (P25); needs the JM kbase path |
+| v7 | Bifrost 1st to 3rd gen | JM | 🧪 Mali-G52, ❔ G31, ❔ G51, ❔ G76 | **Experimental from RC4** (`jm-v7` 001-005). G52 MC2 (Galaxy A06) and G52 MC1 (Galaxy A14): PanProbe 14/38. GS/XFB/tessellation still in `patches/jm-v7-wip` |
 | v9 | Valhall 1st/2nd gen | JM | ✅ Mali-G57 (MC2), 🔨 G68, 🔨 G77, 🔨 G78, 🔨 G78AE | **Supported from RC3.** The `jm-v9` 001-030 series implements Vulkan 1.3, GS, tessellation, XFB, multiViewport, depth bounds, fill mode, conditional rendering, robustImageAccess2 and timestamps, and adds model rows for G77 (`0x9000`), G78 (`0x9002`) and G78AE (`0x9005`); G68 (`0x9004`) comes from upstream. G57 MC2: PanProbe 38/38, D3D8-D3D11 cubes and NFS Most Wanted on RC3. Other v9 parts not validated. RC2 and earlier: experimental, PanProbe 1-2/17, Vulkan 1.1 |
 | v10 | Valhall 3rd gen | CSF | 🧪 Mali-G610, 🧪 G710, 🔨 G310, ❔ G510 | G610 MC3 (motorola edge 40 neo) and G710 MC7 (Pixel 7, Pixel 7a) pass PanProbe 38/38 on RC3 (Firebase Test Lab, 2026-10-11). G710 gets its model row in csf-v11/140 (beta.18 RC1). G310 is built, untested; G510 needs a tester's gpu_id |
 | **v11** | **Valhall 4th gen** | **CSF** | ✅ **Mali-G615**, 🧪 G715, ❔ Immortalis-G715 | G615 validated on Poco X6 Pro (Dimensity 8300). G715 MC7 (Pixel 8, Pixel 9) passes PanProbe 38/38 on RC3. Immortalis-G715 is untested |
@@ -175,8 +179,9 @@ One row per Mesa arch. Each GPU carries its own status mark.
 
 "Possible" means Mesa has code for the arch. It does not mean the arch works
 here: each one still needs a kbase profile, its kbase frontend path (JM or
-CSF) and device validation. The driver has a job-manager kbase path for v9
-only; v6 and v7 would still need it ported.
+CSF) and device validation. The driver has a job-manager kbase path for v9,
+and from RC4 an experimental one for v7 (Bifrost); v6 takes the same path but
+is untested.
 
 ## Layout
 
@@ -216,9 +221,10 @@ change creates a new release even if the Mesa SHA is unchanged.
 
 ### Current status
 
-Latest: **[`panvk-kbase-v0.1.0-rc3-lowmem`](https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc3-lowmem)**
-(release candidate, RC3 plus csf-v11/185: BC1 RGB and BC7 shadows at 8 bpp; only the G615 was retested,
-38/38). The last release tested on every GPU is
+Latest: **[`panvk-kbase-v0.1.0-rc4`](https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc4)**
+and **[`panvk-kbase-v0.1.0-rc4-lowmem`](https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc4-lowmem)**
+(release candidates: experimental v7 Bifrost; only the G615 was retested, 39/39). The RC4 binaries were
+recovered from the reference device; their exact source was not committed. The last release tested on every GPU is
 [`panvk-kbase-v0.1.0-rc3`](https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc3)
 (Mesa `5a07217f` plus the committed series up to csf-v11/184 and `jm-v9` 030; v9 to v13 supported,
 PanProbe 38/38 on G57, G610, G710, G615, G715 and Immortalis-G720; v13 not rerun on RC3). Tags no longer carry the `g615` prefix; older releases keep theirs. Each
@@ -227,6 +233,8 @@ zip, the test APK and screenshots. Full history: [`CHANGELOG.md`](CHANGELOG.md).
 
 | Release | Highlights |
 |---|---|
+| **0.1.0 RC4** | **Experimental v7 Bifrost** (`jm-v7` 001-005: no env gate, no `MEM_JIT_INIT`, growable tiler heap, atom stride check, ION fallback); G52 MC2/MC1 (Galaxy A06/A14) PanProbe 14/38. Mesa `5a07217f`, API 29 build. `driverInfo` RC4. Android BuildID `6654fada`. Retested on G615 only: PanProbe 39/39. Six launcher zips (adrenotools, Winlator, cmod, Ludashi, bannerlator, GameHub). Binary recovered from the reference device; exact source not committed. |
+| **0.1.0 RC4 lowmem** | Separate RC4 build (Mesa tree `git-5437602824`), same v7 support. `driverInfo` RC4. Android BuildID `aff7a07f`. G615: PanProbe 39/39; no measurable memory difference from RC4 in PanProbe. Launcher zips repackaged from the RC4 layouts. Exact source not committed. |
 | **0.1.0 RC3 lowmem** | RC3 plus csf-v11/185: BC1 RGB (no alpha) and BC7 shadows are stored as AFRC at 8 bpp instead of 12/16 bpp. About 25% less memory for BC1 RGB and 33% less for BC7; sampling speed is unchanged (not faster); quality is lower (about 48 dB against the exact decode, RC3 was 57-64 dB; 0.1-0.5 dB loss against the source). BC1 RGBA, BC2 and BC3 keep the RC3 rates. BC7 with alpha at 8 bpp is untested. `PANVK_BC_AFRC=0` restores exact decode; `PANVK_BC_AFRC=24` or `32` forces that rate for all BC formats (RC3 used 24 for BC1/BC2 and 32 for BC3/BC7). `driverInfo` RC3-lowmem. Android BuildID `9d975491`. Retested on G615 only: PanProbe 38/38, `bc_decode` device checks, NFS Most Wanted with the DXVK HUD. PanProbe 1.2.7 bundles it; PanPlay 1.2.7 still bundles RC3. |
 | **0.1.0 RC3** | **v9 to v13 supported.** v9 JM (`jm-v9` 001-030): Vulkan 1.3, GS, tessellation, XFB, multiViewport, clip/cull, depth bounds, fill mode, conditional rendering, robustImageAccess2, GPU timestamps, G77/G78/G78AE rows and kbase JM fixes; G57 MC2 PanProbe 38/38, D3D8-D3D11 cubes, NFS Most Wanted. v10 GPU-emulated robustImageAccess2 alpha fix (184; G610 and G710 38/38 on Firebase). `driverInfo` RC3. Android BuildID `4ec75e25`. PanProbe 38/38 on G57 (v9), G610, G710 x2 (v10), G615, G715 x2 (v11) and Immortalis-G720 MC12 (v12, `gs_viewport_depth` 20/20); v13 G925 not rerun (37/37 on RC1). |
 | **0.1.0 RC2** | `robustImageAccess2` on v10 and later (181): G615 PanProbe 38/38, CTS robustness2 image 4332/0, `D3D12CreateDevice` OK. Mali-G77 model row (jm-v9/006, variant 0 from a tester log, unproven on G77). `driverInfo` beta.18-rc2. Tag prefix `g615` dropped (`panvk-kbase-v`). RC2 binary not yet device-tested. |
