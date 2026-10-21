@@ -12,4 +12,14 @@ python3 "$ROOT/scripts/capture-matrix.py" --mesa "$ROOT/work/mesa" --out "$ROOT/
 "$ROOT/scripts/build-android.sh" --profile "$PROFILE"
 "$ROOT/scripts/validate-binary.sh" --abi android "$ROOT/dist/android-$PROFILE/libvulkan_panfrost.so"
 "$ROOT/scripts/package-android-adpkg.sh" --profile "$PROFILE" --version "$VER"
+# Launcher zips (adrenotools/winlator/bannerlator/cmod/ludashi/gamehub) from the validated .so.
+"$ROOT/scripts/package-launcher-zips.sh" --so "$ROOT/dist/android-$PROFILE/libvulkan_panfrost.so" --version "$VER"
+# Optional glibc/EMULATOR package. Only valid when built from THIS checkout's patch series.
+# To wrap an already released binary instead (no rebuild), use scripts/package-prebuilt.sh;
+# that cannot claim a reproducible source series.
+if [ "${WITH_GLIBC:-0}" = 1 ]; then
+  "$ROOT/scripts/build-glibc.sh" --profile "$PROFILE"
+  "$ROOT/scripts/package-glibc.sh" --profile "$PROFILE" --version "$VER"
+  cp "$ROOT/dist/glibc-$PROFILE/libvulkan_panfrost.so" "$ROOT/dist/libvulkan_panfrost-glibc-aarch64.so"
+fi
 echo "LOCAL-RELEASE-ANDROID OK profile=$PROFILE version=$VER"
