@@ -11,10 +11,10 @@ Subject: [PATCH] WIP: panvk: transcode BC1-BC5 to ETC2/EAC shadows and drop
  src/panfrost/vulkan/panvk_image.c           |   88 +-
  src/panfrost/vulkan/panvk_image.h           |   63 +-
  src/panfrost/vulkan/panvk_meta.h            |    2 +
- src/panfrost/vulkan/panvk_physical_device.c |   45 +-
+ src/panfrost/vulkan/panvk_physical_device.c |   60 +-
  src/panfrost/vulkan/panvk_physical_device.h |    7 +
  src/panfrost/vulkan/panvk_vX_cmd_meta.c     |  358 ++-
- 9 files changed, 3525 insertions(+), 21 deletions(-)
+ 9 files changed, 3539 insertions(+), 22 deletions(-)
  create mode 100644 src/panfrost/vulkan/bc/panvk_bc_etc2.comp
  create mode 100644 src/panfrost/vulkan/bc/panvk_bc_etc2_spv.h
 
@@ -3023,7 +3023,7 @@ index 0000000..8dc0d55
 +	0x00000a97,0x000200f9,0x00000a7c,0x000200f8,0x00000a7c,0x000100fd,0x00010038
 +};
 diff --git a/src/panfrost/vulkan/panvk_image.c b/src/panfrost/vulkan/panvk_image.c
-index 275aae3..396f911 100644
+index 275aae3..7605c2d 100644
 --- a/src/panfrost/vulkan/panvk_image.c
 +++ b/src/panfrost/vulkan/panvk_image.c
 @@ -488,6 +488,24 @@ panvk_bc_shadow_info(const struct panvk_image *image, VkImageCreateInfo *info,
@@ -3130,7 +3130,7 @@ index 275aae3..396f911 100644
 +    * meta adjustments below add MUTABLE/BLOCK_TEXEL_VIEW_COMPATIBLE. */
 +   image->bc_lowmem = 0;
 +   image->bc_no_raw = false;
-+   if (image->bc_gfx && phys_dev->bc_lowmem &&
++   if (image->bc_gfx && panvk_bc_lowmem_enabled(phys_dev) &&
 +       panvk_bc_lowmem_allowed(image, pCreateInfo)) {
 +      const VkFormat lm_format = panvk_bc_lowmem_format(image->vk.format);
 +      const bool no_raw =
@@ -3250,47 +3250,31 @@ index d54fa89..6313b96 100644
  
  static inline VkFormat
 diff --git a/src/panfrost/vulkan/panvk_physical_device.c b/src/panfrost/vulkan/panvk_physical_device.c
-index 3f7bdf8..1aefd32 100644
+index 3f7bdf8..e008ac0 100644
 --- a/src/panfrost/vulkan/panvk_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_physical_device.c
-@@ -27,6 +27,7 @@
- #include "util/os_misc.h"
- #include "util/os_time.h"
- #include "util/u_atomic.h"
-+#include "util/u_debug.h"
- #include "git_sha1.h"
- 
- #include "vk_android.h"
-@@ -51,6 +52,8 @@
- 
- #include "genxml/gen_macros.h"
- 
-+static void panvk_bc_lowmem_init(struct panvk_physical_device *device);
-+
- #define PER_ARCH_FUNCS(_ver)                                                   \
-    void panvk_v##_ver##_get_physical_device_extensions(                        \
-       const struct panvk_physical_device *device,                              \
-@@ -1386,8 +1389,10 @@ panvk_physical_device_init_kbase(struct panvk_physical_device *device,
+@@ -1386,8 +1386,8 @@ panvk_physical_device_init_kbase(struct panvk_physical_device *device,
     device->formats.all = pan_format_table(arch);
     device->formats.blendable = pan_blendable_format_table(arch);
  
 -   mesa_logi("panvk: BC emulation %s (native compressed mask %#x)",
-+   panvk_bc_lowmem_init(device);
+-             panvk_bc_emul_enabled(device) ? "on" : "off",
 +   mesa_logi("panvk: BC emulation %s%s (native compressed mask %#x)",
-              panvk_bc_emul_enabled(device) ? "on" : "off",
-+             device->bc_lowmem ? ", lowmem" : "",
++             panvk_bc_emul_enabled(device) ? "on" : "off", panvk_bc_lowmem_enabled(device) ? ", lowmem" : "",
               pan_query_compressed_formats(&device->kmod.dev->props));
  
     unsigned core_count =
-@@ -1850,6 +1855,44 @@ panvk_bc_emul_enabled(const struct panvk_physical_device *physical_device)
+@@ -1850,6 +1850,62 @@ panvk_bc_emul_enabled(const struct panvk_physical_device *physical_device)
     return false;
  }
  
 +/* BC lowmem: on v10+ (CSF) with BC emulation and the fragment decode path
 + * (no PANVK_DEBUG=bc_compute/no_gs), when every ETC2/EAC format is native.
 + * On by default; PANVK_BC_MODE=exact keeps the exact decoded shadows. */
-+static void
-+panvk_bc_lowmem_init(struct panvk_physical_device *device)
++static int panvk_bc_mode_lowmem = -1;
++
++bool
++panvk_bc_lowmem_enabled(const struct panvk_physical_device *device)
 +{
 +   static const enum pipe_format etc_fmts[] = {
 +      PIPE_FORMAT_ETC2_RGB8,  PIPE_FORMAT_ETC2_SRGB8,
@@ -3299,77 +3283,81 @@ index 3f7bdf8..1aefd32 100644
 +      PIPE_FORMAT_ETC2_R11_UNORM, PIPE_FORMAT_ETC2_R11_SNORM,
 +      PIPE_FORMAT_ETC2_RG11_UNORM, PIPE_FORMAT_ETC2_RG11_SNORM,
 +   };
-+   const char *mode = debug_get_option("PANVK_BC_MODE", NULL);
 +
-+   device->bc_lowmem = false;
-+   device->bc_lm_opts = debug_get_num_option("PANVK_BC_LM_OPTS", 0x30000);
++   if (panvk_bc_mode_lowmem < 0) {
++      const char *mode = os_get_option("PANVK_BC_MODE");
 +
-+   if (pan_arch(device->kmod.dev->props.gpu_id) < 10 ||
++      if (mode && strcmp(mode, "lowmem") && strcmp(mode, "exact"))
++         mesa_logw("panvk: unknown PANVK_BC_MODE=%s, using exact", mode);
++      panvk_bc_mode_lowmem = !mode || !strcmp(mode, "lowmem");
++   }
++
++   if (!panvk_bc_mode_lowmem ||
++       pan_arch(device->kmod.dev->props.gpu_id) < 10 ||
 +       !panvk_bc_emul_enabled(device) || PANVK_DEBUG(BC_COMPUTE) ||
 +       PANVK_DEBUG(NO_GS))
-+      return;
++      return false;
 +
-+   if (mode && strcmp(mode, "lowmem") != 0) {
-+      if (strcmp(mode, "exact") != 0)
-+         mesa_logw("panvk: unknown PANVK_BC_MODE=%s, using exact", mode);
-+      return;
-+   }
++   uint32_t supported_compr_fmts =
++      pan_query_compressed_formats(&device->kmod.dev->props);
 +
 +   for (unsigned i = 0; i < ARRAY_SIZE(etc_fmts); i++) {
-+      if (!format_is_supported(device, device->formats.all[etc_fmts[i]],
-+                               etc_fmts[i]))
-+         return;
++      const struct pan_format fmt = device->formats.all[etc_fmts[i]];
++      if (!fmt.hw || !(BITFIELD_BIT(fmt.texfeat_bit) & supported_compr_fmts))
++         return false;
 +   }
 +
-+   device->bc_lowmem = true;
++   return true;
++}
++
++/* PANVK_BC_LM_OPTS (default 0x30000): 0x10000 try the ETC2 planar mode,
++ * 0x20000 try the ETC2 H mode, 0x40000 EAC base codeword +-1 search. */
++uint32_t
++panvk_bc_lm_opts(void)
++{
++   static int64_t opts = -1;
++
++   if (opts < 0) {
++      const char *s = os_get_option("PANVK_BC_LM_OPTS");
++      opts = s ? (int64_t)(strtoul(s, NULL, 0) & 0xffffffffu) : 0x30000;
++   }
++   return opts;
 +}
 +
  static VkFormatFeatureFlags2
  get_image_plane_format_features(struct panvk_physical_device *physical_device,
                                  VkFormat format)
 diff --git a/src/panfrost/vulkan/panvk_physical_device.h b/src/panfrost/vulkan/panvk_physical_device.h
-index 5458eb0..1a5cd41 100644
+index 5458eb0..c62ff16 100644
 --- a/src/panfrost/vulkan/panvk_physical_device.h
 +++ b/src/panfrost/vulkan/panvk_physical_device.h
-@@ -84,6 +84,13 @@ struct panvk_physical_device {
+@@ -139,6 +139,13 @@ panvk_get_max_buffer_size(const struct panvk_physical_device *device);
  
-    uint64_t compute_core_mask;
-    uint64_t fragment_core_mask;
+ bool panvk_bc_emul_enabled(const struct panvk_physical_device *device);
+ 
++/* BC lowmem (csf-v11/197): BC1-BC5 images keep an ETC2/EAC shadow instead
++ * of an exact decoded one, and BC images that can never be read back drop
++ * the raw block plane. panvk_bc_lm_opts() is PANVK_BC_LM_OPTS, the
++ * transcoder search flags. */
++bool panvk_bc_lowmem_enabled(const struct panvk_physical_device *device);
++uint32_t panvk_bc_lm_opts(void);
 +
-+   /* BC lowmem (PANVK_BC_MODE, see panvk_bc_lowmem_init()): BC1-BC5 images
-+    * keep an ETC2/EAC shadow instead of an exact decoded one, and BC images
-+    * that can never be read back drop the raw block plane. bc_lm_opts is
-+    * PANVK_BC_LM_OPTS, the transcoder search flags. */
-+   bool bc_lowmem;
-+   uint32_t bc_lm_opts;
- };
- 
- VK_DEFINE_HANDLE_CASTS(panvk_physical_device, vk.base, VkPhysicalDevice,
+ #ifdef PAN_ARCH
+ void panvk_per_arch(get_physical_device_extensions)(
+    const struct panvk_physical_device *device,
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_meta.c b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
-index 76960e6..371ae76 100644
+index 76960e6..529d7a2 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 +++ b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
-@@ -5,6 +5,7 @@
-  */
- 
- #include "panvk_buffer.h"
-+#include "panvk_cmd_alloc.h"
- #include "panvk_cmd_meta.h"
- #include "panvk_entrypoints.h"
- #include "panvk_meta.h"
-@@ -17,6 +18,7 @@
- #include "bc/panvk_bc_bc6_spv.h"
- #include "bc/panvk_bc_bc7_fs_spv.h"
- #include "bc/panvk_bc_bc7_spv.h"
-+#include "bc/panvk_bc_etc2_spv.h"
- #include "bc/panvk_bc_rgtc_fs_spv.h"
- #include "bc/panvk_bc_rgtc_spv.h"
- #include "bc/panvk_bc_s3tc_fs_spv.h"
-@@ -863,6 +865,169 @@ bc_decode_region(struct panvk_cmd_buffer *cmdbuf, struct panvk_image *img,
+@@ -863,6 +863,171 @@ bc_decode_region(struct panvk_cmd_buffer *cmdbuf, struct panvk_image *img,
     disp->CmdDispatch(cmd, DIV_ROUND_UP(w, 8), DIV_ROUND_UP(h, 8), d);
  }
  
-+/* BC lowmem transcoder (csf-v11/197), see bc/panvk_bc_etc2.comp. */
++/* BC lowmem transcoder (csf-v11/197), see bc/panvk_bc_etc2.comp. Included
++ * here rather than at the top to keep the later series' hunks in place. */
++#include "bc/panvk_bc_etc2_spv.h"
++#include "panvk_cmd_alloc.h"
++
 +struct panvk_bc_xcode_push {
 +   uint32_t src[2];
 +   uint32_t dst[2];
@@ -3468,8 +3456,6 @@ index 76960e6..371ae76 100644
 +                VkExtent3D extent, const struct bc_decode_src *src)
 +{
 +   struct panvk_device *dev = to_panvk_device(cmdbuf->vk.base.device);
-+   const struct panvk_physical_device *phys_dev =
-+      to_panvk_physical_device(dev->vk.physical);
 +   const struct vk_device_dispatch_table *disp = &dev->vk.dispatch_table;
 +   VkCommandBuffer cmd = panvk_cmd_buffer_to_handle(cmdbuf);
 +   const uint32_t level = subres->mipLevel;
@@ -3508,7 +3494,7 @@ index 76960e6..371ae76 100644
 +      .bw = bw,
 +      .bh = bh,
 +      .mode = bc_xcode_mode(img->vk.format),
-+      .opts = phys_dev->bc_lm_opts,
++      .opts = panvk_bc_lm_opts(),
 +   };
 +
 +   disp->CmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
