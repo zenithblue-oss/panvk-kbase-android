@@ -1,0 +1,1256 @@
+From 8acbd5fcb74f5e8b84b46c7eeaa365b8e830d2e0 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 10:40:09 +0000
+Subject: [PATCH] jm-v7 030: Bifrost restart in the GS emulation, per-viewport
+ depth, VS viewport index, large tessellation, tess/GS point size
+
+WIP, NOT BUILT, NOT DEVICE-TESTED (stopped at the usage limit).
+
+- Primitive restart (A06 fill_mode *_restart_*, geometry *_restart_*):
+  the emulation assembled strips/fans by position and ignored restart.
+  A serial libpan kernel, panlib_v7_gs_restart_list(), cuts an indexed
+  strip/fan/strip-adjacency draw with restart into restart-free runs and
+  writes their primitives as a 32-bit list plus a new indexed indirect
+  command; the emulation (and the 0017 polygon passthrough) then
+  assembles a plain list.
+- gs_viewport_depth: the tiler had the union of the viewports' depth
+  ranges. When the GS-selectable viewports' depth ranges differ, each
+  viewport gets its own copy of the emulation index list and its own
+  tiler job with its own VIEWPORT descriptor (panvk_gs_push::vp_split).
+  Limit: primitives of different viewports with overlapping scissors are
+  not drawn in API order.
+- vs_viewport_index: a last pre-raster VS/TES writing gl_ViewportIndex
+  is compiled for clip space and drawn through the passthrough GS; the
+  index travels in PANVK_GS_VIEWPORT_INDEX_SLOT and becomes
+  gl_ViewportIndex again in the passthrough. shaderOutputViewportIndex
+  is exposed on v6/v7.
+- Tessellation caps (px=682 = 2^20/1536, px=16 = 8192*3/1536):
+  PANVK_TESS_MAX_INDICES 1M -> 8M, arena 64 -> 160 MB (growable),
+  PANVK_TESS_GS_MAX_PRIMS 8192 -> 2M with the tess eval draw's GS
+  emulation buffers from a new growable GPU-only cmdbuf pool (gs_pool),
+  indirect varying buffer 2M -> 4M vertices (growable).
+- shaderTessellationAndGeometryPointSize on v6/v7: TES point mode uses
+  its gl_PointSize, GS point output writes an FP32 point size array,
+  GS/TCS read gl_in[].gl_PointSize from the VS fp16 buffer, the point
+  passthrough forwards it.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/libpan/draw_helper.cl            |  97 ++++++
+ src/panfrost/vulkan/jm/panvk_cmd_buffer.h     |   2 +
+ src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c  |  18 +
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c    | 327 +++++++++++++++---
+ src/panfrost/vulkan/panvk_cmd_draw.h          |   5 +
+ src/panfrost/vulkan/panvk_cmd_pool.c          |   2 +
+ src/panfrost/vulkan/panvk_cmd_pool.h          |   2 +
+ src/panfrost/vulkan/panvk_device.h            |   2 +-
+ src/panfrost/vulkan/panvk_gs.h                |  27 +-
+ src/panfrost/vulkan/panvk_nir_lower_gs.c      | 155 ++++++++-
+ .../vulkan/panvk_vX_physical_device.c         |   6 +-
+ src/panfrost/vulkan/panvk_vX_shader.c         |  61 +++-
+ 12 files changed, 653 insertions(+), 51 deletions(-)
+
+diff --git a/src/panfrost/libpan/draw_helper.cl b/src/panfrost/libpan/draw_helper.cl
+index 31714d9..0e92ee8 100644
+--- a/src/panfrost/libpan/draw_helper.cl
++++ b/src/panfrost/libpan/draw_helper.cl
+@@ -1892,6 +1892,103 @@ panlib_v7_pstats_sum_cores(global uint32_t *counter, constant uint64_t *cores,
+    v7_pstats_add(counter, sum);
+ }
+ 
++/* Position, within a restart-free run, of vertex i of primitive p, as the
++ * geometry emulation assembles it (gs_input_record()). topology is a
++ * PANVK_GS_TOPO_* (1 strip, 2 fan, 3 triangle strip with adjacency), ppi the
++ * run's primitive count.
++ */
++static uint32_t
++v7_gs_restart_seq(uint32_t topology, uint32_t vpp, uint32_t p, uint32_t i,
++                  uint32_t ppi)
++{
++   if (topology == 2)
++      return i == 2 ? 0 : p + i + 1;
++
++   if (topology == 3) {
++      const uint32_t p2 = 2 * p;
++      const uint32_t far = p + 1 == ppi ? p2 + 5 : p2 + 6;
++      if (p & 1) {
++         const uint32_t odd_v[6] = {p2 + 2, p2 - 2, p2, p2 + 3, p2 + 4, far};
++         return odd_v[i];
++      }
++      const uint32_t even_v[6] = {p2, p ? p2 - 2 : 1, p2 + 2, far, p2 + 4,
++                                  p2 + 3};
++      return even_v[i];
++   }
++
++   /* Strips: triangle strips take p, p+2, p+1 on odd p. */
++   if (vpp == 3 && (p & 1) && i)
++      return p + 3 - i;
++   return p + i;
++}
++
++static uint32_t
++v7_gs_restart_ppi(uint32_t topology, uint32_t vpp, uint32_t n)
++{
++   if (topology == 2)
++      return n >= 3 ? n - 2 : 0;
++   if (topology == 3)
++      return n >= 6 ? (n - 4) / 2 : 0;
++   return n >= vpp ? n - (vpp - 1) : 0;
++}
++
++/* Primitive restart for the geometry emulation (jm-v7 030): an indexed
++ * strip, fan or triangle strip with adjacency is cut into restart-free runs
++ * and each run's primitives are written as a 32-bit list, vpp indices per
++ * primitive, in draw order. out_cmd is the draw's VkDrawIndexedIndirectCommand
++ * over that list (firstIndex 0), so the emulation assembles a plain list and
++ * gl_PrimitiveIDIn counts the primitives actually assembled. At most
++ * max_prims primitives are kept. Serial: one thread walks the indices.
++ */
++KERNEL(1)
++panlib_v7_gs_restart_list(global uint32_t *out_idx, global uint32_t *out_cmd,
++                          constant uint32_t *cmd, uint64_t index_buffer,
++                          uint32_t index_buffer_size_el, uint32_t index_size_B,
++                          uint32_t topology, uint32_t vpp, uint32_t max_prims)
++{
++   const uint32_t restart_index =
++      index_size_B == 4 ? UINT32_MAX : (1u << (index_size_B * 8)) - 1;
++   const uint32_t count = cmd[0];
++   const uint32_t first = cmd[2];
++   uint32_t prims = 0;
++   uint32_t run_start = 0;
++
++   for (uint32_t i = 0; i <= count; i++) {
++      bool cut = i == count;
++      if (!cut) {
++         const uint32_t at = first + i;
++         /* Out of range reads 0 (robustness), never a restart. */
++         const uint32_t v =
++            at < index_buffer_size_el
++               ? v7_index_at(index_buffer, index_size_B, at)
++               : 0;
++         cut = v == restart_index;
++      }
++      if (!cut)
++         continue;
++
++      const uint32_t n = i - run_start;
++      const uint32_t ppi = v7_gs_restart_ppi(topology, vpp, n);
++      for (uint32_t p = 0; p < ppi && prims < max_prims; p++, prims++) {
++         for (uint32_t k = 0; k < vpp; k++) {
++            const uint32_t at =
++               first + run_start + v7_gs_restart_seq(topology, vpp, p, k, ppi);
++            out_idx[prims * vpp + k] =
++               at < index_buffer_size_el
++                  ? v7_index_at(index_buffer, index_size_B, at)
++                  : 0;
++         }
++      }
++      run_start = i + 1;
++   }
++
++   out_cmd[0] = prims * vpp;
++   out_cmd[1] = cmd[1];
++   out_cmd[2] = 0;
++   out_cmd[3] = cmd[3];
++   out_cmd[4] = cmd[4];
++}
++
+ #endif
+ 
+ #if PAN_ARCH == 9
+diff --git a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
+index 9ccd4ca..13f8fb6 100644
+--- a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
++++ b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
+@@ -88,6 +88,8 @@ struct panvk_cmd_buffer {
+ 
+    struct panvk_pool desc_pool;
+    struct panvk_pool varying_pool;
++   /* Growable GPU-only memory: geometry emulation of large tess draws. */
++   struct panvk_pool gs_pool;
+    struct panvk_pool tls_pool;
+    struct list_head batches;
+    struct list_head push_sets;
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
+index a292ebc..1e18973 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
+@@ -482,6 +482,7 @@ panvk_reset_cmdbuf(struct vk_command_buffer *vk_cmdbuf,
+    panvk_pool_reset(&cmdbuf->desc_pool);
+    panvk_pool_reset(&cmdbuf->tls_pool);
+    panvk_pool_reset(&cmdbuf->varying_pool);
++   panvk_pool_reset(&cmdbuf->gs_pool);
+    panvk_cmd_buffer_obj_list_reset(cmdbuf, push_sets);
+ 
+    memset(&cmdbuf->state, 0, sizeof(cmdbuf->state));
+@@ -512,6 +513,7 @@ panvk_destroy_cmdbuf(struct vk_command_buffer *vk_cmdbuf)
+    panvk_pool_cleanup(&cmdbuf->desc_pool);
+    panvk_pool_cleanup(&cmdbuf->tls_pool);
+    panvk_pool_cleanup(&cmdbuf->varying_pool);
++   panvk_pool_cleanup(&cmdbuf->gs_pool);
+    panvk_cmd_buffer_obj_list_cleanup(cmdbuf, push_sets);
+    vk_command_buffer_finish(&cmdbuf->vk);
+    vk_free(&dev->vk.alloc, cmdbuf);
+@@ -586,6 +588,22 @@ panvk_create_cmdbuf(struct vk_command_pool *vk_pool, VkCommandBufferLevel level,
+    panvk_pool_init(&cmdbuf->varying_pool, device, &pool->varying_bo_pool, NULL,
+                    &var_pool_props);
+ 
++   /* jm-v7 033: the geometry emulation of a large tessellated draw is sized
++    * for millions of primitives it rarely all emits. Growable GPU-only BOs:
++    * pages are committed when the GPU first touches them.
++    */
++   struct panvk_pool_properties gs_pool_props = {
++      .create_flags = panvk_device_adjust_bo_flags(
++         device, PAN_KMOD_BO_FLAG_NO_MMAP | PAN_KMOD_BO_FLAG_ALLOC_ON_FAULT),
++      .slab_size = 2 * 1024 * 1024,
++      .label = "GS emulation pool",
++      .prealloc = false,
++      .owns_bos = true,
++      .needs_locking = false,
++   };
++   panvk_pool_init(&cmdbuf->gs_pool, device, &pool->gs_bo_pool, NULL,
++                   &gs_pool_props);
++
+    list_inithead(&cmdbuf->batches);
+    *cmdbuf_out = &cmdbuf->vk;
+    return VK_SUCCESS;
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index c6ebf68..1b9472d 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -103,6 +103,13 @@ struct panvk_draw_data {
+     */
+    uint32_t tess_phase;
+    uint32_t gs_max_prims;
++   /* Per-viewport tiler jobs (jm-v7 031, panvk_gs_vp_split()): how many
++    * (0: one tiler job), the ones with a non-empty scissor box, and the
++    * emulation's per-vertex viewport indices.
++    */
++   uint32_t vp_split;
++   uint32_t vp_split_mask;
++   uint64_t gs_out_viewport;
+    uint64_t position;
+    union {
+       uint64_t psiz;
+@@ -567,6 +574,18 @@ panvk_draw_get_indirect_varying_info(struct panvk_cmd_buffer *cmdbuf)
+    return VK_SUCCESS;
+ }
+ 
++/* Geometry emulation buffers: GPU-only, from the growable pool for the
++ * emulation of a tess eval draw (jm-v7 033), else the descriptor pool.
++ */
++static struct pan_ptr
++gs_alloc(struct panvk_cmd_buffer *cmdbuf, bool growable, uint64_t size,
++         unsigned alignment)
++{
++   if (growable)
++      return panvk_cmd_alloc_dev_mem(cmdbuf, gs, size, alignment);
++   return panvk_cmd_alloc_dev_mem(cmdbuf, desc, size, alignment);
++}
++
+ static VkResult
+ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+                             struct panvk_draw_data *draw)
+@@ -586,7 +605,9 @@ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+    const struct panvk_shader *gs_shader = cmdbuf->state.gfx.gs.emu;
+    bool writes_point_size =
+       !gs_shader && vs->info.vs.writes_point_size &&
+-      ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
++      (ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST ||
++       (draw->tess_phase == PANVK_TESS_PHASE_TES &&
++        draw->info.prim == MESA_PRIM_POINTS));
+    uint64_t psiz_buf = 0, general_buf = 0;
+ 
+    if (is_indirect_draw(draw)) {
+@@ -649,6 +670,11 @@ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+     * patched descriptor instead).
+     */
+    cmdbuf->state.gfx.gs.in_general = general_buf;
++   cmdbuf->state.gfx.gs.in_psiz =
++      vs->info.vs.writes_point_size && link->buf_strides[PANVK_VARY_BUF_PSIZ]
++         ? psiz_buf
++         : 0;
++   cmdbuf->state.gfx.gs.out_psiz = 0;
+ 
+    /* Geometry shader emulation: a second set of varying buffers, written by
+     * the emulation job and read by the tiler. Sized for the worst case
+@@ -663,6 +689,12 @@ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+       const uint32_t out_verts = in_prims * gs->gs.max_output_verts;
+       const uint32_t out_indices =
+          in_prims * gs->gs.max_output_prims * gs->gs.output_verts_per_prim;
++      /* jm-v7 033: a tess eval draw's emulation is sized for
++       * PANVK_TESS_GS_MAX_PRIMS, from growable memory.
++       */
++      const bool growable = draw->tess_phase == PANVK_TESS_PHASE_TES;
++      const bool gs_psiz = gs->gs.output_verts_per_prim == 1 &&
++                           (gs->gs.outputs_written & VARYING_BIT_PSIZ);
+ 
+       struct pan_ptr gs_bufs = panvk_cmd_alloc_desc_array(
+          cmdbuf, PANVK_VARY_BUF_MAX + 1, ATTRIBUTE_BUFFER);
+@@ -672,17 +704,19 @@ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+       struct mali_attribute_buffer_packed *gs_descs = gs_bufs.cpu;
+       uint64_t gs_addrs[PANVK_VARY_BUF_MAX] = {0};
+       for (unsigned i = 0; i < PANVK_VARY_BUF_MAX; i++) {
+-         /* No point size: the emulation does not write one. */
++         /* Point size (jm-v7 033): fp32, only for a shader emitting
++          * points with gl_PointSize.
++          */
+          const uint32_t stride =
+             i == PANVK_VARY_BUF_GENERAL ? link->gs_out_stride
+-            : i == PANVK_VARY_BUF_PSIZ  ? 0
++            : i == PANVK_VARY_BUF_PSIZ  ? (gs_psiz ? 4 : 0)
+                                         : link->buf_strides[i];
+          const uint32_t sz = out_verts * stride;
+          /* Not the varying pool: the emulation writes with plain compute
+           * stores, the tiler only needs a pointer and a stride.
+           */
+          gs_addrs[i] =
+-            sz ? panvk_cmd_alloc_dev_mem(cmdbuf, desc, sz, 64).gpu : 0;
++            sz ? gs_alloc(cmdbuf, growable, sz, 64).gpu : 0;
+          if (sz && !gs_addrs[i])
+             return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+ 
+@@ -695,8 +729,21 @@ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+       memset(gs_bufs.cpu + (pan_size(ATTRIBUTE_BUFFER) * PANVK_VARY_BUF_MAX),
+              0, pan_size(ATTRIBUTE_BUFFER));
+ 
++      /* Per-viewport index lists after the full one (jm-v7 031). */
++      draw->vp_split = gs->gs.writes_viewport ? panvk_gs_vp_split(cmdbuf) : 0;
++      draw->gs_out_viewport = 0;
++      if (draw->vp_split) {
++         draw->gs_out_viewport =
++            gs_alloc(cmdbuf, growable, MAX2(out_verts, 1) * 4, 4)
++               .gpu;
++         if (!draw->gs_out_viewport)
++            return VK_ERROR_OUT_OF_DEVICE_MEMORY;
++      }
+       const uint64_t idx =
+-         panvk_cmd_alloc_dev_mem(cmdbuf, desc, MAX2(out_indices, 1) * 4, 4)
++         gs_alloc(cmdbuf, growable,
++                                 (uint64_t)MAX2(out_indices, 1) * 4 *
++                                    (1 + draw->vp_split),
++                                 4)
+             .gpu;
+       /* slot -> byte offset tables: the vertex shader's generic layout on
+        * the way in, the emulation's own on the way out.
+@@ -712,6 +759,7 @@ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+       draw->gs_varying_bufs = gs_bufs.gpu;
+       cmdbuf->state.gfx.gs.out_pos = gs_addrs[PANVK_VARY_BUF_POSITION];
+       cmdbuf->state.gfx.gs.out_general = gs_addrs[PANVK_VARY_BUF_GENERAL];
++      cmdbuf->state.gfx.gs.out_psiz = gs_addrs[PANVK_VARY_BUF_PSIZ];
+       cmdbuf->state.gfx.gs.out_index = idx;
+       cmdbuf->state.gfx.gs.in_offsets = offs.gpu;
+       cmdbuf->state.gfx.gs.out_offsets = offs.gpu + VARYING_SLOT_MAX * 4;
+@@ -742,14 +790,14 @@ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+           gs->gs.xfb_dwords && draw->info.layer_id == 0 && in_prims) {
+          const unsigned nstreams = util_last_bit(gs->gs.stream_mask);
+          const uint32_t slots = MAX2(out_verts, 1);
+-         struct pan_ptr counts = panvk_cmd_alloc_dev_mem(
+-            cmdbuf, desc, nstreams * in_prims * 4, 4);
+-         struct pan_ptr staging = panvk_cmd_alloc_dev_mem(
+-            cmdbuf, desc, nstreams * slots * gs->gs.xfb_dwords * 4, 4);
++         struct pan_ptr counts = gs_alloc(
++            cmdbuf, growable, nstreams * in_prims * 4, 4);
++         struct pan_ptr staging = gs_alloc(
++            cmdbuf, growable, nstreams * slots * gs->gs.xfb_dwords * 4, 4);
+          struct pan_ptr stream_index = {0};
+          if (nstreams > 1)
+-            stream_index = panvk_cmd_alloc_dev_mem(
+-               cmdbuf, desc, (nstreams - 1) * MAX2(out_indices, 1) * 4, 4);
++            stream_index = gs_alloc(
++               cmdbuf, growable, (nstreams - 1) * MAX2(out_indices, 1) * 4, 4);
+          if (!counts.gpu || !staging.gpu ||
+              (nstreams > 1 && !stream_index.gpu))
+             return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+@@ -1116,6 +1164,73 @@ panvk_emit_viewport(struct panvk_cmd_buffer *cmdbuf,
+    }
+ }
+ 
++/* jm-v7 031: the tiler clamps and clips depth to its one viewport's range,
++ * so a union of different depth ranges lets primitives through that their
++ * own viewport clamps or clips. When the viewports a GS may select have
++ * different depth ranges, each viewport gets its own index list and tiler
++ * job (panvk_gs_push::vp_split). Returns that viewport count, 0 when the
++ * union is exact (jm-v7 017).
++ *
++ * Limit: primitives are then rasterized per viewport, so two primitives of
++ * different viewports whose scissor boxes overlap are not drawn in API
++ * order.
++ */
++static uint32_t
++panvk_gs_vp_split(const struct panvk_cmd_buffer *cmdbuf)
++{
++   if (!panvk_multi_viewport_draw(cmdbuf))
++      return 0;
++
++   const struct vk_viewport_state *vp = &cmdbuf->vk.dynamic_graphics_state.vp;
++   const uint32_t n = MIN2(vp->viewport_count, PANVK_GS_MAX_VIEWPORTS);
++   float z0, z1;
++   panvk_viewport_depth_range_i(cmdbuf, 0, &z0, &z1);
++   for (uint32_t i = 1; i < n; i++) {
++      float a, b;
++      panvk_viewport_depth_range_i(cmdbuf, i, &a, &b);
++      if (a != z0 || b != z1)
++         return n;
++   }
++   return 0;
++}
++
++/* The VIEWPORT descriptor of viewport i alone: its scissor box and depth
++ * range (jm-v7 031). Returns false for an empty box: that viewport's tiler
++ * job is left out of the chain.
++ */
++static bool
++panvk_emit_viewport_i(struct panvk_cmd_buffer *cmdbuf, unsigned i,
++                      struct mali_viewport_packed *vpd)
++{
++   const struct vk_viewport_state *vp = &cmdbuf->vk.dynamic_graphics_state.vp;
++   float minz, maxz;
++   int minx, miny, maxx, maxy;
++
++   if (i == 0)
++      panvk_depth_range(&cmdbuf->state.gfx, vp, &minz, &maxz);
++   else
++      panvk_viewport_depth_range_i(cmdbuf, i, &minz, &maxz);
++   panvk_viewport_scissor_box(vp, i, &minx, &miny, &maxx, &maxy);
++
++   const bool empty = maxx <= minx || maxy <= miny;
++   maxx = maxx > minx ? maxx - 1 : maxx;
++   maxy = maxy > miny ? maxy - 1 : maxy;
++   minx = CLAMP(minx, 0, UINT16_MAX);
++   maxx = CLAMP(maxx, 0, UINT16_MAX);
++   miny = CLAMP(miny, 0, UINT16_MAX);
++   maxy = CLAMP(maxy, 0, UINT16_MAX);
++
++   pan_pack(vpd, VIEWPORT, cfg) {
++      cfg.scissor_minimum_x = minx;
++      cfg.scissor_minimum_y = miny;
++      cfg.scissor_maximum_x = maxx;
++      cfg.scissor_maximum_y = maxy;
++      cfg.minimum_z = minz;
++      cfg.maximum_z = maxz;
++   }
++   return !empty;
++}
++
+ static VkResult
+ panvk_draw_prepare_viewport(struct panvk_cmd_buffer *cmdbuf,
+                             struct panvk_draw_data *draw)
+@@ -1246,8 +1361,11 @@ panvk_emit_tiler_primitive(struct panvk_cmd_buffer *cmdbuf,
+    const struct vk_rasterization_state *rs = &dyns->rs;
+    const bool gs = draw->gs_varying_bufs != 0;
+    bool writes_point_size =
+-      !gs && vs->info.vs.writes_point_size &&
+-      ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
++      (gs && cmdbuf->state.gfx.gs.out_psiz) ||
++      (!gs && vs->info.vs.writes_point_size &&
++       (ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST ||
++        (draw->tess_phase == PANVK_TESS_PHASE_TES &&
++         draw->info.prim == MESA_PRIM_POINTS)));
+    bool secondary_shader = vs->info.vs.secondary_enable && fs != NULL;
+    assert(!(vs->info.outputs_written & VARYING_BIT_PRIMITIVE_ID));
+    bool fs_reads_primitive_id = fs ? fs->info.fs.reads_primitive_id : false;
+@@ -1256,7 +1374,9 @@ panvk_emit_tiler_primitive(struct panvk_cmd_buffer *cmdbuf,
+       cfg.draw_mode =
+          translate_prim(gs ? cmdbuf->state.gfx.gs.out_prim : draw->info.prim);
+       if (writes_point_size)
+-         cfg.point_size_array_format = MALI_POINT_SIZE_ARRAY_FORMAT_FP16;
++         cfg.point_size_array_format =
++            gs ? MALI_POINT_SIZE_ARRAY_FORMAT_FP32
++               : MALI_POINT_SIZE_ARRAY_FORMAT_FP16;
+       cfg.primitive_index_enable = fs_reads_primitive_id;
+       cfg.primitive_index_writeback = fs_reads_primitive_id;
+ 
+@@ -1312,17 +1432,19 @@ panvk_emit_tiler_primitive_size(struct panvk_cmd_buffer *cmdbuf,
+ {
+    const struct panvk_shader_variant *vs =
+       panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
+-   /* A tess eval shader in point mode writes gl_PointSize 1.0, but the API
+-    * topology is a patch list: panvk_emit_tiler_primitive() sets no point
+-    * size array, so the fixed size (1.0) is the one.
++   /* A tess eval shader in point mode draws points of its gl_PointSize
++    * (jm-v7 033): its draw's prim is POINTS. A geometry shader emitting
++    * points with gl_PointSize has its own size buffer (gs.out_psiz).
+     */
++   const bool gs_psiz =
++      draw->gs_varying_bufs && cmdbuf->state.gfx.gs.out_psiz;
+    const bool writes_point_size =
+-      !draw->gs_varying_bufs && draw->tess_phase != PANVK_TESS_PHASE_TES &&
+-      vs->info.vs.writes_point_size && draw->info.prim == MESA_PRIM_POINTS;
++      gs_psiz || (!draw->gs_varying_bufs && vs->info.vs.writes_point_size &&
++                  draw->info.prim == MESA_PRIM_POINTS);
+ 
+    pan_pack(primsz, PRIMITIVE_SIZE, cfg) {
+       if (writes_point_size) {
+-         cfg.size_array = draw->psiz;
++         cfg.size_array = gs_psiz ? cmdbuf->state.gfx.gs.out_psiz : draw->psiz;
+       } else {
+          cfg.fixed_sized = draw->line_width;
+       }
+@@ -1426,6 +1548,10 @@ set_provoking_vertex_mode(struct panvk_cmd_buffer *cmdbuf,
+       state->render.first_provoking_vertex = U_TRISTATE_YES;
+ }
+ 
++static void panvk_draw_fill_tiler_job(struct panvk_cmd_buffer *cmdbuf,
++                                      struct panvk_draw_data *draw,
++                                      struct pan_ptr ptr, uint64_t indices);
++
+ static VkResult
+ panvk_draw_prepare_tiler_job(struct panvk_cmd_buffer *cmdbuf,
+                              struct panvk_draw_data *draw)
+@@ -1450,10 +1576,58 @@ panvk_draw_prepare_tiler_job(struct panvk_cmd_buffer *cmdbuf,
+ 
+    draw->jobs.frag_copy_desc = ptr;
+ 
+-   ptr = panvk_cmd_alloc_desc(cmdbuf, TILER_JOB);
++   /* Per-viewport tiler jobs (jm-v7 031): one array, the emulation patches
++    * each one's index count.
++    */
++   const uint32_t njobs = draw->gs_varying_bufs && draw->vp_split
++                             ? draw->vp_split
++                             : 1;
++   ptr = njobs > 1 ? panvk_cmd_alloc_desc_array(cmdbuf, njobs, TILER_JOB)
++                   : panvk_cmd_alloc_desc(cmdbuf, TILER_JOB);
++   if (!ptr.gpu)
++      return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+    util_dynarray_append(&batch->jobs, ptr.cpu);
+    draw->jobs.tiler = ptr;
++   draw->vp_split_mask = 0;
++   if (njobs > 1) {
++      struct pan_ptr vps = panvk_cmd_alloc_desc_array(cmdbuf, njobs, VIEWPORT);
++      if (!vps.gpu)
++         return VK_ERROR_OUT_OF_DEVICE_MEMORY;
++      const uint64_t union_vp = draw->viewport;
++      for (uint32_t i = 0; i < njobs; i++) {
++         struct pan_ptr job = {
++            .cpu = (uint8_t *)ptr.cpu + i * pan_size(TILER_JOB),
++            .gpu = ptr.gpu + i * pan_size(TILER_JOB),
++         };
++         if (i)
++            util_dynarray_append(&batch->jobs, job.cpu);
++         struct mali_viewport_packed *vpd =
++            (struct mali_viewport_packed *)((uint8_t *)vps.cpu +
++                                            i * pan_size(VIEWPORT));
++         if (panvk_emit_viewport_i(cmdbuf, i, vpd))
++            draw->vp_split_mask |= BITFIELD_BIT(i);
++         draw->viewport = vps.gpu + i * pan_size(VIEWPORT);
++         panvk_draw_fill_tiler_job(
++            cmdbuf, draw, job,
++            cmdbuf->state.gfx.gs.out_index +
++               (uint64_t)(1 + i) * cmdbuf->state.gfx.gs.out_index_count * 4);
++      }
++      draw->viewport = union_vp;
++      return VK_SUCCESS;
++   }
+ 
++   panvk_draw_fill_tiler_job(cmdbuf, draw, ptr, 0);
++   return VK_SUCCESS;
++}
++
++/* The tiler job of a draw at job; indices, when not 0, replaces the
++ * emulation's index list (a per-viewport copy).
++ */
++static void
++panvk_draw_fill_tiler_job(struct panvk_cmd_buffer *cmdbuf,
++                          struct panvk_draw_data *draw, struct pan_ptr ptr,
++                          uint64_t indices)
++{
+    if (draw->gs_varying_bufs) {
+       /* The tiler iterates the geometry shader's output. */
+       pan_pack_work_groups_compute(
+@@ -1466,6 +1640,12 @@ panvk_draw_prepare_tiler_job(struct panvk_cmd_buffer *cmdbuf,
+ 
+    panvk_emit_tiler_primitive(cmdbuf, draw,
+                               pan_section_ptr(ptr.cpu, TILER_JOB, PRIMITIVE));
++   if (indices) {
++      /* PRIMITIVE.Indices (words 4-5, Bifrost): the per-viewport copy. */
++      uint32_t *prim = pan_section_ptr(ptr.cpu, TILER_JOB, PRIMITIVE);
++      prim[4] = (uint32_t)indices;
++      prim[5] = (uint32_t)(indices >> 32);
++   }
+ 
+    panvk_emit_tiler_primitive_size(
+       cmdbuf, draw, pan_section_ptr(ptr.cpu, TILER_JOB, PRIMITIVE_SIZE));
+@@ -1480,8 +1660,6 @@ panvk_draw_prepare_tiler_job(struct panvk_cmd_buffer *cmdbuf,
+ 
+    pan_section_pack(ptr.cpu, TILER_JOB, PADDING, padding)
+       ;
+-
+-   return VK_SUCCESS;
+ }
+ 
+ static VkResult
+@@ -1645,7 +1823,7 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+     * pilot shader dealing with descriptor copies, and we need one
+     * <vertex,tiler> pair per draw.
+     */
+-   if (batch->vtc_jc.job_index + (4 * cmdbuf->state.gfx.render.layer_count) >=
++   if (batch->vtc_jc.job_index + ((5 + PANVK_GS_MAX_VIEWPORTS) * cmdbuf->state.gfx.render.layer_count) >=
+        UINT16_MAX) {
+       panvk_per_arch(cmd_close_batch)(cmdbuf);
+       batch = panvk_per_arch(cmd_open_batch)(cmdbuf);
+@@ -1988,6 +2166,42 @@ emit_gs_job(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw,
+    if (!in_prims)
+       return dep_job_id;
+ 
++   /* Primitive restart (jm-v7 030): the emulation assembles strips and fans
++    * by position, so a restart-free list of the draw's primitives is built
++    * first (panlib_v7_gs_restart_list()), and the emulation draws that list.
++    * Indexed draws always take the indirect path here.
++    */
++   uint64_t index_buf =
++      draw->info.index.index_size ? draw->info.index.buffer_dev_addr : 0;
++   uint32_t index_size = draw->info.index.index_size;
++   uint32_t topology = gs_topology(draw->info.prim);
++   uint64_t indirect_cmd = indirect ? draw->info.indirect.buffer_dev_addr : 0;
++   const uint32_t in_vpp = gs->gs.input_verts_per_prim;
++   if (index_size && draw->info.index.restart_enable &&
++       topology != PANVK_GS_TOPO_LIST && in_vpp && indirect_cmd) {
++      /* Primitives per instance never exceed the dispatched total. */
++      const uint32_t cap = in_prims;
++      struct pan_ptr list = panvk_cmd_alloc_dev_mem(
++         cmdbuf, desc, (uint64_t)cap * in_vpp * sizeof(uint32_t), 4);
++      struct pan_ptr cmd = panvk_cmd_alloc_dev_mem(
++         cmdbuf, desc, sizeof(VkDrawIndexedIndirectCommand), 16);
++      if (!list.gpu || !cmd.gpu)
++         return 0;
++
++      struct panvk_precomp_ctx ctx = panvk_per_arch(precomp_cs)(cmdbuf);
++      /* A barrier: the command may come from earlier GPU work. */
++      panlib_v7_gs_restart_list(
++         &ctx, panlib_1d(1), PANLIB_BARRIER_JM_BARRIER, list.gpu, cmd.gpu,
++         indirect_cmd, draw->info.index.buffer_dev_addr,
++         draw->info.index.buffer_size / index_size, index_size, topology,
++         in_vpp, cap);
++
++      index_buf = list.gpu;
++      index_size = 4;
++      topology = PANVK_GS_TOPO_LIST;
++      indirect_cmd = cmd.gpu;
++   }
++
+    /* gl_ViewportIndex (jm-v7 017): each viewport's transform and scissor
+     * box. An index past viewportCount (undefined) uses the last viewport.
+     */
+@@ -2080,11 +2294,9 @@ emit_gs_job(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw,
+       /* Indexed draws always take the indirect path here: index_buf is the
+        * buffer base, the command supplies firstIndex.
+        */
+-      .index_buf = draw->info.index.index_size
+-                      ? draw->info.index.buffer_dev_addr
+-                      : 0,
+-      .index_size = draw->info.index.index_size,
+-      .topology = gs_topology(draw->info.prim),
++      .index_buf = index_buf,
++      .index_size = index_size,
++      .topology = topology,
+       .prims_per_instance =
+          indirect ? 0
+                   : gs_prims_per_instance(draw->info.prim,
+@@ -2093,7 +2305,7 @@ emit_gs_job(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw,
+          !indirect && draw->info.instance.count > 1
+             ? draw->padded_vertex_count
+             : 0,
+-      .indirect_cmd = indirect ? draw->info.indirect.buffer_dev_addr : 0,
++      .indirect_cmd = indirect_cmd,
+       .in_pos_desc = indirect ? draw->varying_bufs +
+                                    PANVK_VARY_BUF_POSITION *
+                                       pan_size(ATTRIBUTE_BUFFER)
+@@ -2122,6 +2334,17 @@ emit_gs_job(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw,
+       .pstats = pstats,
+       .polygon_cull = gs->gs.polygon ? v7_polygon_cull(cmdbuf) : 0,
+       .viewports = viewports,
++      .out_viewport = draw->gs_out_viewport,
++      .vp_split = draw->vp_split,
++      .index_region = cmdbuf->state.gfx.gs.out_index_count,
++      .tiler_job_stride = pan_size(TILER_JOB),
++      .in_psiz = cmdbuf->state.gfx.gs.in_psiz,
++      .in_psiz_desc = indirect && cmdbuf->state.gfx.gs.in_psiz
++                         ? draw->varying_bufs +
++                              PANVK_VARY_BUF_PSIZ * pan_size(ATTRIBUTE_BUFFER)
++                         : 0,
++      .in_psiz_stride = link->buf_strides[PANVK_VARY_BUF_PSIZ],
++      .out_psiz = cmdbuf->state.gfx.gs.out_psiz,
+       .viewport_scale = {gfx_sysvals->viewport.scale.x,
+                          gfx_sysvals->viewport.scale.y,
+                          gfx_sysvals->viewport.scale.z},
+@@ -2342,6 +2565,12 @@ emit_tess_tcs_job(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw,
+                                   pan_section_offset(COMPUTE_JOB, DRAW)
+                              : 0,
+       .index_min = draw->index_min_addr,
++      .in_psiz = cmdbuf->state.gfx.gs.in_psiz,
++      .in_psiz_desc = indirect && cmdbuf->state.gfx.gs.in_psiz
++                         ? draw->varying_bufs +
++                              PANVK_VARY_BUF_PSIZ * pan_size(ATTRIBUTE_BUFFER)
++                         : 0,
++      .in_psiz_stride = link->buf_strides[PANVK_VARY_BUF_PSIZ],
+       .in_screen_space = !vs->gs.vs_clip_space,
+       .viewport_scale = {gfx_sysvals->viewport.scale.x,
+                          gfx_sysvals->viewport.scale.y,
+@@ -2423,6 +2652,30 @@ static void panvk_tess_draw(struct panvk_cmd_buffer *cmdbuf,
+  * emulation counts its own output (panvk_nir_lower_gs.c). vk_meta draws are
+  * not counted.
+  */
++/* The draw's tiler job, or its per-viewport tiler jobs (jm-v7 031, those
++ * with a non-empty scissor box), after dep_job_id.
++ */
++static void
++add_tiler_jobs(struct panvk_batch *batch, struct panvk_draw_data *draw,
++               unsigned dep_job_id, bool suppress_prefetch)
++{
++   if (!draw->gs_varying_bufs || !draw->vp_split) {
++      pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_TILER, false,
++                     suppress_prefetch, dep_job_id, 0, &draw->jobs.tiler,
++                     false);
++      return;
++   }
++
++   u_foreach_bit(i, draw->vp_split_mask) {
++      struct pan_ptr job = {
++         .cpu = (uint8_t *)draw->jobs.tiler.cpu + i * pan_size(TILER_JOB),
++         .gpu = draw->jobs.tiler.gpu + i * pan_size(TILER_JOB),
++      };
++      pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_TILER, false,
++                     suppress_prefetch, dep_job_id, 0, &job, false);
++   }
++}
++
+ static void
+ v7_count_draw_queries(struct panvk_cmd_buffer *cmdbuf,
+                       const struct panvk_draw_data *draw)
+@@ -2589,10 +2842,8 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+                emit_xfb_jobs(cmdbuf, vjob_id);
+          }
+ 
+-         if (draw->jobs.tiler.gpu != 0) {
+-            pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_TILER, false, false,
+-                           vjob_id, 0, &draw->jobs.tiler, false);
+-         }
++         if (draw->jobs.tiler.gpu != 0)
++            add_tiler_jobs(batch, draw, vjob_id, false);
+       }
+    }
+ 
+@@ -2841,10 +3092,8 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+                emit_xfb_jobs(cmdbuf, vjob_id);
+          }
+ 
+-         if (draw->jobs.tiler.gpu != 0) {
+-            pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_TILER, false, gs,
+-                           vjob_id, 0, &draw->jobs.tiler, false);
+-         }
++         if (draw->jobs.tiler.gpu != 0)
++            add_tiler_jobs(batch, draw, vjob_id, gs);
+       }
+    }
+ 
+@@ -2875,7 +3124,7 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+ static uint32_t
+ panvk_tess_draw_jobs(uint32_t layers)
+ {
+-   return 32 + 16 * layers;
++   return 32 + 24 * layers;
+ }
+ 
+ /*
+diff --git a/src/panfrost/vulkan/panvk_cmd_draw.h b/src/panfrost/vulkan/panvk_cmd_draw.h
+index 6b8e32e..3baa3b1 100644
+--- a/src/panfrost/vulkan/panvk_cmd_draw.h
++++ b/src/panfrost/vulkan/panvk_cmd_draw.h
+@@ -268,6 +268,11 @@ struct panvk_cmd_graphics_state {
+       uint64_t out_general;
+       uint64_t out_index;
+       uint64_t in_general;
++      /* gl_PointSize (jm-v7 033): the vertex shader's fp16 point sizes
++       * (0 when it writes none) and the emulation's, for point output.
++       */
++      uint64_t in_psiz;
++      uint64_t out_psiz;
+       uint64_t in_offsets;
+       uint64_t out_offsets;
+       uint64_t viewports;
+diff --git a/src/panfrost/vulkan/panvk_cmd_pool.c b/src/panfrost/vulkan/panvk_cmd_pool.c
+index 358b5bf..03eaf9a 100644
+--- a/src/panfrost/vulkan/panvk_cmd_pool.c
++++ b/src/panfrost/vulkan/panvk_cmd_pool.c
+@@ -41,6 +41,7 @@ panvk_CreateCommandPool(VkDevice _device,
+    panvk_bo_pool_init(&pool->cs_bo_pool);
+    panvk_bo_pool_init(&pool->desc_bo_pool);
+    panvk_bo_pool_init(&pool->varying_bo_pool);
++   panvk_bo_pool_init(&pool->gs_bo_pool);
+    panvk_bo_pool_init(&pool->tls_bo_pool);
+    panvk_bo_pool_init(&pool->tls_big_bo_pool);
+    list_inithead(&pool->push_sets);
+@@ -63,6 +64,7 @@ panvk_DestroyCommandPool(VkDevice _device, VkCommandPool commandPool,
+    panvk_bo_pool_cleanup(&pool->cs_bo_pool);
+    panvk_bo_pool_cleanup(&pool->desc_bo_pool);
+    panvk_bo_pool_cleanup(&pool->varying_bo_pool);
++   panvk_bo_pool_cleanup(&pool->gs_bo_pool);
+    panvk_bo_pool_cleanup(&pool->tls_bo_pool);
+    panvk_bo_pool_cleanup(&pool->tls_big_bo_pool);
+ 
+diff --git a/src/panfrost/vulkan/panvk_cmd_pool.h b/src/panfrost/vulkan/panvk_cmd_pool.h
+index 9c17320..fe4b213 100644
+--- a/src/panfrost/vulkan/panvk_cmd_pool.h
++++ b/src/panfrost/vulkan/panvk_cmd_pool.h
+@@ -15,6 +15,8 @@ struct panvk_cmd_pool {
+    struct panvk_bo_pool cs_bo_pool;
+    struct panvk_bo_pool desc_bo_pool;
+    struct panvk_bo_pool varying_bo_pool;
++   /* Growable GPU-only memory for large geometry emulation buffers (jm-v7 033). */
++   struct panvk_bo_pool gs_bo_pool;
+    struct panvk_bo_pool tls_bo_pool;
+    struct panvk_bo_pool tls_big_bo_pool;
+    struct list_head push_sets;
+diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
+index 9a13586..f4a15a1 100644
+--- a/src/panfrost/vulkan/panvk_device.h
++++ b/src/panfrost/vulkan/panvk_device.h
+@@ -41,7 +41,7 @@
+  * and 18 attributes per vertex (16 user attributes, 2 specials)
+  */
+ 
+-#define PANVK_JM_MAX_VERTICES_INDIRECT                (2000000)
++#define PANVK_JM_MAX_VERTICES_INDIRECT                (4000000)
+ #define PANVK_JM_MAX_PER_VTX_ATTRIBUTES_INDIRECT_SIZE (18 * 4)
+ 
+ struct panvk_precomp_cache;
+diff --git a/src/panfrost/vulkan/panvk_gs.h b/src/panfrost/vulkan/panvk_gs.h
+index 577788b..0776504 100644
+--- a/src/panfrost/vulkan/panvk_gs.h
++++ b/src/panfrost/vulkan/panvk_gs.h
+@@ -154,6 +154,27 @@ struct panvk_gs_push {
+     * (all streams), clipping invocations and clipping primitives (stream 0).
+     */
+    uint64_t pstats;
++   /* Per-viewport rasterization (jm-v7 031): when the selectable viewports'
++    * depth ranges differ, the tiler cannot clamp/clip with a union. vp_split
++    * viewports then each get a copy of the index list (index_region entries
++    * apart, after the full list at out_index) holding only their primitives,
++    * and a tiler job of their own. out_viewport holds the viewport index of
++    * every output vertex slot; the tiler jobs are tiler_job_stride bytes
++    * apart. vp_split 0: one tiler job with the union (jm-v7 017).
++    */
++   uint64_t out_viewport;
++   uint32_t vp_split;
++   uint32_t index_region;
++   uint32_t tiler_job_stride;
++   /* gl_PointSize (jm-v7 033): the vertex shader's fp16 point sizes,
++    * in_psiz_stride bytes apart (in_psiz 0: it writes none, reads 1.0; an
++    * indirect draw's buffer is in the patched descriptor in_psiz_desc), and
++    * the emulation's own for point output (0: none).
++    */
++   uint32_t in_psiz_stride;
++   uint64_t in_psiz;
++   uint64_t in_psiz_desc;
++   uint64_t out_psiz;
+ };
+ 
+ /* gl_ViewportIndex, carried from the emulation to the fragment shader in a
+@@ -273,11 +294,11 @@ bool panvk_nir_lower_gs(struct nir_shader *nir,
+  * live in one device arena (panvk_device::tess_arena), reused by every
+  * tessellated draw: each draw's first arena write is a barrier job.
+  */
+-#define PANVK_TESS_HEAP_SIZE (64u << 20)
++#define PANVK_TESS_HEAP_SIZE (160u << 20)
+ /* Tessellator indices one draw keeps, at most. Whole patches past it are
+  * dropped (panlib_v7_tess_prefix).
+  */
+-#define PANVK_TESS_MAX_INDICES (1u << 20)
++#define PANVK_TESS_MAX_INDICES (1u << 23)
+ /* Patches one draw tessellates, at most: the tessellator grid and the serial
+  * prefix sum are sized for it.
+  */
+@@ -286,7 +307,7 @@ bool panvk_nir_lower_gs(struct nir_shader *nir,
+  * the geometry emulation of the generated draw is sized for this many input
+  * primitives (instead of PANVK_GS_INDIRECT_MAX_PRIMS).
+  */
+-#define PANVK_TESS_GS_MAX_PRIMS 8192u
++#define PANVK_TESS_GS_MAX_PRIMS (1u << 21)
+ #define PANVK_TESS_UNSET 0xff
+ 
+ /* What the draw path needs from a tess control or tess eval shader. The
+diff --git a/src/panfrost/vulkan/panvk_nir_lower_gs.c b/src/panfrost/vulkan/panvk_nir_lower_gs.c
+index 4d2db6d..a643221 100644
+--- a/src/panfrost/vulkan/panvk_nir_lower_gs.c
++++ b/src/panfrost/vulkan/panvk_nir_lower_gs.c
+@@ -89,6 +89,10 @@ struct lower_gs_state {
+    /* gl_ViewportIndex: the shader's variable, and the per-viewport table. */
+    nir_variable *viewport_var;
+    nir_def *viewports;
++   /* Per-viewport index lists (jm-v7 031), see panvk_gs_push::vp_split. */
++   nir_def *vp_split, *index_region, *out_viewport;
++   /* gl_PointSize (jm-v7 033), see panvk_gs_push::in_psiz. */
++   nir_def *in_psiz, *in_psiz_stride, *out_psiz;
+    /* gl_PrimitiveIDIn (per instance) and gl_InvocationID. */
+    nir_def *prim_id;
+    nir_def *invocation_id;
+@@ -394,6 +398,24 @@ load_direct_bias(nir_builder *b, const struct panvk_gs_lower_options *opts,
+    return nir_if_phi(b, v, zero);
+ }
+ 
++/* The vertex shader's point sizes (jm-v7 033): an indirect draw's from the
++ * patched descriptor. 0 when it writes none.
++ */
++static nir_def *
++load_in_psiz(nir_builder *b, const struct panvk_gs_lower_options *opts,
++             nir_def *indirect_cmd)
++{
++   nir_def *direct =
++      load_param_u64(b, opts, offsetof(struct panvk_gs_push, in_psiz));
++   nir_def *desc =
++      load_param_u64(b, opts, offsetof(struct panvk_gs_push, in_psiz_desc));
++   nir_push_if(b, nir_iand(b, nir_ine_imm(b, indirect_cmd, 0),
++                           nir_ine_imm(b, desc, 0)));
++   nir_def *ind = desc_pointer(b, desc);
++   nir_pop_if(b, NULL);
++   return nir_if_phi(b, ind, direct);
++}
++
+ /* Which of the vertex shader's varying records is vertex i of this
+  * invocation's input primitive: primitive assembly, then the index buffer,
+  * then the instance.
+@@ -518,6 +540,25 @@ lower_per_vertex_input(nir_builder *b, nir_intrinsic_instr *intr,
+       return nir_vec(b, c, intr->def.num_components);
+    }
+ 
++   /* gl_in[i].gl_PointSize (jm-v7 033): the fp16 point size buffer, 1.0
++    * when the vertex shader writes none.
++    */
++   if (sem.location == VARYING_SLOT_PSIZ && intr->def.bit_size == 32) {
++      nir_def *one = nir_imm_float(b, 1.0f);
++      nir_push_if(b, nir_ine_imm(b, st->in_psiz, 0));
++      nir_def *addr = nir_iadd(
++         b, st->in_psiz, nir_u2u64(b, nir_imul(b, vtx, st->in_psiz_stride)));
++      nir_def *word = nir_load_global(b, 1, 32, nir_iand_imm(b, addr, ~3ull),
++                                      .align_mul = 4);
++      nir_def *shift =
++         nir_imul_imm(b, nir_u2u32(b, nir_iand_imm(b, addr, 2)), 8);
++      nir_def *h = nir_u2u16(b, nir_ushr(b, word, shift));
++      nir_def *size = nir_f2f32(b, h);
++      nir_pop_if(b, NULL);
++      nir_def *v = nir_if_phi(b, size, one);
++      return nir_replicate(b, v, intr->def.num_components);
++   }
++
+    /* An input array element: the io semantics name the variable's first
+     * location and src[1] the slot within it. The geometry shader lowers
+     * indirect input derefs first, a tess control shader may index an input
+@@ -577,6 +618,35 @@ stream_index_entry(nir_builder *b, struct lower_gs_state *st, unsigned s,
+    return nir_iadd(b, st->stream_index, nir_u2u64(b, nir_imul_imm(b, e, 4)));
+ }
+ 
++/* Per-viewport index lists (jm-v7 031): with vp_split viewports, the
++ * rasterized index list is repeated after the full one (which transform
++ * feedback reads), once per viewport, and a primitive is also listed in the
++ * copy of the viewport its first vertex (vp_slot) selected. Each copy is
++ * drawn by its own tiler job, with that viewport's scissor and depth range.
++ */
++static void
++store_split_index(nir_builder *b, struct lower_gs_state *st, nir_def *vp_slot,
++                  nir_def *entry, nir_def *v)
++{
++   if (!st->viewport_var)
++      return;
++
++   nir_push_if(b, nir_ine_imm(b, st->vp_split, 0));
++   {
++      nir_def *vp = nir_load_global(
++         b, 1, 32,
++         nir_iadd(b, st->out_viewport, nir_u2u64(b, nir_imul_imm(b, vp_slot, 4))),
++         .align_mul = 4);
++      vp = nir_umin(b, vp, nir_iadd_imm(b, st->vp_split, -1));
++      nir_def *e = nir_iadd(b, nir_iadd(b, st->out_idx_base, entry),
++                            nir_imul(b, nir_iadd_imm(b, vp, 1), st->index_region));
++      nir_store_global(b, v,
++                       nir_iadd(b, st->out_index, nir_u2u64(b, nir_imul_imm(b, e, 4))),
++                       .align_mul = 4, .write_mask = 0x1);
++   }
++   nir_pop_if(b, NULL);
++}
++
+ static nir_def *
+ stream_count_addr(nir_builder *b, struct lower_gs_state *st, unsigned s)
+ {
+@@ -641,6 +711,17 @@ lower_emit_vertex(nir_builder *b, nir_intrinsic_instr *intr,
+                   load_components(b, xf, nir_imm_int(b, 12), 3, 32);
+                val = clip_to_screen_xf(b, clip, scale, offset);
+ 
++               /* Per-viewport index lists: EndPrimitive needs the viewport
++                * of each vertex it lists.
++                */
++               nir_push_if(b, nir_ine_imm(b, st->vp_split, 0));
++               nir_store_global(
++                  b, idx,
++                  nir_iadd(b, st->out_viewport,
++                           nir_u2u64(b, nir_imul_imm(b, slot, 4))),
++                  .align_mul = 4, .write_mask = 0x1);
++               nir_pop_if(b, NULL);
++
+                /* multiViewport (jm-v7 017): the tiler only has one scissor
+                 * box (the union), so the selected viewport's scissor is a
+                 * clip-distance kill in the FS. d >= 0 inside; times clip w
+@@ -676,6 +757,25 @@ lower_emit_vertex(nir_builder *b, nir_intrinsic_instr *intr,
+             continue;
+          }
+ 
++         /* gl_PointSize of an emitted point (jm-v7 033): fp32, the tiler
++          * reads it as a FP32 point size array.
++          */
++         if (loc == VARYING_SLOT_PSIZ) {
++            if (opts->output_verts_per_prim == 1 && !var->data.compact) {
++               nir_def *size = nir_channel(b, nir_load_var(b, var), 0);
++               if (size->bit_size == 32) {
++                  nir_push_if(b, nir_ine_imm(b, st->out_psiz, 0));
++                  nir_store_global(
++                     b, size,
++                     nir_iadd(b, st->out_psiz,
++                              nir_u2u64(b, nir_imul_imm(b, slot, 4))),
++                     .align_mul = 4, .write_mask = 0x1);
++                  nir_pop_if(b, NULL);
++               }
++            }
++            continue;
++         }
++
+          /* gl_ViewportIndex goes on to the fragment shader. */
+          if (loc == VARYING_SLOT_VIEWPORT) {
+             nir_def *offset =
+@@ -743,6 +843,7 @@ lower_emit_vertex(nir_builder *b, nir_intrinsic_instr *intr,
+             nir_u2u64(b, nir_imul_imm(b, nir_iadd(b, st->out_idx_base, counter),
+                                       4)));
+          nir_store_global(b, slot, addr, .align_mul = 4, .write_mask = 0x1);
++         store_split_index(b, st, slot, counter, slot);
+          nir_def *written = nir_iadd_imm(b, counter, 1);
+          nir_store_var(b, st->prims_written[0], written, 1);
+          if (st->xfb_dwords) {
+@@ -835,6 +936,8 @@ lower_end_primitive(nir_builder *b, nir_intrinsic_instr *intr,
+          nir_def *addr =
+             stream_index_entry(b, st, stream, nir_iadd_imm(b, idx_entry, k));
+          nir_store_global(b, v, addr, .align_mul = 4, .write_mask = 0x1);
++         if (stream == 0)
++            store_split_index(b, st, vbase, nir_iadd_imm(b, idx_entry, k), v);
+       }
+ 
+       nir_store_var(b, i, nir_iadd_imm(b, iv, 1), 1);
+@@ -867,17 +970,29 @@ emit_degenerate_fill(nir_builder *b, struct lower_gs_state *st)
+       nir_local_variable_create(b->impl, glsl_uint_type(), "gs_fill_i");
+    nir_store_var(b, i, nir_imm_int(b, 0), 1);
+ 
++   /* The per-viewport copies too (store_split_index()). */
++   nir_def *limit = nir_imm_int(b, total);
++   if (st->viewport_var)
++      limit = nir_imul_imm(b, nir_iadd_imm(b, st->vp_split, 1), total);
++
+    nir_push_loop(b);
+    {
+       nir_def *iv = nir_load_var(b, i);
+-      nir_push_if(b, nir_uge_imm(b, iv, total));
++      nir_push_if(b, nir_uge(b, iv, limit));
+       nir_jump(b, nir_jump_break);
+       nir_pop_if(b, NULL);
+ 
++      nir_def *entry = iv;
++      if (st->viewport_var && total) {
++         nir_def *region = nir_udiv_imm(b, iv, total);
++         entry = nir_iadd(b, nir_isub(b, iv, nir_imul_imm(b, region, total)),
++                          nir_imul(b, region, st->index_region));
++      }
++
+       /* All indices equal => zero area => culled. */
+       nir_def *addr = nir_iadd(
+          b, st->out_index,
+-         nir_u2u64(b, nir_imul_imm(b, nir_iadd(b, st->out_idx_base, iv), 4)));
++         nir_u2u64(b, nir_imul_imm(b, nir_iadd(b, st->out_idx_base, entry), 4)));
+       nir_store_global(b, st->out_vtx_base, addr, .align_mul = 4,
+                        .write_mask = 0x1);
+ 
+@@ -996,8 +1111,12 @@ panvk_nir_lower_gs(nir_shader *nir, const struct panvk_gs_lower_options *opts)
+    st.out_clip_space = P32(out_clip_space);
+    st.viewport_var = nir_find_variable_with_location(nir, nir_var_shader_out,
+                                                      VARYING_SLOT_VIEWPORT);
+-   if (st.viewport_var)
++   if (st.viewport_var) {
+       st.viewports = P64(viewports);
++      st.vp_split = P32(vp_split);
++      st.index_region = P32(index_region);
++      st.out_viewport = P64(out_viewport);
++   }
+    st.in_general_stride = P32(in_general_stride);
+    st.out_general_stride = P32(out_general_stride);
+    st.tess_params = P64(tess_params);
+@@ -1099,6 +1218,9 @@ panvk_nir_lower_gs(nir_shader *nir, const struct panvk_gs_lower_options *opts)
+    st.index_bias = nir_if_phi(&b, bias_ind, bias_direct);
+    st.in_pos = nir_if_phi(&b, pos_ind, in_pos_direct);
+    st.in_general = nir_if_phi(&b, gen_ind, in_general_direct);
++   st.in_psiz = load_in_psiz(&b, opts, indirect_cmd);
++   st.in_psiz_stride = P32(in_psiz_stride);
++   st.out_psiz = P64(out_psiz);
+ 
+    /* A count only the GPU knows (the tessellator's index count). After the
+     * phis above: nir_if_phi merges the if just closed.
+@@ -1133,6 +1255,31 @@ panvk_nir_lower_gs(nir_shader *nir, const struct panvk_gs_lower_options *opts)
+                        nir_imm_int(&b, MAX2(opts->output_verts_per_prim, 1)));
+       nir_store_global(&b, nir_iadd_imm(&b, count, -1), tiler_count_addr,
+                        .align_mul = 4, .write_mask = 0x1);
++
++      /* Per-viewport tiler jobs (jm-v7 031): an array, tiler_job_stride
++       * bytes apart, the first one at tiler_index_count.
++       */
++      if (st.viewport_var) {
++         nir_def *n = st.vp_split;
++         nir_def *stride = P32(tiler_job_stride);
++         nir_variable *k =
++            nir_local_variable_create(b.impl, glsl_uint_type(), "gs_tiler_k");
++         nir_store_var(&b, k, nir_imm_int(&b, 1), 1);
++         nir_push_loop(&b);
++         {
++            nir_def *kv = nir_load_var(&b, k);
++            nir_push_if(&b, nir_uge(&b, kv, n));
++            nir_jump(&b, nir_jump_break);
++            nir_pop_if(&b, NULL);
++            nir_store_global(
++               &b, nir_iadd_imm(&b, count, -1),
++               nir_iadd(&b, tiler_count_addr,
++                        nir_u2u64(&b, nir_imul(&b, kv, stride))),
++               .align_mul = 4, .write_mask = 0x1);
++            nir_store_var(&b, k, nir_iadd_imm(&b, kv, 1), 1);
++         }
++         nir_pop_loop(&b, NULL);
++      }
+    }
+    nir_pop_if(&b, NULL);
+ #undef P64
+@@ -1290,6 +1437,8 @@ panvk_nir_lower_tcs_inputs(nir_shader *nir,
+    st.instance_stride = nir_if_phi(&b, in.stride, instance_stride);
+    st.in_pos = nir_if_phi(&b, in.pos, in_pos);
+    st.in_general = nir_if_phi(&b, in.gen, in_general);
++   st.in_psiz = load_in_psiz(&b, opts, indirect_cmd);
++   st.in_psiz_stride = P32(in_psiz_stride);
+    st.tess_params = P64(tess_params);
+ #undef P64
+ #undef P32
+diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
+index 1a0122a..455d67e 100644
+--- a/src/panfrost/vulkan/panvk_vX_physical_device.c
++++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
+@@ -361,7 +361,8 @@ panvk_per_arch(get_physical_device_features)(
+          (PAN_ARCH >= 9 && instance->drirc.misc.enable_vertex_pipeline_stores_atomics) ||
+          instance->drirc.misc.force_enable_shader_atomics,
+       .fragmentStoresAndAtomics = true,
+-      .shaderTessellationAndGeometryPointSize = PAN_ARCH >= 10,
++      /* v6/v7: jm-v7 033 (TES point size, GS point output size). */
++      .shaderTessellationAndGeometryPointSize = PAN_ARCH < 9 || PAN_ARCH >= 10,
+       .shaderImageGatherExtended = true,
+       .shaderStorageImageExtendedFormats = true,
+       .shaderStorageImageMultisample = false,
+@@ -454,7 +455,8 @@ panvk_per_arch(get_physical_device_features)(
+       .vulkanMemoryModel = true,
+       .vulkanMemoryModelDeviceScope = true,
+       .vulkanMemoryModelAvailabilityVisibilityChains = true,
+-      .shaderOutputViewportIndex = PAN_ARCH >= 9,
++      /* v6/v7: through the geometry emulation (jm-v7 032). */
++      .shaderOutputViewportIndex = true,
+       .shaderOutputLayer = PAN_ARCH >= 10,
+       .subgroupBroadcastDynamicId = true,
+ 
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index 03ff3e3..3281a94 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -3430,6 +3430,26 @@ panvk_vs_wants_xfb_passthrough(const struct vk_shader_compile_info *info)
+    return panvk_gs_xfb_table(info->nir->xfb_info, table) > 0;
+ }
+ 
++/* A VS or TES that is the last pre-raster stage and writes gl_ViewportIndex
++ * (jm-v7 032, shaderOutputViewportIndex).
++ */
++static bool
++panvk_v7_vs_writes_viewport(const struct vk_shader_compile_info *info)
++{
++   if (info->stage != MESA_SHADER_VERTEX &&
++       info->stage != MESA_SHADER_TESS_EVAL)
++      return false;
++   if (info->next_stage_mask & (VK_SHADER_STAGE_GEOMETRY_BIT |
++                                VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT))
++      return false;
++
++   nir_foreach_shader_out_variable(var, info->nir) {
++      if (var->data.location == VARYING_SLOT_VIEWPORT)
++         return true;
++   }
++   return false;
++}
++
+ static void
+ panvk_vs_store_xfb(struct panvk_shader_variant *variant,
+                    const nir_xfb_info *xfb)
+@@ -3535,8 +3555,8 @@ panvk_build_passthrough_gs(const struct panvk_shader_variant *vs,
+       nir->info.has_transform_feedback_varyings = true;
+    }
+ 
+-   nir_variable *in_vars[PAN_MAX_VARYINGS + 1], *out_vars[PAN_MAX_VARYINGS + 1];
+-   nir_alu_type types[PAN_MAX_VARYINGS + 1];
++   nir_variable *in_vars[PAN_MAX_VARYINGS + 2], *out_vars[PAN_MAX_VARYINGS + 2];
++   nir_alu_type types[PAN_MAX_VARYINGS + 2];
+    unsigned n = 0;
+ 
+    /* gl_Position always: the emulation reads it from the position buffer. */
+@@ -3577,10 +3597,26 @@ panvk_build_passthrough_gs(const struct panvk_shader_variant *vs,
+          glsl_vector_type(nir_get_glsl_base_type_for_nir_type(base | 32),
+                           ncomps),
+          "out_slot");
+-      out_vars[n]->data.location = slot->location;
++      /* A VS/TES gl_ViewportIndex (jm-v7 032) selects the viewport again. */
++      out_vars[n]->data.location =
++         slot->location == PANVK_GS_VIEWPORT_INDEX_SLOT ? VARYING_SLOT_VIEWPORT
++                                                        : slot->location;
+       types[n++] = base | bits;
+    }
+ 
++   /* Points keep the vertex shader's gl_PointSize (jm-v7 033). */
++   if (cls == PANVK_XFB_GS_POINTS && !poly_line && !poly_point &&
++       vs->info.vs.writes_point_size) {
++      in_vars[n] = nir_variable_create(
++         nir, nir_var_shader_in, glsl_array_type(glsl_float_type(), 6, 0),
++         "in_psiz");
++      in_vars[n]->data.location = VARYING_SLOT_PSIZ;
++      out_vars[n] = nir_variable_create(nir, nir_var_shader_out,
++                                        glsl_float_type(), "out_psiz");
++      out_vars[n]->data.location = VARYING_SLOT_PSIZ;
++      types[n++] = nir_type_float32;
++   }
++
+    /* Polygon mode: the tiler only sees lines or points, so the faces are
+     * culled here, with the Vulkan area rule in framebuffer coordinates
+     * (a = -1/2 sum(x_i y_i+1 - x_i+1 y_i); the viewport offset cancels).
+@@ -3926,7 +3962,26 @@ panvk_compile_shader(struct panvk_device *dev,
+     * geometry shader or transform feedback follows.
+     */
+    const bool vs_xfb_passthrough = panvk_vs_wants_xfb_passthrough(info);
++   /* shaderOutputViewportIndex (jm-v7 032): the tiler has one viewport, so a
++    * last pre-raster VS or TES writing gl_ViewportIndex feeds the geometry
++    * emulation through the passthrough, which selects the viewport per
++    * primitive as for a geometry shader. The index travels as a generic
++    * varying in PANVK_GS_VIEWPORT_INDEX_SLOT (Bifrost has no hardware
++    * slot for it); panvk_build_passthrough_gs() turns it back into
++    * gl_ViewportIndex.
++    */
++   const bool vs_writes_vp = panvk_v7_vs_writes_viewport(info);
++   if (vs_writes_vp) {
++      nir_foreach_shader_out_variable(var, info->nir) {
++         if (var->data.location == VARYING_SLOT_VIEWPORT)
++            var->data.location = PANVK_GS_VIEWPORT_INDEX_SLOT;
++      }
++      info->nir->info.outputs_written &= ~VARYING_BIT_VIEWPORT;
++      info->nir->info.outputs_written |=
++         BITFIELD64_BIT(PANVK_GS_VIEWPORT_INDEX_SLOT);
++   }
+    const bool vs_clip_space =
++      vs_writes_vp ||
+       (info->stage == MESA_SHADER_VERTEX &&
+        ((info->next_stage_mask & (VK_SHADER_STAGE_GEOMETRY_BIT |
+                                   VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT)) ||
+-- 
+2.55.0
+
