@@ -32,7 +32,7 @@ if [ -n "$DRYRUN" ]; then
 fi
 
 A="adb -s $SERIAL"
-$A get-state >/dev/null 2>&1 || { echo "device $SERIAL not reachable (adb connect first)"; exit 1; }
+$A get-state >/dev/null 2>&1 || { echo "device $SERIAL not reachable"; exit 1; }
 mkdir -p "$OUT"
 
 # Device facts
