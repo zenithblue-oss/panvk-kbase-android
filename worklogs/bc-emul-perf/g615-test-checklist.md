@@ -98,3 +98,14 @@ safe-adb-only session.
   visual corruption (BC6H skies/lightmaps especially), screenshots via the
   app, not via input injection.
 - PanProbe results for both slots (pull the shared output).
+
+## Rebuilt APKs (PanProbe with `--es env`, source commit 7c342b9)
+
+All built with `./gradlew assembleDebug` under the build lock; same slots and suffixes as before.
+
+| APK | slots | sha256 |
+|---|---|---|
+| panprobe-bc.apk (`.bc`) | rc4 = rc4-lowmem, rc5 = 2026-10-21-bc-r30 | f65b33cc4828244c91e8d06ed9b7a810732796826506a7c24caf9a2c9dc8f4d4 |
+| panprobe-v7R.apk (`.v7r`) | rc4 = rc4, rc5 = 2026-10-21-v7R | 8f5393ebf7292f75d27ae90a7f3f5bc0aab9dff991278778466bfb536943d33f |
+| panprobe-v7r30.apk (`.v7r30`) | rc4 = release default, rc5 = 2026-10-21-v7-r30 | 768864c9e62174b27d7b0e6333100213f0e9971603cd64966c22b30dc89d0065 |
+| panprobe-debug-v2.apk | rc4 = RC4 release, rc5 = 2026-10-21-v7 | 08943d12069531afe6b55ecdcd4ac23c7f7447d4c0096a6f46a361950d651097 |
