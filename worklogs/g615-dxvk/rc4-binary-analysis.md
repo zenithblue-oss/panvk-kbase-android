@@ -188,3 +188,95 @@ Nothing else changed in the strings. The base is the RC4 series, and the lowmem 
 
    Validate with PanProbe `bc_decode` (target 16/16/16), `bc_perf` (memory near the lowmem numbers), and CTS `texture.compressed.*bc*` and `api.copy_and_blit.*bc*`.
 4. **Process.** Record the BuildID and the exact `apply-patches.sh` output for every release build in `validation/`, so a release can never again be built from an unrecorded tree.
+
+## Result 4: RC4 compared with the main-series rebuild (2026-10-21)
+
+**Conclusion: RC4 had no silent v7 code changes beyond main.** The v7 (and v6) per-arch code, the kbase kmod and JM code, and the v7 libpan code in RC4 match a rebuild of the current main series (jm-v7 001-005, no jm-v7-wip). Every difference I found is compiler noise, on the same scale as for v6, v9 and v10.
+
+### Inputs
+
+- Rebuild: `/home/flux/build-out/2026-10-21-v7/libvulkan_panfrost{,.unstripped}.so`, driverInfo `PanVK-kbase RC5-dev-v7 (Mesa 26.3.0-devel (git-5a07217f03))`.
+- The rebuild used NDK r29; RC4 used NDK r30.
+- `series.sha256` lists common, android 008-016, kbase-common, app-loader, wsi, csf, csf-v11 018-196, jm-v9 001-031 and jm-v7 001-005. No jm-v7-wip.
+
+### Section sizes (RC4 → rebuild)
+
+| Section | RC4 | Rebuild | Delta | Cause |
+|---|---|---|---|---|
+| `.rodata` | 0xc98590 | 0xc9b254 | +11.4 KB | libc++abi demangler and libunwind strings, which r29 links statically |
+| `.text` | 0x86f5e0 | 0x882b44 | +79 KB | about 396 more functions (demangler and libunwind), plus codegen |
+| `.data.rel.ro` | 0x70fb0 | 0x73d80 | +11.7 KB | demangler vtables |
+| `.dynsym` | 0x1620 | 0x1668 | +3 entries | see below |
+
+- RC4 has a `.comment` section; the rebuild has none (it was stripped differently).
+
+### Dynamic symbols
+
+- The exported symbols are the same.
+- Imports only in RC4: `__stack_chk_fail`.
+- Imports only in the rebuild: `__register_atfork` and `pthread_rwlock_{rdlock,wrlock,unlock}`. These come from the static libc++abi/libunwind in r29.
+
+### Strings
+
+- All 79 text strings that only RC4 has are:
+  - source paths (`../../work/mesa/` against `../../../../src/mesa/`);
+  - the `.comment` lines;
+  - the driverInfo string.
+- The 324 that only the rebuild has are demangler and libunwind text, plus the driverInfo string.
+- Apart from those, the driver strings of the two binaries are the same set.
+
+### Functions
+
+Functions were split by `.eh_frame_hdr`: 10,443 in RC4 and 10,839 in the rebuild. Each function was given a signature from the strings it references. 2,133 functions match by signature, and 1,829 of those have exactly the same size. The median size ratio is 1.000; the 5th to 95th percentile is 0.997 to 1.006.
+
+I then aligned each region one-to-one between string anchors. This also matches the functions that reference no strings:
+
+| Region (rebuild symbols) | Functions | Same size | Total bytes, RC4 → rebuild | Sum of size deltas |
+|---|---|---|---|---|
+| panvk v6 | 209 = 209 | 82.3% | 172,188 → 172,600 | 0.55% |
+| **panvk v7** | 207 = 207 | **81.6%** | 177,088 → 177,724 | **0.66%** |
+| panvk v9 (JM) | 249 = 249 | 84.7% | 247,504 → 247,992 | 0.38% |
+| panvk v10 (CSF) | 503 / 502 | – | 916,104 → 915,980 | (one inlining split) |
+| kbase kmod (`kbase_kmod.c`, includes jm-v7 003-005) | 68 = 68 | 97.1% | 25,428 → 25,444 | 0.06% |
+| libpan v7 (`pan_*_v7`) | 202 = 202 | – | 105,264 → 105,656 | +0.37% |
+
+**The size deltas are not v7-specific.** The same functions differ on v6, v7 and v9:
+- `collect_instr_desc_access` is +136 B on every arch;
+- `cmd_dispatch` is -68 B;
+- `panvk_compile_shader`, `lower_descriptors_instr` and `*_nir_lower_input_attachment_loads` differ on every arch.
+
+Upstream code that no patch touches differs in the same way:
+- `bi_emit_load_ubo` is +808 B, from tail duplication. It has the same calls in the same order.
+- The `util_format_*_pack_rgba_8unorm` functions are 3-4 times larger in RC4, which looks like vectorisation from the newer clang.
+
+### Instruction-level check
+
+I compared opcodes and immediates, with registers ignored and ADRP page offsets masked:
+- 161 of the 207 v7 functions (77.8%) are identical; on v6 it is 165 of 209 (78.9%).
+- **Identical (similarity 1.000):**
+  - `panvk_v7_get_physical_device_features`
+  - `panvk_v7_get_physical_device_extensions`
+  - `panvk_v7_cmd_prepare_tiler_context`
+  - `panvk_v7_cmd_close_batch`
+  - `panvk_v7_create_gpu_queue`
+  - `panvk_jm_kbase_wait_atoms`
+  - `panvk_v7_cmd_bc_decode_zero_initialized`
+  - `panvk_v7_CmdCopyImage2`
+  - all the descriptor functions
+  - `kbase_check_bifrost_atom_stride` and `kbase_try_atom_stride` (jm-v7/004)
+  - `kbase_kmod_wait_atom` and `kbase_kmod_job_submit`
+- **Different, but only in codegen.** I read the diffs by hand:
+  - `panvk_v7_create_device` uses the same `panvk_device` field offsets (0x1a38 to 0x1be8). The only change is that `(flags & 0x4040) == 0` is computed as `tst #0x40` plus `bic …, lsr #8`.
+  - `panvk_v7_get_physical_device_properties` has 654 instructions on each side and the same constants; only the store order is different.
+  - `panvk_v7_gpu_queue_submit` differs only in stack and GOT offsets.
+  - In `kbase_kmod_import_dmabuf` and `kbase_kmod_bo_alloc`, RC4's `orr w8, w8, w9, lsl #7` became `orr #0x80` plus `csel`. That is the same bool-to-flag.
+  - In `kbase_kmod_dev_create`, only the address of the global that caches the page size differs (`#0xc00` against `#0xf48`).
+
+### What this means
+
+- The user's memory of "195-200 patches with v7 G52 fixes" doesn't match the binary. RC4 is the full main series of 191 patches (jm-v7 001-005), built with NDK r30.
+- Rebuilding main with NDK r30 and the driverInfo override `RC4` should give a functionally identical driver. It won't be byte-identical, because the build paths differ.
+- No v7 source was lost. The next v7 work is jm-v7-wip 0006-0013 on device (plan step 2).
+- The only lost source is the lowmem BC patch (Result 3).
+
+The scripts for this section are in the session scratchpad: `funcsig.py`, `match.py`, `region.py`, `align.py`, `seqcmp.py`, `insdiff.py`. The outputs are in `/home/flux/rc4-analysis/work/`: `*.funcs.json`, `pairs.json`, `v6_seqcmp.txt`, `v7_seqcmp.txt`, `str_only_*.txt`.
