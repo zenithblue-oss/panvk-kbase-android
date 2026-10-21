@@ -176,3 +176,14 @@ Every tess kernel is a barrier job. The TCS output, the counts and the tessellat
 
 ## Rebase note (2026-10-21)
 0006-0019 were refreshed onto the 197-patch `g615-v11-csf` series (csf-v11 up to 202). 0010 had a 19-line offset and 0013 conflicted with csf-v11/200 (`PANVK_DEBUG_BC_TIMING`) in `panvk_instance.[ch]`; both fixed. The set applies strictly (no offset, no fuzz) with `git am` in order. The earlier build statements above (BuildIDs, 189/191/192-patch bases) describe the older base.
+
+## 0030 (jm-v7 030, A06 v7E groups B, C, D)
+
+Base: `/home/flux/src/mesa-v7fixB` (branch `v7fixB`) = the v7E tree (0006-0019 + the v7E tag), then `git am` 0030. Other agents' patches use 0020-0029 and 0040-0049.
+
+- Primitive restart in the GS emulation: `panlib_v7_gs_restart_list()` (serial) rewrites an indexed strip/fan/strip-adjacency draw with restart as a restart-free 32-bit list and its own indexed indirect command; the emulation (and the 0017 polygon passthrough) assembles a list. Fixes fill_mode `*_restart_*` and geometry `*_restart_*`.
+- Per-viewport depth (gs_viewport_depth): when the GS-selectable viewports' depth ranges differ, one index-list copy and one tiler job per viewport with its own VIEWPORT (scissor + depth range); `panvk_gs_push::vp_split`. Limit: primitives of different viewports with overlapping scissors lose API order. The csf-v11/193 CLIP_DIST0 overwrite has no v7 counterpart.
+- shaderOutputViewportIndex: a last VS/TES writing gl_ViewportIndex runs through the passthrough GS (index in `PANVK_GS_VIEWPORT_INDEX_SLOT`).
+- Tessellation caps: 8M indices (160 MB growable arena), 2M primitives into a GS after the TES (emulation buffers from the new growable `gs_pool`), 4M-vertex indirect varying buffer (growable).
+- shaderTessellationAndGeometryPointSize: TES point-mode gl_PointSize, GS point output FP32 size array, gl_in[].gl_PointSize in GS/TCS, point passthrough forwards it.
+- Status: builds (NDK r30); not device-tested.
