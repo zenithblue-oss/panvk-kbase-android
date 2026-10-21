@@ -37,7 +37,7 @@ def meta(abi, desc, with_minapi):
          "vendor":"Mesa","driverVersion":"Mesa 26.3.0-devel"}
     if with_minapi: m["minApi"] = int(minapi)
     m.update({"description":desc,"libraryName":"libvulkan_panfrost.so","abi":abi,"backend":"panvk-kbase",
-         "kernelInterface":"mali_kbase","profile":profile,"gpuId":prof.get("gpuId","0xb8a31030"),
+         "kernelInterface":"mali_kbase","profile":profile,
          "panArch":prof.get("panArch",11),"frontend":prof.get("frontend","CSF"),
          "kbaseUapi":prof.get("kbaseUapi","1.21"),"sourceCommit":mesa,
          "patchSeriesId":"not-reproducible","prerelease":True,"published":True,

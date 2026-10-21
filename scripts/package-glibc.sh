@@ -27,7 +27,7 @@ meta = {"schemaVersion":1,"name":"PanVK-kbase-"+version.removeprefix("v"),"autho
  "description":"Experimental PanVK Kbase glibc ICD for Bachata/NativeCode",
  "libraryName":"libvulkan_panfrost.so","abi":"linux-aarch64-glibc","backend":"panvk-kbase",
  "kernelInterface":"mali_kbase","profile":profile.replace("g615-",""),
- "gpuId":prof.get("gpuId","0xb8a31030"),"panArch":prof.get("panArch",11),
+ "panArch":prof.get("panArch",11),
  "frontend":prof.get("frontend","CSF"),"kbaseUapi":prof.get("kbaseUapi","1.21"),
  "sourceCommit":sha,"patchSeriesId":psid,"prerelease":True,"published":published == "true",
  "bcCompatibility":{"included":False,"reason":"Phase 6 direct-PanVK composition and correctness workloads blocked"}}

@@ -26,7 +26,7 @@ meta = {"schemaVersion":1,"name":"PanVK-kbase-"+version.removeprefix("v"),"autho
  "description":"Experimental PanVK Kbase driver for supported Mali devices. minApi=35 until API 29 rebuild is proven.",
  "libraryName":"libvulkan_panfrost.so","abi":"android-aarch64-bionic","backend":"panvk-kbase",
  "kernelInterface":"mali_kbase","profile":profile.replace("g615-",""),
- "gpuId":prof.get("gpuId","0xb8a31030"),"panArch":prof.get("panArch",11),
+ "panArch":prof.get("panArch",11),
  "frontend":prof.get("frontend","CSF"),"kbaseUapi":prof.get("kbaseUapi","1.21"),
  "sourceCommit":sha,"patchSeriesId":psid,"prerelease":True,"published":published == "true",
  "bcCompatibility":{"included":False,"reason":"Phase 6 direct-PanVK composition and correctness workloads blocked"}}
