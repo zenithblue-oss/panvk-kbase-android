@@ -5,6 +5,7 @@ import android.util.SparseArray;
 import android.util.SparseBooleanArray;
 
 import com.winlator.sysvshm.SysVSharedMemory;
+import com.winlator.xserver.errors.BadAccess;
 import com.winlator.xserver.errors.BadAlloc;
 import com.winlator.xserver.errors.BadSHMSegment;
 import com.winlator.xserver.errors.XRequestError;
@@ -38,7 +39,17 @@ public class SHMSegmentManager {
         if (count >= MAX_SEGMENTS_PER_CLIENT || bytes > MAX_BYTES_PER_CLIENT) throw new BadAlloc();
     }
 
+    /** An xid already owned by another client must not be replaced (BadAccess). */
+    private void checkReplaceable(XClient owner, int xid) throws BadAccess {
+        if (shmSegments.indexOfKey(xid) >= 0 && owners.get(xid) != owner) throw new BadAccess();
+    }
+
+    public boolean isOwner(XClient client, int xid) {
+        return owners.get(xid) == client;
+    }
+
     public void attach(XClient owner, int xid, int shmid) throws XRequestError {
+        checkReplaceable(owner, xid);
         if (shmSegments.indexOfKey(xid) >= 0) detach(xid);
         checkQuota(owner, 0);
         ByteBuffer data = sysVSharedMemory.attach(shmid);
@@ -56,8 +67,9 @@ public class SHMSegmentManager {
 
     /** MIT-SHM 1.2 AttachFd: map a client memfd read-only. Takes ownership of fd (closed after mmap). */
     public void attachFd(XClient owner, int xid, int fd) throws XRequestError {
-        if (shmSegments.indexOfKey(xid) >= 0) detach(xid);
-        try (ParcelFileDescriptor pfd = ParcelFileDescriptor.adoptFd(fd)) {
+        try (ParcelFileDescriptor pfd = ParcelFileDescriptor.adoptFd(fd)) { // adopt first so fd is closed on every reject path
+            checkReplaceable(owner, xid);
+            if (shmSegments.indexOfKey(xid) >= 0) detach(xid);
             long size = pfd.getStatSize(); // fstat: map no more than the fd really holds (SIGBUS guard)
             if (size <= 0) throw new BadSHMSegment(xid);
             checkQuota(owner, size);

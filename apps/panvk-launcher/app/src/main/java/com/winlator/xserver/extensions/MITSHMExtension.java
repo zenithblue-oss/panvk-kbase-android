@@ -89,7 +89,10 @@ public class MITSHMExtension implements Extension {
     }
 
     private static void detach(XClient client, XInputStream inputStream, XOutputStream outputStream) throws IOException, XRequestError {
-        client.xServer.getSHMSegmentManager().detach(inputStream.readInt());
+        SHMSegmentManager manager = client.xServer.getSHMSegmentManager();
+        int xid = inputStream.readInt();
+        if (!manager.isOwner(client, xid)) return; // never detach another client's segment
+        manager.detach(xid);
     }
 
     private static void putImage(XClient client, XInputStream inputStream, XOutputStream outputStream) throws IOException, XRequestError {
@@ -115,7 +118,7 @@ public class MITSHMExtension implements Extension {
         if (graphicsContext == null) throw new BadGraphicsContext(gcId);
 
         ByteBuffer data = client.xServer.getSHMSegmentManager().getData(shmseg);
-        if (data == null) throw new BadSHMSegment(shmseg);
+        if (data == null || !client.xServer.getSHMSegmentManager().isOwner(client, shmseg)) throw new BadSHMSegment(shmseg);
 
         if (graphicsContext.getFunction() != GraphicsContext.Function.COPY) {
             throw new UnsupportedOperationException("GC Function other than COPY is not supported.");
@@ -123,6 +126,8 @@ public class MITSHMExtension implements Extension {
 
         // 64-bit math: offset is a client-controlled uint32; image must lie fully inside the segment.
         long tw = totalWidth & 0xFFFFL, th = totalHeight & 0xFFFFL;
+        long sx = srcX & 0xFFFFL, sy = srcY & 0xFFFFL, sw = srcWidth & 0xFFFFL, sh = srcHeight & 0xFFFFL;
+        if (sx + sw > tw || sy + sh > th) throw new BadValue(srcX); // source rect must lie inside the image
         long imageSize = depth == 1 ? ((tw + 31) / 32 * 4) * th : tw * th * 4;
         if (offset + imageSize > data.capacity()) throw new BadValue((int)offset);
         if (offset != 0) {
