@@ -1,0 +1,166 @@
+From 3fef9be649e6cc21fbe1f6785cfe53cc9f4ae85f Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 18:31:19 +0000
+Subject: [PATCH] jm-v7 081: build if-phi constants before the if on v6/v7
+
+nir_imm_*() inserts at the builder cursor, so a constant built after
+nir_pop_if() lands in the merge block ahead of the nir_if_phi() that
+uses it. Phis then no longer lead the block (nir_foreach_phi() stops at
+the load_const) and the constant does not dominate the else edge.
+
+This undid jm-v7 035 once jm-v7 080 changed the skipped-atomic value
+from nir_undef (placed at the top of the impl) to nir_imm_zero(): the
+035 fix-up walks nir_foreach_phi() of the merge block, found no phi
+behind the load_const and left phi(phi, 0). Every guarded VS atomic
+returned 0 again on the A06 (RC5-dev-v7G-DI):
+- PanProbe vertex_stores iter0..5: outv (1000,1000);
+- PanProbe draw_params: rec[atomicAdd(count)] all at rec[0], stall.
+
+Fix:
+- panvk_v7_lower_vs_ref_guard(): build all_ref (true) and each zero
+  before the if; rewrite all uses of the atomic to the phi and point the
+  phi's own source back directly (no block walk);
+- robust storage image ops (jm-v7 048) and robust image atomics in
+  panvk_vX_nir_lower_descriptors.c: the zero before the if as well
+  (robust_image_access2 atomics returned through the same pattern).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ .../vulkan/panvk_vX_nir_lower_descriptors.c   |  4 +-
+ src/panfrost/vulkan/panvk_vX_shader.c         | 66 ++++++++++---------
+ 2 files changed, 37 insertions(+), 33 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c b/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c
+index 5311e41..c1f73bd 100644
+--- a/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c
++++ b/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c
+@@ -999,6 +999,8 @@ lower_bindless_img_intrinsic(nir_builder *b, nir_intrinsic_instr *intr,
+    case nir_intrinsic_image_deref_atomic_swap: {
+       const unsigned bit_size = intr->def.bit_size;
+       nir_atomic_op op = nir_intrinsic_atomic_op(intr);
++      /* jm-v7 081: before the if, so the phi leads the merge block. */
++      nir_def *zero = nir_imm_intN_t(b, 0, bit_size);
+       nir_push_if(b, t.in_bounds);
+       nir_def *res;
+       if (intr->intrinsic == nir_intrinsic_image_deref_atomic_swap)
+@@ -1008,7 +1010,7 @@ lower_bindless_img_intrinsic(nir_builder *b, nir_intrinsic_instr *intr,
+          res = nir_global_atomic(b, bit_size, t.addr, intr->src[3].ssa,
+                                  .atomic_op = op);
+       nir_pop_if(b, NULL);
+-      res = nir_if_phi(b, res, nir_imm_intN_t(b, 0, bit_size));
++      res = nir_if_phi(b, res, zero);
+       nir_def_replace(&intr->def, res);
+       return true;
+    }
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index 731087c..e4ab2e2 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -2962,15 +2962,19 @@ panvk_v7_lower_robust_image2_intr(nir_builder *b, nir_intrinsic_instr *intr,
+       return true;
+    }
+ 
++   /* jm-v7 081: the phi's zero is built before the if, so the phi leads
++    * the merge block.
++    */
++   nir_def *zero = nir_intrinsic_infos[intr->intrinsic].has_dest
++                      ? nir_imm_zero(b, intr->def.num_components,
++                                     intr->def.bit_size)
++                      : NULL;
+    nir_push_if(b, in_bounds);
+    nir_instr *clone = nir_instr_clone(b->shader, &intr->instr);
+    nir_builder_instr_insert(b, clone);
+    nir_pop_if(b, NULL);
+-   if (nir_intrinsic_infos[intr->intrinsic].has_dest) {
+-      nir_def *zero =
+-         nir_imm_zero(b, intr->def.num_components, intr->def.bit_size);
++   if (zero)
+       nir_def_rewrite_uses(&intr->def, nir_if_phi(b, nir_instr_def(clone), zero));
+-   }
+    nir_instr_remove(&intr->instr);
+    return true;
+ }
+@@ -4125,6 +4129,12 @@ panvk_v7_lower_vs_ref_guard(nir_shader *nir)
+    nir_builder b = nir_builder_at(nir_before_impl(impl));
+ 
+    nir_def *addr = load_sysval(&b, graphics, 64, vs_ref_bitmap);
++   /* jm-v7 081: build the phi's constant before the if. nir_imm_*() inserts
++    * at the cursor, so after nir_pop_if() it would land in the merge block
++    * ahead of the phi: phis no longer lead the block, nir_foreach_phi()
++    * misses them and the constant does not dominate the else edge.
++    */
++   nir_def *all_ref = nir_imm_true(&b);
+    nir_push_if(&b, nir_ine_imm(&b, addr, 0));
+    nir_def *hdr = nir_load_global(&b, 1, 32, addr, .align_mul = 4);
+    nir_def *rid = nir_load_raw_vertex_id(&b);
+@@ -4138,7 +4148,7 @@ panvk_v7_lower_vs_ref_guard(nir_shader *nir)
+       &b, nir_iand_imm(&b, nir_ushr(&b, word, nir_iand_imm(&b, rid, 31)), 1));
+    nir_def *ref_in = nir_ior(&b, nir_ine_imm(&b, hdr, 0), bit);
+    nir_pop_if(&b, NULL);
+-   nir_def *ref = nir_if_phi(&b, ref_in, nir_imm_true(&b));
++   nir_def *ref = nir_if_phi(&b, ref_in, all_ref);
+ 
+    /* Collect first: wrapping splits blocks. */
+    struct util_dynarray list = UTIL_DYNARRAY_INIT;
+@@ -4155,39 +4165,31 @@ panvk_v7_lower_vs_ref_guard(nir_shader *nir)
+       nir_intrinsic_instr *intr = *it;
+       nir_instr *instr = &intr->instr;
+ 
++      const bool has_dest = nir_intrinsic_infos[intr->intrinsic].has_dest;
++
+       b.cursor = nir_before_instr(instr);
++      /* jm-v7 080: a skipped atomic returns 0, not undef: a VS spin lock on
++       * an unreferenced vertex must not loop on garbage. jm-v7 081: the
++       * zero is built before the if (see all_ref above).
++       */
++      nir_def *zero = has_dest ? nir_imm_zero(&b, intr->def.num_components,
++                                              intr->def.bit_size)
++                               : NULL;
+       nir_instr_remove(instr);
+       nir_push_if(&b, ref);
+       nir_builder_instr_insert(&b, instr);
+       nir_pop_if(&b, NULL);
+-      if (nir_intrinsic_infos[intr->intrinsic].has_dest) {
+-         /* jm-v7 080: a skipped atomic returns 0, not undef: a VS spin
+-          * lock on an unreferenced vertex must not loop on garbage.
+-          */
+-         nir_def *zero =
+-            nir_imm_zero(&b, intr->def.num_components, intr->def.bit_size);
++      if (has_dest) {
+          nir_def *phi = nir_if_phi(&b, &intr->def, zero);
+-         nir_def_rewrite_uses_after(&intr->def, phi);
+-      }
+-   }
+-
+-   /* jm-v7 035: the intrinsic (then block) and its phi (block after the
+-    * if) are in different blocks, so nir_def_rewrite_uses_after() above
+-    * also rewrote the phi's own then source to the phi. Every guarded
+-    * atomic then returned its else value, also for referenced vertices
+-    * (vertex_stores iter*: outv 1000; draw_params: rec[undef]). Point the
+-    * source back at the intrinsic.
+-    */
+-   util_dynarray_foreach(&list, nir_intrinsic_instr *, it) {
+-      nir_intrinsic_instr *intr = *it;
+-      if (!nir_intrinsic_infos[intr->intrinsic].has_dest)
+-         continue;
+-      nir_block *then_block = intr->instr.block;
+-      nir_if *nif = nir_cf_node_as_if(then_block->cf_node.parent);
+-      nir_block *after = nir_cf_node_as_block(nir_cf_node_next(&nif->cf_node));
+-      nir_foreach_phi(phi, after) {
+-         nir_foreach_phi_src(src, phi) {
+-            if (src->pred == then_block && src->src.ssa == &phi->def)
++         /* jm-v7 035/081: the intrinsic (then block) and the phi (merge
++          * block) are in different blocks, so nir_def_rewrite_uses_after()
++          * would also rewrite the phi's own then source to the phi
++          * (phi(phi, 0) = 0: vertex_stores outv 1000, draw_params
++          * rec[0]). Rewrite every other use, then point that source back.
++          */
++         nir_def_rewrite_uses(&intr->def, phi);
++         nir_foreach_phi_src(src, nir_instr_as_phi(nir_def_instr(phi))) {
++            if (src->src.ssa == phi)
+                nir_src_rewrite(&src->src, &intr->def);
+          }
+       }
+-- 
+2.55.0
+
