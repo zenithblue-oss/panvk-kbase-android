@@ -410,7 +410,7 @@ index 263cf13..d9a23ef 100644
 +                           loc == VARYING_SLOT_CLIP_DIST1;
 +         const bool cull = loc == VARYING_SLOT_CULL_DIST0 ||
 +                           loc == VARYING_SLOT_CULL_DIST1;
-+         if (!clip && !cull)
++         if ((!clip && !cull) || loc == gs->scissor_clip_loc)
 +            continue;
 +
 +         const unsigned first =
