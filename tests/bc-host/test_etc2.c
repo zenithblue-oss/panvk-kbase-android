@@ -228,8 +228,11 @@ main(int argc, char **argv)
             }
          }
          for (int kind = 1; kind < 3; kind++) {
-            transcode_block(kind == 1 ? XC_BC4_U : XC_BC4_S, a0, a1, 0, 0, opts);
-            bc_decode_rgtc(a0, a1, kind == 2, kind);
+            /* SNORM: the same picture shifted by -128, i.e. the UNORM
+             * encoding with both endpoint bytes XOR 0x80. */
+            uint s0 = kind == 2 ? a0 ^ 0x8080u : a0;
+            transcode_block(kind == 1 ? XC_BC4_U : XC_BC4_S, s0, a1, 0, 0, opts);
+            bc_decode_rgtc(s0, a1, kind == 2, kind);
             double sn;
             ref_eac_err(g_out[0], g_out[1], kind, &sn);
             sse_eac[kind] += sn;
