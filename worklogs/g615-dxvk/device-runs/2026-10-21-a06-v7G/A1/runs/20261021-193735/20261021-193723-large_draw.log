@@ -1,0 +1,162 @@
+MESA: info: kbase: JM driver, uAPI version 11.38, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+MESA: info: kbase: using ION system heap, mask 0x1
+MESA: info: panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: warning: panvk: v7 (Bifrost) support is experimental
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe03fe)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+Failed to create /data/.cache for shader cache (Permission denied)---disabling.
+ICD device=Mali-G52 r1 MC2 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+MESA: info: kbase: JM driver, uAPI version 11.38, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+MESA: info: kbase: using ION system heap, mask 0x1
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 32768 pages committed
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 35157 pages committed
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+FEATURES gs=1 tess=1 multiDrawIndirect=1 drawIndirectCount=0 primGenQuery=0
+PASS case points_direct bad=0 bytes=3200000 written=200000 generated=-1
+  rec 4096: 0 0 0 0, want 4103 3 0 1
+  rec 4097: 0 0 0 0, want 4104 3 0 1
+  rec 4098: 0 0 0 0, want 4105 3 0 1
+  rec 4099: 0 0 0 0, want 4106 3 0 1
+  counter 65536, want 3200000
+  xfb query written=4096 needed=4096, want 200000
+FAIL case points_indirect bad=195906 bytes=65536 written=4096 generated=-1
+PASS case instanced_direct bad=0 bytes=3840000 written=240000 generated=-1
+  rec 4096: 0 0 0 0, want 7 1027 0 1
+  rec 4097: 0 0 0 0, want 8 1027 0 1
+  rec 4098: 0 0 0 0, want 9 1027 0 1
+  rec 4099: 0 0 0 0, want 10 1027 0 1
+  counter 65536, want 3840000
+  xfb query written=4096 needed=4096, want 240000
+FAIL case instanced_indirect bad=235906 bytes=65536 written=4096 generated=-1
+PASS case strip_direct bad=0 bytes=7199952 written=149999 generated=-1
+  prim 4096: 0 0 0, want 4103 4104 4105
+  prim 4097: 0 0 0, want 4104 4105 4106
+  prim 4098: 0 0 0, want 4105 4106 4107
+  prim 4099: 0 0 0, want 4106 4107 4108
+  counter 196608, want 7199952
+  xfb query written=4096 needed=4096, want 149999
+FAIL case strip_indirect bad=145905 bytes=196608 written=4096 generated=-1
+MESA: error: kbase: JM atom 26 failed: event=0x4 core_req=0x16
+FAIL wait for fence r=-4
+  hang: last non-zero record 0 of 417853
+FAIL case restart_direct did not complete
+MESA: error: kbase: JM atom 27 failed: event=0x42 core_req=0x16
+MESA: error: kbase: JM atom 28 failed: event=0x42 core_req=0x1
+MESA: error: kbase: JM atom 30 failed: event=0x4 core_req=0x16
+FAIL wait for fence r=-4
+  hang: last non-zero record 0 of 417853
+FAIL case restart_indirect did not complete
+MESA: error: kbase: JM atom 31 failed: event=0x42 core_req=0x16
+MESA: error: kbase: JM atom 32 failed: event=0x42 core_req=0x1
+MESA: error: kbase: JM atom 34 failed: event=0x4 core_req=0x16
+MESA: error: kbase: JM atom 35 failed: event=0x42 core_req=0x16
+MESA: error: kbase: JM atom 36 failed: event=0x42 core_req=0x1
+FAIL wait for fence r=-4
+  hang: last non-zero record 0 of 139327
+FAIL case gs_restart_direct did not complete
+MESA: error: kbase: JM atom 38 failed: event=0x4 core_req=0x16
+FAIL wait for fence r=-4
+  hang: last non-zero record 0 of 139327
+FAIL case gs_restart_indirect did not complete
+MESA: error: kbase: JM atom 39 failed: event=0x42 core_req=0x16
+MESA: error: kbase: JM atom 40 failed: event=0x42 core_req=0x1
+PASS case fan_direct bad=0 bytes=7199952 written=149999 generated=-1
+  4096 of 149999 triangles captured (clamped to the arena)
+PASS case fan_indirect bad=0 bytes=196608 written=4096 generated=-1
+PASS case fan_indexed bad=0 bytes=6719952 written=139999 generated=-1
+  4096 of 139999 triangles captured (clamped to the arena)
+PASS case fan_indexed_indirect bad=0 bytes=196608 written=4096 generated=-1
+PASS case fan_instanced bad=0 bytes=480000 written=10000 generated=-1
+SKIP fan chunk loop cases: PANVK_FAN_CHUNKS unset
+PASS case small_inst_direct bad=0 bytes=432000 written=27000 generated=-1
+  rec 4096: 0 0 0 0, want 8 1368 0 1
+  rec 4097: 0 0 0 0, want 9 1368 0 1
+  rec 4098: 0 0 0 0, want 7 1369 0 1
+  rec 4099: 0 0 0 0, want 8 1369 0 1
+  counter 65536, want 432000
+  xfb query written=4096 needed=4096, want 27000
+FAIL case small_inst_indirect bad=22906 bytes=65536 written=4096 generated=-1
+base_inst divisor=3
+  rec 0: vtx 7 inst 3 attr 10 base+1 4, want attr 3 base+1 4
+  rec 1: vtx 8 inst 3 attr 10 base+1 4, want attr 3 base+1 4
+  rec 2: vtx 9 inst 3 attr 10 base+1 4, want attr 3 base+1 4
+  rec 3: vtx 10 inst 3 attr 10 base+1 4, want attr 3 base+1 4
+FAIL case base_inst_direct bad=240000 bytes=3840000 written=240000 generated=-1
+  rec 0: vtx 7 inst 3 attr 10 base+1 4, want attr 3 base+1 4
+  rec 1: vtx 8 inst 3 attr 10 base+1 4, want attr 3 base+1 4
+  rec 2: vtx 9 inst 3 attr 10 base+1 4, want attr 3 base+1 4
+  rec 3: vtx 10 inst 3 attr 10 base+1 4, want attr 3 base+1 4
+  counter 65536, want 3840000
+  xfb query written=4096 needed=4096, want 240000
+FAIL case base_inst_indirect bad=240002 bytes=65536 written=4096 generated=-1
+  rec 0: vtx 7 inst 3 attr 0 base+1 4, want attr 3 base+1 4
+  rec 1: vtx 8 inst 3 attr 0 base+1 4, want attr 3 base+1 4
+  rec 2: vtx 9 inst 3 attr 0 base+1 4, want attr 3 base+1 4
+  rec 3: vtx 10 inst 3 attr 0 base+1 4, want attr 3 base+1 4
+FAIL case base_inst_windows bad=210003 bytes=3360048 written=210003 generated=-1
+  rec 0: vtx 8 inst 3 attr 10 base+1 4, want attr 3 base+1 4
+  rec 1: vtx 9 inst 3 attr 10 base+1 4, want attr 3 base+1 4
+  rec 2: vtx 7 inst 3 attr 10 base+1 4, want attr 3 base+1 4
+  rec 3: vtx 9 inst 3 attr 10 base+1 4, want attr 3 base+1 4
+FAIL case base_inst_fan bad=30000 bytes=480000 written=10000 generated=-1
+  rec 0: vtx 8 inst 3 attr 0 base+1 4, want attr 3 base+1 4
+  rec 1: vtx 9 inst 3 attr 0 base+1 4, want attr 3 base+1 4
+  rec 2: vtx 7 inst 3 attr 0 base+1 4, want attr 3 base+1 4
+  rec 3: vtx 9 inst 3 attr 0 base+1 4, want attr 3 base+1 4
+FAIL case base_inst_fan_windows bad=899994 bytes=14399904 written=299998 generated=-1
+SKIP cond cases: VK_EXT_conditional_rendering not exposed
+PASS case gs_direct bad=0 bytes=3200000 written=200000 generated=-1
+  rec 4096: 0 0 0, want 4103 3 4096
+  rec 4097: 0 0 0, want 4104 3 4097
+  rec 4098: 0 0 0, want 4105 3 4098
+  rec 4099: 0 0 0, want 4106 3 4099
+  counter 65536, want 3200000
+  xfb query written=4096 needed=4096, want 200000
+FAIL case gs_indirect bad=195906 bytes=65536 written=4096 generated=-1
+MESA: warning: panvk: tessellated draw of 70000 patches, only 8192 are drawn
+  rec 8192: 0 0 0
+  rec 8193: 0 0 0
+  rec 8194: 0 0 0
+  rec 8195: 0 0 0
+  counter 131072, want 2240000
+  xfb query written=8192 needed=8192, want 140000
+FAIL case tess_direct bad=197714 bytes=131072 written=8192 generated=-1
+  rec 8192: 0 0 0
+  rec 8193: 0 0 0
+  rec 8194: 0 0 0
+  rec 8195: 0 0 0
+  counter 131072, want 2240000
+  xfb query written=8192 needed=8192, want 140000
+FAIL case tess_indirect bad=197714 bytes=131072 written=8192 generated=-1
+  counter 131072, want 288000
+  xfb query written=8192 needed=8192, want 18000
+FAIL case tess_instanced bad=2 bytes=131072 written=8192 generated=-1
+  rec 24576: 0 0 0
+  rec 24577: 0 0 0
+  rec 24578: 0 0 0
+  rec 24579: 0 0 0
+  counter 393216, want 3360000
+  xfb query written=8192 needed=8192, want 70000
+FAIL case tess_tri_direct bad=247234 bytes=393216 written=8192 generated=-1
+  rec 24576: 0 0 0
+  rec 24577: 0 0 0
+  rec 24578: 0 0 0
+  rec 24579: 0 0 0
+  counter 393216, want 3360000
+  xfb query written=8192 needed=8192, want 70000
+FAIL case tess_tri_indirect bad=247234 bytes=393216 written=8192 generated=-1
+SKIP indirect_count: drawIndirectCount not exposed
+  counter 131072, want 3840000
+  xfb query written=8192 needed=8192, want 240000
+FAIL case multi_indirect bad=235906 bytes=131072 written=8192 generated=-1
+XFB_FAILS=20
+RESULT FAIL

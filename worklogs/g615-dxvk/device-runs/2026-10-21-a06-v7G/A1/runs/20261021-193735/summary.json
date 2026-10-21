@@ -1,0 +1,157 @@
+{
+  "timestamp": "20261021-193735",
+  "startMs": 1792586109998,
+  "appVersion": "1.2.7",
+  "driverType": "Bundled PanVK RC5",
+  "deviceName": "Mali-G52 r1 MC2",
+  "driverName": "panvk",
+  "driverInfo": "PanVK-kbase RC5-dev-v7G-A (Mesa 26.3.0-devel (git-43fab95395))",
+  "driverVersion": 109060195,
+  "apiVersion": "1.3.363",
+  "pass": 3,
+  "fail": 4,
+  "skip": 0,
+  "total": 7,
+  "tests": {
+    "bc_perf": "PASS",
+    "tessellation": "FAIL",
+    "xfb": "FAIL",
+    "pipeline_stats": "FAIL",
+    "depth_bounds": "PASS",
+    "large_draw": "FAIL",
+    "occlusion_query": "PASS"
+  },
+  "results": [
+    {
+      "name": "bc_perf",
+      "status": "PASS",
+      "durationMs": 62673,
+      "log": "20261021-193559-bc_perf.log"
+    },
+    {
+      "name": "tessellation",
+      "status": "FAIL",
+      "durationMs": 6591,
+      "log": "20261021-193702-tessellation.log"
+    },
+    {
+      "name": "xfb",
+      "status": "FAIL",
+      "durationMs": 4543,
+      "log": "20261021-193709-xfb.log"
+    },
+    {
+      "name": "pipeline_stats",
+      "status": "FAIL",
+      "durationMs": 5281,
+      "log": "20261021-193713-pipeline_stats.log"
+    },
+    {
+      "name": "depth_bounds",
+      "status": "PASS",
+      "durationMs": 4417,
+      "log": "20261021-193719-depth_bounds.log"
+    },
+    {
+      "name": "large_draw",
+      "status": "FAIL",
+      "durationMs": 7500,
+      "log": "20261021-193723-large_draw.log"
+    },
+    {
+      "name": "occlusion_query",
+      "status": "PASS",
+      "durationMs": 4130,
+      "log": "20261021-193731-occlusion_query.log"
+    }
+  ],
+  "compliance": {
+    "dxvk": {
+      "title": "DXVK compliance",
+      "pass": false,
+      "items": 94,
+      "missingHard": [
+        "descriptorIndexing",
+        "descriptorBindingSampledImageUpdateAfterBind",
+        "descriptorBindingUpdateUnusedWhilePending",
+        "descriptorBindingPartiallyBound"
+      ],
+      "missingSoft": [
+        "vertexPipelineStoresAndAtomics (FL11_1)",
+        "tiled resources tier 2 (FL12_0)",
+        "VK_EXT_conservative_rasterization (FL12_1)",
+        "fragmentShaderPixelInterlock (FL12_1)",
+        "D16_UNORM_S8_UINT (D3D9)",
+        "variableMultisampleRate",
+        "shaderFloat64",
+        "shaderFloat16",
+        "drawIndirectCount",
+        "shaderOutputViewportIndex",
+        "shaderOutputLayer",
+        "samplerFilterMinmax",
+        "VK_EXT_memory_priority",
+        "VK_EXT_multi_draw",
+        "VK_EXT_sample_locations"
+      ]
+    },
+    "bachata_s4": {
+      "title": "Bachata S4 compliance",
+      "pass": false,
+      "items": 114,
+      "missingHard": [
+        "shaderBufferInt64Atomics",
+        "shaderSharedInt64Atomics",
+        "vertexPipelineStoresAndAtomics",
+        "customBorderColorWithoutFormat"
+      ],
+      "missingSoft": [
+        "primitiveTopologyPatchListRestart",
+        "VK_KHR_fragment_shader_barycentric",
+        "VK_AMD_shader_image_load_store_lod",
+        "VK_EXT_shader_atomic_float2",
+        "VK_EXT_depth_range_unrestricted",
+        "shaderFloat64",
+        "shaderFloat16",
+        "drawIndirectCount",
+        "shaderOutputLayer",
+        "subgroup_wave64"
+      ]
+    },
+    "vkd3d": {
+      "title": "vkd3d compliance",
+      "pass": false,
+      "items": 100,
+      "missingHard": [
+        "proton: robustImageAccess2",
+        "proton: descriptorIndexing",
+        "proton: 1M per-stage UAB sampled\/storage images + SSBOs (or descriptor buffer)"
+      ],
+      "missingSoft": [
+        "viewportSubPixelBits >= 8",
+        "vertexPipelineStoresAndAtomics (FL11_1)",
+        "64 per-stage storage buffers+images (FL11_1)",
+        "VK_EXT_descriptor_indexing",
+        "update-after-bind UBO\/sampled\/storage image\/texel buffers (Vulkan heaps)",
+        "robustBufferAccessUpdateAfterBind",
+        "VK_EXT_mutable_descriptor_type",
+        "VK_EXT_conditional_rendering",
+        "VK_EXT_fragment_shader_interlock pixel+sample (ROVs)",
+        "VK_EXT_shader_viewport_index_layer",
+        "VK_KHR_draw_indirect_count",
+        "shaderFloat64",
+        "proton: tiled resources tier 2 (sparse residency + sparse queue)",
+        "proton: VK_EXT_conservative_rasterization",
+        "proton: ROVs (pixel+sample interlock)",
+        "proton: SM6.6 (compute derivatives linear + int64 buffer atomics + int8 + fixed wave)",
+        "proton: SM6.7 (maximal reconvergence + quad control)",
+        "proton: VK_EXT_mutable_descriptor_type",
+        "proton: VK_EXT_descriptor_buffer path",
+        "proton: shaderOutputViewportIndex+Layer",
+        "proton: VK_KHR_fragment_shading_rate",
+        "proton: VK_EXT_mesh_shader",
+        "proton: VK_KHR_ray_query + acceleration_structure",
+        "proton: shaderImageInt64Atomics (sampler feedback 0.9)"
+      ]
+    }
+  }
+}
