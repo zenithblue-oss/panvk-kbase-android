@@ -648,3 +648,55 @@ Left, all need hardware or tester data:
 **What remains:** all device runs. Build and run the merged series on G615 (csf-v11 187-196, jm-v9/031, android/016) and on a v7 device (jm-v7-wip 006-014: Galaxy A06 / A14 first), re-verify RC4 reproducibility from the series, and re-derive the BC lowmem source (including fixing `vkCmdCopyImage` for BC).
 
 **New rule:** commit and push all work to main continuously. The exact source must be on main before any release build, so a release can always be rebuilt from its tag.
+
+## State 2026-10-21 (RC5-dev builds, RC4 reproduction, open items)
+
+Build records are in `builds/` (one file per build, 2026-10-21-*). Nothing below has run on a device unless it says so.
+
+### Builds (all NDK r30 30.0.16248370 unless marked r29, API 29)
+
+| Build | Record | Content | sha256 (stripped) |
+|---|---|---|---|
+| RC5-dev-v7 (r29) | `builds/2026-10-21-v7-build.md` | main 191-patch series, NDK r29 | `a1e68b59…` (A06: about 14/38) |
+| RC5-dev-v7-r30 | `builds/2026-10-21-v7-r30-build.md` | same tree, r30 | `681b7946…` |
+| RC5-dev-v7R | `builds/2026-10-21-v7R-build.md` | main series built the RC4 way (r30, RC4 layout `work/mesa` at 5a07217); code equals RC4 | `1f792783…`, BuildID `4e654961` |
+| RC5-dev-v7E (r30) | `builds/2026-10-21-v7E-build.md` | 192 base patches + jm-v7-wip 0006-0019 (depthBounds, pipeline stats, multiViewport, fillModeNonSolid, 48-byte atom, `PANVK_DEBUG=ria2`); replaces the r29 v7E | `088e08ab…`, BuildID `79fab38a` |
+| RC5-dev-v7F | `builds/2026-10-21-v7F-build.md` | v7E code with tag v7F | see record |
+| RC5-dev-bc-r30 | `builds/2026-10-21-bc-r30-build.md` | BC lowmem v2, csf-v11 up to 202 (patches 200-202: BC lowmem work) + jm-v9 + jm-v7, 197-patch series | `e8bf5a70…`, BuildID `9cdad61a` |
+| RC5-dev-fixes-r30 | `builds/2026-10-21-fixes-r30-build.md` | fixes series, 194 patches (csf-v11/198, 199) | `82f67f5e…` |
+| PanProbe v9 APK | same record | `panprobe-v9.apk` (`dev.zenithblue.panvktest.v9`, sha256 `fc0dc40f…`): slot rc4 = RC4 `977c0c4c…`, slot rc5 = fixes-r30 | |
+| PanProbe v7R / v7E APKs | v7R and v7E records | `panprobe-v7R.apk` (`8fe12ec7…`), `panprobe-v7E.apk` (`616909ef…`); install side by side, rc4 and rc5 slots | |
+
+Earlier r29 stages v7A-v7D and the r29 bc/fixes builds are superseded by their r30 rebuilds (RC4 reproduces only with r30).
+
+### RC4 and RC4-lowmem repackaging (`builds/2026-10-21-rc4-emulator-package.md`)
+
+- RC4 and RC4-lowmem got the RC3-style `-EMULATOR.zip`, the `.adpkg.zip` and six launcher zips. The released `.so` files were wrapped unchanged (`scripts/package-prebuilt.sh`, `scripts/package-launcher-zips.sh`), because the exact RC4 source had not been found at the time. `SOURCE.json` therefore says patchSeriesId "not-reproducible". See the finding below: that label is now too pessimistic for RC4 (not for RC4-lowmem).
+- Names no longer contain `g615` and the zips carry no `gpuId` (the driver supports all Mali GPUs). Old g615-named assets were deleted after the new ones were uploaded; `SHA256SUMS` and release notes were updated.
+- No glibc `.so` was produced for these two releases. `validate-package.sh` was not run on them (it rejects minApi<35 and non-reproducible series ids by design).
+
+### build-android.sh fix (commit 876f6f1)
+
+- `PANVK_KBASE_RELEASE` changes on an existing `BDIR` had no effect (the regenerated cross file is not re-read on `meson setup --reconfigure`, so the old driverInfo stayed). The script now records the string in `$BDIR/.panvk_release` and wipes the BDIR when it differs.
+- The output `.so` is stripped with the NDK `llvm-strip` (the r30 output was left unstripped before).
+- Also (89b71da): the script finds `linux-arm64` NDK host dirs.
+
+### RC4 reproduction finding (`rc4-missing-patch-recovery.md`)
+
+- An r30 rebuild of main in the RC4 layout reproduces RC4: `.rodata` and `.data.rel.ro` are byte-identical (apart from one 13-byte `.text`-relative table) and 10,415 of 10,442 functions are instruction-identical. The v7 path is identical function by function, so RC4's v7 driver is exactly main's jm-v7 001-005. The 27 remaining functions are CSF `panvk_compile_shader` register allocation, runtime-library objects and `:lo12:` layout noise.
+- No missing patch exists. The earlier belief that RC4 "has code main lacks" came from diffing against an r29 build (about 1,600 functions of compiler noise).
+- Consequence for the A06 (G52 MC2 r1): RC4 38/38 versus RC5-dev-v7 (r29) about 14/38 cannot be a driver source gap. It is either the r29 toolchain or the test procedure (app slot, device or firmware unit). v7R decides it, see the queue below.
+- RC4 (non-lowmem) is thus rebuildable from the series (r30, RC4 layout, `PANVK_KBASE_RELEASE=RC4`), unlike the earlier "not byte-verified" note in the 2026-10-20 section. RC4-lowmem source is still lost (see that section).
+
+### Device test queue (all open, nothing here runs without a device)
+
+1. **A06 (Galaxy A06 SM-A065F, G52 MC2 r1, v7):** RC4 and v7R in the same session (PanProbe v7R APK, `--es driver rc4`, then `rc5`), then v7E (`panprobe-v7E.apk`, expect more than 14/38 with jm-v7-wip 0006-0019), then the `rc5-vs-rc4-a06.md` procedure. Decides toolchain versus procedure.
+2. **v6 (G72, Galaxy A51 SM-A515F or vivo 1806 class):** v7E/jm-v7 019 (48-byte atom for pre-11.22 kbase). No v6 device on RTL yet.
+3. **v9 (G57/G68):** `panprobe-v9.apk` with RC4 baseline and fixes-r30 (steps in `builds/2026-10-21-fixes-r30-build.md`): ETC2/ASTC support compare, `vmr_secondary` sample counts, `bc_decode` 128-bit blit (expect 16/16).
+4. **G615 (Poco X6 Pro):** BC r30 build checklist (`builds/2026-10-21-bc-r30-build.md`, csf-v11 197-202: lowmem BC, `vkCmdCopyImage` and raw readback for the 16 BC formats), and the env A/B list via PanProbe `--es env`.
+5. Still device-bound from earlier sections: CSF DEVICE_LOST in games (A), Dark Souls MMU fault (B), v14 `MEM_IMPORT` fix 186 (G1-Ultra), G57 `large_draw` DEVICE_LOST (F), Android 10 load (API 29 build), 21/29, 16 KiB pages.
+
+### Open items classified (2026-10-21)
+
+Device-needed: everything in the queue above, plus A, B, D, F, items 21, 29, 36-only retests, 16 KiB pages, `depth_bias_patch_list_tri_line`, GTA IV issue #2 (reporter log), CTS reruns for csf-v11 187-196, jm-v7-wip performance and DXVK titles.
+Not device-needed (handled 2026-10-21): this PROGRESS update; strict apply check of the default series and jm-v7-wip; stale statements in the RC4 package record (see below); host/CI checks recorded in `builds/2026-10-21-open-items-pass.md`.
