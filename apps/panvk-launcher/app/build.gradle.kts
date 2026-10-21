@@ -70,6 +70,7 @@ tasks.named("preBuild") {
 android {
     namespace = "dev.zenithblue.panvklauncher"
     compileSdk = 36
+    providers.gradleProperty("panvkBuildTools").orNull?.let { buildToolsVersion = it } // e.g. 36.1.0 on hosts lacking the AGP default
     ndkVersion = "29.0.14206865"
 
     defaultConfig {
