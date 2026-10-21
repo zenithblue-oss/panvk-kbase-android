@@ -1,0 +1,32 @@
+INFO devices=1 exts=166 formats=193
+DRIVER slot=RC5 driverInfo=PanVK-kbase RC5-dev-v7G-DI (Mesa 26.3.0-devel (git-0b26a4a88c))
+COMPLIANCE DXVK compliance PASS items=94 missingHard=[] missingSoft=["tiled resources tier 2 (FL12_0)","VK_EXT_conservative_rasterization (FL12_1)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","shaderFloat16","drawIndirectCount","shaderOutputLayer","samplerFilterMinmax","VK_EXT_memory_priority","VK_EXT_multi_draw","VK_EXT_sample_locations"]
+COMPLIANCE Bachata S4 compliance PASS items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","shaderFloat16","drawIndirectCount","shaderOutputLayer","subgroup_wave64"]
+COMPLIANCE vkd3d compliance PASS items=100 missingHard=[] missingSoft=["viewportSubPixelBits >= 8","64 per-stage storage buffers+images (FL11_1)","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","VK_KHR_draw_indirect_count","shaderFloat64","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: VK_EXT_conservative_rasterization","proton: ROVs (pixel+sample interlock)","proton: SM6.6 (compute derivatives linear + int64 buffer atomics + int8 + fixed wave)","proton: SM6.7 (maximal reconvergence + quad control)","proton: VK_EXT_descriptor_buffer path","proton: shaderOutputViewportIndex+Layer","proton: VK_KHR_fragment_shading_rate","proton: VK_EXT_mesh_shader","proton: VK_KHR_ray_query + acceleration_structure","proton: shaderImageInt64Atomics (sampler feedback 0.9)"]
+RESULT gpu_prerast_slice PASS mismatch=0 fps=0 ms=4201
+RESULT clip_cull PASS mismatch=0 fps=2536.7 ms=5239
+RESULT multi_viewport PASS mismatch=0 fps=2018.9 ms=5180
+RESULT fill_mode FAIL mismatch=2 fps=2073.9 ms=6468 extra=Bifrost (v7): feature not implemented yet
+RESULT bc_decode PASS mismatch=0 fps=0 ms=5154
+RESULT bc_perf PASS mismatch=0 fps=0 ms=61825
+RESULT geometry PASS mismatch=0 fps=2739.0 ms=6247
+RESULT tessellation PASS mismatch=0 fps=2560.6 ms=12306
+RESULT xfb PASS mismatch=0 fps=0 ms=6352
+RESULT pipeline_stats PASS mismatch=0 fps=1145.2 ms=5386
+RESULT vertex_stores FAIL mismatch=0 fps=0 ms=4177 extra=Bifrost (v7): feature not implemented yet
+RESULT gs_viewport_depth PASS mismatch=0 fps=0 ms=4197
+RESULT vs_viewport_index PASS mismatch=0 fps=0 ms=4633
+RESULT depth_bounds PASS mismatch=0 fps=0 ms=4414
+RESULT large_draw PASS mismatch=0 fps=0 ms=20772
+RESULT vmr_secondary PASS mismatch=0 fps=0 ms=4150
+RESULT tess_cond_state PASS mismatch=0 fps=0 ms=4387
+RESULT bachata_reqs PASS mismatch=0 fps=0 ms=4129
+RESULT bachata_exec PASS mismatch=0 fps=0 ms=4162
+RESULT robustness2 PASS mismatch=0 fps=0 ms=4177
+RESULT robust_image_access2 FAIL mismatch=0 fps=0 ms=7649 extra=Bifrost (v7): feature not implemented yet | 4096x4096x16 rgba8 loads ria2=231.80ms ria1=169.13ms delta=+37.1% stats(ria2/ria1): Instructions=409/210 Tuples=325/161 Clauses=75/28 Preloads=0/0 Threads=2/2 Code size=4576/2272 Loops=0/0 Spills=0/0 Fills=0/0 Spill cost=0/0 Registers used=18/13 Uniforms used=6/6 | failed=8: r32ui.tbuf_oob got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui.tbuf_alias65537 got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) rgba8.tbuf_oob got=(0x00000000,0x00000000,0x00000000,0x3f800000) want=(0x00000000,0x00000000,0x00000000,0x00000000) rgba8.tbuf_alias65537 got=(0x00000000,0x00000000,0x00000000,0x3f800000) want=(0x00000000,0x00000000,0x00000000,0x00000000) r32ui_nofmt.tbuf_oob got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.tbuf_alias65537 got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) rgba8_nofmt.tbuf_oob got=(0x00000000,0x00000000,0x00000000,0x3f800000) want=(0x00000000,0x00000000,0x00000000,0x00000000) rgba8_nofmt.tbuf_alias65537 got=(0x00000000,0x00000000,0x00000000,0x3f800000) want=(0x00000000,0x00000000,0x00000000,0x00000000)
+RESULT blend PASS mismatch=0 fps=0 ms=4231
+RESULT occlusion_query PASS mismatch=0 fps=0 ms=4167
+RESULT descriptor_model PASS mismatch=0 fps=0 ms=4151
+RESULT shader_arith PASS mismatch=0 fps=0 ms=4234
+RESULT depth_stencil PASS mismatch=0 fps=0 ms=4243
+RESULT sampler PASS mismatch=0 fps=0 ms=4257
