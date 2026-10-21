@@ -2,7 +2,7 @@
 # package-launcher-zips.sh — build the six Android launcher driver zips from a validated .so
 # (adrenotools, winlator, bannerlator, cmod, ludashi, gamehub). Layouts reproduce the RC4 zips.
 # Usage: ./scripts/package-launcher-zips.sh --so path/libvulkan_panfrost.so [--version v0.1.0-rc4]
-#        [--label RC4] [--tag g615-v11-csf] [--mesa-sha 5a07217f] [--outdir dist]
+#        [--label RC4] [--tag g615-v11-csf] [--mesa-sha 5a07217f (or 10+ chars to set the driverVersion git id)] [--outdir dist]
 set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SO=""; VER="v0.0.0-dev"; LABEL=""; TAG="g615-v11-csf"; OUTDIR="$ROOT/dist"; MESA8=""
@@ -17,7 +17,9 @@ fi
 if [ -z "$LABEL" ]; then
   LABEL="$(echo "${VER#v0.1.0-}" | tr '[:lower:]' '[:upper:]')"
 fi
-MESA10="$(python3 -c "import json;print(json.load(open('$ROOT/sources.lock'))['mesaCommit'][:10])")"; export MESA10
+if [ "${#MESA8}" -ge 10 ]; then MESA10="$MESA8"; MESA8="$(echo "$MESA8" | cut -c1-8)"
+else MESA10="$(python3 -c "import json;print(json.load(open('$ROOT/sources.lock'))['mesaCommit'][:10])")"; fi
+export MESA10
 mkdir -p "$OUTDIR"
 python3 - "$SO" "$VER" "$LABEL" "$TAG" "$MESA8" "$OUTDIR" <<'EOF'
 import sys, json, hashlib, zipfile, pathlib

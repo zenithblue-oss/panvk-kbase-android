@@ -24,7 +24,7 @@ data = so.read_bytes(); sha = hashlib.sha256(data).hexdigest()
 lock = json.loads((root / "sources.lock").read_text())
 mesa = lock["mesaCommit"]; mesa8 = mesa8 or mesa[:8]
 prof = json.loads((root / "profiles" / f"{profile}.json").read_text())
-label = (ver.removeprefix("v").split("-",1)[1].upper() if "-" in ver else ver.removeprefix("v")) + (f"-{suffix}" if suffix else "")
+label = (ver.removeprefix("v").split("-",1)[1].upper() if "-" in ver else ver.removeprefix("v")) + (("-" + {"lowmem":"LM"}.get(suffix, suffix)) if suffix else "")
 metaname = f"PanVK-kbase-{label}"
 profile = profile.replace("g615-", "")  # user-facing id; internal build profile is only used to load profiles/*.json above
 pkgver = ver.removeprefix("v") + (f"-{suffix}" if suffix else "")
