@@ -53,6 +53,17 @@ if [ -n "${PANVK_KBASE_RELEASE:-}" ]; then
 fi
 # Host codegen tools (mesa_clc, vtn_bindgen2, panfrost_compile) must come from a native build:
 # default is derived from MESA (see bootstrap-host-tools.sh) and HOST_TOOLS overrides it.
+# A reconfigure does not re-read the cross file, so a changed release string would be
+# silently ignored: record it in the BDIR and wipe the BDIR when it differs.
+REL_NOW="${PANVK_KBASE_RELEASE:-}"
+if [ -f "$BDIR/build.ninja" ]; then
+  REL_OLD="$(cat "$BDIR/.panvk_release" 2>/dev/null || true)"
+  if [ "$REL_OLD" != "$REL_NOW" ]; then
+    echo "release string changed ('$REL_OLD' -> '$REL_NOW'): wiping $BDIR" >&2
+    rm -rf "$BDIR"; mkdir -p "$BDIR"
+  fi
+fi
+printf '%s' "$REL_NOW" > "$BDIR/.panvk_release"
 LOG="$BDIR.log"; RECONF=""; [ -f "$BDIR/build.ninja" ] && RECONF="--reconfigure"
 meson setup $RECONF "$BDIR" "$MESA" --cross-file "$BDIR.cross.ini" \
   -Dbuildtype=release -Dplatforms=android,x11 -Dandroid-stub=true -Dandroid-strict=false \
@@ -65,4 +76,5 @@ ninja -j"${PANVK_JOBS:-$(nproc)}" -C "$BDIR" >>"$LOG" 2>&1 || { tail -n 20 "$LOG
 SO="$(find "$BDIR" -name libvulkan_panfrost.so | head -n1)"
 [ -n "$SO" ] || { echo "BUILD-FAIL: libvulkan_panfrost.so not produced" >&2; exit 1; }
 cp "$SO" "$DDIR/"
+"$NDK_BIN/llvm-strip" "$DDIR/libvulkan_panfrost.so" || { echo "BUILD-FAIL: llvm-strip" >&2; exit 1; }
 echo "OK profile=$PROFILE so=$DDIR/libvulkan_panfrost.so"
