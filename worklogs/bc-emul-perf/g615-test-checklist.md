@@ -4,8 +4,7 @@ One device session. Plan and expectations: `lowmem-v2.md` ("Device test plan").
 Build record: `worklogs/g615-dxvk/builds/2026-10-21-bc-r30-build.md`.
 
 Allowed adb commands only: `install --no-streaming`, `am start`, `logcat`,
-`pull` (plus `push` of the harness files in section C if the operator already
-uses the `/data/local/tmp/bcperf/` workflow). No run-as, setprop, settings
+`pull` (plus `am force-stop <pkg>`). No adb push, no adb shell harness, no run-as, setprop, settings
 put, svc or input.
 
 ## Artifacts (all under /home/flux/build-out)
@@ -31,30 +30,51 @@ Check: driverInfo is `RC5-dev-bc-r30` for rc5; log has
 `panvk: BC emulation on, lowmem`; first spill logs
 `panvk: BC raw store spills to <dir>` (else the "stay resident" warning).
 
-## B. Env-var A/B runs
+## B. Env-var A/B runs (PanProbe intent extra, no harness)
 
-An APK cannot take env vars without setprop/run-as, so these use the
-bcperf harness (section C) with the env set on the command line of the
-test process. Run each configuration for the r30 BC .so; keep the RC4-lowmem
-.so as the baseline.
+PanProbe takes `--es env "KEY=VAL;KEY2=VAL2"`. Only `PANVK_*`, `MESA_*` and
+`PAN_*` keys are accepted (others are logged as `PANPROBE_ENV rejected`). Each
+pair is logged as `PANPROBE_ENV key=... val=...` and is placed in the
+environment of every PanProbe child process that loads the driver .so, so it
+is set before the .so is loaded. Driver env is read once per process, so start
+fresh for each env set: `adb shell am force-stop dev.zenithblue.panvktest.bc`
+before every run (`am` command, allowed). Use `adb logcat -c` before and
+`adb logcat -d -s panvk:* PanProbe:* > <name>.log` after each run.
 
-| run | env |
-|---|---|
-| default | (none) |
-| timing | `PANVK_DEBUG=bc_timing` (log lines `panvk: bc_timing <fmt> <w>x<h> regions=N layers=N xcode\|decode: X us`) |
-| raw plane (= 197) | `PANVK_BC_RAW=plane` |
-| BC6H exact | `PANVK_BC_BC6H=exact` |
-| full exact | `PANVK_BC_MODE=exact` (regression gate, bc_decode 16/16) |
-| workgroup sweep | `PANVK_DEBUG=bc_timing PANVK_BC_LM_WG=16x4`, then `32x2`, then `4x4` (default 8x8) |
+BC test: `--es autorun bc_perf` (image memory per format, upload, sampling,
+copy; with `PANVK_DEBUG=bc_timing` it emits the `bc_timing` lines) and
+`--es autorun bc_decode` (bc_decode 16/16 correctness). `autorun` takes `all`
+or one test name.
 
-## C. Harness (existing workflow)
+Per run (replace ENV and TEST; wait for `AUTORUN DONE` / `PANPROBE_RESULT` in logcat):
 
-Binaries `bc_decode`, `bc-perf` etc. and the test ICD json live in
-`/data/local/tmp/bcperf/`; load the .so by path through the ICD json
-(`VK_DRIVER_FILES`), as in `PROGRESS.md`. Plan items 2-5 and 7 of
-`lowmem-v2.md`: bc_decode + bc_verify (16 formats), raw-store test, copy
-matrix, bc_perf (image memory per format, upload ms, sampling modes A-E),
-CTS filters `*bc*`.
+1. `adb shell am force-stop dev.zenithblue.panvktest.bc`
+2. `adb logcat -c`
+3. `adb shell am start -n dev.zenithblue.panvktest.bc/dev.zenithblue.panvktest.MainActivity --es driver rc5 --es env "ENV" --es autorun TEST`
+4. `adb logcat -d -s panvk:* PanProbe:* > RUN.log`
+
+Run each configuration on rc5 (BC r30); the baseline is `--es driver rc4`
+(no env) with the same TEST.
+
+| run | ENV | TEST |
+|---|---|---|
+| default | (omit `--es env`) | bc_perf, then bc_decode |
+| timing | `PANVK_DEBUG=bc_timing` (log lines `panvk: bc_timing <fmt> <w>x<h> regions=N layers=N xcode\|decode: X us`) | bc_perf |
+| raw plane (= 197) | `PANVK_BC_RAW=plane` | bc_perf |
+| BC6H exact | `PANVK_BC_BC6H=exact` | bc_perf, bc_decode |
+| full exact | `PANVK_BC_MODE=exact` (regression gate, bc_decode 16/16) | bc_decode |
+| workgroup sweep | `PANVK_DEBUG=bc_timing;PANVK_BC_LM_WG=16x4`, then `32x2`, then `4x4` (default 8x8) | bc_perf |
+
+Example: `--es env "PANVK_DEBUG=bc_timing;PANVK_BC_LM_WG=16x4" --es autorun bc_perf`.
+Quote the whole value; `;` separates pairs, so one pair cannot hold a `;`.
+
+## C. Other tests
+
+Plan items 2-5 and 7 of `lowmem-v2.md` map to PanProbe tests: bc_decode
+(bc_decode + bc_verify, 16 formats), bc_perf (image memory per format, upload
+ms, sampling modes A-E). The raw-store test, the copy matrix and CTS `*bc*`
+filters need the bcperf harness binaries and are skipped in this
+safe-adb-only session.
 
 ## D. Game test (MiSide / NFS)
 
