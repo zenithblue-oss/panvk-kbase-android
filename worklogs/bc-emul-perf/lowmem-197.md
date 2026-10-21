@@ -15,7 +15,8 @@ readback/copy bug fixed. Patch: `patches/csf-v11/197-bc-lowmem-etc2-transcode.pa
 - Log: `panvk: BC emulation on, lowmem (native compressed mask 0x...)`.
 - Per image (`panvk_image_init()`): 2D `bc_gfx` images, `OPTIMAL` tiling,
   none of SPARSE_*, DISJOINT, ALIAS, BLOCK_TEXEL_VIEW_COMPATIBLE, no
-  `VkExternalMemoryImageCreateInfo`. BC4/BC5 with MUTABLE_FORMAT need a
+  `VkExternalMemoryImageCreateInfo`, no HOST_TRANSFER usage (host copies
+  only see the raw plane). BC4/BC5 with MUTABLE_FORMAT need a
   format list with only their own format (the EAC shadow fixes the
   signedness). Everything else keeps the exact path.
   - `bc_lowmem = 1` (BC1-BC5): `bc_shadow` is an ETC2/EAC image
@@ -24,7 +25,7 @@ readback/copy bug fixed. Patch: `patches/csf-v11/197-bc-lowmem-etc2-transcode.pa
     (signed). sRGB comes from the view.
   - `bc_lowmem = 2` (BC6H/BC7): the exact RC4 shadow, raw plane dropped.
   - `bc_no_raw`: the raw block plane gets no memory when the image has
-    neither TRANSFER_SRC nor HOST_TRANSFER usage.
+    no TRANSFER_SRC usage.
 - Transcoder: `src/panfrost/vulkan/bc/panvk_bc_etc2.comp`, GLSL compute
   shader built to SPIR-V (`panvk_bc_etc2_spv.h`, `gen_spv.sh`) and run
   through vk_meta, the same mechanism as the 022/150 BC decoders (RC4

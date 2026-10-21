@@ -8,13 +8,13 @@ Subject: [PATCH] WIP: panvk: transcode BC1-BC5 to ETC2/EAC shadows and drop
  src/panfrost/vulkan/bc/gen_spv.sh           |    3 +
  src/panfrost/vulkan/bc/panvk_bc_etc2.comp   |  752 +++++++
  src/panfrost/vulkan/bc/panvk_bc_etc2_spv.h  | 2228 +++++++++++++++++++
- src/panfrost/vulkan/panvk_image.c           |   86 +-
+ src/panfrost/vulkan/panvk_image.c           |   88 +-
  src/panfrost/vulkan/panvk_image.h           |   63 +-
  src/panfrost/vulkan/panvk_meta.h            |    2 +
  src/panfrost/vulkan/panvk_physical_device.c |   45 +-
  src/panfrost/vulkan/panvk_physical_device.h |    7 +
  src/panfrost/vulkan/panvk_vX_cmd_meta.c     |  358 ++-
- 9 files changed, 3523 insertions(+), 21 deletions(-)
+ 9 files changed, 3525 insertions(+), 21 deletions(-)
  create mode 100644 src/panfrost/vulkan/bc/panvk_bc_etc2.comp
  create mode 100644 src/panfrost/vulkan/bc/panvk_bc_etc2_spv.h
 
@@ -3023,7 +3023,7 @@ index 0000000..8dc0d55
 +	0x00000a97,0x000200f9,0x00000a7c,0x000200f8,0x00000a7c,0x000100fd,0x00010038
 +};
 diff --git a/src/panfrost/vulkan/panvk_image.c b/src/panfrost/vulkan/panvk_image.c
-index 275aae3..fea3aa5 100644
+index 275aae3..396f911 100644
 --- a/src/panfrost/vulkan/panvk_image.c
 +++ b/src/panfrost/vulkan/panvk_image.c
 @@ -488,6 +488,24 @@ panvk_bc_shadow_info(const struct panvk_image *image, VkImageCreateInfo *info,
@@ -3074,14 +3074,15 @@ index 275aae3..fea3aa5 100644
        size = MAX2(size, panvk_image_plane_size(image, plane));
     if (image->bc_emul) {
        const struct pan_image_layout *l = &image->bc_decoded.plane.layout;
-@@ -752,6 +775,44 @@ panvk_image_get_sparse_size(const struct panvk_image *image)
+@@ -752,6 +775,47 @@ panvk_image_get_sparse_size(const struct panvk_image *image)
     return ALIGN_POT(image_size, page_size);
  }
  
 +/* Images the lowmem path may take: plain optimal-tiled 2D images whose
-+ * memory nothing but panvk touches. Sparse, aliased, disjoint and external
-+ * images, images with uncompressed (block-texel) views, and BC4/BC5 images
-+ * that may be viewed with the other signedness keep the exact path. */
++ * memory nothing but panvk touches. Sparse, aliased, disjoint, external and
++ * host-transfer images, images with uncompressed (block-texel) views, and
++ * BC4/BC5 images that may be viewed with the other signedness keep the
++ * exact path. */
 +static bool
 +panvk_bc_lowmem_allowed(const struct panvk_image *image,
 +                        const VkImageCreateInfo *info)
@@ -3093,8 +3094,10 @@ index 275aae3..fea3aa5 100644
 +      VK_IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT |
 +      VK_IMAGE_CREATE_DISJOINT_BIT | VK_IMAGE_CREATE_ALIAS_BIT;
 +
++   /* Host image copies only see the raw plane. */
 +   if (image->vk.tiling != VK_IMAGE_TILING_OPTIMAL ||
 +       (image->vk.create_flags & reject) ||
++       (image->vk.usage & VK_IMAGE_USAGE_HOST_TRANSFER_BIT) ||
 +       vk_find_struct_const(info->pNext,
 +                            EXTERNAL_MEMORY_IMAGE_CREATE_INFO))
 +      return false;
@@ -3119,7 +3122,7 @@ index 275aae3..fea3aa5 100644
  VkResult
  panvk_image_init(struct panvk_image *image,
                   const VkImageCreateInfo *pCreateInfo)
-@@ -775,6 +836,27 @@ panvk_image_init(struct panvk_image *image,
+@@ -775,6 +839,26 @@ panvk_image_init(struct panvk_image *image,
              : panvk_bc_decoded_format(image->vk.format);
     }
  
@@ -3131,8 +3134,7 @@ index 275aae3..fea3aa5 100644
 +       panvk_bc_lowmem_allowed(image, pCreateInfo)) {
 +      const VkFormat lm_format = panvk_bc_lowmem_format(image->vk.format);
 +      const bool no_raw =
-+         !(image->vk.usage & (VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-+                              VK_IMAGE_USAGE_HOST_TRANSFER_BIT));
++         !(image->vk.usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 +
 +      if (lm_format != VK_FORMAT_UNDEFINED) {
 +         image->bc_lowmem = 1;
