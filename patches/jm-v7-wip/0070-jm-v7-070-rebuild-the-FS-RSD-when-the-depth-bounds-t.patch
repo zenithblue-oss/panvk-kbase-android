@@ -1,0 +1,36 @@
+From 98926975e960dc7bbb3c35dc83b21d6965ea1f75 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 13:40:49 +0000
+Subject: [PATCH] jm-v7 070: rebuild the FS RSD when the depth bounds test
+ enable changes
+
+panvk_draw_prepare_fs_rsd() reads ds.depth.bounds_test.enable for the
+depth bounds emulation (jm-v7 015/022): the ZS tile read and the forced
+late ZS update. Its dirty list did not include
+DS_DEPTH_BOUNDS_TEST_ENABLE, so vkCmdSetDepthBoundsTestEnable(TRUE) with
+the same pipeline and other state reused the RSD built with the test
+off: no tile read, early ZS update, wrong results (perf review H3).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index 16d45e1..89a6285 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -348,6 +348,10 @@ panvk_draw_prepare_fs_rsd(struct panvk_cmd_buffer *cmdbuf,
+                 dyn_gfx_state_dirty(cmdbuf, DS_DEPTH_WRITE_ENABLE) ||
+                 dyn_gfx_state_dirty(cmdbuf, DS_DEPTH_COMPARE_OP) ||
+                 dyn_gfx_state_dirty(cmdbuf, DS_DEPTH_COMPARE_OP) ||
++                /* zs_read and the late ZS update of the depth bounds FS
++                 * (jm-v7 015) depend on the enable.
++                 */
++                dyn_gfx_state_dirty(cmdbuf, DS_DEPTH_BOUNDS_TEST_ENABLE) ||
+                 dyn_gfx_state_dirty(cmdbuf, DS_STENCIL_TEST_ENABLE) ||
+                 dyn_gfx_state_dirty(cmdbuf, DS_STENCIL_OP) ||
+                 dyn_gfx_state_dirty(cmdbuf, DS_STENCIL_COMPARE_MASK) ||
+-- 
+2.55.0
+
