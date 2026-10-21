@@ -98,6 +98,9 @@ Mesa's ETC2/EAC decoder (`src/mesa/main/texcompress_etc.c`, verbatim):
   dir `/home/flux/build-lowmem/bionic`: OK, no warnings in the new code.
 - `/home/flux/build-out/lowmem-197/libvulkan_panfrost.so`, sha256
   `69be4f7f3d18b85c263ef01d90780cf234ba7dc93fe41f6d841b697a230a6b23`.
+- Strict `scripts/apply-patches.sh --profile g615-v11-csf` on a fresh
+  5a07217 worktree with main as of this commit: `OK applied=192`, 197
+  clean; the resulting `src/panfrost` is identical to the built tree.
 - The transcoder SPIR-V is only compiled to Mali code at runtime (vk_meta
   pipeline), so shader compile issues would show up on the device.
 
