@@ -1,0 +1,11 @@
+INFO devices=1 exts=166 formats=193
+DRIVER slot=RC5 driverInfo=PanVK-kbase RC5-dev-v7I (Mesa 26.3.0-devel (git-f9b7291df9))
+COMPLIANCE DXVK compliance PASS items=94 missingHard=[] missingSoft=["tiled resources tier 2 (FL12_0)","VK_EXT_conservative_rasterization (FL12_1)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","shaderFloat16","drawIndirectCount","shaderOutputLayer","samplerFilterMinmax","VK_EXT_memory_priority","VK_EXT_multi_draw","VK_EXT_sample_locations"]
+COMPLIANCE Bachata S4 compliance PASS items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","shaderFloat16","drawIndirectCount","shaderOutputLayer","subgroup_wave64"]
+COMPLIANCE vkd3d compliance PASS items=100 missingHard=[] missingSoft=["viewportSubPixelBits >= 8","64 per-stage storage buffers+images (FL11_1)","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","VK_KHR_draw_indirect_count","shaderFloat64","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: VK_EXT_conservative_rasterization","proton: ROVs (pixel+sample interlock)","proton: SM6.6 (compute derivatives linear + int64 buffer atomics + int8 + fixed wave)","proton: SM6.7 (maximal reconvergence + quad control)","proton: VK_EXT_descriptor_buffer path","proton: shaderOutputViewportIndex+Layer","proton: VK_KHR_fragment_shading_rate","proton: VK_EXT_mesh_shader","proton: VK_KHR_ray_query + acceleration_structure","proton: shaderImageInt64Atomics (sampler feedback 0.9)"]
+RESULT fill_mode PASS mismatch=0 fps=2841.9 ms=6433
+RESULT vertex_stores PASS mismatch=0 fps=0 ms=4157
+RESULT robust_image_access2 PASS mismatch=0 fps=0 ms=7579 extra=4096x4096x16 rgba8 loads ria2=231.82ms ria1=169.11ms delta=+37.1% stats(ria2/ria1): Instructions=409/210 Tuples=325/161 Clauses=75/28 Preloads=0/0 Threads=2/2 Code size=4576/2272 Loops=0/0 Spills=0/0 Fills=0/0 Spill cost=0/0 Registers used=18/13 Uniforms used=6/6
+RESULT draw_params PASS mismatch=0 fps=0 ms=4158
+AUTORUN DONE pass=4 fail=0 skip=0 total=4 (4 pass / 0 fail / 0 skip)
+EXTERNAL READY run=20261021-190219
