@@ -1,0 +1,107 @@
+From f3b22ee05e215a1b022d6453982a7a3df3c65b1d Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 13:16:44 +0000
+Subject: [PATCH] jm-v7 025: draw a geometry shader behind an empty vertex
+ shader
+
+xfb gs_nopos on the A06: an empty vertex shader (void main() {}) compiles
+to no binary, so it gets no RSD and panvk_cmd_draw()/_indirect() skipped
+the whole draw, the geometry shader and its transform feedback included
+(7/8 components read back 0). With a geometry shader bound, keep the draw
+and only leave the vertex job out: the emulation then depends on the copy
+descriptor / indirect helper job.
+
+The tiler job is also skipped when the geometry shader writes no
+gl_Position (its position buffer is not allocated), as it already was for
+a vertex shader without one.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c | 41 +++++++++++++++++-----
+ 1 file changed, 32 insertions(+), 9 deletions(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index ed73ffe..d9ff156 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -2087,9 +2087,16 @@ prepare_draw_layer(struct panvk_cmd_buffer *cmdbuf,
+       /* A vertex shader that writes no gl_Position leaves the position
+        * buffer undefined: rasterize nothing rather than garbage.
+        */
++      /* Same for a geometry shader without gl_Position (jm-v7 025): its
++       * position buffer is not even allocated.
++       */
+       const bool writes_pos =
+          draw->gs_varying_bufs
+-            ? cmdbuf->state.gfx.gs.out_index_count != 0
++            ? cmdbuf->state.gfx.gs.out_index_count != 0 &&
++                 cmdbuf->state.gfx.gs.out_pos != 0 &&
++                 (panvk_shader_only_variant(cmdbuf->state.gfx.gs.emu)
++                     ->gs.outputs_written &
++                  VARYING_BIT_POS)
+             : pan_varying_layout_find_slot(&vs->info.varyings.formats,
+                                            VARYING_SLOT_POS) != NULL;
+       bool needs_tiling =
+@@ -2785,8 +2792,14 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+    const struct panvk_shader_variant *vs = panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
+    VkResult result;
+ 
+-   /* If there's no vertex shader, we can skip the draw. */
+-   if (!panvk_priv_mem_check_alloc(vs->rsd))
++   /* If there's no vertex shader, we can skip the draw, unless a geometry
++    * shader runs after it (jm-v7 025): an empty vertex shader (no binary,
++    * no RSD) still feeds one that only reads gl_PrimitiveIDIn & co. The
++    * vertex job is then left out.
++    */
++   const bool vs_job = panvk_priv_mem_check_alloc(vs->rsd);
++   if (!vs_job && (!cmdbuf->state.gfx.gs.shader ||
++                   draw->info.prim == MESA_PRIM_PATCHES || draw->tess_phase))
+       return;
+ 
+    v7_count_draw_queries(cmdbuf, draw);
+@@ -2849,8 +2862,10 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+                         false, 0, copy_desc_job_id, &draw->jobs.idvs, false);
+       } else {
+          unsigned vjob_id =
+-            pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_VERTEX, false, false,
+-                           0, copy_desc_job_id, &draw->jobs.vertex, false);
++            vs_job ? pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_VERTEX,
++                                    false, false, 0, copy_desc_job_id,
++                                    &draw->jobs.vertex, false)
++                   : copy_desc_job_id;
+ 
+          /* Tessellation: the tess control job instead of a tiler job. The
+           * rest of the draw is recorded by panvk_tess_draw().
+@@ -2885,8 +2900,14 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+    const struct panvk_shader_variant *vs = panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
+    VkResult result;
+ 
+-   /* If there's no vertex shader, we can skip the draw. */
+-   if (!panvk_priv_mem_check_alloc(vs->rsd))
++   /* If there's no vertex shader, we can skip the draw, unless a geometry
++    * shader runs after it (jm-v7 025): an empty vertex shader (no binary,
++    * no RSD) still feeds one that only reads gl_PrimitiveIDIn & co. The
++    * vertex job is then left out.
++    */
++   const bool vs_job = panvk_priv_mem_check_alloc(vs->rsd);
++   if (!vs_job && (!cmdbuf->state.gfx.gs.shader ||
++                   draw->info.prim == MESA_PRIM_PATCHES || draw->tess_phase))
+       return;
+ 
+    v7_count_draw_queries(cmdbuf, draw);
+@@ -3095,8 +3116,10 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+                         false, 0, prev_job, &draw->jobs.idvs, false);
+       } else {
+          unsigned vjob_id =
+-            pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_VERTEX, false, true, 0,
+-                           prev_job, &draw->jobs.vertex, false);
++            vs_job ? pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_VERTEX,
++                                    false, true, 0, prev_job,
++                                    &draw->jobs.vertex, false)
++                   : prev_job;
+ 
+          /* Tessellation: the tess control job instead of a tiler job, the
+           * rest of the draw is recorded by panvk_tess_draw(). No batch split
+-- 
+2.55.0
+
