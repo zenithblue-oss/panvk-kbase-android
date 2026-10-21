@@ -1,0 +1,96 @@
+From 90dc428f93b35079362547e32cda83de091ff038 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 10:24:23 +0000
+Subject: [PATCH 21/21] jm-v7 022: Bifrost depth bounds: give the depth LD_TILE
+ its conversion
+
+The depth bounds FS lowering (jm-v7 015) loaded the tile depth with a zero
+INTERNAL_CONVERSION. Bifrost rejects that (prepare_iam_sysvals() says so for
+depth input attachments): on the A06 the fragment jobs faulted with
+INSTR_INVALID_ENC (0x51), DATA_INVALID_FAULT (0x58) and IMPRECISE_FAULT
+(0x5b). Pass the depth attachment conversion (F32 register format, the
+attachment memory format) in a new ds.z_conv graphics sysval on v6/v7.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_shader.h      |  6 ++++++
+ src/panfrost/vulkan/panvk_vX_cmd_draw.c | 16 ++++++++++++++++
+ src/panfrost/vulkan/panvk_vX_shader.c   | 11 ++++++++++-
+ 3 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/panfrost/vulkan/panvk_shader.h b/src/panfrost/vulkan/panvk_shader.h
+index 907ce3e..0530388 100644
+--- a/src/panfrost/vulkan/panvk_shader.h
++++ b/src/panfrost/vulkan/panvk_shader.h
+@@ -163,6 +163,12 @@ struct panvk_graphics_sysvals {
+       float bounds[2];
+       uint32_t enable;
+       uint32_t samples;
++#if PAN_ARCH < 9
++      /* INTERNAL_CONVERSION of the depth attachment for the LD_TILE of the
++       * depth: Bifrost faults on a zero conversion (jm-v7 022). */
++      uint32_t z_conv;
++      uint32_t _pad;
++#endif
+    } ds;
+ 
+    struct {
+diff --git a/src/panfrost/vulkan/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/panvk_vX_cmd_draw.c
+index 02f968d..4d99bd2 100644
+--- a/src/panfrost/vulkan/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/panvk_vX_cmd_draw.c
+@@ -1021,6 +1021,22 @@ panvk_per_arch(cmd_prepare_draw_sysvals)(struct panvk_cmd_buffer *cmdbuf,
+       set_gfx_sysval(
+          cmdbuf, dirty_sysvals, ds.samples,
+          MAX2(cmdbuf->vk.dynamic_graphics_state.ms.rasterization_samples, 1));
++#if PAN_ARCH < 9
++      /* LD_TILE of the depth needs its format on Bifrost (jm-v7 022). */
++      uint32_t z_conv = 0;
++      if (db_enable) {
++         VkFormat zfmt = cmdbuf->state.gfx.render.z_attachment.fmt;
++         struct mali_internal_conversion_packed conv;
++
++         pan_pack(&conv, INTERNAL_CONVERSION, cfg) {
++            cfg.register_format = MALI_REGISTER_FILE_FORMAT_F32;
++            cfg.memory_format = GENX(pan_dithered_format_from_pipe_format)(
++               vk_format_to_pipe_format(zfmt), false);
++         }
++         z_conv = conv.opaque[0];
++      }
++      set_gfx_sysval(cmdbuf, dirty_sysvals, ds.z_conv, z_conv);
++#endif
+    }
+ 
+    if (dyn_gfx_state_dirty(cmdbuf, INPUT_ATTACHMENT_MAP))
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index 03ff3e3..dfb8705 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -2433,6 +2433,15 @@ panvk_lower_depth_bounds(nir_shader *nir)
+        * between two triangles).
+        */
+       nir_def *samples = load_sysval(&b, graphics, 32, ds.samples);
++#if PAN_ARCH < 9
++      /* Bifrost LD_TILE needs the depth format: a zero conversion faults
++       * (INSTR_INVALID_ENC / DATA_INVALID_FAULT), as for depth input
++       * attachments (prepare_iam_sysvals()).
++       */
++      nir_def *z_conv = load_sysval(&b, graphics, 32, ds.z_conv);
++#else
++      nir_def *z_conv = nir_imm_int(&b, 0);
++#endif
+       nir_store_var(&b, idx, nir_imm_int(&b, 0), 1);
+       nir_push_loop(&b);
+       {
+@@ -2445,7 +2454,7 @@ panvk_lower_depth_bounds(nir_shader *nir)
+                                  .num_slots = 1};
+          nir_def *z = nir_load_tile_pan(
+             &b, 1, 32, pan_nir_tile_location_sample(&b, FRAG_RESULT_DEPTH, s),
+-            pan_nir_tile_default_coverage(&b), nir_imm_int(&b, 0),
++            pan_nir_tile_default_coverage(&b), z_conv,
+             .dest_type = nir_type_float32, .access = 0, .io_semantics = sem);
+          nir_def *fail =
+             nir_ior(&b, nir_flt(&b, z, nir_channel(&b, bounds, 0)),
+-- 
+2.55.0
+

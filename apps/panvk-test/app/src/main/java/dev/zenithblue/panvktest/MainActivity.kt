@@ -1155,7 +1155,9 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        val selected = if (which == "all") testCases else testCases.filter { it.name == which }
+        // "all", one test name, or a comma-separated list of test names.
+        val wanted = which.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+        val selected = if (which == "all") testCases else testCases.filter { it.name in wanted }
         val runResults = mutableListOf<TestResult>()
         for (test in selected) {
             withContext(Dispatchers.Main) {

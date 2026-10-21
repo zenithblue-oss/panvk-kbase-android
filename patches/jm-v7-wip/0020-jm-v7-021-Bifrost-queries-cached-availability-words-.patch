@@ -1,0 +1,228 @@
+From 0ad045f4c6bcfb35a5e43e26e06ae7f5f2c791ac Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 10:24:15 +0000
+Subject: [PATCH 20/21] jm-v7 021: Bifrost queries: cached availability words
+ and timestamp queries
+
+The query test processes on the A06 (Mali-G52, kbase JM) failed from their
+first chain: CmdResetQueryPool's clear_query_result compute job was
+hard-stopped (BASE_JD_EVENT_TERMINATED 0x04, five times, the warm-up
+submit_retry), then every later chain of the context got JOB_READ_FAULT
+(0x42). The only JM user of the uncached (BASE_MEM_UNCACHED_GPU) pool is the
+query availability array, which that job writes. On v6/v7 it now comes from
+the cached pool, as the reports do (PANVK_QUERY_UNCACHED=1 restores the old
+placement for A/B tests).
+
+Timestamp queries on v6/v7: CmdWriteTimestamp2 was a stub and
+CreateQueryPool(TIMESTAMP) hit UNREACHABLE (bc_perf). Use the v9 JM path:
+WRITE_VALUE SYSTEM_TIMESTAMP jobs with BASE_JD_REQ_PERMON, one report,
+timestampValidBits 64, timestampComputeAndGraphics, and a real batch close
+before a WAIT copy.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/libpan/query_pool.cl             |  3 +-
+ src/panfrost/vulkan/jm/panvk_cmd_buffer.h     |  5 +--
+ src/panfrost/vulkan/jm/panvk_vX_cmd_query.c   |  6 +---
+ src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c   |  6 ----
+ src/panfrost/vulkan/panvk_physical_device.c   |  2 +-
+ .../vulkan/panvk_vX_physical_device.c         |  6 ++--
+ src/panfrost/vulkan/panvk_vX_query_pool.c     | 33 ++++++++++++++++---
+ 7 files changed, 38 insertions(+), 23 deletions(-)
+
+diff --git a/src/panfrost/libpan/query_pool.cl b/src/panfrost/libpan/query_pool.cl
+index 8da6cd0..e0e7797 100644
+--- a/src/panfrost/libpan/query_pool.cl
++++ b/src/panfrost/libpan/query_pool.cl
+@@ -163,8 +163,9 @@ panlib_copy_query_result(uint64_t pool_addr, global uint32_t *available_addr,
+       case VK_QUERY_TYPE_OCCLUSION:
+ #if PAN_ARCH == 9
+       case VK_QUERY_TYPE_PRIMITIVES_GENERATED_EXT:
+-      case VK_QUERY_TYPE_TIMESTAMP:
+ #endif
++      /* One SYSTEM_TIMESTAMP report on JM (v6/v7 since jm-v7 021). */
++      case VK_QUERY_TYPE_TIMESTAMP:
+          write_occlusion_query_result(dst, 0, flags, report_addr, report_count);
+          break;
+       default:
+diff --git a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
+index 9ccd4ca..0de71d3 100644
+--- a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
++++ b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
+@@ -37,9 +37,10 @@ struct panvk_batch {
+ #if PAN_ARCH == 9
+    /* MALLOC_VERTEX jobs, the GPU writes their vertex array pointer. */
+    struct util_dynarray malloc_vertex_jobs;
+-   /* The vertex/tiler chain writes SYSTEM_TIMESTAMP values. */
+-   bool timestamps;
+ #endif
++   /* The vertex/tiler chain writes SYSTEM_TIMESTAMP values (v9, and v6/v7
++    * since jm-v7 021). */
++   bool timestamps;
+    struct util_dynarray event_ops;
+    struct pan_jc vtc_jc;
+    struct pan_jc frag_jc;
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c
+index 00e737e..08ce4b7 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c
+@@ -127,7 +127,7 @@ panvk_per_arch(CmdWriteTimestamp2)(VkCommandBuffer commandBuffer,
+    UNUSED VK_FROM_HANDLE(panvk_cmd_buffer, cmd, commandBuffer);
+    UNUSED VK_FROM_HANDLE(panvk_query_pool, pool, queryPool);
+ 
+-#if PAN_ARCH == 9
++#if PAN_ARCH <= 9
+    /* Barrier write jobs: after every earlier job of the chain, the GPU
+     * system timestamp (as gallium JM), then the availability. With
+     * multiview, every view's query gets the timestamp (view_mask is reset at
+@@ -472,13 +472,9 @@ panvk_per_arch(CmdCopyQueryPoolResults)(
+ 
+    /* XXX: Do we really need that barrier when EndQuery already handle it? */
+    if ((flags & VK_QUERY_RESULT_WAIT_BIT) && cmd->cur_batch != NULL) {
+-#if PAN_ARCH == 9
+       /* close_batch(cmd, true) is a no-op: really end the batch, so the copy
+        * runs after the query writes (e.g. timestamps) recorded in it. */
+       panvk_per_arch(cmd_close_batch)(cmd);
+-#else
+-      close_batch(cmd, true);
+-#endif
+    }
+ 
+    uint64_t dst_addr = panvk_buffer_gpu_ptr(dst_buffer, dstOffset);
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c b/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
+index e207ff2..e752778 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
+@@ -104,11 +104,7 @@ note_submitted(struct panvk_gpu_queue *queue, uint64_t atom)
+ static inline bool
+ batch_has_timestamps(const struct panvk_batch *batch)
+ {
+-#if PAN_ARCH == 9
+    return batch->timestamps;
+-#else
+-   return false;
+-#endif
+ }
+ 
+ /* Reset a batch that has already been issued. */
+@@ -176,11 +172,9 @@ panvk_queue_submit_batch(struct panvk_gpu_queue *queue,
+ 
+    if (batch->vtc_jc.first_job) {
+       uint32_t vtc_core_req = (BASE_JD_REQ_CS | BASE_JD_REQ_T | BASE_JD_REQ_V);
+-#if PAN_ARCH == 9
+       /* Without PERMON kbase leaves the GPU timestamp counter stopped. */
+       if (batch->timestamps)
+          vtc_core_req |= BASE_JD_REQ_PERMON;
+-#endif
+          if (unlikely(!queue->warmed_up)) {
+             /* The first vertex/tiler/compute chain must be submitted too
+              * (it can be a buffer upload the app relies on). Submit it
+diff --git a/src/panfrost/vulkan/panvk_physical_device.c b/src/panfrost/vulkan/panvk_physical_device.c
+index 25cd8fe..336092d 100644
+--- a/src/panfrost/vulkan/panvk_physical_device.c
++++ b/src/panfrost/vulkan/panvk_physical_device.c
+@@ -1562,7 +1562,7 @@ panvk_GetPhysicalDeviceQueueFamilyProperties2(
+             some CTS tests */
+          .queueCount = arch >= 10 ? 2 : 1,
+          .timestampValidBits =
+-            arch >= 9 &&
++            arch >= 6 &&
+                   physical_device->kmod.dev->props.gpu_can_query_timestamp
+                ? 64
+                : 0,
+diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
+index 1a0122a..4e69d6d 100644
+--- a/src/panfrost/vulkan/panvk_vX_physical_device.c
++++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
+@@ -1063,10 +1063,10 @@ panvk_per_arch(get_physical_device_properties)(
+       .sampledImageStencilSampleCounts = sample_counts,
+       .storageImageSampleCounts = VK_SAMPLE_COUNT_1_BIT,
+       .maxSampleMaskWords = 1,
++      /* v6/v7: WRITE_VALUE SYSTEM_TIMESTAMP jobs, as v9 JM (jm-v7 021). */
+       .timestampComputeAndGraphics =
+-         PAN_ARCH >= 9 && device->kmod.dev->props.gpu_can_query_timestamp,
+-      .timestampPeriod =
+-         PAN_ARCH >= 9 ? panvk_get_gpu_system_timestamp_period(device) : 0,
++         device->kmod.dev->props.gpu_can_query_timestamp,
++      .timestampPeriod = panvk_get_gpu_system_timestamp_period(device),
+       .maxClipDistances = 8,
+       .maxCullDistances = 8,
+       .maxCombinedClipAndCullDistances = 8,
+diff --git a/src/panfrost/vulkan/panvk_vX_query_pool.c b/src/panfrost/vulkan/panvk_vX_query_pool.c
+index 05b9fdd..9917acc 100644
+--- a/src/panfrost/vulkan/panvk_vX_query_pool.c
++++ b/src/panfrost/vulkan/panvk_vX_query_pool.c
+@@ -4,6 +4,8 @@
+  * SPDX-License-Identifier: MIT
+  */
+ 
++#include <stdlib.h>
++
+ #include "util/macros.h"
+ #include "util/os_time.h"
+ #include "vk_log.h"
+@@ -67,9 +69,10 @@ panvk_per_arch(CreateQueryPool)(VkDevice _device,
+       reports_per_query = PANVK_SUBQUEUE_COUNT + 1;
+       break;
+    }
+-#elif PAN_ARCH == 9
++#else
+    case VK_QUERY_TYPE_TIMESTAMP: {
+-      /* One WRITE_VALUE SYSTEM_TIMESTAMP report. */
++      /* One WRITE_VALUE SYSTEM_TIMESTAMP report (JM: v9, v6/v7 since
++       * jm-v7 021). */
+       reports_per_query = 1;
+       break;
+    }
+@@ -114,8 +117,27 @@ panvk_per_arch(CreateQueryPool)(VkDevice _device,
+       .size = sizeof(struct panvk_query_available_obj) * pool->vk.query_count,
+       .alignment = 64,
+    };
++#if PAN_ARCH < 9
++   /* Bifrost JM (jm-v7 021): GPU writes to a kbase BASE_MEM_UNCACHED_GPU
++    * region fault on Mali-G52 (the clear_query_result compute job is
++    * hard-stopped, event TERMINATED, and the context's later chains get
++    * JOB_READ_FAULT). Keep the availability words in the cached pool, as
++    * the reports already are; the CPU reads both through
++    * panvk_priv_mem_readback(). PANVK_QUERY_UNCACHED=1 restores the old
++    * placement for A/B testing.
++    */
++   static int query_nc = -1;
++   if (query_nc < 0) {
++      const char *e = getenv("PANVK_QUERY_UNCACHED");
++      query_nc = e && e[0] == '1';
++   }
++   pool->available_mem = panvk_pool_alloc_mem(
++      query_nc ? &device->mempools.rw_nc : &device->mempools.rw,
++      syncobjs_alloc_info);
++#else
+    pool->available_mem =
+       panvk_pool_alloc_mem(&device->mempools.rw_nc, syncobjs_alloc_info);
++#endif
+    if (!pool->available_mem.bo) {
+       panvk_pool_free_mem(&pool->mem);
+       vk_query_pool_destroy(&device->vk, pAllocator, &pool->vk);
+@@ -322,16 +344,17 @@ panvk_per_arch(GetQueryPoolResults)(VkDevice _device, VkQueryPool queryPool,
+             break;
+          }
+ #endif
+-#if PAN_ARCH == 9
++#if PAN_ARCH < 10
+          case VK_QUERY_TYPE_TIMESTAMP:
+ #endif
+ #if PAN_ARCH >= 9
+-         case VK_QUERY_TYPE_PRIMITIVES_GENERATED_EXT: {
++         case VK_QUERY_TYPE_PRIMITIVES_GENERATED_EXT:
++#endif
++         {
+             if (write_results)
+                cpu_write_query_result(dst, 0, flags, src[0].value);
+             break;
+          }
+-#endif
+          case VK_QUERY_TYPE_PIPELINE_STATISTICS:
+          case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT: {
+             for (uint32_t s = 0; write_results && s < result_count; s++) {
+-- 
+2.55.0
+
