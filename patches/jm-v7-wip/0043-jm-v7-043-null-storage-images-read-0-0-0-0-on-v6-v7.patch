@@ -1,4 +1,4 @@
-From ee628712a17ddc43aa18b0ea0f36af236e8647c7 Mon Sep 17 00:00:00 2001
+From 1f4c3015aeeae3ca90c882412eb694d5813f8a15 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 10:29:07 +0000
 Subject: [PATCH 43/45] jm-v7 043: null storage images read (0,0,0,0) on v6/v7
@@ -20,11 +20,11 @@ in-bounds texel in a 256-byte scratch area after the null zero page
 (stores land there, never in the zero page that null UBOs read), in case
 the out-of-bounds value does not go through the component order.
 ---
- src/panfrost/vulkan/panvk_vX_device.c | 29 ++++++++++++++++++++++++---
- 1 file changed, 26 insertions(+), 3 deletions(-)
+ src/panfrost/vulkan/panvk_vX_device.c | 37 ++++++++++++++++++++++++---
+ 1 file changed, 34 insertions(+), 3 deletions(-)
 
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index afefe0f..6e1c616 100644
+index afefe0f..df22aef 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
 @@ -44,6 +44,7 @@
@@ -65,7 +65,7 @@ index afefe0f..6e1c616 100644
     dev->null_descs.zero_addr = dev->null_descs.zero_bo->addr.dev;
  
     const VkImageCreateInfo ici = {
-@@ -525,6 +531,23 @@ panvk_init_null_descs(struct panvk_device *dev)
+@@ -525,6 +531,31 @@ panvk_init_null_descs(struct panvk_device *dev)
     pan_pack(&img[0], ATTRIBUTE_BUFFER, cfg) {
        cfg = img_cfg;
        cfg.size = 0;
@@ -75,7 +75,15 @@ index afefe0f..6e1c616 100644
 +       * 0000 component order (jm-v7 043). The format is packed above the
 +       * texel stride and log2(samples), see prepare_attr_buf_descs(). */
 +      uint32_t hw_fmt = cfg.stride >> 10;
-+      hw_fmt = (hw_fmt & ~BITFIELD_MASK(12)) | MALI_RGB_COMPONENT_ORDER_0000;
++#if PAN_ARCH == 6
++      /* v6 formats carry a swizzle (3 bits per channel): 0, 0, 0, 0. */
++      const uint32_t zero_order =
++         MALI_CHANNEL_0 | (MALI_CHANNEL_0 << 3) | (MALI_CHANNEL_0 << 6) |
++         (MALI_CHANNEL_0 << 9);
++#else
++      const uint32_t zero_order = MALI_RGB_COMPONENT_ORDER_0000;
++#endif
++      hw_fmt = (hw_fmt & ~BITFIELD_MASK(12)) | zero_order;
 +      cfg.stride = (cfg.stride & BITFIELD_MASK(10)) | (hw_fmt << 10);
 +      /* Measurement: PANVK_NULLIMG_INBOUNDS=1 makes the null image a real
 +       * 1x1 texel in a scratch area after the zero page (stores land
