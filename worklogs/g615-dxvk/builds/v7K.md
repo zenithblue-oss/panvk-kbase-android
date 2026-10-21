@@ -65,7 +65,7 @@ Suggested device checks:
 
 ## Build
 
-- **Mesa tree:** HEAD on branch `v7K`. Patches 0006-0062 in file order are in `patches/jm-v7-wip`.
+- **Mesa tree:** HEAD `d160802` on branch `v7K`. Patches 0006-0062 in file order are in `patches/jm-v7-wip`.
 - **Command:**
   ```
   flock /home/flux/build-cache/build.lock env MESA=/home/flux/src/mesa-v7J BDIR=/home/flux/build-v7feat/bionic-r30-v7K HOST_TOOLS=/home/flux/repos/panvk-kbase-android/build/host-tools/bin PANVK_KBASE_RELEASE=RC5-dev-v7K PANVK_JOBS=4 scripts/build-android.sh --profile g615-v11-csf --api 29 --ndk /opt/android-sdk/ndk/30.0.16248370
