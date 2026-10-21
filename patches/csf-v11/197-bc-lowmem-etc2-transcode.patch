@@ -13,8 +13,8 @@ Subject: [PATCH] WIP: panvk: transcode BC1-BC5 to ETC2/EAC shadows and drop
  src/panfrost/vulkan/panvk_meta.h            |    2 +
  src/panfrost/vulkan/panvk_physical_device.c |   45 +-
  src/panfrost/vulkan/panvk_physical_device.h |    7 +
- src/panfrost/vulkan/panvk_vX_cmd_meta.c     |  165 ++
- 9 files changed, 3344 insertions(+), 7 deletions(-)
+ src/panfrost/vulkan/panvk_vX_cmd_meta.c     |  358 ++-
+ 9 files changed, 3523 insertions(+), 21 deletions(-)
  create mode 100644 src/panfrost/vulkan/bc/panvk_bc_etc2.comp
  create mode 100644 src/panfrost/vulkan/bc/panvk_bc_etc2_spv.h
 
@@ -3344,7 +3344,7 @@ index 5458eb0..1a5cd41 100644
  
  VK_DEFINE_HANDLE_CASTS(panvk_physical_device, vk.base, VkPhysicalDevice,
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_meta.c b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
-index 76960e6..61681da 100644
+index 76960e6..371ae76 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 +++ b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 @@ -5,6 +5,7 @@
@@ -3533,3 +3533,263 @@ index 76960e6..61681da 100644
  static void
  bc_decode_barrier(VkCommandBuffer cmd, VkPipelineStageFlags2 dst_stage,
                    VkAccessFlags2 dst_access)
+@@ -909,7 +1074,7 @@ panvk_per_arch(cmd_bc_decode_zero_initialized)(
+           !img->bc_emul)
+          continue;
+ 
+-      if (img->bc_gfx) {
++      if (img->bc_gfx && img->bc_lowmem != 1) {
+          any_gfx = true;
+          continue;
+       }
+@@ -931,8 +1096,21 @@ panvk_per_arch(cmd_bc_decode_zero_initialized)(
+             .baseArrayLayer = b->subresourceRange.baseArrayLayer,
+             .layerCount = layer_count,
+          };
+-         bc_decode_region(cmdbuf, img, &subres, (VkOffset3D){0, 0, 0},
+-                          vk_image_mip_level_extent(&img->vk, level));
++         const VkExtent3D extent = vk_image_mip_level_extent(&img->vk, level);
++
++         if (img->bc_lowmem == 1) {
++            /* Transcode zero blocks: from the zeroed raw plane, or from a
++             * zero row when the image has none. */
++            const struct bc_decode_src src =
++               img->bc_no_raw
++                  ? bc_zero_src(cmdbuf, img)
++                  : bc_raw_plane_src(img, &subres, (VkOffset3D){0, 0, 0});
++            bc_xcode_region(cmdbuf, img, &subres, (VkOffset3D){0, 0, 0},
++                            extent, &src);
++         } else {
++            bc_decode_region(cmdbuf, img, &subres, (VkOffset3D){0, 0, 0},
++                             extent);
++         }
+       }
+    }
+ 
+@@ -949,7 +1127,7 @@ panvk_per_arch(cmd_bc_decode_zero_initialized)(
+ 
+          if (b->oldLayout != VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT ||
+              b->newLayout == VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT ||
+-             !img->bc_gfx)
++             !img->bc_gfx || img->bc_lowmem == 1)
+             continue;
+ 
+          const uint32_t level_count =
+@@ -963,7 +1141,9 @@ panvk_per_arch(cmd_bc_decode_zero_initialized)(
+                   &img->vk, &b->subresourceRange),
+             };
+             const struct bc_decode_src src =
+-               bc_raw_plane_src(img, &subres, (VkOffset3D){0, 0, 0});
++               img->bc_no_raw
++                  ? bc_zero_src(cmdbuf, img)
++                  : bc_raw_plane_src(img, &subres, (VkOffset3D){0, 0, 0});
+             bc_decode_region_gfx(cmdbuf, img, &subres, (VkOffset3D){0, 0, 0},
+                                  vk_image_mip_level_extent(&img->vk,
+                                                            subres.mipLevel),
+@@ -989,14 +1169,21 @@ panvk_per_arch(CmdCopyMemoryToImageKHR)(
+    if (bc_img->bc_gfx) {
+       VK_FROM_HANDLE(panvk_cmd_buffer, cmdbuf, commandBuffer);
+       struct panvk_cmd_meta_graphics_save_ctx save = {0};
++      struct panvk_cmd_meta_compute_save_ctx csave = {0};
+       const uint32_t blk_B = vk_format_get_blocksize(bc_img->vk.format);
++      const bool xcode = bc_img->bc_lowmem == 1;
+ 
+-      copy_memory_to_image_raw(commandBuffer, pCopyMemoryInfo);
++      /* bc_no_raw images keep no raw blocks: only the shadow is written. */
++      if (!bc_img->bc_no_raw)
++         copy_memory_to_image_raw(commandBuffer, pCopyMemoryInfo);
+ 
+-      /* Decode straight from the copy source: the raw copy (compute) and
+-       * the decode (fragment) only share reads, so no barrier between them.
+-       * The app's COPY-stage barriers cover both subqueues. */
+-      meta_gfx_start(cmdbuf, &save);
++      /* Decode (or transcode) straight from the copy source: the raw copy
++       * and the decode only share reads, so no barrier between them. The
++       * app's COPY-stage barriers cover both subqueues. */
++      if (xcode)
++         meta_compute_start(cmdbuf, &csave);
++      else
++         meta_gfx_start(cmdbuf, &save);
+       for (uint32_t i = 0; i < pCopyMemoryInfo->regionCount; i++) {
+          const VkDeviceMemoryImageCopyKHR *r = &pCopyMemoryInfo->pRegions[i];
+          const uint32_t row_px =
+@@ -1010,10 +1197,17 @@ panvk_per_arch(CmdCopyMemoryToImageKHR)(
+             .slice_B = DIV_ROUND_UP(col_px, 4) * row_B,
+          };
+ 
+-         bc_decode_region_gfx(cmdbuf, bc_img, &r->imageSubresource,
+-                              r->imageOffset, r->imageExtent, &src);
++         if (xcode)
++            bc_xcode_region(cmdbuf, bc_img, &r->imageSubresource,
++                            r->imageOffset, r->imageExtent, &src);
++         else
++            bc_decode_region_gfx(cmdbuf, bc_img, &r->imageSubresource,
++                                 r->imageOffset, r->imageExtent, &src);
+       }
+-      meta_gfx_end(cmdbuf, &save);
++      if (xcode)
++         meta_compute_end(cmdbuf, &csave);
++      else
++         meta_gfx_end(cmdbuf, &save);
+       return;
+    }
+ 
+@@ -1238,21 +1432,157 @@ lower_copy_image(VkCommandBuffer commandBuffer,
+    return true;
+ }
+ 
++/* Image -> image copy into a bc_no_raw image. There is no raw plane to copy
++ * into, so the shadow is written from the source blocks directly: from the
++ * raw plane of a BC source (a copy source has TRANSFER_SRC, so it keeps
++ * one), else from a staging copy of the source region. */
++static void
++bc_copy_image_no_raw(struct panvk_cmd_buffer *cmdbuf,
++                     const VkCopyImageInfo2 *info)
++{
++   VkCommandBuffer cmd = panvk_cmd_buffer_to_handle(cmdbuf);
++   VK_FROM_HANDLE(panvk_image, src_img, info->srcImage);
++   VK_FROM_HANDLE(panvk_image, dst_img, info->dstImage);
++   const bool src_blocks = vk_format_is_compressed(src_img->vk.format);
++   const bool src_is_3d = src_img->vk.image_type == VK_IMAGE_TYPE_3D;
++   const bool src_raw =
++      src_blocks && src_img->bc_emul && !src_img->bc_no_raw && !src_is_3d;
++   const uint32_t blk_B = vk_format_get_blocksize(dst_img->vk.format);
++   bool staged = false;
++
++   STACK_ARRAY(struct bc_decode_src, srcs, info->regionCount);
++
++   for (uint32_t i = 0; i < info->regionCount; i++) {
++      const VkImageCopy2 *r = &info->pRegions[i];
++
++      if (src_raw) {
++         srcs[i] = bc_raw_plane_src(src_img, &r->srcSubresource, r->srcOffset);
++         continue;
++      }
++
++      /* Tightly packed blocks (or texels of a size-compatible format). */
++      const uint32_t bw =
++         src_blocks ? DIV_ROUND_UP(r->extent.width, 4) : r->extent.width;
++      const uint32_t bh =
++         src_blocks ? DIV_ROUND_UP(r->extent.height, 4) : r->extent.height;
++      const uint32_t layers =
++         src_is_3d ? r->extent.depth
++                   : vk_image_subresource_layer_count(&src_img->vk,
++                                                      &r->srcSubresource);
++      const uint32_t row_B = bw * blk_B;
++      const uint64_t size = (uint64_t)row_B * bh * layers;
++      struct pan_ptr mem = panvk_cmd_alloc_dev_mem(cmdbuf, desc, size, 64);
++
++      if (!mem.gpu) {
++         STACK_ARRAY_FINISH(srcs);
++         return;
++      }
++
++      const VkDeviceMemoryImageCopyKHR region = {
++         .sType = VK_STRUCTURE_TYPE_DEVICE_MEMORY_IMAGE_COPY_KHR,
++         .addressRange = {.address = mem.gpu, .size = size},
++         .imageSubresource = r->srcSubresource,
++         .imageLayout = info->srcImageLayout,
++         .imageOffset = r->srcOffset,
++         .imageExtent = r->extent,
++      };
++      const VkCopyDeviceMemoryImageInfoKHR copy = {
++         .sType = VK_STRUCTURE_TYPE_COPY_DEVICE_MEMORY_IMAGE_INFO_KHR,
++         .image = info->srcImage,
++         .regionCount = 1,
++         .pRegions = &region,
++      };
++
++      panvk_per_arch(CmdCopyImageToMemoryKHR)(cmd, &copy);
++      staged = true;
++      srcs[i] = (struct bc_decode_src){
++         .addr = mem.gpu,
++         .row_B = row_B,
++         .slice_B = row_B * bh,
++      };
++   }
++
++   const bool xcode = dst_img->bc_lowmem == 1;
++
++   if (staged) {
++      bc_decode_barrier(cmd,
++                        xcode ? VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT
++                              : VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
++                        VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
++   }
++
++   struct panvk_cmd_meta_graphics_save_ctx save = {0};
++   struct panvk_cmd_meta_compute_save_ctx csave = {0};
++
++   if (xcode)
++      meta_compute_start(cmdbuf, &csave);
++   else
++      meta_gfx_start(cmdbuf, &save);
++   for (uint32_t i = 0; i < info->regionCount; i++) {
++      const VkImageCopy2 *r = &info->pRegions[i];
++      VkExtent3D extent = r->extent;
++
++      if (!src_blocks) {
++         extent.width *= 4;
++         extent.height *= 4;
++      }
++      if (xcode)
++         bc_xcode_region(cmdbuf, dst_img, &r->dstSubresource, r->dstOffset,
++                         extent, &srcs[i]);
++      else
++         bc_decode_region_gfx(cmdbuf, dst_img, &r->dstSubresource,
++                              r->dstOffset, extent, &srcs[i]);
++   }
++   if (xcode)
++      meta_compute_end(cmdbuf, &csave);
++   else
++      meta_gfx_end(cmdbuf, &save);
++
++   STACK_ARRAY_FINISH(srcs);
++}
++
+ VKAPI_ATTR void VKAPI_CALL
+ panvk_per_arch(CmdCopyImage2)(VkCommandBuffer commandBuffer,
+                               const VkCopyImageInfo2 *pCopyImageInfo)
+ {
+    VK_FROM_HANDLE(panvk_image, bc_src, pCopyImageInfo->srcImage);
+    VK_FROM_HANDLE(panvk_image, bc_dst, pCopyImageInfo->dstImage);
++   VK_FROM_HANDLE(panvk_cmd_buffer, cmdbuf, commandBuffer);
++
++   if (bc_dst->bc_emul && bc_dst->bc_no_raw) {
++      bc_copy_image_no_raw(cmdbuf, pCopyImageInfo);
++      return;
++   }
+ 
+    copy_image_raw(commandBuffer, pCopyImageInfo);
+ 
+    if (!bc_dst->bc_emul)
+       return;
+ 
+-   VK_FROM_HANDLE(panvk_cmd_buffer, cmdbuf, commandBuffer);
+    const bool src_blocks = vk_format_is_compressed(bc_src->vk.format);
+ 
++   if (bc_dst->bc_lowmem == 1) {
++      struct panvk_cmd_meta_compute_save_ctx save = {0};
++
++      /* Transcode from the raw blocks the copy just wrote. */
++      bc_decode_begin(cmdbuf, &save);
++      for (uint32_t i = 0; i < pCopyImageInfo->regionCount; i++) {
++         const VkImageCopy2 *r = &pCopyImageInfo->pRegions[i];
++         VkExtent3D extent = r->extent;
++
++         if (!src_blocks) {
++            extent.width *= 4;
++            extent.height *= 4;
++         }
++         const struct bc_decode_src src =
++            bc_raw_plane_src(bc_dst, &r->dstSubresource, r->dstOffset);
++         bc_xcode_region(cmdbuf, bc_dst, &r->dstSubresource, r->dstOffset,
++                         extent, &src);
++      }
++      meta_compute_end(cmdbuf, &save);
++      return;
++   }
++
+    if (bc_dst->bc_gfx) {
+       struct panvk_cmd_meta_graphics_save_ctx save = {0};
+ 
