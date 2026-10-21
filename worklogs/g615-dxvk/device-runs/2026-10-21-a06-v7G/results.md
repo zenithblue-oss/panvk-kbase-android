@@ -34,3 +34,29 @@ robustness2 with PANVK_NULLIMG_INBOUNDS=1 (run 20261021-195519): PASS (all cases
 robust_image_access2 with PANVK_DEBUG=ria2 (run 20261021-195645): FAIL. INFO robustImageAccess2=1. Fails: *.load_x/y/layer/neg_x (r32ui got a=0 want 1; rgba8 got a=1.0 want 0), *_alias65537/65536 loads return aliased in-bounds data, tbuf_oob/tbuf_alias (same alpha), store_oob and r32ui.atomic_cas_alias write in-bounds (got 0x9 / 0xffffffff, want unchanged). Passes: fetch*, tbuf, store, atomics in-bounds. BENCH ria2 169.24ms vs ria1 169.21ms (no perf delta).
 
 Group A check: v7ga not installed (pm list shows only v7ge); PANVK_QUERY_UNCACHED A/B skipped.
+
+## A2 (panprobe-v7gA.apk, RC5-dev-v7G-A2, so sha256 37dcec4e...39d9, pkg v7ga; runs in A2/runs)
+
+Main run (pipeline_stats,large_draw,xfb,occlusion_query,bc_perf,depth_bounds): pass 4 fail 2.
+
+| test | v7G-A b1 | v7G-A2 |
+|---|---|---|
+| occlusion_query | PASS | PASS (4139 ms) |
+| bc_perf | PASS | PASS (63347 ms) |
+| depth_bounds | PASS | PASS |
+| pipeline_stats | FAIL fs=0 in all 9 cases | PASS (fps 1548.7) |
+| xfb | FAIL gs_nopos, vs_adj_tri_strip, vs_clip_cull_capture | FAIL mismatch=11 extra=Bifrost (v7): feature not implemented yet |
+| large_draw | FAIL xfb written=4096 generated=-1, 4 fence r=-4 | FAIL mismatch=0 extra=Bifrost (v7): feature not implemented yet (19342 ms) |
+
+Failure lines:
+- RESULT xfb FAIL mismatch=11 fps=0 ms=6059 extra=Bifrost (v7): feature not implemented yet
+- RESULT large_draw FAIL mismatch=0 fps=0 ms=19342 extra=Bifrost (v7): feature not implemented yet
+
+occlusion_query with env PANVK_QUERY_UNCACHED=1 (alone): RESULT occlusion_query FAIL mismatch=0 fps=0 ms=8511 extra=Bifrost (v7): feature not implemented yet. Cached run passes, uncached fails: confirms the cause is query cache coherency (expected result). Note: no runs/ dir existed on device (only autorun.txt), so saved autorun-main.txt and autorun-uncached.txt in A2/runs.
+
+## B3 (panprobe-v7gB-b3.apk, so sha256 1c473d4f...d44e, pkg v7gb; runs in B3/runs)
+
+Group B+C+D (fill_mode,geometry,tessellation,gs_viewport_depth,vs_viewport_index): pass 5 fail 0.
+fill_mode PASS, geometry PASS, tessellation PASS (was FAIL in v7G-A), gs_viewport_depth PASS, vs_viewport_index PASS.
+
+Full suite (autorun all): INCOMPLETE. 5 results in ~25 min, all PASS (gpu_prerast_slice, clip_cull, multi_viewport, fill_mode, bc_decode), then no further progress (likely hang on the next test); force-stopped. Partial log in B3/runs/autorun-all-partial.txt.
