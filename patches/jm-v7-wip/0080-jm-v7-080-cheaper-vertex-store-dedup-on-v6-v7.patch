@@ -1,0 +1,199 @@
+From 7496646bda4f3667369a75ab86021ceea3b7229d Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 14:09:08 +0000
+Subject: [PATCH] jm-v7 080: cheaper vertex store dedup on v6/v7
+
+The jm-v7 046 referenced-vertex bitmap of an indexed draw whose VS
+writes memory cost (perf review M7):
+- two full PANLIB_BARRIER_JM_BARRIER jobs (vs_ref_clear, vs_ref_mark)
+  per draw, serializing it with every earlier draw of the chain;
+- a 128 KB GPU clear per draw for 32-bit indices;
+- a separate clear job even for the 36 B / 8 KB bitmaps of 8/16-bit
+  indices;
+- one atomic per index in the mark kernel;
+and a skipped atomic returned nir_undef, so a VS spin-lock on an
+unreferenced vertex could loop on garbage.
+
+Now:
+- explicit job dependencies with PANLIB_BARRIER_NONE, as the min/max
+  search already uses: clear after min/max, mark after clear, the
+  indirect helper (and so the vertex job) after mark;
+- the clear reads the min/max result and clears only word 0 and the
+  (max - min) / 32 + 1 words the mark and the VS can touch;
+- 8/16-bit bitmaps of a one-time-submit primary command buffer are
+  cleared on the CPU at record time, with no clear job
+  (panvk_cmd_buffer::one_time_submit);
+- the mark kernel ORs bits into a register and issues one atomic per run
+  of indices in the same word;
+- skipped atomics return 0 (nir_imm_zero).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/libpan/draw_helper.cl           | 33 ++++++++++++++++---
+ src/panfrost/vulkan/jm/panvk_cmd_buffer.h    |  4 +++
+ src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c |  3 ++
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c   | 34 +++++++++++++++-----
+ src/panfrost/vulkan/panvk_vX_shader.c        |  9 ++++--
+ 5 files changed, 68 insertions(+), 15 deletions(-)
+
+diff --git a/src/panfrost/libpan/draw_helper.cl b/src/panfrost/libpan/draw_helper.cl
+index c4c2399..6505b98 100644
+--- a/src/panfrost/libpan/draw_helper.cl
++++ b/src/panfrost/libpan/draw_helper.cl
+@@ -2015,12 +2015,27 @@ panlib_v7_gs_restart_list(global uint32_t *out_idx, global uint32_t *out_cmd,
+  * did not fit), bit i of word 1 + i / 32 is raw vertex id i (index - min).
+  */
+ KERNEL(64)
+-panlib_v7_vs_ref_clear(global uint32_t *bitmap, uint32_t words)
++panlib_v7_vs_ref_clear(global uint32_t *bitmap, uint32_t words,
++                       global struct libpan_draw_helper_index_min_max_result *mm)
+ {
+    const uint32_t i = cl_global_id.x;
+ 
+-   if (i <= words)
+-      bitmap[i] = 0;
++   if (i > words)
++      return;
++
++   /* jm-v7 080: runs after the min/max search, so only word 0 and the
++    * words of the [min, max] range the mark kernel and the VS can touch
++    * (the whole bitmap is 128 KB for 32-bit indices).
++    */
++   if (i > 0) {
++      const uint32_t lo = mm->min;
++      const uint32_t hi = mm->max;
++      if (hi < lo || (uint64_t)hi - lo >= (uint64_t)words * 32 ||
++          i - 1 > (hi - lo) / 32)
++         return;
++   }
++
++   bitmap[i] = 0;
+ }
+ 
+ KERNEL(64)
+@@ -2054,13 +2069,23 @@ panlib_v7_vs_ref_mark(global uint8_t *index_buffer_ptr,
+ #define VS_REF_MARK_CASE(sz)                                                   \
+    case sz: {                                                                  \
+       global uint##sz##_t *indices = (global uint##sz##_t *)index_buffer_ptr;  \
++      /* jm-v7 080: one atomic per run of indices in the same word. */         \
++      uint32_t cur = UINT32_MAX, acc = 0;                                      \
+       for (uint32_t i = 0; i < count; i++) {                                   \
+          uint32_t val = (uint32_t)indices[start + base_idx + i];               \
+          if (primitive_restart__2 && val == UINT##sz##_MAX)                    \
+             continue;                                                          \
+          uint32_t rel = val - min_vertex;                                      \
+-         atomic_fetch_or(&bitmap[1 + rel / 32], 1u << (rel % 32));             \
++         if (rel / 32 != cur) {                                                \
++            if (acc)                                                           \
++               atomic_fetch_or(&bitmap[1 + cur], acc);                         \
++            cur = rel / 32;                                                    \
++            acc = 0;                                                           \
++         }                                                                     \
++         acc |= 1u << (rel % 32);                                              \
+       }                                                                        \
++      if (acc)                                                                 \
++         atomic_fetch_or(&bitmap[1 + cur], acc);                               \
+       break;                                                                   \
+    }
+       VS_REF_MARK_CASE(32)
+diff --git a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
+index e240b3f..5677b85 100644
+--- a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
++++ b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
+@@ -99,6 +99,10 @@ struct panvk_cmd_buffer {
+    struct list_head batches;
+    struct list_head push_sets;
+    struct panvk_batch *cur_batch;
++   /* VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT: record-time CPU clears of
++    * GPU-written scratch are safe (jm-v7 080).
++    */
++   bool one_time_submit;
+ 
+    struct {
+       struct panvk_cmd_graphics_state gfx;
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
+index 1e18973..82bdce6 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
+@@ -622,6 +622,9 @@ panvk_per_arch(BeginCommandBuffer)(VkCommandBuffer commandBuffer,
+    VK_FROM_HANDLE(panvk_cmd_buffer, cmdbuf, commandBuffer);
+ 
+    vk_command_buffer_begin(&cmdbuf->vk, pBeginInfo);
++   cmdbuf->one_time_submit =
++      cmdbuf->vk.level == VK_COMMAND_BUFFER_LEVEL_PRIMARY &&
++      (pBeginInfo->flags & VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+ 
+    return VK_SUCCESS;
+ }
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index 662a1d6..b165872 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -3214,18 +3214,36 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+       const uint32_t words = draw->info.index.index_size == 1   ? 8
+                              : draw->info.index.index_size == 2 ? 2048
+                                                                 : 32768;
+-      vs_ref_bitmap =
+-         panvk_cmd_alloc_dev_mem(cmdbuf, desc, (words + 1) * 4, 4).gpu;
++      struct pan_ptr bitmap =
++         panvk_cmd_alloc_dev_mem(cmdbuf, desc, (words + 1) * 4, 4);
++      vs_ref_bitmap = bitmap.gpu;
+       if (vs_ref_bitmap) {
+          const uint32_t index_count =
+             draw->info.index.buffer_size / draw->info.index.index_size;
+-         panlib_v7_vs_ref_clear(&precomp_ctx,
+-                                panlib_1d(DIV_ROUND_UP(words + 1, 64)),
+-                                PANLIB_BARRIER_JM_BARRIER, vs_ref_bitmap,
+-                                words);
++         /* jm-v7 080: explicit dependencies instead of two full barrier
++          * jobs that serialized the draw with all earlier ones: clear after
++          * the min/max search (it clears only that range), mark after the
++          * clear, and the indirect helper (so the vertex job) after the
++          * mark. 8-bit and 16-bit bitmaps (36 B, 8 KB) of a one-time
++          * command buffer are cleared on the CPU instead.
++          */
++         unsigned mark_dep = job_before_indirect_helper;
++         if (cmdbuf->one_time_submit && draw->info.index.index_size <= 2) {
++            memset(bitmap.cpu, 0, (words + 1) * 4);
++         } else {
++            panlib_v7_vs_ref_clear(
++               &precomp_ctx,
++               panlib_1d_with_jm_deps(DIV_ROUND_UP(words + 1, 64),
++                                      job_before_indirect_helper, 0),
++               PANLIB_BARRIER_NONE, vs_ref_bitmap, words,
++               index_min_max_res_ptr);
++            mark_dep = batch->vtc_jc.job_index;
++         }
+          panlib_v7_vs_ref_mark(
+-            &precomp_ctx, panlib_1d(DIV_ROUND_UP(index_count, 65536)),
+-            PANLIB_BARRIER_JM_BARRIER, draw->info.index.buffer_dev_addr,
++            &precomp_ctx,
++            panlib_1d_with_jm_deps(DIV_ROUND_UP(index_count, 65536),
++                                   mark_dep, 0),
++            PANLIB_BARRIER_NONE, draw->info.index.buffer_dev_addr,
+             draw->info.indirect.buffer_dev_addr, index_min_max_res_ptr,
+             vs_ref_bitmap, words, util_logbase2(draw->info.index.index_size),
+             draw->info.index.restart_enable);
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index 48e1e93..04e937e 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -4082,9 +4082,12 @@ panvk_v7_lower_vs_ref_guard(nir_shader *nir)
+       nir_builder_instr_insert(&b, instr);
+       nir_pop_if(&b, NULL);
+       if (nir_intrinsic_infos[intr->intrinsic].has_dest) {
+-         nir_def *undef =
+-            nir_undef(&b, intr->def.num_components, intr->def.bit_size);
+-         nir_def *phi = nir_if_phi(&b, &intr->def, undef);
++         /* jm-v7 080: a skipped atomic returns 0, not undef: a VS spin
++          * lock on an unreferenced vertex must not loop on garbage.
++          */
++         nir_def *zero =
++            nir_imm_zero(&b, intr->def.num_components, intr->def.bit_size);
++         nir_def *phi = nir_if_phi(&b, &intr->def, zero);
+          nir_def_rewrite_uses_after(&intr->def, phi);
+       }
+    }
+-- 
+2.55.0
+
