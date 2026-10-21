@@ -21,6 +21,7 @@ Worktrees: `work/mesa-b2` (branch `v7port2`) is the previous base: the full seri
 | 0013 | New: tessellation on v6/v7 (`tessellationShader`, `extendedDynamicState2PatchControlPoints`). See "Tessellation (0013)" below. The subject line still says "jm-v7 014" (old numbering). |
 | 0014 | (jm-v7 015) `depthBounds`: the csf-v11/092 FS emulation (LD_TILE of the stored depth with the Bifrost Z_STENCIL message, SampleMask cleared outside the bounds) on v6/v7, the device depth-bounds FS, a ZS tile read in the RSD while the test is on, and the late ZS update with EarlyFragmentTests (jm-v9/018). See "Features added in v7feat" below. |
 | 0015 | (jm-v7 016) `pipelineStatisticsQuery` and `transformFeedbackQueries`, GPU-counted in the v9 JM report layout. See "Features added in v7feat" below. |
+| 0016 | (jm-v7 017) `multiViewport` (16 viewports): the GS emulation selects the viewport per primitive; union scissor/depth in the tiler, per-viewport scissor as an FS clip-distance kill. See "Features added in v7feat" below. |
 
 ## Build status (2026-10-16, cloud session)
 
@@ -48,7 +49,8 @@ Worktrees: `work/mesa-b2` (branch `v7port2`) is the previous base: the full seri
 | shaderTessellationAndGeometryPointSize | off |
 | depthBounds | 0014 (FS emulation) |
 | pipelineStatisticsQuery | 0015 |
-| fillModeNonSolid, multiViewport | off (in progress) |
+| multiViewport | 0016 (GS-selected; shaderOutputViewportIndex stays off) |
+| fillModeNonSolid | off (in progress) |
 
 ## Features added in v7feat (0014+)
 
@@ -78,6 +80,14 @@ Reports use the v9 JM layout (two u64 per statistic; kernels and shaders write t
 Transform feedback stream queries: `panlib_xfb_scan` adds the primitives written and needed of its stream to the active query (`libpan_xfb_draw::query`). A stream that captures to no buffer is still scanned while a query is active.
 
 Limits (ponytail, same as v9 JM): FS invocations miss fragments killed by late ZS, count samples with MSAA, and are not counted while an occlusion query is active. Layered (non-multiview) draws count layer 0 only. vk_meta draws are not counted. Stream queries count only while transform feedback is active (the capture only runs then).
+
+### multiViewport (0016)
+
+- Only a geometry shader can select a viewport (shaderOutputViewportIndex stays off on v6/v7), and on Bifrost it runs as the compute emulation, which already does the viewport transform from a per-viewport table (007). The table now holds every viewport's transform and scissor box (40-byte entries); an index past viewportCount uses the last viewport.
+- The tiler has a single viewport descriptor. While the bound emulation writes gl_ViewportIndex and viewportCount > 1 it gets the union of the scissor boxes and depth ranges (re-emitted on a GS change).
+- Each primitive is cut to its own scissor in the FS: the emulation writes the four edge distances, times clip w (so the perspective-interpolated value keeps its sign), to CLIP_DIST1. An FS compiled without the previous stage's layout (always the case after a GS on v6/v7) already kills on negative CLIP_DIST0/1. The GS's own compact clip distances are not carried by the emulation, so the slot is free.
+- The FS reads gl_ViewportIndex from the emulation's copy (PANVK_GS_VIEWPORT_INDEX_SLOT); unwritten, it reads constant 0.
+- Limits: depth clamp and near/far clip use the union of the depth ranges, not the selected viewport's (differs only when the viewports have different depth ranges). A GS writing non-compact data at CLIP_DIST1 gets no per-viewport scissor.
 
 ## BC texture compression
 
