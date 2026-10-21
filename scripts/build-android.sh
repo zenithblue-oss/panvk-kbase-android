@@ -55,7 +55,7 @@ meson setup $RECONF "$BDIR" "$MESA" --cross-file "$BDIR.cross.ini" \
   -Degl=disabled -Dgles1=disabled -Dgles2=disabled -Dopengl=false \
   -Dglx=disabled -Dgbm=disabled -Dlibunwind=disabled -Dzstd=disabled \
   -Dcpp_link_args=-static-libstdc++ >"$LOG" 2>&1 || { tail -n 20 "$LOG"; echo "BUILD-FAIL: meson setup (log $LOG)" >&2; exit 1; }
-ninja -j"$(nproc)" -C "$BDIR" >>"$LOG" 2>&1 || { tail -n 20 "$LOG"; echo "BUILD-FAIL: ninja (log $LOG)" >&2; exit 1; }
+ninja -j"${PANVK_JOBS:-$(nproc)}" -C "$BDIR" >>"$LOG" 2>&1 || { tail -n 20 "$LOG"; echo "BUILD-FAIL: ninja (log $LOG)" >&2; exit 1; }
 SO="$(find "$BDIR" -name libvulkan_panfrost.so | head -n1)"
 [ -n "$SO" ] || { echo "BUILD-FAIL: libvulkan_panfrost.so not produced" >&2; exit 1; }
 cp "$SO" "$DDIR/"
