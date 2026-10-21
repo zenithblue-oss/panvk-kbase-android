@@ -1,7 +1,8 @@
 #!/bin/sh
 # Run PanProbe "run all" on an adb device once per driver variant (imported driver).
-# Usage: rtl-v7-panprobe.sh [-a PanProbe.apk] [-t timeout_s] [-o outdir] SERIAL [VARIANT_DIR ...]
+# Usage: rtl-v7-panprobe.sh [-a PanProbe.apk] [-n] [-t timeout_s] [-o outdir] SERIAL [VARIANT_DIR ...]
 # Each VARIANT_DIR must hold libvulkan_panfrost.so. Missing dirs are skipped.
+# -n: skip APK install (already installed).
 # Default variants: /home/flux/build-out/2026-10-21-v7{,A,B,C,D}
 # Results: <outdir>/<variant>/ (default /home/flux/test-results/<date>)
 PKG=dev.zenithblue.panvktest
@@ -13,9 +14,10 @@ BASE=/home/flux/build-out/2026-10-21-v7
 
 usage() { sed -n 2,6p "$0"; exit 2; }
 
-while getopts a:t:o:h o; do
+NOINSTALL=
+while getopts a:t:o:nh o; do
   case $o in
-    a) APK=$OPTARG ;; t) TIMEOUT=$OPTARG ;; o) OUT=$OPTARG ;; *) usage ;;
+    a) APK=$OPTARG ;; n) NOINSTALL=1 ;; t) TIMEOUT=$OPTARG ;; o) OUT=$OPTARG ;; *) usage ;;
   esac
 done
 shift $((OPTIND - 1))
@@ -49,8 +51,10 @@ mkdir -p "$OUT"
 } > "$OUT/device.txt" 2>&1
 cat "$OUT/device.txt" | head -5
 
-echo "installing $APK"
-$A install -r -t "$APK" >/dev/null || { echo "install failed"; exit 1; }
+if [ -z "$NOINSTALL" ]; then
+  echo "installing $APK"
+  $A install -r -t "$APK" >/dev/null || { echo "install failed"; exit 1; }
+fi
 
 SUMMARY="$OUT/summary.txt"
 : > "$SUMMARY"
@@ -71,7 +75,7 @@ for d in "$@"; do
   t=0; done_=0
   while [ $t -lt "$TIMEOUT" ]; do
     if $A shell "run-as $PKG cat files/autorun.txt 2>/dev/null" | grep -q 'AUTORUN DONE'; then done_=1; break; fi
-    sleep 5; t=$((t + 5))
+    sleep 10; t=$((t + 10))
   done
   [ $done_ -eq 1 ] || echo "timeout after ${TIMEOUT}s" > "$rd/TIMEOUT"
   $A shell "run-as $PKG cat files/autorun.txt" | tr -d '\r' > "$rd/autorun.txt"
