@@ -1,0 +1,47 @@
+From 8c1441d3c92917676c04755ac1e8e14da3f2baca Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 10:27:45 +0000
+Subject: [PATCH 41/45] jm-v7 041: shaderBufferInt64Atomics and
+ shaderSharedInt64Atomics on v6/v7
+
+Bifrost has 64-bit atomics (ATOM_C.i64/ATOM_C1.i64 with ATOM_POST.i64,
+all opcodes: add, smin/smax, umin/umax, and/or/xor; AXCHG and ACMPXCHG
+take 64-bit staging), and the compiler already emits them for global and
+shared atomics on arch <= 8 (bi_emit_atomic_i64_to, bi_lower_atom_c_64).
+Expose VK_KHR_shader_atomic_int64 with buffer and shared int64 atomics
+on every arch. Image int64 atomics stay v9+.
+
+PanProbe bachata_exec case int64_atomics (atomicAdd/atomicMax on uint64
+SSBO members) runs once the feature is reported.
+---
+ src/panfrost/vulkan/panvk_vX_physical_device.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
+index 26094aa..37960b3 100644
+--- a/src/panfrost/vulkan/panvk_vX_physical_device.c
++++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
+@@ -50,7 +50,7 @@ panvk_per_arch(get_physical_device_extensions)(
+    *ext = (struct vk_device_extension_table){
+       .KHR_8bit_storage = true,
+       .KHR_16bit_storage = true,
+-      .KHR_shader_atomic_int64 = PAN_ARCH >= 9,
++      .KHR_shader_atomic_int64 = true,
+       .KHR_bind_memory2 = true,
+       .KHR_buffer_device_address = true,
+       .KHR_calibrated_timestamps =
+@@ -410,8 +410,9 @@ panvk_per_arch(get_physical_device_features)(
+       .storageBuffer8BitAccess = true,
+       .uniformAndStorageBuffer8BitAccess = true,
+       .storagePushConstant8 = true,
+-      .shaderBufferInt64Atomics = PAN_ARCH >= 9,
+-      .shaderSharedInt64Atomics = PAN_ARCH >= 9,
++      /* Bifrost has ATOM_C.i64 (jm-v7 041). */
++      .shaderBufferInt64Atomics = true,
++      .shaderSharedInt64Atomics = true,
+       .shaderFloat16 = PAN_ARCH >= 10,
+       .shaderInt8 = true,
+       /* In theory, update-after-bind is supported on bifrost, but the
+-- 
+2.55.0
+

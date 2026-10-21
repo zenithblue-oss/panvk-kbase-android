@@ -1,0 +1,66 @@
+From 5e2fd0b7b5e06a25cc46e6d5b9351da2dcaa4712 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 10:28:29 +0000
+Subject: [PATCH 42/45] jm-v7 042: variableMultisampleRate on v6/v7
+
+An attachment-less pass takes the rasterization sample count of its
+draws, but the FBD and tiler context of a JM batch have one sample
+count. prepare_draw() now closes the batch when a draw in an
+attachment-less pass uses another count than the batch was laid out
+with (the old batch's fragment job keeps its count), and the next batch
+is laid out with the new count (the existing patch of fb.nr_samples
+while no FBD is allocated, and cmd_select_tile_size() with the layout
+sample count cleared). Same as v9_attachmentless_samples() on v9 JM and
+csf-v11 074/095/114. Secondaries replay into the primary on JM, so this
+covers them too.
+
+Unblocks PanProbe vmr_secondary (4x sample shading in attachment-less
+dynamic rendering, primary and secondary).
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c     | 15 +++++++++++++++
+ src/panfrost/vulkan/panvk_vX_physical_device.c |  3 ++-
+ 2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index 1eaccec..7f3e1cf 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -1651,6 +1651,21 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+       batch = panvk_per_arch(cmd_open_batch)(cmdbuf);
+    }
+ 
++   /* variableMultisampleRate (jm-v7 042): an attachment-less pass takes the
++    * sample count of its draws. The FBD and tiler context of a batch have
++    * one, so a draw with another count closes the batch (its fragment job
++    * keeps the old count) and the new batch is laid out with the new
++    * count. Same as v9_attachmentless_samples(). */
++   if (!rs->rasterizer_discard_enable &&
++       !cmdbuf->state.gfx.render.bound_attachments && batch->fb.desc.gpu &&
++       MAX2(cmdbuf->vk.dynamic_graphics_state.ms.rasterization_samples, 1) !=
++          cmdbuf->state.gfx.render.fb.nr_samples) {
++      panvk_per_arch(cmd_close_batch)(cmdbuf);
++      batch = panvk_per_arch(cmd_open_batch)(cmdbuf);
++      /* cmd_select_tile_size() picks the tile size for the new count. */
++      cmdbuf->state.gfx.render.fb.layout.sample_count = 0;
++   }
++
+    /* The geometry emulation runs the bound geometry shader, or for a vertex
+     * shader compiled to feed it (transform feedback, or a shader object
+     * linked to a geometry shader that is not bound) the passthrough
+diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
+index 37960b3..27dd06d 100644
+--- a/src/panfrost/vulkan/panvk_vX_physical_device.c
++++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
+@@ -387,7 +387,8 @@ panvk_per_arch(get_physical_device_features)(
+       .sparseResidency8Samples = false,
+       .sparseResidency16Samples = false,
+       .sparseResidencyAliased = false, /* https://gitlab.freedesktop.org/panfrost/mesa/-/issues/237 */
+-      .variableMultisampleRate = PAN_ARCH >= 9,
++      /* v6/v7: a sample count change splits the batch (jm-v7 042). */
++      .variableMultisampleRate = true,
+       .inheritedQueries = false,
+ 
+       /* Vulkan 1.1 */
+-- 
+2.55.0
+

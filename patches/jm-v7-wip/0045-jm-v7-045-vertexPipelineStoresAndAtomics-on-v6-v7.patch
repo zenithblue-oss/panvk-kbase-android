@@ -1,0 +1,45 @@
+From 900d9affe5c6b55c553777932023bb1ec2d3afc4 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 10:31:37 +0000
+Subject: [PATCH 45/45] jm-v7 045: vertexPipelineStoresAndAtomics on v6/v7
+
+v6/v7 have no IDVS (jm-v7 006): the vertex shader runs in a plain VERTEX
+job, once per vertex of the draw's vertex range and instance, before the
+geometry emulation or the tiler, so its stores and atomics run a known
+number of times and never speculatively. The Bifrost compiler emits
+global stores and atomics in vertex shaders (tess eval and the TCS
+inputs already rely on that). Turn the feature on with the same drirc
+switch as v9+ (pan_enable_vertex_pipeline_stores_atomics, default on).
+
+Indexed draws shade the [min, max] index range found by the GPU
+min/max search, so a vertex inside the range that no index references is
+shaded too (allowed: the number of vertex shader invocations is
+implementation-defined). Layered draws shade per layer.
+
+Unblocks PanProbe vertex_stores, draw_params and gs_tess_primitive_id
+(skipped before).
+---
+ src/panfrost/vulkan/panvk_vX_physical_device.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
+index 89fe4e0..2fc9464 100644
+--- a/src/panfrost/vulkan/panvk_vX_physical_device.c
++++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
+@@ -356,9 +356,11 @@ panvk_per_arch(get_physical_device_features)(
+          indices anymore. On v9-v12, pre-rasterization stages that write
+          memory run through gpu_prerast compute instead of IDVS. On by default
+          on v9+ (DXVK FL11_1); pan_enable_vertex_pipeline_stores_atomics=false
+-         turns it off. */
++         turns it off. On v6/v7 there is no IDVS (jm-v7 006): the vertex job
++         runs the VS once per vertex of the draw's index range and instance
++         (jm-v7 045). */
+       .vertexPipelineStoresAndAtomics =
+-         (PAN_ARCH >= 9 && instance->drirc.misc.enable_vertex_pipeline_stores_atomics) ||
++         instance->drirc.misc.enable_vertex_pipeline_stores_atomics ||
+          instance->drirc.misc.force_enable_shader_atomics,
+       .fragmentStoresAndAtomics = true,
+       .shaderTessellationAndGeometryPointSize = PAN_ARCH >= 10,
+-- 
+2.55.0
+

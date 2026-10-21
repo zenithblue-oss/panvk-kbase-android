@@ -1,0 +1,115 @@
+From e226029403279488b1d125e0410a7942cf5cf074 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 10:30:24 +0000
+Subject: [PATCH 44/45] jm-v7 044: customBorderColorWithoutFormat on v7
+
+v7 AFBC only takes RGB component orders, so texture views of R/B-swapped
+formats (BGRA8, ...) use the RGB format with an R/B swizzle
+(pan_texture_afbc_reswizzle), and the sampler pre-swizzles custom border
+colors from VkSamplerCustomBorderColorCreateInfoEXT::format, because the
+hardware does not swizzle the border color. Without a format that is not
+possible, so the feature was off on v7.
+
+When the application enables customBorderColorWithoutFormat on v7:
+- R/B-swapped formats do not use AFBC (panvk_image_can_use_mod()),
+- texture views reswizzle only AFBC images, so the others keep their
+  native component order (which v7 textures support without AFBC),
+- samplers use the border color as given.
+Devices that do not enable the feature are unchanged (AFBC and the
+format-based pre-swizzle as before). An imported AFBC image with an
+R/B-swapped format would still sample a swapped custom border color.
+
+Needed by PanProbe bachata_reqs (hard requirement).
+---
+ src/panfrost/vulkan/panvk_image.c              | 16 ++++++++++++++++
+ src/panfrost/vulkan/panvk_vX_image_view.c      | 10 ++++++++--
+ src/panfrost/vulkan/panvk_vX_physical_device.c |  5 +++--
+ src/panfrost/vulkan/panvk_vX_sampler.c         |  6 +++++-
+ 4 files changed, 32 insertions(+), 5 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_image.c b/src/panfrost/vulkan/panvk_image.c
+index 7605c2d..e1afe49 100644
+--- a/src/panfrost/vulkan/panvk_image.c
++++ b/src/panfrost/vulkan/panvk_image.c
+@@ -191,6 +191,22 @@ panvk_image_can_use_mod(struct panvk_image *image,
+           (VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_HOST_TRANSFER_BIT))
+          return false;
+ 
++      /* customBorderColorWithoutFormat on v7 (jm-v7 044): AFBC needs an
++       * RGB component order on v7, so an R/B-swapped format is sampled
++       * through a swizzle, which the hardware does not apply to the border
++       * color. A sampler without a format cannot pre-swizzle it, so keep
++       * these formats uncompressed when the feature is enabled.
++       */
++      if (arch == 7 &&
++          image->vk.base.device->enabled_features
++             .customBorderColorWithoutFormat) {
++         const struct util_format_description *fdesc =
++            util_format_description(vk_format_to_pipe_format(image->vk.format));
++         if (fdesc && fdesc->swizzle[0] == PIPE_SWIZZLE_Z &&
++             fdesc->swizzle[2] == PIPE_SWIZZLE_X)
++            return false;
++      }
++
+       /* Can't do AFBC on v7- if mutable format is requested. */
+       if ((image->vk.create_flags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) &&
+           arch <= 7)
+diff --git a/src/panfrost/vulkan/panvk_vX_image_view.c b/src/panfrost/vulkan/panvk_vX_image_view.c
+index 994dda8..b916caf 100644
+--- a/src/panfrost/vulkan/panvk_vX_image_view.c
++++ b/src/panfrost/vulkan/panvk_vX_image_view.c
+@@ -97,9 +97,15 @@ prepare_tex_descs(struct panvk_image_view *view)
+       util_format_compose_swizzles(r001, view->pview.swizzle, pview.swizzle);
+    }
+ #if PAN_ARCH == 7
+-   /* v7 requires AFBC reswizzle. */
++   /* v7 requires AFBC reswizzle. With customBorderColorWithoutFormat
++    * enabled, only AFBC images get it (jm-v7 044): the sampler cannot
++    * pre-swizzle a border color without a format, so R/B-swapped formats
++    * do not use AFBC then (panvk_image_can_use_mod()) and keep their native
++    * component order, which the border color matches. */
+    else if (!pan_format_is_yuv(view->pview.format) &&
+-            pan_afbc_supports_format(PAN_ARCH, view->pview.format))
++            pan_afbc_supports_format(PAN_ARCH, view->pview.format) &&
++            (drm_is_afbc(image->vk.drm_format_mod) ||
++             !dev->vk.enabled_features.customBorderColorWithoutFormat))
+       GENX(pan_texture_afbc_reswizzle)(&pview);
+ #endif
+ 
+diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
+index 27dd06d..89fe4e0 100644
+--- a/src/panfrost/vulkan/panvk_vX_physical_device.c
++++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
+@@ -656,9 +656,10 @@ panvk_per_arch(get_physical_device_features)(
+       /* v7 doesn't support AFBC(BGR). We need to tweak the texture swizzle to
+        * make it work, which forces us to apply the same swizzle on the border
+        * color, meaning we need to know the format when preparing the border
+-       * color.
++       * color. When the feature is enabled, R/B-swapped formats skip AFBC
++       * instead and keep their native order (jm-v7 044).
+        */
+-      .customBorderColorWithoutFormat = PAN_ARCH != 7,
++      .customBorderColorWithoutFormat = true,
+ 
+       /* VK_KHR_pipeline_binary */
+       .pipelineBinaries = true,
+diff --git a/src/panfrost/vulkan/panvk_vX_sampler.c b/src/panfrost/vulkan/panvk_vX_sampler.c
+index ab6aa44..fde577f 100644
+--- a/src/panfrost/vulkan/panvk_vX_sampler.c
++++ b/src/panfrost/vulkan/panvk_vX_sampler.c
+@@ -202,7 +202,11 @@ panvk_per_arch(CreateSampler)(VkDevice _device,
+       vk_sampler_border_color_value(pCreateInfo, &fmt);
+ 
+ #if PAN_ARCH == 7
+-   panvk_afbc_reswizzle_border_color(&border_color, fmt);
++   /* With customBorderColorWithoutFormat enabled, no image of the device
++    * has AFBC with an R/B-swapped order and views keep the native order
++    * (jm-v7 044), so the border color is used as is. */
++   if (!device->vk.enabled_features.customBorderColorWithoutFormat)
++      panvk_afbc_reswizzle_border_color(&border_color, fmt);
+ #endif
+ 
+    sampler->desc_count = 1;
+-- 
+2.55.0
+
