@@ -1,0 +1,73 @@
+From e5a0a7bf617179a0310e22c7640133bff7778f42 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 07:36:31 +0000
+Subject: [PATCH] jm-v7 020: PANVK_DEBUG=ria2 exposes robustImageAccess2 on
+ Bifrost for measurement
+
+robustImageAccess2 stays off on v6/v7: storage image loads are
+LD_ATTR_TEX/LEA_ATTR_TEX on attribute descriptors and texelFetch is a
+TEX fetch, and what Bifrost returns out of bounds (zeros, alpha 1 for
+formats without alpha) has not been measured. The v9/v10 alpha fix-up
+reads the view format from the descriptor, which a Bifrost shader cannot
+address. PANVK_DEBUG=ria2 advertises the feature with no shader change,
+so PanProbe robust_image_access2 and the CTS robustness2 image cases can
+measure the hardware on a device. Default behaviour is unchanged.
+---
+ src/panfrost/vulkan/panvk_instance.c           |  1 +
+ src/panfrost/vulkan/panvk_instance.h           |  4 ++++
+ src/panfrost/vulkan/panvk_vX_physical_device.c | 10 ++++++++--
+ 3 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_instance.c b/src/panfrost/vulkan/panvk_instance.c
+index a87d6c0..09ffe70 100644
+--- a/src/panfrost/vulkan/panvk_instance.c
++++ b/src/panfrost/vulkan/panvk_instance.c
+@@ -68,6 +68,7 @@ static const struct debug_control panvk_debug_options[] = {
+    {"bc_compute", PANVK_DEBUG_BC_COMPUTE},
+    {"bc_wide", PANVK_DEBUG_BC_WIDE},
+    {"no_tess", PANVK_DEBUG_NO_TESS},
++   {"ria2", PANVK_DEBUG_RIA2},
+    {NULL, 0},
+ };
+ 
+diff --git a/src/panfrost/vulkan/panvk_instance.h b/src/panfrost/vulkan/panvk_instance.h
+index a5fded7..3b66223 100644
+--- a/src/panfrost/vulkan/panvk_instance.h
++++ b/src/panfrost/vulkan/panvk_instance.h
+@@ -44,6 +44,10 @@ enum panvk_debug_flags {
+    PANVK_DEBUG_BC_WIDE = 1 << 27,
+    /* v6/v7: do not expose the tessellation emulation (jm-v7 014). */
+    PANVK_DEBUG_NO_TESS = 1 << 28,
++   /* v6/v7: advertise robustImageAccess2 with no emulation, to measure
++    * what the hardware returns out of bounds (jm-v7 020).
++    */
++   PANVK_DEBUG_RIA2 = 1 << 29,
+ };
+ 
+ extern uint64_t panvk_debug;
+diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
+index 0f4c50a..1a0122a 100644
+--- a/src/panfrost/vulkan/panvk_vX_physical_device.c
++++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
+@@ -673,10 +673,16 @@ panvk_per_arch(get_physical_device_features)(
+        * buffers, storage images and vertex attributes the hardware bounds
+        * of their descriptors, and null descriptors are emulated
+        * (panvk_device::null_descs), as in JimVulkan. robustImageAccess2
+-       * stays off: the out-of-bounds alpha is unknown there.
++       * stays off: storage image loads are LD_ATTR_TEX/LEA_ATTR_TEX on
++       * attribute descriptors and texelFetch is TEX, and what Bifrost
++       * returns out of bounds (zero? the alpha of formats without one?)
++       * has not been measured. A fix-up like v10's needs the view format,
++       * which a Bifrost shader cannot read from its descriptor.
++       * PANVK_DEBUG=ria2 advertises it as is, to run the PanProbe/CTS
++       * checks on a device (jm-v7 020).
+        */
+       .robustBufferAccess2 = true,
+-      .robustImageAccess2 = PAN_ARCH >= 9,
++      .robustImageAccess2 = PAN_ARCH >= 9 || PANVK_DEBUG(RIA2),
+       .nullDescriptor = true,
+ 
+       /* VK_EXT_shader_tile_image */
+-- 
+2.55.0
+

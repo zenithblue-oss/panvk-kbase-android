@@ -24,6 +24,7 @@ Worktrees: `work/mesa-b2` (branch `v7port2`) is the previous base: the full seri
 | 0016 | (jm-v7 017) `multiViewport` (16 viewports): the GS emulation selects the viewport per primitive; union scissor/depth in the tiler, per-viewport scissor as an FS clip-distance kill. See "Features added in v7feat" below. |
 | 0017 | (jm-v7 018) `fillModeNonSolid`: triangle draws in LINE/POINT polygon mode go through a generated passthrough GS that emits edges or vertices and culls faces itself. See "Features added in v7feat" below. |
 | 0018 | (jm-v7 019) kbase: after strides 56 and 64, try the 48-byte JM atom (kbase before uAPI 11.22, no renderpass_id: the G71/G72-era kernels). See "v6 (G71/G72) parity" below. |
+| 0019 | (jm-v7 020) `PANVK_DEBUG=ria2`: advertise robustImageAccess2 on v6/v7 with no emulation, to measure the hardware. Off by default. See "robustImageAccess2" below. |
 
 ## Build status (2026-10-16, cloud session)
 
@@ -43,7 +44,7 @@ Worktrees: `work/mesa-b2` (branch `v7port2`) is the previous base: the full seri
 | transformFeedbackDraw | 009 |
 | transformFeedbackQueries | 0015 (from the capture scan) |
 | robustBufferAccess2, nullDescriptor | 010 |
-| robustImageAccess2 | off: the out-of-bounds alpha value on Bifrost is unknown |
+| robustImageAccess2 | off by default; `PANVK_DEBUG=ria2` (0019) exposes it for measurement |
 | shaderClipDistance/CullDistance | on, through the arch-independent VS store + FS discard lowering. The passthrough also forwards them (009). |
 | multiDrawIndirect | 006 |
 | textureCompressionBC | on (emulated), see below |
@@ -97,6 +98,13 @@ Limits (ponytail, same as v9 JM): FS invocations miss fragments killed by late Z
 - The tiler cannot cull lines or points, so the passthrough culls faces itself: the Vulkan area rule in framebuffer coordinates (viewport 0 scale) against the draw's cull mode and front face (`panvk_gs_push::polygon_cull`).
 - The tess eval draw of a tessellated draw takes the same path (its emulation is sized as for a nested GS).
 - Limits: an app GS's triangle output is still filled. A VS with transform feedback draws filled (the xfb passthrough has priority). Flat varyings of an edge come from that edge's first vertex. Points are size 1. No depth bias on the emitted lines/points. Indirect draws keep the emulation cap (4096 input primitives).
+
+### robustImageAccess2 (0019, measurement only)
+
+Not enabled, because it cannot be shown correct without a device:
+- Bifrost storage image loads are `LD_ATTR_TEX`/`LEA_ATTR_TEX` on attribute descriptors and `texelFetch` is a TEX fetch. Upstream relies on their hardware bounds for robustImageAccess, but the value an out-of-bounds load returns (zeros, and alpha 1 for formats without alpha) is not documented or measured on G52/G72/G76.
+- The v9/v10 fix-up (`bi_lower_robust_image_alpha_v10`) reads the view format from the texture descriptor in the shader. A Bifrost shader cannot address its texture or attribute descriptors (they sit in tables the copy jobs fill), so a formatless storage image or a sampled image has no known alpha at compile time. An exact emulation would need the format passed per binding (for example a driver-set side table), plus a shader bounds check per access.
+- `PANVK_DEBUG=ria2` advertises the feature with no change to shaders, so PanProbe `robust_image_access2` (R32_UINT and RGBA8_UNORM, imageLoad/texelFetch/texel buffer/stores/atomics) and the CTS `robustness2` image cases can measure the hardware. If they pass as on G615, the bit can simply be turned on; if only alpha is wrong, the side-table fix-up is the next step.
 
 ### v6 (G71/G72) parity
 
