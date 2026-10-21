@@ -1,0 +1,32 @@
+INFO devices=1 exts=163 formats=193
+DRIVER slot=RC5 driverInfo=PanVK-kbase RC5-dev-v7G (Mesa 26.3.0-devel (git-121f9b16f0))
+COMPLIANCE DXVK compliance FAIL items=94 missingHard=["descriptorIndexing","descriptorBindingSampledImageUpdateAfterBind","descriptorBindingUpdateUnusedWhilePending","descriptorBindingPartiallyBound"] missingSoft=["tiled resources tier 2 (FL12_0)","VK_EXT_conservative_rasterization (FL12_1)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","shaderFloat16","drawIndirectCount","shaderOutputLayer","samplerFilterMinmax","VK_EXT_memory_priority","VK_EXT_multi_draw","VK_EXT_sample_locations"]
+COMPLIANCE Bachata S4 compliance PASS items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","shaderFloat16","drawIndirectCount","shaderOutputLayer","subgroup_wave64"]
+COMPLIANCE vkd3d compliance FAIL items=100 missingHard=["proton: robustImageAccess2","proton: descriptorIndexing","proton: 1M per-stage UAB sampled\/storage images + SSBOs (or descriptor buffer)"] missingSoft=["viewportSubPixelBits >= 8","64 per-stage storage buffers+images (FL11_1)","VK_EXT_descriptor_indexing","update-after-bind UBO\/sampled\/storage image\/texel buffers (Vulkan heaps)","robustBufferAccessUpdateAfterBind","VK_EXT_mutable_descriptor_type","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","VK_KHR_draw_indirect_count","shaderFloat64","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: VK_EXT_conservative_rasterization","proton: ROVs (pixel+sample interlock)","proton: SM6.6 (compute derivatives linear + int64 buffer atomics + int8 + fixed wave)","proton: SM6.7 (maximal reconvergence + quad control)","proton: VK_EXT_mutable_descriptor_type","proton: VK_EXT_descriptor_buffer path","proton: shaderOutputViewportIndex+Layer","proton: VK_KHR_fragment_shading_rate","proton: VK_EXT_mesh_shader","proton: VK_KHR_ray_query + acceleration_structure","proton: shaderImageInt64Atomics (sampler feedback 0.9)"]
+RESULT gpu_prerast_slice PASS mismatch=0 fps=0 ms=4147
+RESULT clip_cull PASS mismatch=0 fps=2059.0 ms=5254
+RESULT multi_viewport PASS mismatch=0 fps=1927.3 ms=5171
+RESULT fill_mode PASS mismatch=0 fps=1917.8 ms=6367
+RESULT bc_decode PASS mismatch=0 fps=0 ms=5124
+RESULT bc_perf PASS mismatch=0 fps=0 ms=65190
+RESULT geometry PASS mismatch=0 fps=1952.7 ms=6261
+RESULT tessellation PASS mismatch=0 fps=2319.9 ms=7623
+RESULT xfb FAIL mismatch=4 fps=0 ms=6048 extra=Bifrost (v7): feature not implemented yet
+RESULT pipeline_stats PASS mismatch=0 fps=1347.0 ms=5336
+RESULT vertex_stores FAIL mismatch=0 fps=0 ms=4166 extra=Bifrost (v7): feature not implemented yet
+RESULT gs_viewport_depth PASS mismatch=0 fps=0 ms=4170
+RESULT vs_viewport_index PASS mismatch=0 fps=0 ms=4595
+RESULT depth_bounds PASS mismatch=0 fps=0 ms=4404
+RESULT large_draw FAIL mismatch=0 fps=0 ms=20134 extra=Bifrost (v7): feature not implemented yet
+RESULT vmr_secondary PASS mismatch=0 fps=0 ms=4148
+RESULT tess_cond_state PASS mismatch=0 fps=0 ms=4238
+RESULT bachata_reqs PASS mismatch=0 fps=0 ms=4095
+RESULT bachata_exec PASS mismatch=0 fps=0 ms=4130
+RESULT robustness2 PASS mismatch=0 fps=0 ms=4132
+RESULT robust_image_access2 SKIP mismatch=0 fps=0 ms=4103 extra=Bifrost (v7): feature not implemented yet
+RESULT blend PASS mismatch=0 fps=0 ms=4179
+RESULT occlusion_query PASS mismatch=0 fps=0 ms=4140
+RESULT descriptor_model PASS mismatch=0 fps=0 ms=4116
+RESULT shader_arith PASS mismatch=0 fps=0 ms=4181
+RESULT depth_stencil PASS mismatch=0 fps=0 ms=4224
+RESULT sampler PASS mismatch=0 fps=0 ms=4205
