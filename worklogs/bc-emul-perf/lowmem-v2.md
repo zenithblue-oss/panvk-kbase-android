@@ -256,3 +256,15 @@ lock. Default env unless noted.
    `dEQP-VK.memory.zero_initialize_device_memory.image_transition.bc*`.
 
 ## Build
+
+- Series check: `scripts/apply-patches.sh --profile g615-v11-csf` on a
+  fresh 5a07217 worktree (`/home/flux/src/mesa-strict`) with main as of
+  csf-v11/202: `OK applied=197`, no offsets; its `src/panfrost/vulkan` and
+  `wsi_common_x11.c` are identical to the build tree.
+- jm-v9 + jm-v7 apply strictly after 202 (36/36): new code avoids the
+  lines their hunks use (device teardown goes through
+  `device_bc_finish()` on the line of the old `panvk_meta_cleanup()` call;
+  no new includes above their hunks).
+- Incremental build of 200 and of 200-202 (NDK r29, -j2 under the build
+  lock, thermal SEVERE): exit 0, no warnings in the touched files.
+- Release build: see the build record (in progress).
