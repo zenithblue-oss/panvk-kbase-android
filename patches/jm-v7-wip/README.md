@@ -217,3 +217,11 @@ Made on top of the v7G tree HEAD (`121f9b1`, after 0049) in `/home/flux/src/mesa
 
 - 0035 (jm-v7 035): the 0046 VS guard called `nir_def_rewrite_uses_after(&intr->def, phi)` with the intrinsic in the then block and the phi after the if; `is_instr_between()` assumes one block, so the phi's own source became the phi, `phi(phi, undef)` folded to undef and every guarded atomic returned garbage (also for non-indexed draws). vertex_stores iter0-5 (`outv` 1000) and the draw_params hang (`rec[undef]` store). Fixed by pointing the phi source back after the loop (0080's hunk unchanged).
 - 0036 (jm-v7 036): the 0049 tess patch-ID path was gated on `info.system_values_read`, which nothing gathers on the v6/v7 GS NIR, so it was never emitted (gs_tess_primitive_id still returned triangle ordinals). Now gated on a `load_primitive_id` intrinsic being present.
+
+## 0050-0051 (jm-v7 050/051, descriptor indexing, mutable, robustImageAccess2)
+
+Base: the merged v7G tree (`mesa-v7G` 121f9b1 = jm-v7 049); worktree `/home/flux/src/mesa-v7DI` branch `v7DI-on-v7G`. Apply after 0049.
+
+- 0050: update-after-bind and mutable bindings are bindless (`panvk_binding_is_bindless()`): storage images and texel buffers are decoded from set memory and accessed with LD_CVT/ST_CVT/global atomics (own bounds checks, OOB loads read the zero page through the view format); textures/samplers of a shader touching such a binding are indexed directly in set memory relative to a device-constant base (64 GiB below the device dummy sampler, new sysvals `desc.direct_idx[]`, `desc.dummy_sampler_idx`, `desc.zero_addr`), RSD texture/sampler count 0xFFFF. Mutable SSBOs fixed; v7 mutable lists exclude UBOs; the 048 robust image pass skips bindless images.
+- 0051: exposes descriptorIndexing (all UAB bits, partially bound, update unused while pending), mutableDescriptorType, robustImageAccess2 by default (`PANVK_V7_RIA2=0` off), UAB limits 2^20 (`PANVK_DI_TEX_MAX` caps sampled images/samplers).
+- Open hardware question: TEXC register indices above 65535 (vkd3d_heap image case at index 2^20-1). If it fails, retest with `PANVK_DI_TEX_MAX=65535`.
