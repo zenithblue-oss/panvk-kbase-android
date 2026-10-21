@@ -258,3 +258,10 @@ Base: the merged v7G tree (121f9b1, after 0049); worktree `/home/flux/src/mesa-v
 - 0019 amended (M14): `PANVK_DEBUG_RIA2 = 1 << 30`; it collided with BC_TIMING.
 - 0070 (H3): depth bounds test enable dirties the FS RSD. 0071 (H4): query availability in a WC, GPU-cached BO per pool. 0072 (M4): 16 + 32 job indices per layer. 0073 (M5): 64-bit GS buffer sizing, OOM past 2 GiB. 0074 (M6): unpredicated xfb scan that passes the offsets through when the predicate fails.
 - 0075 (H1): IDVS unless the VS feeds the emulation, writes memory, may be polygon-mode drawn, or on G72/G76 (`PANVK_V7_IDVS=0/1`). 0076 (H2) and 0077 (M3): `panvk_shader::alt` alternate compiles picked per draw (unlowered FS while depth bounds is off; screen-space VS while xfb is inactive). 0078 (M1): GS/xfb/restart buffers from gs_pool (`PANVK_V7_GS_DESC=1` = old). 0079 (M2): FS behind a GS discards only on the dist slots the GS writes. 0080 (M7): vertex store dedup with explicit deps, range clear, batched mark atomics, 0 from skipped atomics.
+
+## v7J (2026-10-21): 0057-0058
+
+Base: `mesa-v7I` HEAD f9b7291 (after 0056); worktree `/home/flux/src/mesa-v7J` (branch `v7J`). Apply in file order after 0056.
+
+- 0057 (jm-v7 084): the 0056 txf-on-buffer bounds check inverted the hardware alpha also for the null texel buffer (0-element R32_UINT view), so robustness2 null_descriptors read a_txb=1.0. A 0-element view now reads (0,0,0,0).
+- 0058 (jm-v7 085): texture/sampler indices that are divergent (divergence analysis) get a waterfall loop with all lanes active (ballot + read_invocation, uniform break, cap 32) before nir_lower_non_uniform_access. The texture unit takes one index per warp, also from inactive lanes, so the standard loop let lane 1 read lane 0's descriptor (vkd3d_heap image_heap output[1] = index 0 value at 500000 and 32767). `PANVK_TEX_WATERFALL=0` = old lowering.

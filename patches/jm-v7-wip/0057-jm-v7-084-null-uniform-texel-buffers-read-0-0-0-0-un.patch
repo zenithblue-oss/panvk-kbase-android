@@ -1,0 +1,43 @@
+From 98553d5e1e7fce25f7f1abef4fb833e9259a6bf0 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 19:18:26 +0000
+Subject: [PATCH 57/58] jm-v7 084: null uniform texel buffers read (0,0,0,0)
+ under robustImageAccess2 on v6/v7
+
+jm-v7 083 bounds-checks non-bindless uniform texel buffer fetches and
+returns the inverted hardware alpha out of bounds. A null texel buffer
+(panvk_device::null_descs.texel) is a 0-element R32_UINT view: every
+fetch is out of bounds and the hardware alpha is 0, so the shader
+returned alpha 1. PanProbe robustness2 null_descriptors wants
+(0,0,0,0) and regressed on the A06 (RC5-dev-v7I, passed on v7G-DI).
+
+Only invert the alpha when the view has at least one element; a
+0-element (null) view reads (0,0,0,0). robust_image_access2 tbuf_oob
+and tbuf_alias65537 use real views and are unchanged.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_vX_shader.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index b28c848..008105e 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -3029,7 +3029,12 @@ panvk_v7_lower_robust_txf_buf(nir_builder *b, nir_instr *instr, void *data)
+    const bool is_float =
+       nir_alu_type_get_base_type(tex->dest_type) == nir_type_float;
+    nir_def *hw_a = nir_channel(b, &tex->def, 3);
+-   nir_def *no_alpha = nir_ieq_imm(b, hw_a, 0);
++   /* jm-v7 084: a null texel buffer (panvk_device::null_descs.texel, a
++    * 0-element R32_UINT view) must read (0, 0, 0, 0) (PanProbe robustness2
++    * null_descriptors); only a real view, size >= 1, inverts the alpha.
++    */
++   nir_def *no_alpha = nir_iand(b, nir_ieq_imm(b, hw_a, 0),
++                                nir_ine_imm(b, size, 0));
+    nir_def *oob_a = is_float ? nir_b2fN(b, no_alpha, bit_size)
+                              : nir_b2iN(b, no_alpha, bit_size);
+    nir_def *zero = nir_imm_zero(b, 1, bit_size);
+-- 
+2.55.0
+
