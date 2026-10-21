@@ -301,6 +301,7 @@ class MainActivity : ComponentActivity() {
         // Game loop: a recreated activity restarts the run (the old coroutine died with lifecycleScope).
         if (autorunExtra != null && (savedInstanceState == null || gameLoop)) {
             selectedTabState.intValue = 2 // Switch UI to Tests tab
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) // live surface needs the screen on
             lifecycleScope.launch(Dispatchers.IO) {
                 runHeadlessAutorun(autorunExtra)
             }
@@ -1029,8 +1030,9 @@ class MainActivity : ComponentActivity() {
         }
 
         // Show the card (creates the SurfaceView), wait for surfaceCreated, then let the expand animation settle.
+        withContext(Dispatchers.Main) { selectedTabState.intValue = 2 }  // Tests tab hosts the SurfaceView card
         surfaceTestState.value = "swapchain_lifecycle"
-        val surfaceWaitEnd = System.currentTimeMillis() + 5_000L
+        val surfaceWaitEnd = System.currentTimeMillis() + 20_000L
         var surface = swapSurface
         while (surface == null && System.currentTimeMillis() < surfaceWaitEnd) {
             Thread.sleep(50)
@@ -1042,7 +1044,7 @@ class MainActivity : ComponentActivity() {
                 name = "swapchain_lifecycle",
                 status = "SKIP",
                 durationMs = System.currentTimeMillis() - t0,
-                lastLines = listOf("SKIP no surface: the live surface was not created in 5s (app in background, screen off or another tab open). Keep the app in front and rerun.")
+                lastLines = listOf("SKIP no surface: the live surface was not created in 20s (app in background, screen off or another tab open). Keep the app in front and rerun.")
             )
         }
         Thread.sleep(400)
