@@ -1,0 +1,118 @@
+From 0cfec35b4d43dea86d5c47002a39f27b32ff9f45 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 20:36:16 +0000
+Subject: [PATCH 60/62] jm-v7 087: waterfall only NonUniform texture indices on
+ v6/v7, clean up after
+
+jm-v7 085 sent every tex whose texture/sampler offset divergence analysis
+could not prove uniform through the ballot loop. Without NonUniform the
+index must be dynamically uniform (Vulkan "Uniformity"): all active lanes
+agree, the hardware reads the right descriptor, and before 085 such a tex
+was not lowered at all (nir_lower_non_uniform_access only takes flagged
+ones). Divergence analysis is conservative there (an index loaded from an
+SSBO or global memory "may tear", a phi in divergent control flow), so
+those texs paid at least two ballots, a read_invocation, a select and a
+loop per tex for nothing.
+
+Only take a source into the waterfall when it is divergent AND carries
+texture_non_uniform / sampler_non_uniform (the vkd3d_heap image_heap case
+that 085 fixed is nonuniformEXT). After the loops, run copy_prop,
+algebraic, constant folding and DCE so the wf_* variable copies and the
+original index math are gone before nir_lower_non_uniform_access.
+
+PANVK_TEX_WATERFALL=all restores the 085 selection (every divergent
+index); PANVK_TEX_WATERFALL=0 still turns the waterfall off.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_vX_shader.c | 43 ++++++++++++++++++++++-----
+ 1 file changed, 36 insertions(+), 7 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index 8ecf29e..1cd7352 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -3138,8 +3138,29 @@ panvk_v7_waterfall_tex(nir_builder *b, nir_tex_instr *tex, int t, int s)
+    nir_def_replace(&tex->def, res);
+ }
+ 
++/* jm-v7 087: only NonUniform-qualified indices take the waterfall. Without
++ * the qualifier the index must be dynamically uniform (Vulkan "Uniformity"),
++ * so all active lanes agree and the hardware gets the right descriptor, even
++ * when divergence analysis cannot prove it (an index read from an SSBO, a
++ * phi of uniform values in divergent control flow). Those used to pay the
++ * ballot loop (at least two ballots, a read_invocation and a select per
++ * tex). PANVK_TEX_WATERFALL=all restores the jm-v7 085 behavior (every
++ * divergent index), PANVK_TEX_WATERFALL=0 turns the waterfall off.
++ */
++static bool
++panvk_v7_tex_idx_needs_waterfall(const nir_tex_instr *tex, int src, bool all)
++{
++   if (src < 0 || !nir_src_is_divergent(&tex->src[src].src))
++      return false;
++   if (all)
++      return true;
++   return tex->src[src].src_type == nir_tex_src_texture_offset
++             ? tex->texture_non_uniform
++             : tex->sampler_non_uniform;
++}
++
+ static bool
+-panvk_v7_lower_divergent_tex(nir_shader *nir)
++panvk_v7_lower_divergent_tex(nir_shader *nir, bool all)
+ {
+    bool progress = false;
+ 
+@@ -3158,8 +3179,8 @@ panvk_v7_lower_divergent_tex(nir_shader *nir)
+                continue;
+             int t = nir_tex_instr_src_index(tex, nir_tex_src_texture_offset);
+             int s = nir_tex_instr_src_index(tex, nir_tex_src_sampler_offset);
+-            if ((t >= 0 && nir_src_is_divergent(&tex->src[t].src)) ||
+-                (s >= 0 && nir_src_is_divergent(&tex->src[s].src)))
++            if (panvk_v7_tex_idx_needs_waterfall(tex, t, all) ||
++                panvk_v7_tex_idx_needs_waterfall(tex, s, all))
+                util_dynarray_append(&texs, tex);
+          }
+       }
+@@ -3170,9 +3191,9 @@ panvk_v7_lower_divergent_tex(nir_shader *nir)
+             nir_tex_instr *tex = *texp;
+             int t = nir_tex_instr_src_index(tex, nir_tex_src_texture_offset);
+             int s = nir_tex_instr_src_index(tex, nir_tex_src_sampler_offset);
+-            if (t >= 0 && !nir_src_is_divergent(&tex->src[t].src))
++            if (!panvk_v7_tex_idx_needs_waterfall(tex, t, all))
+                t = -1;
+-            if (s >= 0 && !nir_src_is_divergent(&tex->src[s].src))
++            if (!panvk_v7_tex_idx_needs_waterfall(tex, s, all))
+                s = -1;
+             panvk_v7_waterfall_tex(&b, tex, t, s);
+          }
+@@ -3185,8 +3206,16 @@ panvk_v7_lower_divergent_tex(nir_shader *nir)
+       util_dynarray_fini(&texs);
+    }
+ 
+-   if (progress)
++   if (progress) {
+       NIR_PASS(_, nir, nir_lower_vars_to_ssa);
++      /* jm-v7 087: clean the loop up (the wf_* variable copies, the dead
++       * original index math) before nir_lower_non_uniform_access walks it.
++       */
++      NIR_PASS(_, nir, nir_opt_copy_prop);
++      NIR_PASS(_, nir, nir_opt_algebraic);
++      NIR_PASS(_, nir, nir_opt_constant_folding);
++      NIR_PASS(_, nir, nir_opt_dce);
++   }
+ 
+    return progress;
+ }
+@@ -3308,7 +3337,7 @@ panvk_lower_nir(struct panvk_device *dev, nir_shader *nir,
+    {
+       const char *wf = getenv("PANVK_TEX_WATERFALL");
+       if (!wf || strcmp(wf, "0"))
+-         panvk_v7_lower_divergent_tex(nir);
++         panvk_v7_lower_divergent_tex(nir, wf && !strcmp(wf, "all"));
+    }
+ #endif
+ 
+-- 
+2.55.0
+

@@ -1,0 +1,110 @@
+From 0ded5abf89d40d77c50c85c9d8b54a74016bc242 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 20:37:14 +0000
+Subject: [PATCH 61/62] jm-v7 088: keep PANVK_OVERLAP for v6/v7 render passes
+ that begin a query
+
+jm-v7 023 marks every batch a query command touches after_frag, which
+turns off the PANVK_OVERLAP path for it. vkCmdBeginQuery inside a render
+pass touches the render pass batch itself, so every render pass with an
+occlusion or pipeline statistics query (DXVK uses them all the time) lost
+the vertex/tiler vs previous-fragment overlap (perf review M9).
+
+BeginQuery only zeroes the reports of the query it begins (and, for
+statistics, a freshly allocated per-core scratch). No fragment work of an
+earlier batch writes those: the query was reset since its last use, either
+by vkCmdResetQueryPool, whose own after_frag batch this batch's
+vertex/tiler chain follows through last_vtc_atom, or on the host after the
+last use completed. EndQuery, timestamps, copies and resets keep
+after_frag. v9 is unchanged.
+
+PANVK_V7_QUERY_BEGIN_SERIAL=1 restores after_frag on BeginQuery.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_query.c | 43 ++++++++++++++++++++-
+ 1 file changed, 41 insertions(+), 2 deletions(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c
+index 28d6ef2..8a20238 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c
+@@ -3,6 +3,8 @@
+  * SPDX-License-Identifier: MIT
+  */
+ 
++#include <stdlib.h>
++
+ #include "util/os_time.h"
+ 
+ #include "libpan_dgc.h"
+@@ -63,7 +65,8 @@ panvk_emit_write_job(struct panvk_cmd_buffer *cmd, struct panvk_batch *batch,
+ }
+ 
+ static struct panvk_batch *
+-open_batch(struct panvk_cmd_buffer *cmd, bool *had_batch)
++open_batch_flags(struct panvk_cmd_buffer *cmd, bool *had_batch,
++                 bool after_frag)
+ {
+    bool res = cmd->cur_batch != NULL;
+ 
+@@ -75,11 +78,42 @@ open_batch(struct panvk_cmd_buffer *cmd, bool *had_batch)
+    /* Query writes and reads must follow the fragment jobs of the earlier
+     * batches (they count occlusion samples and FS invocations), so this
+     * batch never overlaps them (jm-v7 023). */
+-   cmd->cur_batch->after_frag = true;
++   if (after_frag)
++      cmd->cur_batch->after_frag = true;
+ 
+    return cmd->cur_batch;
+ }
+ 
++static struct panvk_batch *
++open_batch(struct panvk_cmd_buffer *cmd, bool *had_batch)
++{
++   return open_batch_flags(cmd, had_batch, true);
++}
++
++#if PAN_ARCH < 9
++/* jm-v7 088 (review M9): BeginQuery only zeroes the reports of the query
++ * it begins, and the batch is usually the render pass batch holding the
++ * counted draws, so after_frag there turned PANVK_OVERLAP off for every
++ * render pass with an occlusion or statistics query (DXVK). Nothing of an
++ * earlier batch's fragment work touches those reports: the query was reset
++ * since its last use, by vkCmdResetQueryPool (its own after_frag batch,
++ * which this batch's vertex/tiler chain follows) or on the host, after the
++ * last use completed; the pstats per-core scratch is a fresh allocation.
++ * EndQuery, timestamps, copies and resets keep after_frag.
++ * PANVK_V7_QUERY_BEGIN_SERIAL=1 restores after_frag on BeginQuery.
++ */
++static bool
++panvk_v7_begin_query_serial(void)
++{
++   static int on = -1;
++   if (on < 0) {
++      const char *e = getenv("PANVK_V7_QUERY_BEGIN_SERIAL");
++      on = e && e[0] == '1';
++   }
++   return on;
++}
++#endif
++
+ static void
+ close_batch(struct panvk_cmd_buffer *cmd, bool had_batch)
+ {
+@@ -237,7 +271,12 @@ panvk_per_arch(CmdBeginQueryIndexedEXT)(VkCommandBuffer commandBuffer,
+    VK_FROM_HANDLE(panvk_query_pool, pool, queryPool);
+ 
+    bool had_batch;
++#if PAN_ARCH < 9
++   struct panvk_batch *batch =
++      open_batch_flags(cmd, &had_batch, panvk_v7_begin_query_serial());
++#else
+    struct panvk_batch *batch = open_batch(cmd, &had_batch);
++#endif
+    uint64_t report_addr = panvk_query_report_dev_addr(pool, query);
+    uint32_t zero_queries = 1;
+ 
+-- 
+2.55.0
+

@@ -265,3 +265,12 @@ Base: `mesa-v7I` HEAD f9b7291 (after 0056); worktree `/home/flux/src/mesa-v7J` (
 
 - 0057 (jm-v7 084): the 0056 txf-on-buffer bounds check inverted the hardware alpha also for the null texel buffer (0-element R32_UINT view), so robustness2 null_descriptors read a_txb=1.0. A 0-element view now reads (0,0,0,0).
 - 0058 (jm-v7 085): texture/sampler indices that are divergent (divergence analysis) get a waterfall loop with all lanes active (ballot + read_invocation, uniform break, cap 32) before nir_lower_non_uniform_access. The texture unit takes one index per warp, also from inactive lanes, so the standard loop let lane 1 read lane 0's descriptor (vkd3d_heap image_heap output[1] = index 0 value at 500000 and 32767). `PANVK_TEX_WATERFALL=0` = old lowering.
+
+## v7K (2026-10-21): 0059-0062, perf pass
+
+Base: `mesa-v7J` HEAD f69289a (after 0058); same worktree `/home/flux/src/mesa-v7J`, new branch `v7K`. Apply in file order after 0058. Build record: `worklogs/g615-dxvk/builds/v7K.md`.
+
+- 0059 (jm-v7 086): v6/v7 descriptor loads at a constant set offset are `ACCESS_NON_WRITEABLE | ACCESS_CAN_REORDER`, so CSE/GCM merge and hoist them. The 048 RIA2 pass queries the image size before every access, and each query was its own load_global (A06 bench: 16 loads, 409 vs 210 instructions, 75 vs 28 clauses, ria2 +35-38%). Dynamic-index descriptor loads stay pinned. `PANVK_V7_DESC_REORDER=0` = old loads.
+- 0060 (jm-v7 087): the 085 waterfall only takes texture/sampler indices that are divergent AND NonUniform-qualified (non-qualified indices must be dynamically uniform; before 085 they were not lowered at all). copy_prop/algebraic/constant folding/DCE after the loops. `PANVK_TEX_WATERFALL=all` = 085 selection, `=0` = off.
+- 0061 (jm-v7 088, review M9): BeginQuery no longer marks its batch after_frag, so render passes with an occlusion/statistics query keep PANVK_OVERLAP. End/timestamp/copy/reset unchanged; v9 unchanged. `PANVK_V7_QUERY_BEGIN_SERIAL=1` = old.
+- 0062 (jm-v7 089, review M11): with customBorderColorWithoutFormat, R/B-swapped v7 images without SAMPLED/INPUT_ATTACHMENT usage keep AFBC. `PANVK_V7_CBC_AFBC=0` = old.
