@@ -186,4 +186,9 @@ Base: `/home/flux/src/mesa-v7fixB` (branch `v7fixB`) = the v7E tree (0006-0019 +
 - shaderOutputViewportIndex: a last VS/TES writing gl_ViewportIndex runs through the passthrough GS (index in `PANVK_GS_VIEWPORT_INDEX_SLOT`).
 - Tessellation caps: 8M indices (160 MB growable arena), 2M primitives into a GS after the TES (emulation buffers from the new growable `gs_pool`), 4M-vertex indirect varying buffer (growable).
 - shaderTessellationAndGeometryPointSize: TES point-mode gl_PointSize, GS point output FP32 size array, gl_in[].gl_PointSize in GS/TCS, point passthrough forwards it.
-- Status: builds (NDK r30); not device-tested.
+- Status: A06 b2 (sha 86615fbc): fill_mode, geometry, gs_viewport_depth PASS; tessellation rendering cases all PASS (stats_quad_equal_l4 needs 0020); vs_viewport_index A-F PASS, G needs 0031.
+
+## 0031 (jm-v7 031, FS gl_PrimitiveID behind the GS emulation)
+
+- The emulation tiler DCD had instance_primitive_size = 1, so the FS primitive ID (tiler primitive index modulo that size) was always 0. Now the padded output primitive count, or the exact per-instance count when CPU-known and encodable. One passthrough invocation is one primitive, so the slot index is the input primitive ID. A user GS that writes gl_PrimitiveID still gets its output slot index, not the written value.
+- 0030/0031 and group A 0020/0021 are independent: they apply in either order (b3 tree: 0030, 0031, 0020, 0021).
