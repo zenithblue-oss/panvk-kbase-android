@@ -267,4 +267,11 @@ lock. Default env unless noted.
   no new includes above their hunks).
 - Incremental build of 200 and of 200-202 (NDK r29, -j2 under the build
   lock, thermal SEVERE): exit 0, no warnings in the touched files.
-- Release build: see the build record (in progress).
+- Release build (RC5-dev-bc, full rebuild, exit 0):
+  `/home/flux/build-out/2026-10-21-bc/libvulkan_panfrost.so`, sha256
+  `b18beaeb5bae1f0a50df6f78c7e566c791ffa604cedef2d68159dbe81099358f`,
+  BuildID `773170e8729fafc68054c310aab612747954f336`, `series.sha256`
+  next to it (197 patches). Record:
+  `worklogs/g615-dxvk/builds/2026-10-21-bc-build.md`.
+- test_etc2 BC4 SNORM now uses a real signed encoding: 49.29 dB (the
+  38.7 dB first printed came from reinterpreting UNORM words).
