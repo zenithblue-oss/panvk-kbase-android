@@ -1,0 +1,305 @@
+From 511a5c5d654b08ca90dbf02aea0d9711afdd807c Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 12:13:45 +0000
+Subject: [PATCH] jm-v7 046: skip vertex shader side effects of unreferenced
+ vertices on v6/v7
+
+The vertex job of an indexed draw on v6/v7 shades every vertex of the
+[min, max] index range the GPU min/max search found, including vertices
+no index references (and, with primitive restart, none of them is the
+restart index, which the search skips). Their stores and atomics are
+visible: PanProbe vertex_stores indexed_dup expects hit[4] == 0 for the
+index list {0,1,2,3,5,...}.
+
+For a vertex shader that writes memory (vs->info.writes_global), an
+indexed draw now also runs panlib_v7_vs_ref_clear and panlib_v7_vs_ref_mark
+after the min/max search: a bitmap with bit (index - min) set for every
+non-restart index of the draw, word 0 set when the range does not fit the
+cap (256 / 64K / 1M vertices for 8/16/32-bit indices, then every vertex
+keeps its side effects). The bitmap address is the new graphics sysval
+vs_ref_bitmap (0 for non-indexed draws). panvk_v7_lower_vs_ref_guard()
+wraps every store and atomic of such a vertex shader in a test of the bit
+of its raw vertex id (load_raw_vertex_id = index - min on Bifrost);
+atomics of skipped vertices return undef (their outputs are never drawn).
+
+Direct indexed draws go through the same indirect path on v6/v7, so both
+are covered. Tess eval shaders run non-indexed and are not guarded.
+---
+ src/panfrost/libpan/draw_helper.cl         |  65 +++++++++++++
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c |  37 ++++++++
+ src/panfrost/vulkan/panvk_shader.h         |   5 +
+ src/panfrost/vulkan/panvk_vX_shader.c      | 104 +++++++++++++++++++++
+ 4 files changed, 211 insertions(+)
+
+diff --git a/src/panfrost/libpan/draw_helper.cl b/src/panfrost/libpan/draw_helper.cl
+index 1bb1861..a4c0d10 100644
+--- a/src/panfrost/libpan/draw_helper.cl
++++ b/src/panfrost/libpan/draw_helper.cl
+@@ -1892,6 +1892,71 @@ panlib_v7_pstats_sum_cores(global uint32_t *counter, constant uint64_t *cores,
+    v7_pstats_add(counter, sum);
+ }
+ 
++/* vertexPipelineStoresAndAtomics (jm-v7 046): the vertex job of an indexed
++ * draw shades the whole [min, max] index range. For a vertex shader that
++ * writes memory, these build the bitmap of the vertices the draw really
++ * references; panvk_v7_lower_vs_ref_guard() skips the stores and atomics of
++ * the others. Word 0 non-zero means every vertex is referenced (the range
++ * did not fit), bit i of word 1 + i / 32 is raw vertex id i (index - min).
++ */
++KERNEL(64)
++panlib_v7_vs_ref_clear(global uint32_t *bitmap, uint32_t words)
++{
++   const uint32_t i = cl_global_id.x;
++
++   if (i <= words)
++      bitmap[i] = 0;
++}
++
++KERNEL(64)
++panlib_v7_vs_ref_mark(global uint8_t *index_buffer_ptr,
++                      global VkDrawIndexedIndirectCommand *cmd,
++                      global struct libpan_draw_helper_index_min_max_result *mm,
++                      global atomic_uint *bitmap, uint32_t words,
++                      uint32_t index_bytes_log2__3,
++                      uint8_t primitive_restart__2)
++{
++   const uint32_t max_count_per_thread = 1024;
++   const uint32_t index_bit_size = (1 << index_bytes_log2__3) * 8;
++   const uint32_t start = cmd->firstIndex;
++   const uint32_t index_count = cmd->indexCount;
++   const uint32_t min_vertex = mm->min;
++   const uint32_t max_vertex = mm->max;
++
++   if (max_vertex < min_vertex ||
++       (uint64_t)max_vertex - min_vertex >= (uint64_t)words * 32) {
++      if (cl_global_id.x == 0)
++         atomic_fetch_or(&bitmap[0], 1u);
++      return;
++   }
++
++   const uint32_t base_idx = cl_global_id.x * max_count_per_thread;
++   if (base_idx >= index_count)
++      return;
++   const uint32_t count = MIN2(max_count_per_thread, index_count - base_idx);
++
++   switch (index_bit_size) {
++#define VS_REF_MARK_CASE(sz)                                                   \
++   case sz: {                                                                  \
++      global uint##sz##_t *indices = (global uint##sz##_t *)index_buffer_ptr;  \
++      for (uint32_t i = 0; i < count; i++) {                                   \
++         uint32_t val = (uint32_t)indices[start + base_idx + i];               \
++         if (primitive_restart__2 && val == UINT##sz##_MAX)                    \
++            continue;                                                          \
++         uint32_t rel = val - min_vertex;                                      \
++         atomic_fetch_or(&bitmap[1 + rel / 32], 1u << (rel % 32));             \
++      }                                                                        \
++      break;                                                                   \
++   }
++      VS_REF_MARK_CASE(32)
++      VS_REF_MARK_CASE(16)
++      VS_REF_MARK_CASE(8)
++#undef VS_REF_MARK_CASE
++   default:
++      assert(0 && "Invalid index size");
++   }
++}
++
+ #endif
+ 
+ #if PAN_ARCH == 9
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index 7f3e1cf..df2abf0 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -2535,6 +2535,12 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+    cmdbuf->state.gfx.fs.required =
+       fs_required(&cmdbuf->state.gfx, &cmdbuf->vk.dynamic_graphics_state);
+ 
++   /* Not indexed: every vertex of the range is referenced (jm-v7 046). */
++   if (cmdbuf->state.gfx.sysvals.vs_ref_bitmap) {
++      cmdbuf->state.gfx.sysvals.vs_ref_bitmap = 0;
++      gfx_state_set_dirty(cmdbuf, VS_PUSH_UNIFORMS);
++   }
++
+    result = prepare_draw(cmdbuf, draw);
+    if (result != VK_SUCCESS)
+       return;
+@@ -2721,6 +2727,37 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+          offsetof(struct libpan_draw_helper_index_min_max_result, min);
+    }
+ 
++   /* vertexPipelineStoresAndAtomics (jm-v7 046): the vertex job shades the
++    * whole [min, max] range, so a vertex shader that writes memory gets the
++    * bitmap of the referenced vertices (panvk_v7_lower_vs_ref_guard()).
++    * Ranges past the cap (1M vertices for 32-bit indices) shade every
++    * vertex of the range with its side effects.
++    */
++   uint64_t vs_ref_bitmap = 0;
++   if (draw->info.index.index_size && vs->info.writes_global) {
++      const uint32_t words = draw->info.index.index_size == 1   ? 8
++                             : draw->info.index.index_size == 2 ? 2048
++                                                                : 32768;
++      vs_ref_bitmap =
++         panvk_cmd_alloc_dev_mem(cmdbuf, desc, (words + 1) * 4, 4).gpu;
++      if (vs_ref_bitmap) {
++         const uint32_t index_count =
++            draw->info.index.buffer_size / draw->info.index.index_size;
++         panlib_v7_vs_ref_clear(&precomp_ctx,
++                                panlib_1d(DIV_ROUND_UP(words + 1, 64)),
++                                PANLIB_BARRIER_JM_BARRIER, vs_ref_bitmap,
++                                words);
++         panlib_v7_vs_ref_mark(
++            &precomp_ctx, panlib_1d(DIV_ROUND_UP(index_count, 65536)),
++            PANLIB_BARRIER_JM_BARRIER, draw->info.index.buffer_dev_addr,
++            draw->info.indirect.buffer_dev_addr, index_min_max_res_ptr,
++            vs_ref_bitmap, words, util_logbase2(draw->info.index.index_size),
++            draw->info.index.restart_enable);
++         job_before_indirect_helper = batch->vtc_jc.job_index;
++      }
++   }
++   cmdbuf->state.gfx.sysvals.vs_ref_bitmap = vs_ref_bitmap;
++
+    /* The vertex shader of a tessellated draw runs once. */
+    if (draw->tess_phase == PANVK_TESS_PHASE_VS_TCS)
+       enabled_layer_count = 1;
+diff --git a/src/panfrost/vulkan/panvk_shader.h b/src/panfrost/vulkan/panvk_shader.h
+index 907ce3e..e5f7773 100644
+--- a/src/panfrost/vulkan/panvk_shader.h
++++ b/src/panfrost/vulkan/panvk_shader.h
+@@ -208,6 +208,11 @@ struct panvk_graphics_sysvals {
+     * shader running as the vertex shader.
+     */
+    aligned_u64 tess_params;
++
++   /* Referenced-vertex bitmap of an indexed draw whose vertex shader writes
++    * memory, 0 otherwise (jm-v7 046, panvk_v7_lower_vs_ref_guard()).
++    */
++   aligned_u64 vs_ref_bitmap;
+ #endif
+ } __attribute__((aligned(FAU_WORD_SIZE)));
+ 
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index 03ff3e3..0db82ff 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -3800,6 +3800,106 @@ panvk_v7_lower_tes_index(nir_shader *nir)
+    return nir_progress(true, impl, nir_metadata_control_flow);
+ }
+ 
++/* vertexPipelineStoresAndAtomics on v6/v7 (jm-v7 046). The vertex job of
++ * an indexed draw shades every vertex of the [min, max] index range, also
++ * the ones no index references. For a vertex shader that writes memory,
++ * the draw builds a bitmap of the referenced vertices (panlib_v7_vs_ref_*,
++ * bit i = raw vertex id i, word 0 non-zero = all referenced) and passes it
++ * in vs_ref_bitmap (0: not an indexed draw, all referenced). Stores and
++ * atomics of an unreferenced vertex are skipped; its outputs are never
++ * read by the tiler.
++ */
++static bool
++panvk_v7_is_vs_side_effect(nir_intrinsic_op op)
++{
++   switch (op) {
++   case nir_intrinsic_store_ssbo:
++   case nir_intrinsic_ssbo_atomic:
++   case nir_intrinsic_ssbo_atomic_swap:
++   case nir_intrinsic_store_global:
++   case nir_intrinsic_store_global_2x32:
++   case nir_intrinsic_global_atomic:
++   case nir_intrinsic_global_atomic_swap:
++   case nir_intrinsic_global_atomic_2x32:
++   case nir_intrinsic_global_atomic_swap_2x32:
++   case nir_intrinsic_image_store:
++   case nir_intrinsic_image_atomic:
++   case nir_intrinsic_image_atomic_swap:
++   case nir_intrinsic_image_deref_store:
++   case nir_intrinsic_image_deref_atomic:
++   case nir_intrinsic_image_deref_atomic_swap:
++   case nir_intrinsic_bindless_image_store:
++   case nir_intrinsic_bindless_image_atomic:
++   case nir_intrinsic_bindless_image_atomic_swap:
++      return true;
++   default:
++      return false;
++   }
++}
++
++static bool
++panvk_v7_lower_vs_ref_guard(nir_shader *nir)
++{
++   if (nir->info.stage != MESA_SHADER_VERTEX)
++      return false;
++
++   nir_function_impl *impl = nir_shader_get_entrypoint(nir);
++   nir_shader_gather_info(nir, impl);
++   if (!nir->info.writes_memory)
++      return false;
++
++   nir_builder b = nir_builder_at(nir_before_impl(impl));
++
++   nir_def *addr = load_sysval(&b, graphics, 64, vs_ref_bitmap);
++   nir_push_if(&b, nir_ine_imm(&b, addr, 0));
++   nir_def *hdr = nir_load_global(&b, 1, 32, addr, .align_mul = 4);
++   nir_def *rid = nir_load_raw_vertex_id(&b);
++   nir_def *word_addr = nir_iadd(
++      &b, addr,
++      nir_u2u64(&b, nir_iadd_imm(&b, nir_ishl_imm(&b, nir_ushr_imm(&b, rid, 5),
++                                                  2),
++                                 4)));
++   nir_def *word = nir_load_global(&b, 1, 32, word_addr, .align_mul = 4);
++   nir_def *bit = nir_i2b(
++      &b, nir_iand_imm(&b, nir_ushr(&b, word, nir_iand_imm(&b, rid, 31)), 1));
++   nir_def *ref_in = nir_ior(&b, nir_ine_imm(&b, hdr, 0), bit);
++   nir_pop_if(&b, NULL);
++   nir_def *ref = nir_if_phi(&b, ref_in, nir_imm_true(&b));
++
++   /* Collect first: wrapping splits blocks. */
++   struct util_dynarray list = UTIL_DYNARRAY_INIT;
++   nir_foreach_block(block, impl) {
++      nir_foreach_instr(instr, block) {
++         if (instr->type == nir_instr_type_intrinsic &&
++             panvk_v7_is_vs_side_effect(
++                nir_instr_as_intrinsic(instr)->intrinsic))
++            util_dynarray_append(&list, nir_instr_as_intrinsic(instr));
++      }
++   }
++
++   util_dynarray_foreach(&list, nir_intrinsic_instr *, it) {
++      nir_intrinsic_instr *intr = *it;
++      nir_instr *instr = &intr->instr;
++
++      b.cursor = nir_before_instr(instr);
++      nir_instr_remove(instr);
++      nir_push_if(&b, ref);
++      nir_builder_instr_insert(&b, instr);
++      nir_pop_if(&b, NULL);
++      if (nir_intrinsic_infos[intr->intrinsic].has_dest) {
++         nir_def *undef =
++            nir_undef(&b, intr->def.num_components, intr->def.bit_size);
++         nir_def *phi = nir_if_phi(&b, &intr->def, undef);
++         nir_def_rewrite_uses_after(&intr->def, phi);
++      }
++   }
++
++   const bool progress = util_dynarray_num_elements(&list,
++                                                    nir_intrinsic_instr *) > 0;
++   util_dynarray_fini(&list);
++   return nir_progress(progress, impl, nir_metadata_none);
++}
++
+ /* TES inputs become loads from the tess control output buffer, then the TES
+  * is a vertex shader (poly_nir_lower_tes(to_hw_vs)).
+  */
+@@ -3939,6 +4039,10 @@ panvk_compile_shader(struct panvk_device *dev,
+    struct panvk_tess_info tes_info = {0};
+    if (info->stage == MESA_SHADER_TESS_EVAL)
+       panvk_v7_lower_tes(info->nir, &tes_info);
++
++   if (info->stage == MESA_SHADER_VERTEX &&
++       dev->vk.enabled_features.vertexPipelineStoresAndAtomics)
++      NIR_PASS(_, info->nir, panvk_v7_lower_vs_ref_guard);
+ #endif
+ 
+ #if PAN_ARCH == 9
+-- 
+2.55.0
+
