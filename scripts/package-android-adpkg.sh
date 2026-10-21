@@ -11,7 +11,7 @@ SRC="$ROOT/dist/android-$PROFILE/libvulkan_panfrost.so"
 [ -f "$SRC" ] || { echo "build first: $SRC missing" >&2; exit 1; }
 MESA_SHA="$(python3 -c "import json;print(json.load(open('$ROOT/sources.lock'))['mesaCommit'])")"
 PATCH_SERIES_ID="$(python3 "$ROOT/scripts/compute-patch-series-id.py" --profile "$PROFILE")"
-OUT="$ROOT/dist/PanVK-Kbase-Android-$PROFILE-$VER-${MESA_SHA:0:8}.adpkg.zip"
+OUT="$ROOT/dist/PanVK-Kbase-Android-$VER-${MESA_SHA:0:8}.adpkg.zip"
 STAGE="$(mktemp -d)"; trap 'rm -rf "$STAGE"' EXIT
 cp "$SRC" "$STAGE/libvulkan_panfrost.so"
 python3 - "$STAGE/meta.json" "$PROFILE" "$MESA_SHA" "$PATCH_SERIES_ID" "$ROOT" "$VER" "$PUBLISHED" <<'EOF'
@@ -21,11 +21,11 @@ prof = {}
 pp = pathlib.Path(root) / "profiles" / f"{profile}.json"
 if pp.is_file():
     prof = json.loads(pp.read_text())
-meta = {"schemaVersion":1,"name":"PanVK Kbase G615","author":"panvk-kbase-android",
+meta = {"schemaVersion":1,"name":"PanVK-kbase-"+version.removeprefix("v"),"author":"panvk-kbase-android",
  "packageVersion":version.removeprefix("v"),"vendor":"Mesa","driverVersion":"Mesa 26.3.0-devel","minApi":35,
  "description":"Experimental PanVK Kbase driver for supported Mali devices. minApi=35 until API 29 rebuild is proven.",
  "libraryName":"libvulkan_panfrost.so","abi":"android-aarch64-bionic","backend":"panvk-kbase",
- "kernelInterface":"mali_kbase","profile":profile,
+ "kernelInterface":"mali_kbase","profile":profile.replace("g615-",""),
  "gpuId":prof.get("gpuId","0xb8a31030"),"panArch":prof.get("panArch",11),
  "frontend":prof.get("frontend","CSF"),"kbaseUapi":prof.get("kbaseUapi","1.21"),
  "sourceCommit":sha,"patchSeriesId":psid,"prerelease":True,"published":published == "true",

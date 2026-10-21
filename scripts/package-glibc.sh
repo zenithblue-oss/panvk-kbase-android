@@ -10,7 +10,7 @@ SRC="$ROOT/dist/glibc-$PROFILE/libvulkan_panfrost.so"
 [ -f "$SRC" ] || { echo "build first: $SRC missing" >&2; exit 1; }
 MESA_SHA="$(python3 -c "import json;print(json.load(open('$ROOT/sources.lock'))['mesaCommit'])")"
 PATCH_SERIES_ID="$(python3 "$ROOT/scripts/compute-patch-series-id.py" --profile "$PROFILE")"
-OUT="$ROOT/dist/PanVK-Kbase-$PROFILE-$VER-${MESA_SHA:0:8}-EMULATOR.zip"
+OUT="$ROOT/dist/PanVK-Kbase-$VER-${MESA_SHA:0:8}-EMULATOR.zip"
 STAGE="$(mktemp -d)"; trap 'rm -rf "$STAGE"' EXIT
 cp "$SRC" "$STAGE/libvulkan_panfrost.so"
 cp "$ROOT/dist/glibc-$PROFILE/panfrost_icd.aarch64.json" "$STAGE/" 2>/dev/null || \
@@ -22,11 +22,11 @@ prof = {}
 pp = pathlib.Path(root) / "profiles" / f"{profile}.json"
 if pp.is_file():
     prof = json.loads(pp.read_text())
-meta = {"schemaVersion":1,"name":"PanVK Kbase G615","author":"panvk-kbase-android",
+meta = {"schemaVersion":1,"name":"PanVK-kbase-"+version.removeprefix("v"),"author":"panvk-kbase-android",
  "packageVersion":version.removeprefix("v"),"vendor":"Mesa","driverVersion":"Mesa 26.3.0-devel",
  "description":"Experimental PanVK Kbase glibc ICD for Bachata/NativeCode",
  "libraryName":"libvulkan_panfrost.so","abi":"linux-aarch64-glibc","backend":"panvk-kbase",
- "kernelInterface":"mali_kbase","profile":profile,
+ "kernelInterface":"mali_kbase","profile":profile.replace("g615-",""),
  "gpuId":prof.get("gpuId","0xb8a31030"),"panArch":prof.get("panArch",11),
  "frontend":prof.get("frontend","CSF"),"kbaseUapi":prof.get("kbaseUapi","1.21"),
  "sourceCommit":sha,"patchSeriesId":psid,"prerelease":True,"published":published == "true",

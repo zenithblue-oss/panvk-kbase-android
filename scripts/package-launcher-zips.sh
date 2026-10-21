@@ -28,9 +28,9 @@ so = pathlib.Path(so); outdir = pathlib.Path(outdir)
 data = so.read_bytes()
 sha = hashlib.sha256(data).hexdigest()
 pkgver = ver.removeprefix("v")
-name = f"PanVK-kbase-{label}-G615"
+name = f"PanVK-kbase-{label}"
 drvver = f"PanVK-kbase {label} (Mesa 26.3.0-devel git-{mesa10})"
-base = f"PanVK (Mesa) Vulkan driver for Mali v10+ CSF via kbase, {label} build tuned for Mali-G615 (v11)."
+base = f"PanVK (Mesa) Vulkan driver for Mali v10+ CSF via kbase, {label} build."
 # launcher -> (package id for abs path, minApi, description tail, libname, wrapper-style extras)
 L = {
  "adrenotools": dict(minApi=29, desc="Generic adrenotools package.", lib="libvulkan_panfrost.so", app=None),
@@ -60,7 +60,7 @@ for key, c in L.items():
         files["panvk_icd.aarch64.json"] = icd("./libvulkan_panfrost.so").encode()
         files["panvk_icd_abs.aarch64.json"] = icd(f"{root}/libvulkan_panfrost.so").encode()
         files[f"README-{key}.txt"] = (
-f"""PanVK-kbase {label} (Mali-G615 build) for {key} ({app})
+f"""PanVK-kbase {label} for {key} ({app})
 Install: Adrenotools GPU Drivers > Install > pick this zip. It installs to
   {root}/
 Direct load (no wrapper ICD): container > Environment, add
@@ -70,7 +70,7 @@ If the X11 present path fails, also add MESA_VK_WSI_DEBUG=sw.
 Fallback (wrapper in path): leave VK_ICD_FILENAMES unset and pick "{name}" as Graphics Driver Version.
 Check: wine log / logcat shows driverInfo "PanVK-kbase {label}"; .so sha256 {sha}
 """).encode()
-    out = outdir / f"PanVK-Kbase-Android-{tag}-{ver}-{mesa8}-{key}.zip"
+    out = outdir / f"PanVK-Kbase-Android-{ver}-{mesa8}-{key}.zip"
     if out.exists(): out.unlink()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for n in sorted(files):

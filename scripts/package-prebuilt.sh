@@ -24,13 +24,16 @@ data = so.read_bytes(); sha = hashlib.sha256(data).hexdigest()
 lock = json.loads((root / "sources.lock").read_text())
 mesa = lock["mesaCommit"]; mesa8 = mesa8 or mesa[:8]
 prof = json.loads((root / "profiles" / f"{profile}.json").read_text())
+label = (ver.removeprefix("v").split("-",1)[1].upper() if "-" in ver else ver.removeprefix("v")) + (f"-{suffix}" if suffix else "")
+metaname = f"PanVK-kbase-{label}"
+profile = profile.replace("g615-", "")  # user-facing id; internal build profile is only used to load profiles/*.json above
 pkgver = ver.removeprefix("v") + (f"-{suffix}" if suffix else "")
 tag = f"{ver}" + (f"-{suffix}" if suffix else "")
 note = ("Binary taken verbatim from the published release asset libvulkan_panfrost-android-aarch64.so "
         f"(sha256 {sha}). The exact patch series used to build it is not reproducible from this repository, "
         "so patchSeriesId is not claimed. This is the Android (bionic) driver repackaged in the RC3 package layout.")
 def meta(abi, desc, with_minapi):
-    m = {"schemaVersion":1,"name":"PanVK Kbase G615","author":"panvk-kbase-android","packageVersion":pkgver,
+    m = {"schemaVersion":1,"name":metaname,"author":"panvk-kbase-android","packageVersion":pkgver,
          "vendor":"Mesa","driverVersion":"Mesa 26.3.0-devel"}
     if with_minapi: m["minApi"] = int(minapi)
     m.update({"description":desc,"libraryName":"libvulkan_panfrost.so","abi":abi,"backend":"panvk-kbase",
@@ -65,13 +68,13 @@ emu["meta.json"] = jd(meta("android-aarch64-bionic",
 for n, o in (("MANIFEST.json", manifest), ("SOURCE.json", source), ("VALIDATION.json", validation)):
     emu[n] = jd(o)
 emu["SHA256SUMS.txt"] = f"{sha}  libvulkan_panfrost.so\n".encode()
-base = f"PanVK-Kbase-{profile}-{tag}-{mesa8}" if not suffix else f"PanVK-Kbase-{profile}-{tag}-{mesa8}"
-write(outdir / f"PanVK-Kbase-{profile}-{tag}-{mesa8}-EMULATOR.zip", emu)
+base = f"PanVK-Kbase-{tag}-{mesa8}" if not suffix else f"PanVK-Kbase-{tag}-{mesa8}"
+write(outdir / f"PanVK-Kbase-{tag}-{mesa8}-EMULATOR.zip", emu)
 ad = dict(common)
 ad["meta.json"] = jd(meta("android-aarch64-bionic",
     "Experimental PanVK Kbase driver for supported Mali devices.", True))
 for n, o in (("MANIFEST.json", manifest), ("SOURCE.json", source), ("VALIDATION.json", validation)):
     ad[n] = jd(o)
 ad["SHA256SUMS.txt"] = f"{sha}  libvulkan_panfrost.so\n".encode()
-write(outdir / f"PanVK-Kbase-Android-{profile}-{tag}-{mesa8}.adpkg.zip", ad)
+write(outdir / f"PanVK-Kbase-Android-{tag}-{mesa8}.adpkg.zip", ad)
 EOF
