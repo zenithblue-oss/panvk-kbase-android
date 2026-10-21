@@ -11,7 +11,7 @@ API="${ANDROID_API:-29}"; NDK="${ANDROID_NDK_ROOT:-${ANDROID_HOME:-/opt/android-
 OUT="$ROOT/work/android-deps"; LIBDRM_TAG="libdrm-2.4.125"
 while [ $# -gt 0 ]; do case "$1" in
   --api) API="$2"; shift 2;; --ndk) NDK="$2"; shift 2;; --out) OUT="$2"; shift 2;; *) echo "unknown $1" >&2; exit 2;; esac; done
-NDK_BIN="$(ls -d "$NDK"/*/toolchains/llvm/prebuilt/linux-x86_64/bin "$NDK"/toolchains/llvm/prebuilt/linux-x86_64/bin 2>/dev/null | sort -V | tail -n1)"
+NDK_BIN="$(ls -d "$NDK"/*/toolchains/llvm/prebuilt/linux-$(uname -m)/bin "$NDK"/toolchains/llvm/prebuilt/linux-$(uname -m)/bin 2>/dev/null | sort -V | tail -n1)"
 [ -n "$NDK_BIN" ] || { echo "NDK toolchain not found under $NDK" >&2; exit 1; }
 export PATH="$NDK_BIN:$PATH"
 SRC="$ROOT/work/libdrm"; BDIR="$ROOT/build/libdrm-android"
