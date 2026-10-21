@@ -24,3 +24,14 @@ regenerated with the new names (same released .so files), and the six launcher z
 by scripts/package-launcher-zips.sh with meta name `PanVK-kbase-RC4` / `PanVK-kbase-RC4-LM` (no G615). Old g615-named assets
 were deleted after the new ones were uploaded; SHA256SUMS and the release notes were updated. The internal build profile id
 `g615-v11-csf` and the patch dir names are unchanged. New launcher zip sha256 values are in each release's SHA256SUMS.
+
+## gpuId removed (2026-10-21)
+The driver is universal, so `gpuId` is no longer written into meta.json by package-prebuilt.sh, package-glibc.sh and
+package-android-adpkg.sh. EMULATOR and adpkg zips were regenerated (same names, same .so) and re-uploaded with --clobber;
+the six launcher zips were regenerated too (their content never had gpuId; bytes identical). Checked: no zip member
+contains gpuId, b8a31030 or g615. The old sha256 values above for EMULATOR/adpkg are superseded by:
+- rc4 EMULATOR ee7ad3817e4c9e7382b53324b7dd3c31a5fb5fbdca01ea2422391dd86c69691c
+- rc4 adpkg f077115558ea711c6287ae526520f470311cd5e394dfc9c686abb54be2b29555
+- rc4-lowmem EMULATOR 63af1c4dd798a508322e71dc62c654a9280aae491a097eed0b54535e77f1a644
+- rc4-lowmem adpkg 9bb7f8349c0ae90f1c497a91e76d2db6391b5d54c4c70995a32e0d808354ca48
+Launcher zip sha256 values are unchanged (see each release's SHA256SUMS, which was re-uploaded).
