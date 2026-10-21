@@ -101,6 +101,8 @@ android {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
             version = "3.22.1"
+            // Newer Vulkan headers than the NDK's (tests need VK_HEADER_VERSION >= ~300); work/mesa-dxint is not in git.
+            providers.gradleProperty("panvkVulkanInclude").orNull?.let { arguments("-DVULKAN_INCLUDE_DIR=$it") }
         }
     }
 
