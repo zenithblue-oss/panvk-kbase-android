@@ -819,6 +819,14 @@ class MainActivity : ComponentActivity() {
                     summaryObj.optJSONArray("results")?.let { put("results", it) }
                     summaryObj.optJSONObject("compliance")?.let { put("compliance", it) }
                 }
+                put("mesaDebug", JSONObject().apply {
+                    put("enabled", mesaDebugEnabledState.value)
+                    put("env", JSONObject().apply {
+                        buildEnv(false).filter { e ->
+                            e.contains("=") && listOf("PANVK_", "PAN_MESA_", "PAN_", "MESA_", "PANDECODE_", "VK_", "PT_").any { e.startsWith(it) }
+                        }.forEach { e -> put(e.substringBefore("="), e.substringAfter("=")) }
+                    })
+                })
                 put("deviceFacts", deviceFacts)
                 put("logcat", logcatInfo)
                 put("truncatedLogs", logsInfo)
@@ -914,7 +922,9 @@ class MainActivity : ComponentActivity() {
         val args = (listOf(driverPath) + test.extraArgsProvider(this@MainActivity)).toTypedArray()
         val env = buildEnv(test.isDraw)
 
-        val res = Native.run(libPath, args, env, logFile.absolutePath, test.timeoutMs)
+        // Shader/debug logging (PANVK_DEBUG=trace, PANDECODE dumps) slows large_draw a lot: triple its timeout.
+        val timeoutMs = if (test.name == "large_draw" && mesaDebugEnabledState.value) test.timeoutMs * 3 else test.timeoutMs
+        val res = Native.run(libPath, args, env, logFile.absolutePath, timeoutMs)
         val durationMs = System.currentTimeMillis() - t0
 
         var hasFail = false
