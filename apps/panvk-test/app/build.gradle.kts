@@ -5,61 +5,82 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-val panvkSoProp = providers.gradleProperty("panvkSo").orNull
-val defaultPanvkPath = File(rootDir.parentFile.parentFile, "build/android-dxint-dist/libvulkan_panfrost.so")
-val panvkSoFile = if (panvkSoProp != null) file(panvkSoProp) else defaultPanvkPath
+// Two bundled drivers: RC4 (release build) and RC5 (built here). -PpanvkSoRc4 / -PpanvkSoRc5 override the paths.
+val panvkSoRc4 = file(providers.gradleProperty("panvkSoRc4").orElse("/home/flux/build-out/rc4/libvulkan_panfrost-android-aarch64.so").get())
+val panvkSoRc5 = file(providers.gradleProperty("panvkSoRc5").orElse(
+    providers.gradleProperty("panvkSo").orElse("/home/flux/build-out/2026-10-21-v7/libvulkan_panfrost.so").get()).get())
+val panvkSlots = linkedMapOf("rc4" to panvkSoRc4, "rc5" to panvkSoRc5)
 
 fun sha256Of(f: File): String = MessageDigest.getInstance("SHA-256")
     .digest(f.readBytes()).joinToString("") { "%02x".format(it) }
 
-val bundledDriverJsonFile = File(rootDir.parentFile.parentFile, "apps/panvk-launcher/app/src/main/assets/bundled-driver.json")
+val pinnedJsonFile = file("../bundled-drivers.json")
+val genAssetsDir = file("build/generated/panvkAssets")
+val genJniDir = file("build/generated/panvkJni/arm64-v8a")
 
-// The label comes from bundled-driver.json; refuse a .so that is not the pinned one (a stale default
-// build/android-dxint-dist .so once shipped under a beta.17 label). -PpanvkSo with another .so only warns.
-val checkPanvkSo = tasks.register("checkPanvkSo") {
-    inputs.property("panvkSoPath", panvkSoFile.absolutePath)
+fun gnuBuildId(b: ByteArray): String? {
+    val pat = byteArrayOf(4, 0, 0, 0, 0x14, 0, 0, 0, 3, 0, 0, 0, 'G'.code.toByte(), 'N'.code.toByte(), 'U'.code.toByte(), 0)
+    val lim = minOf(b.size - 36, 1 shl 20)
+    outer@ for (i in 0 until lim) {
+        for (j in pat.indices) if (b[i + j] != pat[j]) continue@outer
+        return (0 until 20).joinToString("") { "%02x".format(b[i + 16 + it]) }
+    }
+    return null
+}
+
+fun driverInfoOf(b: ByteArray): String? {
+    val key = "PanVK-kbase ".toByteArray()
+    outer@ for (i in 0 until b.size - key.size) {
+        if (b[i] != key[0]) continue
+        for (j in key.indices) if (b[i + j] != key[j]) continue@outer
+        var e = i
+        while (e < b.size && b[e] != 0.toByte()) e++
+        return String(b, i, e - i, Charsets.UTF_8)
+    }
+    return null
+}
+
+// Copies each driver under a distinct name, and generates the bundled-driver.json asset from the REAL .so files
+// (sha256, size, build-id, driverInfo string) so the label can never go stale; warns when a .so differs from the pin.
+val prepareBundledDrivers = tasks.register("prepareBundledDrivers") {
+    inputs.property("paths", panvkSlots.values.joinToString { it.absolutePath })
+    inputs.files(pinnedJsonFile)
     outputs.upToDateWhen { false }
     doLast {
-        if (!panvkSoFile.exists()) {
-            throw GradleException("Bundled driver panvkSo not found at: ${panvkSoFile.absolutePath}. Specify -PpanvkSo=<path> or ensure default path exists.")
-        }
         @Suppress("UNCHECKED_CAST")
-        val pin = ((groovy.json.JsonSlurper().parse(bundledDriverJsonFile) as Map<String, Any?>)["release"] as Map<String, Any?>)["sha256"]
-        val got = sha256Of(panvkSoFile)
-        if (got != pin) {
-            val msg = "panvkSo ${panvkSoFile.absolutePath} sha256 $got != bundled-driver.json pin $pin"
-            if (panvkSoProp == null) throw GradleException("$msg (stale default driver); pass -PpanvkSo=<pinned .so>")
-            logger.warn("WARNING: $msg: APK label will not match the bundled .so")
+        val pinned = groovy.json.JsonSlurper().parse(pinnedJsonFile) as Map<String, Any?>
+        @Suppress("UNCHECKED_CAST")
+        val drivers = pinned["drivers"] as Map<String, Map<String, Any?>>
+        genJniDir.deleteRecursively(); genJniDir.mkdirs()
+        genAssetsDir.mkdirs()
+        val outDrivers = linkedMapOf<String, Any?>()
+        for ((slot, so) in panvkSlots) {
+            if (!so.exists()) throw GradleException("Bundled driver $slot not found at ${so.absolutePath} (-PpanvkSo${slot.replaceFirstChar { it.uppercase() }}=<path>)")
+            val pin = drivers[slot] ?: throw GradleException("no pinned entry for $slot in $pinnedJsonFile")
+            val bytes = so.readBytes()
+            val sha = sha256Of(so)
+            @Suppress("UNCHECKED_CAST")
+            val pinSha = (pin["release"] as Map<String, Any?>)["sha256"]
+            val info = driverInfoOf(bytes)
+            val m = LinkedHashMap(pin)
+            m["buildId"] = gnuBuildId(bytes)
+            m["driverInfo"] = info
+            m["release"] = mapOf("sha256" to sha, "size" to so.length(), "pinnedSha256" to pinSha)
+            m["matchesPin"] = (sha == pinSha)
+            if (sha != pinSha) {
+                logger.warn("WARNING: $slot .so ${so.absolutePath} sha256 $sha != pinned $pinSha in bundled-drivers.json; " +
+                    "the APK asset is derived from the actual .so (driverInfo='$info'), not from the pin.")
+            }
+            so.copyTo(File(genJniDir, pin["soName"] as String), overwrite = true)
+            outDrivers[slot] = m
         }
+        val out = linkedMapOf<String, Any?>("packageVersion" to pinned["packageVersion"], "derivedFromSo" to true, "drivers" to outDrivers)
+        File(genAssetsDir, "bundled-driver.json").writeText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(out)))
     }
-}
-
-val copyPanvkSo = tasks.register<Copy>("copyPanvkSo") {
-    dependsOn(checkPanvkSo)
-    from(panvkSoFile)
-    into(file("build/generated/panvkJni/arm64-v8a"))
-    rename { "libvulkan_panfrost.so" }
-}
-
-val checkBundledDriverJson = tasks.register("checkBundledDriverJson") {
-    inputs.property("bundledDriverJsonPath", bundledDriverJsonFile.absolutePath)
-    outputs.upToDateWhen { bundledDriverJsonFile.exists() }
-    doLast {
-        if (!bundledDriverJsonFile.exists()) {
-            throw GradleException("Bundled driver JSON not found at: ${bundledDriverJsonFile.absolutePath}")
-        }
-    }
-}
-
-val copyBundledDriverJson = tasks.register<Copy>("copyBundledDriverJson") {
-    dependsOn(checkBundledDriverJson)
-    from(bundledDriverJsonFile)
-    into(file("build/generated/panvkAssets"))
 }
 
 tasks.named("preBuild") {
-    dependsOn(copyPanvkSo)
-    dependsOn(copyBundledDriverJson)
+    dependsOn(prepareBundledDrivers)
 }
 
 android {
@@ -72,6 +93,8 @@ android {
         applicationId = "dev.zenithblue.panvktest"
         // -PappIdSuffix=.foo installs a side-by-side copy (own data, own driver).
         providers.gradleProperty("appIdSuffix").orNull?.let { applicationIdSuffix = it }
+        // -PpanprobeSuffix=v7A (with -PpanvkSoRc5=<variant .so>): side-by-side per-variant test APK, id suffix ".v7a".
+        providers.gradleProperty("panprobeSuffix").orNull?.let { applicationIdSuffix = "." + it.lowercase().replace(Regex("[^a-z0-9_]"), "_") }
         minSdk = 29
         targetSdk = 36
         versionCode = 15

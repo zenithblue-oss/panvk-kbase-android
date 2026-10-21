@@ -77,10 +77,13 @@ data class RunItem(
     val compliance: String = "" // "DXVK PASS · S4 FAIL · vkd3d FAIL" from summary.json
 )
 
-enum class DriverType(val label: String) {
-    BUNDLED("Bundled PanVK"),
+enum class DriverType(val label: String, val slot: String? = null) {
+    RC5("Bundled PanVK RC5", "rc5"),
+    RC4("Bundled PanVK RC4", "rc4"),
     SYSTEM("System Vulkan"),
-    IMPORTED("Imported .so")
+    IMPORTED("Imported .so");
+
+    val isBundled get() = slot != null
 }
 
 data class TestCase(
@@ -147,7 +150,7 @@ class MainActivity : ComponentActivity() {
         TestCase("swapchain_lifecycle", isDraw = true)
     )
 
-    private var driverTypeState = mutableStateOf(DriverType.BUNDLED)
+    private var driverTypeState = mutableStateOf(DriverType.RC5)
     private var mesaDebugEnabledState = mutableStateOf(false)
     private var mesaDebugStrState = mutableStateOf("MESA_DEBUG=1 PANVK_DEBUG=trace")
     private var importedFileNameState = mutableStateOf<String?>(null)
@@ -213,13 +216,14 @@ class MainActivity : ComponentActivity() {
         val savedDriver = sp.getString("driver", null)
         if (savedDriver != null) {
             val loadedType = when (savedDriver.uppercase(Locale.US)) {
-                "BUNDLED" -> DriverType.BUNDLED
+                "BUNDLED", "RC5" -> DriverType.RC5
+                "RC4" -> DriverType.RC4
                 "SYSTEM" -> DriverType.SYSTEM
                 "IMPORTED" -> {
                     val importedSo = File(filesDir, "imported/libimported.so")
-                    if (importedSo.exists()) DriverType.IMPORTED else DriverType.BUNDLED
+                    if (importedSo.exists()) DriverType.IMPORTED else DriverType.RC5
                 }
-                else -> DriverType.BUNDLED
+                else -> DriverType.RC5
             }
             driverTypeState.value = loadedType
         }
@@ -228,9 +232,13 @@ class MainActivity : ComponentActivity() {
         val driverExtra = intent.getStringExtra("driver") ?: if (gameLoop) "bundled" else null
         if (driverExtra != null) {
             when (driverExtra.lowercase(Locale.US)) {
-                "bundled" -> {
-                    driverTypeState.value = DriverType.BUNDLED
-                    saveDriverSelection(DriverType.BUNDLED)
+                "bundled", "rc5" -> {
+                    driverTypeState.value = DriverType.RC5
+                    saveDriverSelection(DriverType.RC5)
+                }
+                "rc4" -> {
+                    driverTypeState.value = DriverType.RC4
+                    saveDriverSelection(DriverType.RC4)
                 }
                 "system" -> {
                     driverTypeState.value = DriverType.SYSTEM
@@ -369,9 +377,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun loadBundledDriverJson(): JSONObject? {
+    /** Metadata of one bundled slot (derived from the actual .so at build time), or null. */
+    private fun loadBundledDriverJson(type: DriverType): JSONObject? {
+        val slot = type.slot ?: return null
         return try {
             assets.open("bundled-driver.json").bufferedReader().use { JSONObject(it.readText()) }
+                .optJSONObject("drivers")?.optJSONObject(slot)
         } catch (_: Exception) {
             null
         }
@@ -678,10 +689,11 @@ class MainActivity : ComponentActivity() {
 
             // 6b. driver-load.json: which driver was loaded, its identity, and whether loading worked.
             run {
-                val bundledMeta = if (resolvedDriverType == DriverType.BUNDLED) loadBundledDriverJson() else null
+                val bundledMeta = loadBundledDriverJson(resolvedDriverType)
                 val importedName = importedFileNameState.value
                 val source = when (resolvedDriverType) {
-                    DriverType.BUNDLED -> "bundled"
+                    DriverType.RC4 -> "bundled-rc4"
+                    DriverType.RC5 -> "bundled-rc5"
                     DriverType.SYSTEM -> "system"
                     DriverType.IMPORTED -> if (importedName?.endsWith("GitHub)") == true) "downloaded" else "imported"
                 }
@@ -742,7 +754,7 @@ class MainActivity : ComponentActivity() {
                     put("versionName", pInfo?.versionName ?: getAppVersion())
                     put("versionCode", pInfo?.longVersionCode ?: 0L)
                 })
-                val bundledDriverMeta = if (resolvedDriverType == DriverType.BUNDLED) loadBundledDriverJson() else null
+                val bundledDriverMeta = loadBundledDriverJson(resolvedDriverType)
                 // Bundled driver: always the pinned release metadata, so the record names it even when enumeration fails.
                 val driverNameVal: Any = bundledDriverMeta?.optString("name")?.takeIf { it.isNotEmpty() }
                     ?: optVal("driverName").takeUnless { it == JSONObject.NULL }
@@ -753,7 +765,7 @@ class MainActivity : ComponentActivity() {
 
                 put("driver", JSONObject().apply {
                     put("type", resolvedDriverType.label)
-                    put("bundled", resolvedDriverType == DriverType.BUNDLED)
+                    put("bundled", resolvedDriverType.isBundled)
                     put("path", driverPath)
                     put("soSha256", runtimeDriverSha256 ?: JSONObject.NULL)
                     put("buildId", driverBuildId ?: JSONObject.NULL)
@@ -848,7 +860,8 @@ class MainActivity : ComponentActivity() {
 
     private fun getDriverPath(type: DriverType): String {
         return when (type) {
-            DriverType.BUNDLED -> File(applicationInfo.nativeLibraryDir, "libvulkan_panfrost.so").absolutePath
+            DriverType.RC4 -> File(applicationInfo.nativeLibraryDir, "libvulkan_panfrost_rc4.so").absolutePath
+            DriverType.RC5 -> File(applicationInfo.nativeLibraryDir, "libvulkan_panfrost_rc5.so").absolutePath
             DriverType.SYSTEM -> "/system/lib64/libvulkan.so"
             DriverType.IMPORTED -> File(filesDir, "imported/libimported.so").absolutePath
         }
@@ -1097,10 +1110,15 @@ class MainActivity : ComponentActivity() {
     private fun say(s: String) {
         Log.i("PanVKTest", s)
         java.io.File(filesDir, "autorun.txt").appendText(s + "\n")
+        // External files dir is readable by plain `adb pull` (no run-as, which some ROMs block).
+        try { java.io.File(getExternalFilesDir(null), "autorun.txt").appendText(s + "\n") } catch (_: Exception) {}
     }
+
+    private fun oneLine(s: String?) = (s ?: "").replace(Regex("\\s+"), " ").trim().take(300)
 
     private suspend fun runHeadlessAutorun(which: String) {
         java.io.File(filesDir, "autorun.txt").delete()
+        try { java.io.File(getExternalFilesDir(null), "autorun.txt").delete() } catch (_: Exception) {}
         val (json, _) = runInfo()
         val devicesArr = json?.optJSONArray("devices")
         val numDevices = devicesArr?.length() ?: 0
@@ -1110,6 +1128,8 @@ class MainActivity : ComponentActivity() {
         val numFormats = firstDev?.optJSONObject("formats")?.length() ?: 0
 
         say("INFO devices=$numDevices exts=$numExts formats=$numFormats")
+        val liveDriverInfo = oneLine(firstDev?.optJSONObject("properties")?.optString("driverInfo")).ifEmpty { "unknown" }
+        say("DRIVER slot=${driverTypeState.value.name} driverInfo=$liveDriverInfo")
         json?.optJSONObject("compliance")?.let { reports ->
             val s = complianceSummary(reports)
             for (k in s.keys()) s.getJSONObject(k).let {
@@ -1130,6 +1150,7 @@ class MainActivity : ComponentActivity() {
                 updateTestResult(res)
             }
             say("RESULT ${test.name} ${res.status} mismatch=${res.mismatch} fps=${res.fps ?: "0"} ms=${res.durationMs}${if (res.extra != null) " extra=${res.extra}" else ""}")
+            Log.i("PanProbe", "PANPROBE_TEST name=${test.name} status=${res.status} msg=${oneLine(res.lastLines.lastOrNull())}")
             if (gameLoop) {
                 if (res.status != "PASS") res.lastLines.takeLast(30).forEach { Log.i("PanProbeGameLoop", "TAIL ${test.name}: $it") }
                 writeGameLoopResult(runResults, null) // partial, survives a Test Lab timeout
@@ -1140,6 +1161,11 @@ class MainActivity : ComponentActivity() {
         val skipCount = runResults.count { it.status == "SKIP" }
         say("AUTORUN DONE pass=$passCount fail=$failCount skip=$skipCount total=${selected.size} ($passCount pass / $failCount fail / $skipCount skip)")
         val savedRun = saveRun(runResults)
+        Log.i("PanProbe", "PANPROBE_RESULT driver=$liveDriverInfo pass=$passCount fail=$failCount skip=$skipCount")
+        try {
+            if (savedRun != null) savedRun.copyRecursively(File(File(getExternalFilesDir(null), "runs"), savedRun.name), overwrite = true)
+            say("EXTERNAL READY run=${savedRun?.name}")
+        } catch (e: Exception) { say("EXTERNAL COPY FAIL $e") }
         // Only a full run uploads; a single named test never does.
         if (which == "all" && savedRun != null) autoUpload(savedRun)
         // --ez zip true: build the upload zip locally (no upload) and copy it to external files for adb pull.
@@ -1343,7 +1369,7 @@ class MainActivity : ComponentActivity() {
                 note = "Download replaces the Imported .so slot."
             )
 
-            val bundledJson = remember { loadBundledDriverJson() }
+            
 
             DriverType.entries.forEach { type ->
                 val isSelected = driverTypeState.value == type
@@ -1379,24 +1405,23 @@ class MainActivity : ComponentActivity() {
                                 fontFamily = FontFamily.Monospace,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            if (type == DriverType.BUNDLED && bundledJson != null && bundledJson.length() > 0) {
-                                val name = bundledJson.optString("name").takeIf { it.isNotEmpty() }
-                                val version = bundledJson.optString("displayVersion").takeIf { it.isNotEmpty() }
-                                    ?: bundledJson.optString("packageVersion").takeIf { it.isNotEmpty() }
-                                val text = when {
-                                    name != null && version != null -> "$name  $version"
-                                    name != null -> name
-                                    version != null -> version
-                                    else -> null
+                            val meta = remember(type) { loadBundledDriverJson(type) }
+                            if (meta != null && meta.length() > 0) {
+                                val rel = meta.optJSONObject("release")
+                                val text = buildString {
+                                    append(meta.optString("name"))
+                                    meta.optString("driverInfo").takeIf { it.isNotEmpty() }?.let { append("\ndriverInfo: ").append(it) }
+                                    rel?.optString("sha256")?.takeIf { it.isNotEmpty() }?.let { append("\nsha256: ").append(it.take(16)).append("...") }
+                                    meta.optString("buildId").takeIf { it.isNotEmpty() }?.let { append("\nbuild-id: ").append(it.take(12)) }
+                                    append("\npinned release: ").append(meta.optString("displayVersion"))
+                                    if (!meta.optBoolean("matchesPin", true)) append(" (this .so differs from the pin)")
                                 }
-                                if (text != null) {
-                                    Text(
-                                        text = text,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontFamily = FontFamily.Monospace,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                Text(
+                                    text = text,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }
