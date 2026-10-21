@@ -251,6 +251,20 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // --es env "KEY=VAL;KEY2=VAL2": driver env for every test/info child process (exec'd after this, so
+        // always before the driver .so is loaded). Only PANVK_*, MESA_*, PAN_* keys are accepted.
+        intent.getStringExtra("env")?.split(';')?.forEach { pair ->
+            val i = pair.indexOf('=')
+            val k = if (i > 0) pair.substring(0, i).trim() else ""
+            val v = if (i > 0) pair.substring(i + 1).trim() else ""
+            if (k.matches(Regex("(PANVK|MESA|PAN)_[A-Za-z0-9_]*"))) {
+                extraEnv.add("$k=$v")
+                Log.i("PanProbe", "PANPROBE_ENV key=$k val=$v")
+            } else if (pair.isNotBlank()) {
+                Log.w("PanProbe", "PANPROBE_ENV rejected pair=$pair")
+            }
+        }
+
         // Debug builds only (checked in DriverUpdate): --es updateAs 0.1.0-beta.15 makes an older release look newer.
         intent.getStringExtra("updateAs")?.let { DriverUpdate.debugInstalledAs = it.ifEmpty { null } }
 
@@ -867,6 +881,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val extraEnv = mutableListOf<String>()
+
     private fun buildEnv(isDraw: Boolean): Array<String> {
         val envList = mutableListOf<String>()
         // Driver lines to the test log (stderr) and to logcat for the upload zip.
@@ -880,6 +896,7 @@ class MainActivity : ComponentActivity() {
                 envList.add("PANDECODE_DUMP_FILE=stderr")
             }
         }
+        envList.addAll(extraEnv)
         if (isDraw) {
             envList.add("PT_FPS_MS=1000")
         }
