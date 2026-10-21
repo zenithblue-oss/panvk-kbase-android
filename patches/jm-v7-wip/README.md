@@ -210,3 +210,10 @@ Made on top of the v7G tree HEAD (`121f9b1`, after 0049) in `/home/flux/src/mesa
 
 - 0025 (jm-v7 026): xfb gl_CullDistance capture on v6/v7. The VS's CULL_DIST0/1 hold the FS kill flags (`panvk_lower_cull_dist_flags_intr()`), so jm-v7 023 captured 1/0 flags. A VS/TES whose xfb captures cull also writes the raw distances to TEX0/1 (`PANVK_XFB_RAW_CULL_SLOT0/1`), the passthrough captures them from there. PanProbe xfb vs_clip_cull_capture.
 - 0026 (jm-v7 027): tessellated draws up to 1 << 18 patches (was 8192, the serial prefix sum). Workgroup prefix sum in `panlib_v7_tess_prefix()`; direct draws size the tessellator grid for their own patches. PanProbe large_draw tess_*.
+
+## v7G-E2 (2026-10-21): 0035-0036
+
+Made on top of the v7G tree HEAD (`121f9b1`, after 0049) in `/home/flux/src/mesa-v7fixE2` (branch `v7fixE2`), so like 0025/0026 they apply AFTER 0049, not in file order. Checked: v7G HEAD + 0035 + 0036 + 0025 + 0026 + 0070-0080 applies with `git am` (no conflicts).
+
+- 0035 (jm-v7 035): the 0046 VS guard called `nir_def_rewrite_uses_after(&intr->def, phi)` with the intrinsic in the then block and the phi after the if; `is_instr_between()` assumes one block, so the phi's own source became the phi, `phi(phi, undef)` folded to undef and every guarded atomic returned garbage (also for non-indexed draws). vertex_stores iter0-5 (`outv` 1000) and the draw_params hang (`rec[undef]` store). Fixed by pointing the phi source back after the loop (0080's hunk unchanged).
+- 0036 (jm-v7 036): the 0049 tess patch-ID path was gated on `info.system_values_read`, which nothing gathers on the v6/v7 GS NIR, so it was never emitted (gs_tess_primitive_id still returned triangle ordinals). Now gated on a `load_primitive_id` intrinsic being present.

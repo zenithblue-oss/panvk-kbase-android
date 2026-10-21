@@ -1,0 +1,65 @@
+From 9efe970f702fc9655439972cc5e7102b2dd9c9c3 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 16:46:38 +0000
+Subject: [PATCH 35/36] jm-v7 035: guarded VS atomics return their result again
+ on v6/v7
+
+panvk_v7_lower_vs_ref_guard() (jm-v7 046) moves each VS store and atomic
+into an if and merges an atomic's result with a phi after it, then calls
+nir_def_rewrite_uses_after(&intr->def, phi). The intrinsic sits in the
+then block and the phi in the block after the if, so is_instr_between()
+(which expects one block) never skips anything and the phi's own then
+source is rewritten to the phi too. phi(phi, undef) folds to undef, so
+every guarded atomic returned garbage, for referenced vertices and for
+non-indexed draws (vs_ref_bitmap 0) as well:
+
+- PanProbe vertex_stores iter0..iter5: outv = atomicAdd(inout) + 1000 is
+  always 1000 ("outv[0,16] inconsistent got (1000,1000)").
+- PanProbe draw_params: rec[atomicAdd(count)] stores at an undefined
+  index, outside the SSBO; the test hung the A06 (v7G full run).
+
+Point the phi's then source back at the intrinsic after the loop. The
+loop itself is unchanged, so jm-v7 080 (nir_imm_zero for skipped
+atomics) still applies on top.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_vX_shader.c | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index 5829a18..33ee83e 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -4087,6 +4087,28 @@ panvk_v7_lower_vs_ref_guard(nir_shader *nir)
+       }
+    }
+ 
++   /* jm-v7 035: the intrinsic (then block) and its phi (block after the
++    * if) are in different blocks, so nir_def_rewrite_uses_after() above
++    * also rewrote the phi's own then source to the phi. Every guarded
++    * atomic then returned its else value, also for referenced vertices
++    * (vertex_stores iter*: outv 1000; draw_params: rec[undef]). Point the
++    * source back at the intrinsic.
++    */
++   util_dynarray_foreach(&list, nir_intrinsic_instr *, it) {
++      nir_intrinsic_instr *intr = *it;
++      if (!nir_intrinsic_infos[intr->intrinsic].has_dest)
++         continue;
++      nir_block *then_block = intr->instr.block;
++      nir_if *nif = nir_cf_node_as_if(then_block->cf_node.parent);
++      nir_block *after = nir_cf_node_as_block(nir_cf_node_next(&nif->cf_node));
++      nir_foreach_phi(phi, after) {
++         nir_foreach_phi_src(src, phi) {
++            if (src->pred == then_block && src->src.ssa == &phi->def)
++               nir_src_rewrite(&src->src, &intr->def);
++         }
++      }
++   }
++
+    const bool progress = util_dynarray_num_elements(&list,
+                                                     nir_intrinsic_instr *) > 0;
+    util_dynarray_fini(&list);
+-- 
+2.55.0
+
