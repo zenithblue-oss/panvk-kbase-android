@@ -1,0 +1,46 @@
+From 1da63a845767e7d5805e8991cb87254fcc723f70 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 06:54:22 +0000
+Subject: [PATCH] jm-v7 019: kbase: try the 48-byte JM atom on Bifrost
+ (pre-11.22 kbase)
+
+kbase before uAPI 11.22 (the r1x/r2x drivers of most Mali-G71 and G72
+phones: Exynos 8895/9810, Kirin 960/970) has no renderpass_id in
+base_jd_atom_v2, which is then 48 bytes, and refuses strides 56 and 64
+with EINVAL. jm-v7 004 then kept 56 and every submit failed. After 56
+and 64, try 48: our atom's first 48 bytes are that layout (jit_id sits
+where those kernels have it or an ignored compat_core_req, and we never
+set renderpass_id). Later kernels also accept 48 as a compat size, which
+is why it is tried last. Logged as "Bifrost JM atom ... stride 48".
+
+Not device-tested (no v6 device).
+---
+ src/panfrost/lib/kmod/kbase_kmod.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/panfrost/lib/kmod/kbase_kmod.c b/src/panfrost/lib/kmod/kbase_kmod.c
+index 35038be..e5b4026 100644
+--- a/src/panfrost/lib/kmod/kbase_kmod.c
++++ b/src/panfrost/lib/kmod/kbase_kmod.c
+@@ -1514,7 +1514,17 @@ kbase_check_bifrost_atom_stride(int fd, bool *seq_nr)
+                 "(seq_nr + base_jd_atom_v2)");
+       return 64;
+    }
+-   mesa_logw("kbase: Bifrost JM atom strides 56 and 64 refused, keeping 56");
++   /* jm-v7 019: kbase before uAPI 11.22 (the G71/G72 era) has no
++    * renderpass_id, and its base_jd_atom_v2 is our first 48 bytes. Later
++    * kernels also take 48 as a compat size, so it is only tried last.
++    */
++   if (kbase_try_atom_stride(fd, 48, false)) {
++      mesa_logi("kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 "
++                "(base_jd_atom_v2 without renderpass_id)");
++      return 48;
++   }
++   mesa_logw("kbase: Bifrost JM atom strides 56, 64 and 48 refused, "
++             "keeping 56");
+    return 56;
+ }
+ 
+-- 
+2.55.0
+

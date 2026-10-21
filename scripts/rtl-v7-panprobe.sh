@@ -3,7 +3,7 @@
 # Usage: rtl-v7-panprobe.sh [-a PanProbe.apk] [-n] [-t timeout_s] [-o outdir] SERIAL [VARIANT_DIR ...]
 # Each VARIANT_DIR must hold libvulkan_panfrost.so. Missing dirs are skipped.
 # -n: skip APK install (already installed).
-# Default variants: /home/flux/build-out/2026-10-21-v7{,A,B,C,D}
+# Default variants: /home/flux/build-out/2026-10-21-v7{,A,B,C,D,E}
 # Results: <outdir>/<variant>/ (default /home/flux/test-results/<date>)
 PKG=dev.zenithblue.panvktest
 APK=/home/flux/build-out/apks/panprobe-debug.apk
@@ -23,7 +23,7 @@ done
 shift $((OPTIND - 1))
 [ $# -ge 1 ] || usage
 SERIAL=$1; shift
-if [ $# -eq 0 ]; then set -- "$BASE" "${BASE}A" "${BASE}B" "${BASE}C" "${BASE}D"; fi
+if [ $# -eq 0 ]; then set -- "$BASE" "${BASE}A" "${BASE}B" "${BASE}C" "${BASE}D" "${BASE}E"; fi
 
 if [ -n "$DRYRUN" ]; then
   echo "serial=$SERIAL apk=$APK timeout=$TIMEOUT out=$OUT"

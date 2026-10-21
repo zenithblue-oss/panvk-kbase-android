@@ -1,0 +1,360 @@
+From 1dd2d0ce3bca0f954021a13f6cdbe4eb0eeb3779 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 06:50:46 +0000
+Subject: [PATCH] jm-v7 018: Bifrost fillModeNonSolid through a polygon-mode
+ passthrough GS
+
+The Bifrost tiler has no polygon mode. A triangle topology (lists,
+strips, fans, and the adjacency ones) drawn in VK_POLYGON_MODE_LINE or
+_POINT with no geometry shader bound now goes through the geometry
+emulation with a generated passthrough (panvk_polygon_gs(), built by the
+009 passthrough builder, one per mode and class, cached on the vertex
+shader). It emits each triangle as a closed line strip (3 lines) or as 3
+points, so the tiler draws lines or points. The vertex shader is not
+recompiled: the emulation reads its screen-space position and converts it
+back (in_screen_space).
+
+The tiler cannot cull lines or points, so the passthrough culls faces
+itself: the Vulkan area rule on the framebuffer-space positions (viewport
+0 scale) against the cull mode and front face of the draw
+(panvk_gs_push::polygon_cull, PANVK_GS_CULL_*). The tess eval draw of a
+tessellated draw takes the same path, and its emulation is sized as for
+a nested GS.
+
+Limits: flat varyings of an edge come from that edge's first vertex, not
+from the triangle's provoking vertex. Points are size 1. Depth bias is
+not applied to the lines/points. A vertex shader with transform feedback
+draws filled (the xfb passthrough has priority). Indirect draws keep the
+emulation cap of 4096 input primitives. Not device-tested.
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c    |  49 +++++++-
+ src/panfrost/vulkan/panvk_shader.h            |  18 +++
+ .../vulkan/panvk_vX_physical_device.c         |   3 +-
+ src/panfrost/vulkan/panvk_vX_shader.c         | 114 ++++++++++++++++--
+ 4 files changed, 174 insertions(+), 10 deletions(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index d71fcef..c6ebf68 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -1611,6 +1611,21 @@ panvk_cmd_prepare_draw_link_shaders(struct panvk_cmd_buffer *cmd)
+    return VK_SUCCESS;
+ }
+ 
++/* fillModeNonSolid (jm-v7 018): a triangle topology drawn in line or point
++ * polygon mode without a geometry shader.
++ */
++static bool
++v7_polygon_mode_draw(const struct panvk_cmd_buffer *cmdbuf, enum mesa_prim prim)
++{
++   const VkPolygonMode mode =
++      cmdbuf->vk.dynamic_graphics_state.rs.polygon_mode;
++   const int cls = panvk_xfb_gs_class(prim);
++
++   return (mode == VK_POLYGON_MODE_LINE || mode == VK_POLYGON_MODE_POINT) &&
++          (cls == PANVK_XFB_GS_TRIANGLES || cls == PANVK_XFB_GS_TRIANGLES_ADJ) &&
++          !cmdbuf->vk.dynamic_graphics_state.rs.rasterizer_discard_enable;
++}
++
+ static VkResult
+ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+ {
+@@ -1657,6 +1672,19 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+                                      VK_ERROR_OUT_OF_DEVICE_MEMORY);
+          return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+       }
++   } else if (!emu && v7_polygon_mode_draw(cmdbuf, draw->info.prim)) {
++      /* fillModeNonSolid (jm-v7 018): the tiler has no polygon mode, so
++       * the triangles go through a passthrough that emits their edges or
++       * vertices (and culls faces itself).
++       */
++      emu = panvk_per_arch(polygon_gs)(
++         to_panvk_device(cmdbuf->vk.base.device), cmdbuf->state.gfx.vs.shader,
++         draw->info.prim, cmdbuf->vk.dynamic_graphics_state.rs.polygon_mode);
++      if (!emu) {
++         vk_command_buffer_set_error(&cmdbuf->vk,
++                                     VK_ERROR_OUT_OF_DEVICE_MEMORY);
++         return VK_ERROR_OUT_OF_DEVICE_MEMORY;
++      }
+    }
+    if (emu != cmdbuf->state.gfx.gs.emu) {
+       cmdbuf->state.gfx.gs.emu = emu;
+@@ -1921,6 +1949,23 @@ emu_prepare_descs(struct panvk_cmd_buffer *cmdbuf,
+    return true;
+ }
+ 
++/* PANVK_GS_CULL_* of the polygon-mode passthrough (jm-v7 018). */
++static uint32_t
++v7_polygon_cull(const struct panvk_cmd_buffer *cmdbuf)
++{
++   const struct vk_rasterization_state *rs =
++      &cmdbuf->vk.dynamic_graphics_state.rs;
++   uint32_t cull = 0;
++
++   if (rs->cull_mode & VK_CULL_MODE_FRONT_BIT)
++      cull |= PANVK_GS_CULL_FRONT;
++   if (rs->cull_mode & VK_CULL_MODE_BACK_BIT)
++      cull |= PANVK_GS_CULL_BACK;
++   if (rs->front_face == VK_FRONT_FACE_COUNTER_CLOCKWISE)
++      cull |= PANVK_GS_FRONT_CCW;
++   return cull;
++}
++
+ /*
+  * The geometry shader as a compute job between the vertex job (dep_job_id)
+  * and the tiler job. Returns the job the tiler waits on, 0 on failure.
+@@ -2075,6 +2120,7 @@ emit_gs_job(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw,
+       .xfb_invocations = cmdbuf->state.gfx.gs.xfb_invocations,
+       .in_screen_space = !vs->gs.vs_clip_space,
+       .pstats = pstats,
++      .polygon_cull = gs->gs.polygon ? v7_polygon_cull(cmdbuf) : 0,
+       .viewports = viewports,
+       .viewport_scale = {gfx_sysvals->viewport.scale.x,
+                          gfx_sysvals->viewport.scale.y,
+@@ -2910,7 +2956,8 @@ panvk_tess_draw(struct panvk_cmd_buffer *cmdbuf,
+     * the geometry emulation of the tess eval draw is sized for
+     * PANVK_TESS_GS_MAX_PRIMS input primitives, keep no more indices.
+     */
+-   const bool nested = gfx->gs.shader || tes_v->gs.vs_clip_space;
++   const bool nested = gfx->gs.shader || tes_v->gs.vs_clip_space ||
++                       v7_polygon_mode_draw(cmdbuf, out_prim);
+    uint32_t max_indices = PANVK_TESS_MAX_INDICES;
+    if (nested)
+       max_indices = MIN2(max_indices, PANVK_TESS_GS_MAX_PRIMS * vpp);
+diff --git a/src/panfrost/vulkan/panvk_shader.h b/src/panfrost/vulkan/panvk_shader.h
+index ff273c1..907ce3e 100644
+--- a/src/panfrost/vulkan/panvk_shader.h
++++ b/src/panfrost/vulkan/panvk_shader.h
+@@ -464,6 +464,10 @@ struct panvk_shader_variant {
+       enum mesa_prim output_prim;
+       /* Writes gl_ViewportIndex. */
+       bool writes_viewport;
++      /* A polygon-mode passthrough (jm-v7 018): it culls faces itself from
++       * panvk_gs_push::polygon_cull.
++       */
++      bool polygon;
+       /* multiViewport (jm-v7 017): the generic slot the emulation writes the
+        * four scissor edge distances of the selected viewport to, for the
+        * FS clip-distance kill. 0 when none.
+@@ -581,6 +585,10 @@ struct panvk_shader {
+     * primitive class.
+     */
+    struct panvk_shader *passthrough_gs[PANVK_XFB_GS_CLASS_COUNT];
++   /* fillModeNonSolid (jm-v7 018): the polygon-mode passthroughs, by mode
++    * (line, point) and class (triangles, triangles with adjacency).
++    */
++   struct panvk_shader *polygon_gs[2][2];
+ #endif
+ 
+    struct panvk_shader_variant variants[];
+@@ -767,6 +775,16 @@ VkResult panvk_per_arch(create_shader)(
+ const struct panvk_shader *panvk_per_arch(passthrough_gs)(
+    struct panvk_device *dev, const struct panvk_shader *vs,
+    enum mesa_prim prim);
++
++/* fillModeNonSolid (jm-v7 018): the geometry shader a vertex shader draws a
++ * triangle topology through in VK_POLYGON_MODE_LINE or _POINT when no
++ * geometry shader is bound: it emits the edges or the vertices of every
++ * triangle it does not cull. NULL when prim is no triangle topology or it
++ * cannot be made.
++ */
++const struct panvk_shader *panvk_per_arch(polygon_gs)(
++   struct panvk_device *dev, const struct panvk_shader *vs,
++   enum mesa_prim prim, VkPolygonMode mode);
+ #endif
+ 
+ #endif
+diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
+index 3c95160..2b256c2 100644
+--- a/src/panfrost/vulkan/panvk_vX_physical_device.c
++++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
+@@ -332,7 +332,8 @@ panvk_per_arch(get_physical_device_features)(
+       .drawIndirectFirstInstance = true,
+       .depthClamp = true,
+       .depthBiasClamp = true,
+-      .fillModeNonSolid = PAN_ARCH >= 9,
++      /* v6/v7: a passthrough GS emits edges or vertices (jm-v7 018). */
++      .fillModeNonSolid = true,
+       /* v6/v7: emulated in the FS with LD_TILE of the depth (jm-v7 015). */
+       .depthBounds = true,
+       .wideLines = true,
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index 3bdd1c9..03ff3e3 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -3379,6 +3379,12 @@ panvk_shader_destroy(struct vk_device *vk_dev, struct vk_shader *vk_shader,
+       if (shader->passthrough_gs[i])
+          panvk_shader_destroy(vk_dev, &shader->passthrough_gs[i]->vk, NULL);
+    }
++   for (unsigned m = 0; m < 2; m++) {
++      for (unsigned c = 0; c < 2; c++) {
++         if (shader->polygon_gs[m][c])
++            panvk_shader_destroy(vk_dev, &shader->polygon_gs[m][c]->vk, NULL);
++      }
++   }
+ #endif
+ 
+    vk_shader_free(vk_dev, pAllocator, &shader->vk);
+@@ -3457,7 +3463,7 @@ panvk_vs_store_xfb(struct panvk_shader_variant *variant,
+  */
+ static nir_shader *
+ panvk_build_passthrough_gs(const struct panvk_shader_variant *vs,
+-                               enum panvk_xfb_gs_class cls)
++                           enum panvk_xfb_gs_class cls, VkPolygonMode poly)
+ {
+    static const struct {
+       enum mesa_prim in, out;
+@@ -3484,10 +3490,19 @@ panvk_build_passthrough_gs(const struct panvk_shader_variant *vs,
+       "panvk xfb passthrough");
+    nir_shader *nir = b.shader;
+ 
++   /* Polygon mode (jm-v7 018): the triangle's edges as a closed line
++    * strip, or its vertices as points.
++    */
++   const bool poly_line = poly == VK_POLYGON_MODE_LINE;
++   const bool poly_point = poly == VK_POLYGON_MODE_POINT;
++   assert(!(poly_line || poly_point) || classes[cls].nemit == 3);
++
+    nir->info.gs.input_primitive = classes[cls].in;
+-   nir->info.gs.output_primitive = classes[cls].out;
++   nir->info.gs.output_primitive = poly_line    ? MESA_PRIM_LINE_STRIP
++                                   : poly_point ? MESA_PRIM_POINTS
++                                                : classes[cls].out;
+    nir->info.gs.vertices_in = classes[cls].vin;
+-   nir->info.gs.vertices_out = classes[cls].nemit;
++   nir->info.gs.vertices_out = classes[cls].nemit + (poly_line ? 1 : 0);
+    nir->info.gs.invocations = 1;
+    nir->info.gs.active_stream_mask = 1;
+ 
+@@ -3495,7 +3510,7 @@ panvk_build_passthrough_gs(const struct panvk_shader_variant *vs,
+     * objects) still needs the emulation to rasterize, with nothing to
+     * capture.
+     */
+-   if (vs->gs.xfb_passthrough) {
++   if (vs->gs.xfb_passthrough && !poly_line && !poly_point) {
+       nir_xfb_info *xfb =
+          rzalloc_size(nir, nir_xfb_info_size(vs->gs.xfb_output_count));
+       xfb->buffers_written = vs->gs.xfb_buffers_written;
+@@ -3566,10 +3581,47 @@ panvk_build_passthrough_gs(const struct panvk_shader_variant *vs,
+       types[n++] = base | bits;
+    }
+ 
+-   for (unsigned v = 0; v < classes[cls].nemit; v++) {
++   /* Polygon mode: the tiler only sees lines or points, so the faces are
++    * culled here, with the Vulkan area rule in framebuffer coordinates
++    * (a = -1/2 sum(x_i y_i+1 - x_i+1 y_i); the viewport offset cancels).
++    */
++   const bool poly_mode = poly_line || poly_point;
++   if (poly_mode) {
++      nir_def *cull = load_sysval(&b, compute, 32, gs.polygon_cull);
++      nir_def *scale = load_sysval(&b, compute, 32, gs.viewport_scale);
++      nir_def *fx[3], *fy[3];
++      for (unsigned k = 0; k < 3; k++) {
++         nir_def *p = nir_load_array_var_imm(&b, in_vars[0],
++                                             classes[cls].emit[k]);
++         nir_def *rw = nir_frcp(&b, nir_channel(&b, p, 3));
++         fx[k] = nir_fmul(&b, nir_fmul(&b, nir_channel(&b, p, 0), rw),
++                          nir_channel(&b, scale, 0));
++         fy[k] = nir_fmul(&b, nir_fmul(&b, nir_channel(&b, p, 1), rw),
++                          nir_channel(&b, scale, 1));
++      }
++      nir_def *sum = nir_imm_float(&b, 0.0f);
++      for (unsigned k = 0; k < 3; k++) {
++         const unsigned l = (k + 1) % 3;
++         sum = nir_fadd(&b, sum,
++                        nir_fsub(&b, nir_fmul(&b, fx[k], fy[l]),
++                                 nir_fmul(&b, fx[l], fy[k])));
++      }
++      /* Positive Vulkan area is sum < 0. */
++      nir_def *ccw = nir_test_mask(&b, cull, PANVK_GS_FRONT_CCW);
++      nir_def *front = nir_bcsel(&b, ccw, nir_flt_imm(&b, sum, 0.0f),
++                                 nir_fgt_imm(&b, sum, 0.0f));
++      nir_def *kill = nir_ior(
++         &b, nir_iand(&b, nir_test_mask(&b, cull, PANVK_GS_CULL_FRONT), front),
++         nir_iand(&b, nir_test_mask(&b, cull, PANVK_GS_CULL_BACK),
++                  nir_inot(&b, front)));
++      nir_push_if(&b, nir_inot(&b, kill));
++   }
++
++   const unsigned nemit = classes[cls].nemit + (poly_line ? 1 : 0);
++   for (unsigned v = 0; v < nemit; v++) {
++      const unsigned src = classes[cls].emit[v % classes[cls].nemit];
+       for (unsigned j = 0; j < n; j++) {
+-         nir_def *val =
+-            nir_load_array_var_imm(&b, in_vars[j], classes[cls].emit[v]);
++         nir_def *val = nir_load_array_var_imm(&b, in_vars[j], src);
+          if (val->bit_size == 16) {
+             switch (nir_alu_type_get_base_type(types[j])) {
+             case nir_type_float:
+@@ -3588,6 +3640,8 @@ panvk_build_passthrough_gs(const struct panvk_shader_variant *vs,
+       nir_emit_vertex(&b, 0);
+    }
+    nir_end_primitive(&b, 0);
++   if (poly_mode)
++      nir_pop_if(&b, NULL);
+ 
+    nir_validate_shader(nir, "panvk xfb passthrough");
+    return nir;
+@@ -3613,7 +3667,50 @@ panvk_per_arch(passthrough_gs)(struct panvk_device *dev,
+    if (gs)
+       return gs;
+ 
+-   nir_shader *nir = panvk_build_passthrough_gs(vs, cls);
++   nir_shader *nir = panvk_build_passthrough_gs(vs, cls, VK_POLYGON_MODE_FILL);
++   if (!nir)
++      return NULL;
++
++   panvk_per_arch(compiler_lock)();
++   VkResult result = panvk_per_arch(create_shader)(dev, nir, &gs);
++   panvk_per_arch(compiler_unlock)();
++   ralloc_free(nir);
++   if (result != VK_SUCCESS)
++      return NULL;
++
++   struct panvk_shader *old = p_atomic_cmpxchg_ptr(slot, NULL, gs);
++   if (old) {
++      panvk_shader_destroy(&dev->vk, &gs->vk, NULL);
++      return old;
++   }
++
++   return gs;
++}
++
++const struct panvk_shader *
++panvk_per_arch(polygon_gs)(struct panvk_device *dev,
++                           const struct panvk_shader *vs_shader,
++                           enum mesa_prim prim, VkPolygonMode mode)
++{
++   const struct panvk_shader_variant *vs = panvk_shader_hw_variant(vs_shader);
++   const int cls = panvk_xfb_gs_class(prim);
++   const int c = cls == PANVK_XFB_GS_TRIANGLES       ? 0
++                 : cls == PANVK_XFB_GS_TRIANGLES_ADJ ? 1
++                                                     : -1;
++   const int m = mode == VK_POLYGON_MODE_LINE    ? 0
++                 : mode == VK_POLYGON_MODE_POINT ? 1
++                                                 : -1;
++   if (c < 0 || m < 0)
++      return NULL;
++
++   /* Created on first use, as panvk_passthrough_gs(). */
++   struct panvk_shader **slot =
++      (struct panvk_shader **)&vs_shader->polygon_gs[m][c];
++   struct panvk_shader *gs = p_atomic_read(slot);
++   if (gs)
++      return gs;
++
++   nir_shader *nir = panvk_build_passthrough_gs(vs, cls, mode);
+    if (!nir)
+       return NULL;
+ 
+@@ -3623,6 +3720,7 @@ panvk_per_arch(passthrough_gs)(struct panvk_device *dev,
+    ralloc_free(nir);
+    if (result != VK_SUCCESS)
+       return NULL;
++   gs->variants[0].gs.polygon = true;
+ 
+    struct panvk_shader *old = p_atomic_cmpxchg_ptr(slot, NULL, gs);
+    if (old) {
+-- 
+2.55.0
+

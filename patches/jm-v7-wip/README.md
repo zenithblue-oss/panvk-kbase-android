@@ -22,6 +22,8 @@ Worktrees: `work/mesa-b2` (branch `v7port2`) is the previous base: the full seri
 | 0014 | (jm-v7 015) `depthBounds`: the csf-v11/092 FS emulation (LD_TILE of the stored depth with the Bifrost Z_STENCIL message, SampleMask cleared outside the bounds) on v6/v7, the device depth-bounds FS, a ZS tile read in the RSD while the test is on, and the late ZS update with EarlyFragmentTests (jm-v9/018). See "Features added in v7feat" below. |
 | 0015 | (jm-v7 016) `pipelineStatisticsQuery` and `transformFeedbackQueries`, GPU-counted in the v9 JM report layout. See "Features added in v7feat" below. |
 | 0016 | (jm-v7 017) `multiViewport` (16 viewports): the GS emulation selects the viewport per primitive; union scissor/depth in the tiler, per-viewport scissor as an FS clip-distance kill. See "Features added in v7feat" below. |
+| 0017 | (jm-v7 018) `fillModeNonSolid`: triangle draws in LINE/POINT polygon mode go through a generated passthrough GS that emits edges or vertices and culls faces itself. See "Features added in v7feat" below. |
+| 0018 | (jm-v7 019) kbase: after strides 56 and 64, try the 48-byte JM atom (kbase before uAPI 11.22, no renderpass_id: the G71/G72-era kernels). See "v6 (G71/G72) parity" below. |
 
 ## Build status (2026-10-16, cloud session)
 
@@ -50,7 +52,7 @@ Worktrees: `work/mesa-b2` (branch `v7port2`) is the previous base: the full seri
 | depthBounds | 0014 (FS emulation) |
 | pipelineStatisticsQuery | 0015 |
 | multiViewport | 0016 (GS-selected; shaderOutputViewportIndex stays off) |
-| fillModeNonSolid | off (in progress) |
+| fillModeNonSolid | 0017 (passthrough GS; no app GS output in polygon mode) |
 
 ## Features added in v7feat (0014+)
 
@@ -88,6 +90,22 @@ Limits (ponytail, same as v9 JM): FS invocations miss fragments killed by late Z
 - Each primitive is cut to its own scissor in the FS: the emulation writes the four edge distances, times clip w (so the perspective-interpolated value keeps its sign), to CLIP_DIST1. An FS compiled without the previous stage's layout (always the case after a GS on v6/v7) already kills on negative CLIP_DIST0/1. The GS's own compact clip distances are not carried by the emulation, so the slot is free.
 - The FS reads gl_ViewportIndex from the emulation's copy (PANVK_GS_VIEWPORT_INDEX_SLOT); unwritten, it reads constant 0.
 - Limits: depth clamp and near/far clip use the union of the depth ranges, not the selected viewport's (differs only when the viewports have different depth ranges). A GS writing non-compact data at CLIP_DIST1 gets no per-viewport scissor.
+
+### fillModeNonSolid (0017)
+
+- The Bifrost tiler has no polygon mode. A triangle topology (list, strip, fan and the adjacency ones) drawn in VK_POLYGON_MODE_LINE or _POINT with no GS bound goes through the geometry emulation with a generated passthrough (`panvk_polygon_gs()`, the 009 builder with a polygon mode, one per mode and class, cached on the vertex shader). It emits each triangle as a closed line strip (3 lines) or as 3 points. The VS is not recompiled: the emulation converts its screen-space position back (`in_screen_space`).
+- The tiler cannot cull lines or points, so the passthrough culls faces itself: the Vulkan area rule in framebuffer coordinates (viewport 0 scale) against the draw's cull mode and front face (`panvk_gs_push::polygon_cull`).
+- The tess eval draw of a tessellated draw takes the same path (its emulation is sized as for a nested GS).
+- Limits: an app GS's triangle output is still filled. A VS with transform feedback draws filled (the xfb passthrough has priority). Flat varyings of an edge come from that edge's first vertex. Points are size 1. No depth bias on the emitted lines/points. Indirect draws keep the emulation cap (4096 input primitives).
+
+### v6 (G71/G72) parity
+
+Checked so that v6 takes the v7 path:
+- IDs: `pan_model.c` has G71 `PAN_PROD_ID(6,0,0)` and G72 `(6,2,1)`; jm-v7 001 (variant ignored), 002 (no env gate), 003 (no JIT, growable heap) and 004 (atom stride check) all test `arch < 9` or `case 6: case 7:`. Every jm-v7-wip path is `PAN_ARCH < 9` or `PAN_ARCH == 6 || PAN_ARCH == 7` (libpan), never `== 7`.
+- Atom stride: G71/G72 phones often run kbase from before uAPI 11.22 (no `renderpass_id`, 48-byte `base_jd_atom_v2`), which refuse 56 and 64. 0018 adds 48 as the last candidate.
+- Compiler quirks: `bifrost_get_quirks()` gives G71 `BIFROST_NO_FP32_TRANSCENDENTALS | BIFROST_LIMITED_CLPER` and G72 `BIFROST_LIMITED_CLPER` from the real gpu_id. The precompiled libpan kernels for v6 are built by `panfrost_compile` with gpu_id `0x60000000`, which gets the G71 quirk set, so they are safe on both. The v7 kernels get the G31 set (`LIMITED_CLPER`).
+- Gallium v6 workarounds: the `pan_model` quirks (`no_hierarchical_tiling`, `max_4x_msaa`) are Midgard-only rows. The v6 varying swizzle (`PAN_ARCH <= 6` in `get_varying_format`/`varying_format`/`emit_varying_attrs`), the v6 blend-constant shader path and the v6 resolve-to-AFBC limit are upstream PanVK code. 3D AFBC (v7+ only in gallium) is never offered: `pan_mod_afbc_get_format_caps()` gives no `DIM_3D`. Mutable-format AFBC is off on v7- (upstream).
+- Not covered: no v6 device has run anything.
 
 ## BC texture compression
 
