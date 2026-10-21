@@ -1,0 +1,148 @@
+From dce3e77e8c944d62fd785d70b688089bd66412b4 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 13:52:27 +0000
+Subject: [PATCH] jm-v7 074: keep the xfb scan job of a conditional draw
+ unpredicated
+
+With conditional rendering (jm-v7 040), a failed predicate NULLs every
+job of the draw, including panlib_xfb_scan. Its offsets_out slot, which
+became cmdbuf->state.gfx.xfb.offsets, was then never written: the next
+draw's scan and the xfb counters at vkCmdEndTransformFeedbackEXT read
+uninitialised memory (perf review M6).
+
+The scan job is now left out of the predicate's job list
+(cond_render.keep, checked by jm_cond_render_collect()) and reads the
+predicate itself (libpan_xfb_draw::cond, cond_inverted). When the
+predicate fails it copies offsets_in to offsets_out and captures and
+counts nothing; the GS and copy jobs stay predicated.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/libpan/draw_helper.cl         | 14 +++++++++++
+ src/panfrost/libpan/draw_helper.h          |  8 +++++++
+ src/panfrost/vulkan/jm/panvk_cmd_buffer.h  |  5 ++++
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c | 27 ++++++++++++++++++++--
+ 4 files changed, 52 insertions(+), 2 deletions(-)
+
+diff --git a/src/panfrost/libpan/draw_helper.cl b/src/panfrost/libpan/draw_helper.cl
+index 09c8ffb..c4c2399 100644
+--- a/src/panfrost/libpan/draw_helper.cl
++++ b/src/panfrost/libpan/draw_helper.cl
+@@ -1578,6 +1578,20 @@ panlib_xfb_scan(global struct libpan_xfb_draw *d)
+    global uint32_t *off_in = (global uint32_t *)d->offsets_in;
+    global uint32_t *off_out = (global uint32_t *)d->offsets_out;
+ 
++   /* Conditional rendering failed (jm-v7 074): the emulation did not run,
++    * so its counts are garbage. Capture nothing, keep the offsets.
++    */
++   if (d->cond &&
++       ((*(global uint32_t *)d->cond != 0) == (d->cond_inverted != 0))) {
++      for (uint32_t b = 0; b < 4; b++) {
++         d->start[b] = off_in[b];
++         off_out[b] = off_in[b];
++      }
++      d->written = 0;
++      d->needed = 0;
++      return;
++   }
++
+    uint32_t total = 0;
+    for (uint32_t i = 0; i < d->invocations; i++) {
+       first[i] = total;
+diff --git a/src/panfrost/libpan/draw_helper.h b/src/panfrost/libpan/draw_helper.h
+index 135214a..58a5c89 100644
+--- a/src/panfrost/libpan/draw_helper.h
++++ b/src/panfrost/libpan/draw_helper.h
+@@ -80,6 +80,14 @@ struct libpan_xfb_draw {
+     uint32_t start[4];       /* scan: byte offset this draw writes from */
+     uint32_t written;        /* scan: primitives captured */
+     uint32_t needed;         /* scan: primitives emitted */
++    /* Conditional rendering (jm-v7 074): the predicate the other jobs of
++     * the draw are NULLed by, 0 when none. The scan job itself always runs
++     * and, when the predicate fails, passes offsets_in through to
++     * offsets_out so the next draw's chain stays valid.
++     */
++    uint64_t cond;
++    uint32_t cond_inverted;
++    uint32_t cond_pad;
+ };
+ 
+ /* Tessellation, one per tessellated draw (jm-v7 014). The draw path fills
+diff --git a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
+index 99200af..e240b3f 100644
+--- a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
++++ b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
+@@ -111,6 +111,11 @@ struct panvk_cmd_buffer {
+          bool inherited;
+          bool inverted;
+          uint64_t addr;
++         /* Jobs of the current conditional draw that are never NULLed
++          * (the xfb scans, jm-v7 074): they read the predicate themselves.
++          */
++         struct mali_job_header_packed *keep[8];
++         uint32_t keep_count;
+       } cond_render;
+ #endif
+    } state;
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index 2970dd8..2009efa 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -2590,6 +2590,10 @@ emit_xfb_jobs(struct panvk_cmd_buffer *cmdbuf, unsigned dep_job_id)
+          .vpp = gs->gs.output_verts_per_prim,
+          .record_dwords = k_dw,
+          .query = query,
++         .cond = cmdbuf->state.cond_render.enabled
++                    ? cmdbuf->state.cond_render.addr
++                    : 0,
++         .cond_inverted = cmdbuf->state.cond_render.inverted,
+       };
+       for (unsigned b = 0; b < 4; b++) {
+          d->buffer[b] = cmdbuf->state.gfx.xfb.buffers[b].addr;
+@@ -2608,6 +2612,19 @@ emit_xfb_jobs(struct panvk_cmd_buffer *cmdbuf, unsigned dep_job_id)
+          panlib_1d_with_jm_deps(1, dep_job_id, cmdbuf->state.gfx.xfb.last_job),
+          PANLIB_BARRIER_JM_BARRIER, scan);
+       const unsigned scanned = batch->vtc_jc.job_index;
++      /* Not NULLed by a failed predicate (jm-v7 074): it then passes the
++       * offsets through, else the next draw and the counters would read
++       * a slot nothing wrote.
++       */
++      if (cmdbuf->state.cond_render.enabled) {
++         if (cmdbuf->state.cond_render.keep_count <
++             ARRAY_SIZE(cmdbuf->state.cond_render.keep))
++            cmdbuf->state.cond_render
++               .keep[cmdbuf->state.cond_render.keep_count++] =
++               batch->vtc_jc.prev_job;
++         else
++            mesa_loge_once("panvk: too many xfb scans in a conditional draw");
++      }
+ 
+       if (captures) {
+          const struct panlib_xfb_copy_args copy = {.d = mem.gpu};
+@@ -6734,6 +6751,7 @@ panvk_per_arch(cmd_cond_render_begin)(struct panvk_cmd_buffer *cmdbuf,
+                                       struct panvk_cond_render_mark *m)
+ {
+    *m = (struct panvk_cond_render_mark){0};
++   cmdbuf->state.cond_render.keep_count = 0;
+    if (!cmdbuf->state.cond_render.enabled)
+       return;
+ 
+@@ -6793,8 +6811,13 @@ jm_cond_render_collect(struct panvk_cmd_buffer *cmdbuf,
+          return;
+ 
+       pan_unpack(hdr, JOB_HEADER, h);
+-      util_dynarray_append(jobs, next);
+-      util_dynarray_append(jobs, (uint64_t)h.type);
++      bool keep = false;
++      for (uint32_t k = 0; k < cmdbuf->state.cond_render.keep_count; k++)
++         keep |= cmdbuf->state.cond_render.keep[k] == hdr;
++      if (!keep) {
++         util_dynarray_append(jobs, next);
++         util_dynarray_append(jobs, (uint64_t)h.type);
++      }
+ 
+       if (pred_index) {
+          if (!h.dependency_1)
+-- 
+2.55.0
+
