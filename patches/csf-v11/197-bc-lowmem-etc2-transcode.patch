@@ -78,10 +78,10 @@ Generated-by: LLM
  src/panfrost/vulkan/panvk_image.c           |   88 +-
  src/panfrost/vulkan/panvk_image.h           |   63 +-
  src/panfrost/vulkan/panvk_meta.h            |    2 +
- src/panfrost/vulkan/panvk_physical_device.c |   60 +-
+ src/panfrost/vulkan/panvk_physical_device.c |   64 +-
  src/panfrost/vulkan/panvk_physical_device.h |    7 +
  src/panfrost/vulkan/panvk_vX_cmd_meta.c     |  358 ++-
- 9 files changed, 3539 insertions(+), 22 deletions(-)
+ 9 files changed, 3543 insertions(+), 22 deletions(-)
  create mode 100644 src/panfrost/vulkan/bc/panvk_bc_etc2.comp
  create mode 100644 src/panfrost/vulkan/bc/panvk_bc_etc2_spv.h
 
@@ -3317,7 +3317,7 @@ index d54fa89..6313b96 100644
  
  static inline VkFormat
 diff --git a/src/panfrost/vulkan/panvk_physical_device.c b/src/panfrost/vulkan/panvk_physical_device.c
-index 3f7bdf8..e008ac0 100644
+index 3f7bdf8..8ae7843 100644
 --- a/src/panfrost/vulkan/panvk_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_physical_device.c
 @@ -1386,8 +1386,8 @@ panvk_physical_device_init_kbase(struct panvk_physical_device *device,
@@ -3331,7 +3331,7 @@ index 3f7bdf8..e008ac0 100644
               pan_query_compressed_formats(&device->kmod.dev->props));
  
     unsigned core_count =
-@@ -1850,6 +1850,62 @@ panvk_bc_emul_enabled(const struct panvk_physical_device *physical_device)
+@@ -1850,6 +1850,66 @@ panvk_bc_emul_enabled(const struct panvk_physical_device *physical_device)
     return false;
  }
  
@@ -3378,7 +3378,11 @@ index 3f7bdf8..e008ac0 100644
 +}
 +
 +/* PANVK_BC_LM_OPTS (default 0x30000): 0x10000 try the ETC2 planar mode,
-+ * 0x20000 try the ETC2 H mode, 0x40000 EAC base codeword +-1 search. */
++ * 0x20000 try the ETC2 H mode, 0x40000 try both ETC1 flips (otherwise
++ * picked by a half-block heuristic), 0x80000 search all 8 ETC1 tables
++ * (otherwise 3 around the colour spread), bits 20-21 EAC (table,
++ * multiplier) candidates per block minus one (max 3). The value is a
++ * specialization constant of the transcode pipeline. */
 +uint32_t
 +panvk_bc_lm_opts(void)
 +{

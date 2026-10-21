@@ -23,7 +23,7 @@ static int fails;
 /* Error of an ETC2 RGB block against the BC1 palette decode (g_c*, g_ci);
  * *abad: transparency mismatches (RGB8A1). */
 static int
-rgb_err(uint w0, uint w1, bool punch, int *mode, int *abad)
+blk_err(uint w0, uint w1, bool punch, int *mode, int *abad)
 {
    int rgb[16][3];
    bool tr[16];
@@ -37,8 +37,7 @@ rgb_err(uint w0, uint w1, bool punch, int *mode, int *abad)
          (*abad)++;
       if (t)
          continue;
-      int c = pal_c(k);
-      err += sq(rgb[p][0] - c_r(c)) + sq(rgb[p][1] - c_g(c)) + sq(rgb[p][2] - c_b(c));
+      err += sq(rgb[p][0] - pal_r(k)) + sq(rgb[p][1] - pal_g(k)) + sq(rgb[p][2] - pal_b(k));
    }
    return err;
 }
@@ -86,6 +85,7 @@ static void
 check_rgb(void)
 {
    const uint optset[3] = {0x30000, 0xf0000, 0};
+   (void)optset;
    for (int it = 0; it < 40000; it++) {
       uint w0 = rnd_bc1(it), w1 = rnd32();
       bc_decode_color(w0, w1, false);
@@ -94,27 +94,33 @@ check_rgb(void)
          bool transparent = tm != 0;
          int mode, abad;
          for (int flip = 0; flip < 2; flip++) {
-            int e = etc_try_flip(flip, punch, transparent, tm, 0x30000);
-            int r = rgb_err(g_w0, g_w1, punch, &mode, &abad);
+            uint h0 = flip ? HM_T : HM_L, h1 = flip ? HM_B : HM_R;
+            uint m0 = h0 & ~tm, m1 = h1 & ~tm;
+            int e = etc_try_flip(flip, punch, transparent, tm, sum_r(m0), sum_g(m0),
+                                 sum_b(m0), max(bitCount(m0), 1), sum_r(m1), sum_g(m1),
+                                 sum_b(m1), max(bitCount(m1), 1), flip ? 0xb0000 : 0x30000);
+            int r = blk_err(g_w0, g_w1, punch, &mode, &abad);
             if (e != r || abad || mode > 1)
                FAIL("FAIL flip%d punch=%d tr=%d enc=%d ref=%d mode=%d abad=%d\n",
                     flip, punch, transparent, e, r, mode, abad);
          }
          if (!transparent) {
-            int e = etc_try_h();
+            int n0 = pal_n(0, HM_ALL), n1 = pal_n(1, HM_ALL);
+            int n2 = pal_n(2, HM_ALL), n3 = pal_n(3, HM_ALL);
+            int e = etc_try_h(n0, n1, n2, n3);
             if (e != BIG_ERR) {
-               int r = rgb_err(g_w0, g_w1, punch, &mode, &abad);
+               int r = blk_err(g_w0, g_w1, punch, &mode, &abad);
                if (e != r || mode != 3 || abad)
                   FAIL("FAIL H punch=%d enc=%d ref=%d mode=%d\n", punch, e, r, mode);
             }
-            etc_try_planar();
-            rgb_err(g_w0, g_w1, punch, &mode, &abad);
+            etc_try_planar(n0, n1, n2, n3);
+            blk_err(g_w0, g_w1, punch, &mode, &abad);
             if (mode != 4 || abad)
                FAIL("FAIL planar punch=%d mode=%d\n", punch, mode);
          }
          for (int o = 0; o < 3; o++) {
             int e = etc2_encode_rgb(punch, optset[o]);
-            int r = rgb_err(g_w0, g_w1, punch, &mode, &abad);
+            int r = blk_err(g_w0, g_w1, punch, &mode, &abad);
             if ((g_exact && e != r) || abad)
                FAIL("FAIL rgb punch=%d opts=%#x enc=%d ref=%d abad=%d\n", punch,
                     optset[o], e, r, abad);
@@ -194,14 +200,14 @@ main(int argc, char **argv)
             int mode, abad;
             transcode_block(XC_BC1_RGB, c0, c1, 0, 0, opts);
             bc_decode_color(c0, c1, false);
-            sse[0] += rgb_err(g_out0, g_out1, false, &mode, &abad) / 3.0;
+            sse[0] += blk_err(g_out0, g_out1, false, &mode, &abad) / 3.0;
             modes[mode]++;
             /* BC1A: the same colours as a 3-colour block where possible. */
             uint c0a = ((c0 & 0xffff) < (c0 >> 16)) ? c0 : ((c0 >> 16) | (c0 << 16));
             uint c1a = c1;
             transcode_block(XC_BC1_RGBA, c0a, c1a, 0, 0, opts);
             bc_decode_color(c0a, c1a, false);
-            sse[1] += rgb_err(g_out0, g_out1, true, &mode, &abad) / 3.0;
+            sse[1] += blk_err(g_out0, g_out1, true, &mode, &abad) / 3.0;
             if (abad)
                FAIL("FAIL BC1A transparency %d\n", abad);
 

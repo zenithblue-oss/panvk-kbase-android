@@ -27,7 +27,9 @@ per-image panvk_bc_raw:
    copy of the blocks whatever the submission order;
  - when no command buffer references the store, a low-priority worker
    thread writes the blocks to an unlinked per-device spill file (O_TMPFILE
-   in $PANVK_BC_RAW_DIR, $TMPDIR, /data/local/tmp or /tmp), drops the page
+   in $PANVK_BC_RAW_DIR, $TMPDIR, the Android app cache directory
+   /data/user/<user>/<package>/cache, /data/local/tmp or /tmp; app
+   processes can not write /data/local/tmp), drops the page
    cache copy and frees the BO. The copy only commits if no acquire came in
    meanwhile (generation count);
  - the next raw access reads them back at record time into a new BO. An
@@ -38,7 +40,9 @@ per-image panvk_bc_raw:
    which costs what the in-image plane did.
 
 Uploads transcode or decode from the copy source as before, so the store
-is never read on the upload path. Images that are destroyed while command
+is never read on the upload path. An upload or BC -> BC image copy whose
+regions cover every block of the image (they can not overlap) gets a new
+BO without the read-back or the zero fill and CPU cache flush. Images that are destroyed while command
 buffers still hold the store free it with the last reference. Images
 without TRANSFER_SRC keep the 197 behaviour (no raw blocks at all), and
 PANVK_BC_RAW=plane restores the in-image plane.
@@ -60,10 +64,10 @@ Generated-by: LLM
  src/panfrost/vulkan/csf/panvk_cmd_buffer.h    |   4 +
  src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c |   1 +
  src/panfrost/vulkan/panvk_device.h            |  10 +
- src/panfrost/vulkan/panvk_image.c             | 435 +++++++++++++++++-
- src/panfrost/vulkan/panvk_image.h             |  29 ++
- src/panfrost/vulkan/panvk_vX_cmd_meta.c       |  39 +-
- 6 files changed, 510 insertions(+), 8 deletions(-)
+ src/panfrost/vulkan/panvk_image.c             | 471 +++++++++++++++++-
+ src/panfrost/vulkan/panvk_image.h             |  31 ++
+ src/panfrost/vulkan/panvk_vX_cmd_meta.c       |  82 ++-
+ 6 files changed, 591 insertions(+), 8 deletions(-)
 
 diff --git a/src/panfrost/vulkan/csf/panvk_cmd_buffer.h b/src/panfrost/vulkan/csf/panvk_cmd_buffer.h
 index 34b446b..741c4fc 100644
@@ -114,7 +118,7 @@ index e37f239..30527f5 100644
     struct panvk_shader *depth_bounds_fs;
  
 diff --git a/src/panfrost/vulkan/panvk_image.c b/src/panfrost/vulkan/panvk_image.c
-index 7605c2d..7f4ec71 100644
+index 7605c2d..f4b30f7 100644
 --- a/src/panfrost/vulkan/panvk_image.c
 +++ b/src/panfrost/vulkan/panvk_image.c
 @@ -626,7 +626,9 @@ panvk_image_init_layouts(struct panvk_image *image,
@@ -256,7 +260,7 @@ index 7605c2d..7f4ec71 100644
        if (image->bc_emul) {
           const uint64_t dec_offset = offset + image->bc_decoded_offset;
  
-@@ -1681,3 +1743,366 @@ panvk_BindImageMemory2(VkDevice device, uint32_t bindInfoCount,
+@@ -1681,3 +1743,402 @@ panvk_BindImageMemory2(VkDevice device, uint32_t bindInfoCount,
  
     return result;
  }
@@ -284,12 +288,14 @@ index 7605c2d..7f4ec71 100644
 + * was written (generation count), and a store read back from the file
 + * twice stays resident from then on (no ping-pong for images that are
 + * updated or copied from all the time). Without a usable spill directory
-+ * ($PANVK_BC_RAW_DIR, $TMPDIR, /data/local/tmp, /tmp) stores stay
-+ * resident, which costs what the in-image raw plane did.
++ * ($PANVK_BC_RAW_DIR, $TMPDIR, the Android app cache directory,
++ * /data/local/tmp, /tmp; the one used is logged) stores stay resident,
++ * which costs what the in-image raw plane did.
 + */
 +#include <errno.h>
 +#include <fcntl.h>
 +#include <unistd.h>
++#include "util/detect_os.h"
 +#include "util/u_queue.h"
 +#include "panvk_priv_bo.h"
 +
@@ -387,6 +393,31 @@ index 7605c2d..7f4ec71 100644
 +   simple_mtx_unlock(&bc_raw_lock);
 +}
 +
++/* The Android app's cache directory, from the process name (the package,
++ * up to a ':' service suffix): /data/user/<user>/<package>/cache. Android
++ * app processes cannot write /data/local/tmp. */
++static const char *
++bc_raw_app_cache(char *buf, size_t size)
++{
++#if DETECT_OS_ANDROID
++   char name[256] = {0};
++   int fd = open("/proc/self/cmdline", O_RDONLY | O_CLOEXEC);
++
++   if (fd < 0)
++      return NULL;
++   const ssize_t n = read(fd, name, sizeof(name) - 1);
++   close(fd);
++   if (n <= 0 || !name[0] || name[0] == '/')
++      return NULL;
++   name[strcspn(name, ":")] = 0;
++   snprintf(buf, size, "/data/user/%u/%s/cache", (unsigned)(getuid() / 100000),
++            name);
++   return buf;
++#else
++   return NULL;
++#endif
++}
++
 +/* Spill file: one unlinked file per device, opened at the first spill.
 + * Called with bc_raw_lock held. */
 +static int
@@ -395,9 +426,11 @@ index 7605c2d..7f4ec71 100644
 +   if (dev->bc_raw.fd_plus1)
 +      return dev->bc_raw.fd_plus1 - 1;
 +
++   char app_cache[320];
 +   const char *dirs[] = {
 +      os_get_option("PANVK_BC_RAW_DIR"),
 +      getenv("TMPDIR"),
++      bc_raw_app_cache(app_cache, sizeof(app_cache)),
 +      "/data/local/tmp",
 +      "/tmp",
 +   };
@@ -501,9 +534,10 @@ index 7605c2d..7f4ec71 100644
 +   simple_mtx_unlock(&bc_raw_lock);
 +}
 +
-+/* Called with bc_raw_lock held. */
++/* Called with bc_raw_lock held. full: the caller overwrites every block,
++ * so the old contents are neither read back nor zeroed. */
 +static VkResult
-+bc_raw_materialize(struct panvk_bc_raw *raw)
++bc_raw_materialize(struct panvk_bc_raw *raw, bool full)
 +{
 +   struct panvk_device *dev = raw->dev;
 +   struct panvk_priv_bo *bo;
@@ -515,6 +549,12 @@ index 7605c2d..7f4ec71 100644
 +      return result;
 +
 +   bool from_file = false;
++   if (full) {
++      /* The GPU copy writes every block: no CPU write to flush. */
++      raw->bo = bo;
++      dev->bc_raw.resident_B += raw->size;
++      return VK_SUCCESS;
++   }
 +   if (raw->on_disk && dev->bc_raw.fd_plus1 > 0) {
 +      from_file = pread(dev->bc_raw.fd_plus1 - 1, bo->addr.host, raw->size,
 +                        raw->file_off) == (ssize_t)raw->size;
@@ -538,14 +578,14 @@ index 7605c2d..7f4ec71 100644
 +
 +VkResult
 +panvk_bc_raw_acquire(struct panvk_image *image, struct util_dynarray *refs,
-+                     bool write)
++                     bool write, bool full)
 +{
 +   struct panvk_bc_raw *raw = image->bc_raw;
 +   VkResult result = VK_SUCCESS;
 +
 +   simple_mtx_lock(&bc_raw_lock);
 +   if (!raw->bo) {
-+      result = bc_raw_materialize(raw);
++      result = bc_raw_materialize(raw, write && full);
 +      if (result != VK_SUCCESS)
 +         goto out;
 +   }
@@ -624,10 +664,10 @@ index 7605c2d..7f4ec71 100644
 +   dev->bc_raw.fd_plus1 = 0;
 +}
 diff --git a/src/panfrost/vulkan/panvk_image.h b/src/panfrost/vulkan/panvk_image.h
-index 759b97e..f0b3190 100644
+index 759b97e..2fb52a8 100644
 --- a/src/panfrost/vulkan/panvk_image.h
 +++ b/src/panfrost/vulkan/panvk_image.h
-@@ -73,11 +73,40 @@ struct panvk_image {
+@@ -73,11 +73,42 @@ struct panvk_image {
      * is never written: uploads and copies go straight to the shadow. */
     uint8_t bc_lowmem;
     bool bc_no_raw;
@@ -653,9 +693,11 @@ index 759b97e..f0b3190 100644
 + * is being recorded: (re)creates the BO if needed (zeroed, or read back from
 + * the spill file), sets planes[0].plane.base and adds the store to 'refs'
 + * (an array of struct panvk_bc_raw *, released when the command buffer can
-+ * no longer be pending). 'write': the command buffer writes raw blocks. */
++ * no longer be pending). 'write': the command buffer writes raw blocks;
++ * 'full': it overwrites all of them (nothing to read back). */
 +VkResult panvk_bc_raw_acquire(struct panvk_image *image,
-+                              struct util_dynarray *refs, bool write);
++                              struct util_dynarray *refs, bool write,
++                              bool full);
 +
 +/* Drop the references of a command buffer that is reset or freed. Stores
 + * no command buffer uses any more are spilled by a worker thread. */
@@ -669,10 +711,10 @@ index 759b97e..f0b3190 100644
  static inline void
  panvk_image_set_compression_props(VkImageCompressionPropertiesEXT *props,
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_meta.c b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
-index 7c9be3c..632a0f3 100644
+index 2d0e6eb..888e261 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 +++ b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
-@@ -1206,6 +1206,7 @@ void
+@@ -1214,6 +1214,7 @@ void
  panvk_per_arch(cmd_bc_release)(struct panvk_cmd_buffer *cmdbuf)
  {
     bc_timing_flush(cmdbuf);
@@ -680,7 +722,7 @@ index 7c9be3c..632a0f3 100644
  }
  #else
  static inline uint32_t
-@@ -1230,9 +1231,31 @@ panvk_per_arch(device_bc_finish)(struct panvk_device *dev)
+@@ -1238,9 +1239,58 @@ panvk_per_arch(device_bc_finish)(struct panvk_device *dev)
                                                dev->bc.timing_pool, NULL);
        dev->bc.timing_pool = VK_NULL_HANDLE;
     }
@@ -689,16 +731,18 @@ index 7c9be3c..632a0f3 100644
  }
  
 +/* csf-v11/201: make the raw blocks of a raw-store image resident for this
-+ * command buffer before any raw access. False if that failed (the command
-+ * buffer error is set). */
++ * command buffer before any raw access. full: the access overwrites every
++ * block (no read-back of a spilled store). False if that failed (the
++ * command buffer error is set). */
 +static bool
 +bc_raw_use(struct panvk_cmd_buffer *cmdbuf, struct panvk_image *img,
-+           bool write)
++           bool write, bool full)
 +{
 +   if (!img->bc_raw)
 +      return true;
 +#if PAN_ARCH >= 10
-+   VkResult result = panvk_bc_raw_acquire(img, &cmdbuf->bc_raw_refs, write);
++   VkResult result =
++      panvk_bc_raw_acquire(img, &cmdbuf->bc_raw_refs, write, full);
 +   if (result != VK_SUCCESS) {
 +      vk_command_buffer_set_error(&cmdbuf->vk, result);
 +      return false;
@@ -709,10 +753,35 @@ index 7c9be3c..632a0f3 100644
 +#endif
 +}
 +
++/* 4x4 blocks a copy region writes. */
++static uint64_t
++bc_region_blocks(const struct panvk_image *img,
++                 const VkImageSubresourceLayers *subres, VkExtent3D extent)
++{
++   return (uint64_t)DIV_ROUND_UP(extent.width, 4) *
++          DIV_ROUND_UP(extent.height, 4) * extent.depth *
++          vk_image_subresource_layer_count(&img->vk, subres);
++}
++
++/* Copy regions never overlap, so they cover the whole image when their
++ * blocks add up to its block count. */
++static bool
++bc_blocks_full(const struct panvk_image *img, uint64_t blocks)
++{
++   uint64_t total = 0;
++
++   for (uint32_t l = 0; l < img->vk.mip_levels; l++) {
++      const VkExtent3D e = vk_image_mip_level_extent(&img->vk, l);
++      total += (uint64_t)DIV_ROUND_UP(e.width, 4) * DIV_ROUND_UP(e.height, 4) *
++               e.depth;
++   }
++   return blocks >= total * img->vk.array_layers;
++}
++
  static void
  bc_decode_barrier(VkCommandBuffer cmd, VkPipelineStageFlags2 dst_stage,
                    VkAccessFlags2 dst_access)
-@@ -1307,7 +1330,7 @@ panvk_per_arch(cmd_bc_decode_zero_initialized)(
+@@ -1315,7 +1365,7 @@ panvk_per_arch(cmd_bc_decode_zero_initialized)(
              /* Transcode zero blocks: from the zeroed raw plane, or from a
               * zero row when the image has none. */
              const struct bc_decode_src src =
@@ -721,7 +790,7 @@ index 7c9be3c..632a0f3 100644
                    ? bc_zero_src(cmdbuf, img)
                    : bc_raw_plane_src(img, &subres, (VkOffset3D){0, 0, 0});
              bc_xcode_region(cmdbuf, img, &subres, (VkOffset3D){0, 0, 0},
-@@ -1346,7 +1369,7 @@ panvk_per_arch(cmd_bc_decode_zero_initialized)(
+@@ -1354,7 +1404,7 @@ panvk_per_arch(cmd_bc_decode_zero_initialized)(
                    &img->vk, &b->subresourceRange),
              };
              const struct bc_decode_src src =
@@ -730,34 +799,51 @@ index 7c9be3c..632a0f3 100644
                    ? bc_zero_src(cmdbuf, img)
                    : bc_raw_plane_src(img, &subres, (VkOffset3D){0, 0, 0});
              bc_decode_region_gfx(cmdbuf, img, &subres, (VkOffset3D){0, 0, 0},
-@@ -1381,7 +1404,7 @@ panvk_per_arch(CmdCopyMemoryToImageKHR)(
+@@ -1388,8 +1438,15 @@ panvk_per_arch(CmdCopyMemoryToImageKHR)(
+       const bool xcode = bc_img->bc_lowmem == 1;
        const uint32_t timing = bc_timing_begin(cmdbuf);
  
++      uint64_t blocks = 0;
++      for (uint32_t i = 0; i < pCopyMemoryInfo->regionCount; i++)
++         blocks += bc_region_blocks(bc_img,
++                                    &pCopyMemoryInfo->pRegions[i].imageSubresource,
++                                    pCopyMemoryInfo->pRegions[i].imageExtent);
++
        /* bc_no_raw images keep no raw blocks: only the shadow is written. */
 -      if (!bc_img->bc_no_raw)
-+      if (!bc_img->bc_no_raw && bc_raw_use(cmdbuf, bc_img, true))
++      if (!bc_img->bc_no_raw &&
++          bc_raw_use(cmdbuf, bc_img, true, bc_blocks_full(bc_img, blocks)))
           copy_memory_to_image_raw(commandBuffer, pCopyMemoryInfo);
  
        /* Decode (or transcode) straight from the copy source: the raw copy
-@@ -1505,6 +1528,10 @@ panvk_per_arch(CmdCopyImageToMemoryKHR)(
+@@ -1513,6 +1570,10 @@ panvk_per_arch(CmdCopyImageToMemoryKHR)(
        panvk_meta_copy_get_image_properties(img, false, false);
     struct panvk_cmd_meta_compute_save_ctx save = {0};
  
 +   /* Raw blocks of a raw-store image (csf-v11/201). */
-+   if (!bc_raw_use(cmdbuf, img, false))
++   if (!bc_raw_use(cmdbuf, img, false, false))
 +      return;
 +
     meta_compute_start(cmdbuf, &save);
     vk_meta_copy_image_to_memory(&cmdbuf->vk, &dev->meta, pCopyMemoryInfo,
                                  &img_props);
-@@ -1792,6 +1819,12 @@ cmd_copy_image(VkCommandBuffer commandBuffer,
+@@ -1800,6 +1861,21 @@ cmd_copy_image(VkCommandBuffer commandBuffer,
     VK_FROM_HANDLE(panvk_image, bc_dst, pCopyImageInfo->dstImage);
     VK_FROM_HANDLE(panvk_cmd_buffer, cmdbuf, commandBuffer);
  
 +   /* Raw blocks of raw-store images (csf-v11/201): read from the source,
 +    * written to the destination (unless it keeps none). */
-+   if (!bc_raw_use(cmdbuf, bc_src, false) ||
-+       (!bc_dst->bc_no_raw && !bc_raw_use(cmdbuf, bc_dst, true)))
++   /* A BC -> BC copy writes whole blocks of the copy extent. */
++   uint64_t blocks = 0;
++   if (panvk_format_is_bc(bc_src->vk.format)) {
++      for (uint32_t i = 0; i < pCopyImageInfo->regionCount; i++)
++         blocks += bc_region_blocks(bc_dst,
++                                    &pCopyImageInfo->pRegions[i].dstSubresource,
++                                    pCopyImageInfo->pRegions[i].extent);
++   }
++   if (!bc_raw_use(cmdbuf, bc_src, false, false) ||
++       (!bc_dst->bc_no_raw &&
++        !bc_raw_use(cmdbuf, bc_dst, true, bc_blocks_full(bc_dst, blocks))))
 +      return;
 +
     if (bc_dst->bc_emul && bc_dst->bc_no_raw) {

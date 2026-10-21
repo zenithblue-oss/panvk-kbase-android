@@ -35,10 +35,9 @@ xc_new_dec(uint mode, const uint *w, int rgb[16][3], int ch[16][2], bool tr[16])
       bc_decode_color(bc1 ? w[0] : w[2], bc1 ? w[1] : w[3], !bc1);
       for (int p = 0; p < 16; p++) {
          int k = (g_ci >> (2 * p)) & 3;
-         int c = pal_c(k);
-         rgb[p][0] = c_r(c);
-         rgb[p][1] = c_g(c);
-         rgb[p][2] = c_b(c);
+         rgb[p][0] = pal_r(k);
+         rgb[p][1] = pal_g(k);
+         rgb[p][2] = pal_b(k);
          tr[p] = mode == XC_BC1_RGBA && g_c3t && k == 3;
       }
       if (mode == XC_BC2) {
