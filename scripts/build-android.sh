@@ -45,6 +45,10 @@ EOF
 fi
 export PKG_CONFIG_PATH="$DEPS_PCDIR:${PKG_CONFIG_PATH:-}"
 mkdir -p "$DDIR"
+# Opt-in: PANVK_KBASE_RELEASE=<name> sets the release string reported in driverInfo (patch csf-v11/099).
+if [ -n "${PANVK_KBASE_RELEASE:-}" ]; then
+  printf "\n[built-in options]\nc_args = ['-DPANVK_KBASE_RELEASE=\"%s\"']\ncpp_args = ['-DPANVK_KBASE_RELEASE=\"%s\"']\n" "$PANVK_KBASE_RELEASE" "$PANVK_KBASE_RELEASE" >> "$BDIR.cross.ini"
+fi
 # Host codegen tools (mesa_clc, vtn_bindgen2, panfrost_compile) must come from a native build:
 # default is derived from MESA (see bootstrap-host-tools.sh) and HOST_TOOLS overrides it.
 LOG="$BDIR.log"; RECONF=""; [ -f "$BDIR/build.ninja" ] && RECONF="--reconfigure"
