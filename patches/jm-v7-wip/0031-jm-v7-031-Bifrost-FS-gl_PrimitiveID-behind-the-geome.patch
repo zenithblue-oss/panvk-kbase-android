@@ -1,0 +1,81 @@
+From 4780184ff8c56d12378940980d9c19b6e1b63f38 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 12:52:17 +0000
+Subject: [PATCH] jm-v7 031: Bifrost FS gl_PrimitiveID behind the geometry
+ shader emulation
+
+The tiler DCD of the emulation's tiler jobs had instance_primitive_size = 1.
+The FS primitive ID preload is the tiler primitive index modulo that size,
+so every fragment read gl_PrimitiveID 0 (vs_viewport_index case
+G_vs_fs_primitive_id: all 1024 pixels wrong). Set it to the emulation's
+output primitive count (padded, so it never wraps), or to the exact
+per-instance output count when it is known on the CPU and encodable, so
+the ID restarts per instance. The output slots are instance-major and one
+passthrough invocation is one primitive, so the slot index is the input
+primitive ID.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c | 23 +++++++++++++++++++++-
+ src/panfrost/vulkan/panvk_cmd_draw.h       |  4 ++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index 1e6c1cd..d8730a0 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -767,6 +767,24 @@ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+       cmdbuf->state.gfx.gs.out_offsets = offs.gpu + VARYING_SLOT_MAX * 4;
+       cmdbuf->state.gfx.gs.out_vertex_count = out_verts;
+       cmdbuf->state.gfx.gs.out_index_count = out_indices;
++      /* The FS gl_PrimitiveID is the tiler's primitive index modulo
++       * DRAW.instance_primitive_size (1 made it always 0). The output slots
++       * are instance-major: wrap per instance when that size is known and
++       * encodable exactly, else never.
++       */
++      {
++         const uint32_t out_prims =
++            MAX2(in_prims * gs->gs.max_output_prims, 1);
++         uint32_t wrap = pan_padded_vertex_count(out_prims);
++         const bool cpu_known =
++            !(draw->info.indirect.buffer_dev_addr && !draw->cpu_count);
++         const uint32_t inst =
++            draw->cpu_count ? draw->cpu_instances : draw->info.instance.count;
++         if (cpu_known && inst > 1 && out_prims % inst == 0 &&
++             pan_padded_vertex_count(out_prims / inst) == out_prims / inst)
++            wrap = out_prims / inst;
++         cmdbuf->state.gfx.gs.out_prims_per_instance = wrap;
++      }
+       /* The emulation writes independent primitives: the tiler draws a
+        * list, whatever strip the shader declared.
+        */
+@@ -1498,7 +1516,10 @@ panvk_emit_tiler_dcd(struct panvk_cmd_buffer *cmdbuf,
+          /* One instance. Both sizes are "padded" fields: 0 does not encode. */
+          cfg.offset_start = 0;
+          cfg.instance_size = 1;
+-         cfg.instance_primitive_size = 1;
++         cfg.instance_primitive_size =
++            cmdbuf->state.gfx.gs.out_prims_per_instance
++               ? cmdbuf->state.gfx.gs.out_prims_per_instance
++               : 1;
+       } else if (!is_indirect_draw(draw)) {
+          cfg.offset_start = draw->info.vertex.raw_offset;
+          cfg.instance_size =
+diff --git a/src/panfrost/vulkan/panvk_cmd_draw.h b/src/panfrost/vulkan/panvk_cmd_draw.h
+index 3baa3b1..32454f5 100644
+--- a/src/panfrost/vulkan/panvk_cmd_draw.h
++++ b/src/panfrost/vulkan/panvk_cmd_draw.h
+@@ -278,6 +278,10 @@ struct panvk_cmd_graphics_state {
+       uint64_t viewports;
+       uint32_t out_vertex_count;
+       uint32_t out_index_count;
++      /* DRAW.instance_primitive_size of the emulation's tiler jobs: the
++       * hardware primitive ID (FS gl_PrimitiveID) wraps at it (jm-v7 031).
++       */
++      uint32_t out_prims_per_instance;
+       enum mesa_prim out_prim;
+       /* Transform feedback: the counts and staging records the emulation
+        * fills when the draw captures (see panvk_gs_push).
+-- 
+2.55.0
+
