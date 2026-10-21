@@ -1,0 +1,80 @@
+From 92d4919def9bd4156ee5466537c6b92024d095d8 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 13:09:04 +0000
+Subject: [PATCH] jm-v7 024: Bifrost instanced attributes undo the DCD
+ offset_start
+
+large_draw base_inst_* on the A06 (G52): a per-instance attribute with
+divisor 3, firstInstance 3 and firstVertex 7 fetched element 10, not 3.
+Bifrost adds the DCD offset_start (the raw vertex offset) to the index of
+instanced attributes too; gallium undoes it in panfrost_emit_vertex_data()
+(src_offset -= stride * offset_start when instanced). Do the same for
+per-instance attributes with a non-zero divisor (divisor 0 has a zero
+stride) when the draw has more than one instance, on the direct path and
+in the indirect draw helper (new libpan_draw_helper_attrib_info
+start_stride).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/libpan/draw_helper.cl         | 4 ++++
+ src/panfrost/libpan/draw_helper.h          | 4 ++++
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c | 9 +++++++++
+ 3 files changed, 17 insertions(+)
+
+diff --git a/src/panfrost/libpan/draw_helper.cl b/src/panfrost/libpan/draw_helper.cl
+index 0e92ee8..4cda8b1 100644
+--- a/src/panfrost/libpan/draw_helper.cl
++++ b/src/panfrost/libpan/draw_helper.cl
+@@ -1296,6 +1296,10 @@ panlib_patch_attrib(struct panlib_draw_info *draw,
+    pan_pack(desc, ATTRIBUTE, cfg) {
+       cfg.buffer_index = unpacked_desc.buffer_index;
+       cfg.offset = info.base_offset + draw->instance.base * info.stride;
++      /* Bifrost adds the DCD offset_start to the instanced attribute index
++       * too (pan_cmdstream.c undoes it the same way). */
++      if (draw->instance.count > 1)
++         cfg.offset -= (int32_t)(draw->vertex.raw_offset * info.start_stride);
+       cfg.offset_enable = true;
+       cfg.format = unpacked_desc.format;
+    }
+diff --git a/src/panfrost/libpan/draw_helper.h b/src/panfrost/libpan/draw_helper.h
+index 5ba538c..135214a 100644
+--- a/src/panfrost/libpan/draw_helper.h
++++ b/src/panfrost/libpan/draw_helper.h
+@@ -48,6 +48,10 @@ struct libpan_draw_helper_attrib_info {
+ 
+     /* When the attribute is per instance, the stride otherwise 0 */
+     uint32_t stride;
++
++    /* Per-instance attribute with a non-zero divisor: the stride the
++     * hardware's offset_start (raw vertex offset) is undone with, else 0. */
++    uint32_t start_stride;
+ };
+ 
+ /* Transform feedback captured from the geometry shader emulation, one per
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index 7d594fd..ed73ffe 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -942,10 +942,19 @@ panvk_draw_emit_attrib(const struct panvk_draw_data *draw,
+       if (helper_attrib_info != NULL) {
+          helper_attrib_info->base_offset = offset;
+          helper_attrib_info->stride = per_instance ? buf_info->stride : 0;
++         helper_attrib_info->start_stride =
++            per_instance && buf_info->divisor ? buf_info->stride : 0;
+       } else {
+          cfg.offset = offset;
+          if (per_instance)
+             cfg.offset += draw->info.instance.base * buf_info->stride;
++         /* Bifrost adds the DCD offset_start (the raw vertex offset) to the
++          * index of instanced attributes as well: undo it, as gallium's
++          * panfrost_emit_vertex_data() does. Divisor 0 has a zero stride. */
++         if (per_instance && buf_info->divisor &&
++             draw->info.instance.count > 1)
++            cfg.offset -=
++               (int32_t)(draw->info.vertex.raw_offset * buf_info->stride);
+       }
+    }
+ }
+-- 
+2.55.0
+
