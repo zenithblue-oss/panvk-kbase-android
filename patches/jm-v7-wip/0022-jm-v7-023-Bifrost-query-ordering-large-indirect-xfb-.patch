@@ -1,0 +1,248 @@
+From 77e4820de87918f36103d615987b038242bd4c85 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 12:55:45 +0000
+Subject: [PATCH] jm-v7 023: Bifrost query ordering, large indirect xfb,
+ strip-adjacency order, xfb cull capture
+
+Fixes from the A06 run of v7G-A b1 (needs jm-v7 030 for the growable gs_pool):
+
+- pipeline_stats fs=0 in every case after the first: the batch EndQuery
+  opens (panlib_v7_pstats_sum_cores, the availability write) took the
+  PANVK_OVERLAP path, whose vertex/tiler atom waits on the fragment atom
+  of the other heap half, not on the fragment job that counted into the
+  per-core scratch. Only the first case worked (its fragment job was the
+  synchronous warm-up). Every batch a query command opens is now marked
+  after_frag and never overlaps.
+- large_draw / xfb: indirect draws through the geometry emulation (and
+  the xfb passthrough) were dispatched for 4096 input primitives, so the
+  capture stopped at 4096. The cap is now an output vertex budget
+  (PANVK_GS_INDIRECT_MAX_VERTS, 4M) over the shader's output vertices per
+  primitive, clamped to [4096, 1M], with the buffers from the growable
+  gs_pool.
+- xfb vs_adj_tri_strip: odd triangles of a strip with adjacency used the
+  OpenGL vertex order; Vulkan's starts at 2p (2p, 2p+3, 2p+4, ...).
+- xfb vs_clip_cull_capture: the VS xfb info sees the merged clip+cull
+  array, the VS writes cull to CULL_DIST0/1 (panvk_lower_clip_cull_vs):
+  the passthrough now captures the cull components from there.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/jm/panvk_cmd_buffer.h   |  4 ++
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c  | 24 +++++++++--
+ src/panfrost/vulkan/jm/panvk_vX_cmd_query.c |  5 +++
+ src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c |  2 +-
+ src/panfrost/vulkan/panvk_gs.h              |  6 +++
+ src/panfrost/vulkan/panvk_nir_lower_gs.c    |  9 ++--
+ src/panfrost/vulkan/panvk_vX_shader.c       | 48 ++++++++++++++++++---
+ 7 files changed, 83 insertions(+), 15 deletions(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
+index 9305604..8ddba55 100644
+--- a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
++++ b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
+@@ -41,6 +41,10 @@ struct panvk_batch {
+    /* The vertex/tiler chain writes SYSTEM_TIMESTAMP values (v9, and v6/v7
+     * since jm-v7 021). */
+    bool timestamps;
++   /* The vertex/tiler chain reads or writes query memory the fragment jobs
++    * of earlier batches count into (occlusion, pipeline statistics): it
++    * never takes the PANVK_OVERLAP path (jm-v7 023). */
++   bool after_frag;
+    struct util_dynarray event_ops;
+    struct pan_jc vtc_jc;
+    struct pan_jc frag_jc;
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index 1e6c1cd..7d594fd 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -200,9 +200,19 @@ static uint32_t
+ gs_input_prims(const struct panvk_draw_data *draw,
+                const struct panvk_shader_variant *gs)
+ {
+-   if (draw->info.indirect.buffer_dev_addr && !draw->cpu_count)
+-      return draw->gs_max_prims ? draw->gs_max_prims
+-                                : PANVK_GS_INDIRECT_MAX_PRIMS;
++   if (draw->info.indirect.buffer_dev_addr && !draw->cpu_count) {
++      if (draw->gs_max_prims)
++         return draw->gs_max_prims;
++      /* jm-v7 023: a budget of output vertices (growable memory), not a
++       * fixed 4096 primitives: transform feedback of large indirect draws
++       * through the passthrough GS was cut at 4096 primitives.
++       */
++      const uint32_t per_prim = MAX2(gs->gs.max_output_verts, 1) *
++                                MAX2(gs->gs.invocations, 1);
++      return CLAMP(PANVK_GS_INDIRECT_MAX_VERTS / per_prim,
++                   PANVK_GS_INDIRECT_MAX_PRIMS,
++                   PANVK_GS_INDIRECT_MAX_PRIMS_BIG);
++   }
+ 
+    const uint32_t n =
+       draw->cpu_count ? draw->cpu_count : draw->info.vertex.count;
+@@ -694,7 +704,13 @@ panvk_draw_prepare_varyings(struct panvk_cmd_buffer *cmdbuf,
+       /* jm-v7 033: a tess eval draw's emulation is sized for
+        * PANVK_TESS_GS_MAX_PRIMS, from growable memory.
+        */
+-      const bool growable = draw->tess_phase == PANVK_TESS_PHASE_TES;
++      /* jm-v7 023: so is a real indirect draw's, sized for
++       * PANVK_GS_INDIRECT_MAX_VERTS: only the pages its real count touches
++       * get committed.
++       */
++      const bool growable =
++         draw->tess_phase == PANVK_TESS_PHASE_TES ||
++         (draw->info.indirect.buffer_dev_addr && !draw->cpu_count);
+       const bool gs_psiz = gs->gs.output_verts_per_prim == 1 &&
+                            (gs->gs.outputs_written & VARYING_BIT_PSIZ);
+ 
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c
+index 08ce4b7..28d6ef2 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c
+@@ -72,6 +72,11 @@ open_batch(struct panvk_cmd_buffer *cmd, bool *had_batch)
+ 
+    *had_batch = res;
+ 
++   /* Query writes and reads must follow the fragment jobs of the earlier
++    * batches (they count occlusion samples and FS invocations), so this
++    * batch never overlaps them (jm-v7 023). */
++   cmd->cur_batch->after_frag = true;
++
+    return cmd->cur_batch;
+ }
+ 
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c b/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
+index e752778..bc29c06 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
+@@ -104,7 +104,7 @@ note_submitted(struct panvk_gpu_queue *queue, uint64_t atom)
+ static inline bool
+ batch_has_timestamps(const struct panvk_batch *batch)
+ {
+-   return batch->timestamps;
++   return batch->timestamps || batch->after_frag;
+ }
+ 
+ /* Reset a batch that has already been issued. */
+diff --git a/src/panfrost/vulkan/panvk_gs.h b/src/panfrost/vulkan/panvk_gs.h
+index 0776504..5d1b0e6 100644
+--- a/src/panfrost/vulkan/panvk_gs.h
++++ b/src/panfrost/vulkan/panvk_gs.h
+@@ -38,6 +38,12 @@ struct nir_xfb_info;
+  * Primitives past the cap are dropped.
+  */
+ #define PANVK_GS_INDIRECT_MAX_PRIMS 4096
++/* jm-v7 023: the real cap is PANVK_GS_INDIRECT_MAX_VERTS output vertices
++ * (growable memory) over the shader's output vertices per input primitive,
++ * clamped to [PANVK_GS_INDIRECT_MAX_PRIMS, PANVK_GS_INDIRECT_MAX_PRIMS_BIG].
++ */
++#define PANVK_GS_INDIRECT_MAX_VERTS     (1u << 22)
++#define PANVK_GS_INDIRECT_MAX_PRIMS_BIG (1u << 20)
+ 
+ /* How the draw's vertices assemble into the input primitives. Lists, and
+  * the list-with-adjacency topologies, are LIST.
+diff --git a/src/panfrost/vulkan/panvk_nir_lower_gs.c b/src/panfrost/vulkan/panvk_nir_lower_gs.c
+index a643221..fe74074 100644
+--- a/src/panfrost/vulkan/panvk_nir_lower_gs.c
++++ b/src/panfrost/vulkan/panvk_nir_lower_gs.c
+@@ -448,7 +448,7 @@ gs_input_record(nir_builder *b, struct lower_gs_state *st, nir_def *i)
+    /* TRIANGLE STRIP WITH ADJACENCY, in the shader's order
+     * (v0, a01, v1, a12, v2, a20):
+     *    even p:  2p, first ? 1 : 2p-2,  2p+2, last ? 2p+5 : 2p+6,  2p+4, 2p+3
+-    *    odd p:   2p+2, 2p-2,  2p, 2p+3,  2p+4, last ? 2p+5 : 2p+6
++    *    odd p:   2p, 2p+3,  2p+4, last ? 2p+5 : 2p+6,  2p+2, 2p-2
+     */
+    nir_def *tsa = list;
+    if (vpp == 6) {
+@@ -466,9 +466,12 @@ gs_input_record(nir_builder *b, struct lower_gs_state *st, nir_def *i)
+          nir_iadd_imm(b, p2, 4),
+          nir_iadd_imm(b, p2, 3),
+       };
++      /* Vulkan order (jm-v7 023), the OpenGL one rotated so that v0 is
++       * 2p like every other triangle of the strip.
++       */
+       nir_def *odd_v[6] = {
+-         nir_iadd_imm(b, p2, 2), nir_iadd_imm(b, p2, -2), p2,
+-         nir_iadd_imm(b, p2, 3), nir_iadd_imm(b, p2, 4),  far,
++         p2, nir_iadd_imm(b, p2, 3), nir_iadd_imm(b, p2, 4),
++         far, nir_iadd_imm(b, p2, 2), nir_iadd_imm(b, p2, -2),
+       };
+       nir_def *pick = nir_bcsel(b, odd, odd_v[5], even_v[5]);
+       for (int k = 4; k >= 0; k--)
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index 47746e5..f781fd8 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -3461,7 +3461,7 @@ panvk_v7_vs_writes_viewport(const struct vk_shader_compile_info *info)
+ 
+ static void
+ panvk_vs_store_xfb(struct panvk_shader_variant *variant,
+-                   const nir_xfb_info *xfb)
++                   const nir_xfb_info *xfb, unsigned nclip, unsigned ncull)
+ {
+    /* panvk_gs_xfb_table() accepted it: at most one output per dword. */
+    assert(xfb->output_count <= ARRAY_SIZE(variant->gs.xfb_outputs));
+@@ -3474,14 +3474,46 @@ panvk_vs_store_xfb(struct panvk_shader_variant *variant,
+       variant->gs.xfb_strides[b] = xfb->buffers[b].stride;
+       variant->gs.xfb_buffer_stream[b] = xfb->buffer_to_stream[b];
+    }
++   unsigned n = 0;
+    for (unsigned i = 0; i < xfb->output_count; i++) {
+-      variant->gs.xfb_outputs[i] = (struct panvk_xfb_output){
+-         .buffer = xfb->outputs[i].buffer,
+-         .location = xfb->outputs[i].location,
+-         .component_mask = xfb->outputs[i].component_mask,
+-         .offset = xfb->outputs[i].offset,
++      const nir_xfb_output_info *o = &xfb->outputs[i];
++      const bool dist = o->location == VARYING_SLOT_CLIP_DIST0 ||
++                        o->location == VARYING_SLOT_CLIP_DIST1;
++
++      /* jm-v7 023: the xfb info sees the merged clip+cull array (the cull
++       * distances right after the clip ones in CLIP_DIST0/1), the vertex
++       * shader writes them apart (panvk_lower_clip_cull_vs()): capture each
++       * cull component from CULL_DIST0/1.
++       */
++      if (dist && ncull) {
++         unsigned dw = o->offset / 4;
++         u_foreach_bit(c, o->component_mask) {
++            const unsigned idx = (o->location - VARYING_SLOT_CLIP_DIST0) * 4 + c;
++            unsigned loc = o->location, comp = c;
++            if (idx >= nclip) {
++               loc = VARYING_SLOT_CULL_DIST0 + (idx - nclip) / 4;
++               comp = (idx - nclip) % 4;
++            }
++            assert(n < ARRAY_SIZE(variant->gs.xfb_outputs));
++            variant->gs.xfb_outputs[n++] = (struct panvk_xfb_output){
++               .buffer = o->buffer,
++               .location = loc,
++               .component_mask = BITFIELD_BIT(comp),
++               .offset = dw++ * 4,
++            };
++         }
++         continue;
++      }
++
++      assert(n < ARRAY_SIZE(variant->gs.xfb_outputs));
++      variant->gs.xfb_outputs[n++] = (struct panvk_xfb_output){
++         .buffer = o->buffer,
++         .location = o->location,
++         .component_mask = o->component_mask,
++         .offset = o->offset,
+       };
+    }
++   variant->gs.xfb_output_count = n;
+ }
+ 
+ /* The passthrough geometry shader for a vertex shader's varying layout:
+@@ -4050,7 +4082,9 @@ panvk_compile_shader(struct panvk_device *dev,
+ #if PAN_ARCH < 9
+          variant->gs.vs_clip_space = vs_clip_space;
+          if (vs_xfb_passthrough)
+-            panvk_vs_store_xfb(variant, info->nir->xfb_info);
++            panvk_vs_store_xfb(variant, info->nir->xfb_info,
++                               info->nir->info.clip_distance_array_size,
++                               info->nir->info.cull_distance_array_size);
+          variant->gs.tess = tes_info;
+ #endif
+ 
+-- 
+2.55.0
+
