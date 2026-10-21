@@ -1,8 +1,8 @@
-From ace8c71a8fe41a129e609854c1adee89a82f6d34 Mon Sep 17 00:00:00 2001
+From faaf9e299313543c51b459c79d8fbb26aa40865d Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 16 Oct 2026 12:07:56 +0000
-Subject: [PATCH 12/13] jm-v7 012: keep the emulated geometry shader across
- meta operations
+Subject: [PATCH] jm-v7 012: keep the emulated geometry shader across meta
+ operations
 
 On v6/v7 meta_gfx_start()/meta_gfx_end() did not save the bound geometry
 shader. Binding a meta pipeline clears it (vk_meta binds every graphics
@@ -37,7 +37,7 @@ index 6d5f698..2eed362 100644
  
     struct panvk_occlusion_query_state occlusion_query;
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_meta.c b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
-index bb299e0..d3dd0a4 100644
+index e706928..5fa5642 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 +++ b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 @@ -190,6 +190,13 @@ meta_gfx_start(struct panvk_cmd_buffer *cmdbuf,
@@ -65,5 +65,5 @@ index bb299e0..d3dd0a4 100644
  
  #if PAN_ARCH < 9
 -- 
-2.43.0
+2.55.0
 

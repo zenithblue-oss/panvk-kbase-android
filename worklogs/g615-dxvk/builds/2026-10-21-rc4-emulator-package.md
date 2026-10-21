@@ -35,3 +35,6 @@ contains gpuId, b8a31030 or g615. The old sha256 values above for EMULATOR/adpkg
 - rc4-lowmem EMULATOR 63af1c4dd798a508322e71dc62c654a9280aae491a097eed0b54535e77f1a644
 - rc4-lowmem adpkg 9bb7f8349c0ae90f1c497a91e76d2db6391b5d54c4c70995a32e0d808354ca48
 Launcher zip sha256 values are unchanged (see each release's SHA256SUMS, which was re-uploaded).
+
+## Update (2026-10-21, later): RC4 is reproducible
+The decision above ("the RC4 patch series is not reproducible from the repo") is superseded for RC4 (non-lowmem). An NDK r30 rebuild of main in the RC4 layout matches the RC4 binary (`.rodata` and `.data.rel.ro` identical, v7 path instruction-identical; see `../rc4-missing-patch-recovery.md` and `2026-10-21-v7R-build.md`). The `patchSeriesId` "not-reproducible" in the wrapped packages was therefore too pessimistic for RC4. RC4-lowmem remains not reproducible (its Mesa tree `git-5437602824` is lost). The packages were not changed; a future repackaging can use the real series id.

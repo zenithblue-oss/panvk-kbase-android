@@ -1,8 +1,7 @@
-From f2b80dac9418fc4037b593de361b75d8f762373e Mon Sep 17 00:00:00 2001
+From 0ac1418081c5b7c957b6997cac3478cd6befd3a4 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Fri, 16 Oct 2026 13:37:35 +0530
-Subject: [PATCH 07/13] jm-v7 007: Bifrost geometry shader emulation via
- compute
+Subject: [PATCH] jm-v7 007: Bifrost geometry shader emulation via compute
 
 ---
  src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c    |  453 +++++-
@@ -2318,7 +2317,7 @@ index 7c762bb..0e8eebd 100644
  panvk_per_arch(CmdPushConstants2KHR)(
     VkCommandBuffer commandBuffer,
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index 4005c56..20f40ae 100644
+index 8954636..6514ead 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
 @@ -317,7 +317,8 @@ panvk_per_arch(get_physical_device_features)(
@@ -2628,5 +2627,5 @@ index ef7a623..f8057d3 100644
     case MESA_SHADER_TESS_EVAL:
        assert(shader == NULL);
 -- 
-2.43.0
+2.55.0
 

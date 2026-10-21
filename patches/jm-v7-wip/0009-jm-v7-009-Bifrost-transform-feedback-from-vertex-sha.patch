@@ -1,8 +1,8 @@
-From cbcf91b67a8bbe48b503339e22f58b76bd1a103f Mon Sep 17 00:00:00 2001
+From 9adc3a1341c4ddb34c5e29d9126cb230fb7fe5a7 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 16 Oct 2026 11:47:59 +0000
-Subject: [PATCH 09/13] jm-v7 009: Bifrost transform feedback from vertex
- shaders (passthrough GS)
+Subject: [PATCH] jm-v7 009: Bifrost transform feedback from vertex shaders
+ (passthrough GS)
 
 v6/v7 advertised transformFeedback but only captured from a geometry
 shader (008). A vertex shader with xfb outputs and no geometry shader
@@ -383,7 +383,7 @@ index 64a410e..4d850dd 100644
 +
  #endif
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index a3eb731..cb75601 100644
+index ef0fd67..cac9108 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
 @@ -633,7 +633,9 @@ panvk_per_arch(get_physical_device_features)(
@@ -688,5 +688,5 @@ index 1a2e285..1ab0b76 100644
  
           /* Each variant gets its own NIR. To save an extra clone, we use the
 -- 
-2.43.0
+2.55.0
 

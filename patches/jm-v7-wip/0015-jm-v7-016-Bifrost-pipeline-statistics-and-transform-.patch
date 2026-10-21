@@ -1,8 +1,8 @@
-From bef4da188b567de5b8ec4f7fbfc8d9dcfb8b01f6 Mon Sep 17 00:00:00 2001
+From c38f0fd976f4b0accab3ad908e05bf2fb2031836 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 06:39:48 +0000
-Subject: [PATCH 15/15] jm-v7 016: Bifrost pipeline statistics and transform
- feedback queries
+Subject: [PATCH] jm-v7 016: Bifrost pipeline statistics and transform feedback
+ queries
 
 pipelineStatisticsQuery and transformFeedbackQueries on v6/v7, counted on
 the GPU in the v9 JM report layout (two u64 per statistic, the second
@@ -768,7 +768,7 @@ index 84e5491..ca128bc 100644
      * explicit global stores, and leftover store_deref on shader_out does not
      * compile on Bifrost. Retype to temporaries and lower to SSA.
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index 50b396d..8da6f41 100644
+index 747b251..fa59fe5 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
 @@ -345,7 +345,8 @@ panvk_per_arch(get_physical_device_features)(

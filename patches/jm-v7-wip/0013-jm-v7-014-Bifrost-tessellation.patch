@@ -1,7 +1,7 @@
-From 608f61d3d88bb0388e024ae23edf71217c0f19bc Mon Sep 17 00:00:00 2001
+From d8c8f2b0aa8d6bfa406c696c0e6b8182f8c199a7 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 16 Oct 2026 12:56:06 +0000
-Subject: [PATCH 13/13] jm-v7 014: Bifrost tessellation
+Subject: [PATCH] jm-v7 014: Bifrost tessellation
 
 tessellationShader and extendedDynamicState2PatchControlPoints on v6/v7,
 with the v9 tessellation limits. PANVK_DEBUG=no_tess turns them off.
@@ -988,7 +988,7 @@ index 2eed362..e468a38 100644
  
     struct panvk_occlusion_query_state occlusion_query;
 diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
-index 2220120..9a13586 100644
+index e4822ed..70aad83 100644
 --- a/src/panfrost/vulkan/panvk_device.h
 +++ b/src/panfrost/vulkan/panvk_device.h
 @@ -76,6 +76,8 @@ struct panvk_device {
@@ -1084,25 +1084,25 @@ index d21b60c..aad4b5e 100644
 -
  #endif /* PANVK_GS_H */
 diff --git a/src/panfrost/vulkan/panvk_instance.c b/src/panfrost/vulkan/panvk_instance.c
-index a0c9bd1..a87d6c0 100644
+index 69e1914..1926b88 100644
 --- a/src/panfrost/vulkan/panvk_instance.c
 +++ b/src/panfrost/vulkan/panvk_instance.c
-@@ -67,6 +67,7 @@ static const struct debug_control panvk_debug_options[] = {
-    {"robust_ssbo_vec", PANVK_DEBUG_ROBUST_SSBO_VEC},
+@@ -68,6 +68,7 @@ static const struct debug_control panvk_debug_options[] = {
     {"bc_compute", PANVK_DEBUG_BC_COMPUTE},
     {"bc_wide", PANVK_DEBUG_BC_WIDE},
+    {"bc_timing", PANVK_DEBUG_BC_TIMING},
 +   {"no_tess", PANVK_DEBUG_NO_TESS},
     {NULL, 0},
  };
  
 diff --git a/src/panfrost/vulkan/panvk_instance.h b/src/panfrost/vulkan/panvk_instance.h
-index 3a51098..a5fded7 100644
+index 3adbf76..91ebd86 100644
 --- a/src/panfrost/vulkan/panvk_instance.h
 +++ b/src/panfrost/vulkan/panvk_instance.h
-@@ -42,6 +42,8 @@ enum panvk_debug_flags {
-    PANVK_DEBUG_ROBUST_SSBO_VEC = 1 << 24,
+@@ -43,6 +43,8 @@ enum panvk_debug_flags {
     PANVK_DEBUG_BC_COMPUTE = 1 << 26,
     PANVK_DEBUG_BC_WIDE = 1 << 27,
+    PANVK_DEBUG_BC_TIMING = 1 << 29,
 +   /* v6/v7: do not expose the tessellation emulation (jm-v7 014). */
 +   PANVK_DEBUG_NO_TESS = 1 << 28,
  };
@@ -1198,7 +1198,7 @@ index 4d850dd..4da02b9 100644
  #endif
  
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_meta.c b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
-index d3dd0a4..7e2ebff 100644
+index 5fa5642..6e1177b 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 +++ b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 @@ -195,7 +195,11 @@ meta_gfx_start(struct panvk_cmd_buffer *cmdbuf,
@@ -1223,7 +1223,7 @@ index d3dd0a4..7e2ebff 100644
  #endif
  
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index 84b1e85..afefe0f 100644
+index 8f19631..f0a19ea 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
 @@ -830,6 +830,20 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
@@ -1264,7 +1264,7 @@ index 84b1e85..afefe0f 100644
      panvk_priv_bo_unref(device->tiler_heap2);
      panvk_priv_bo_unref(device->sample_positions);
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index 9bc0288..80f675d 100644
+index a18857e..a94c3c6 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
 @@ -319,7 +319,11 @@ panvk_per_arch(get_physical_device_features)(
@@ -1615,5 +1615,5 @@ index 4d00226..541dc99 100644
  #endif
     default:
 -- 
-2.43.0
+2.55.0
 

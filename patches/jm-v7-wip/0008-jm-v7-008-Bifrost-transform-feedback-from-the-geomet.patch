@@ -1,7 +1,7 @@
-From 2ca436d23909898271eb0f80f9b1448865887e89 Mon Sep 17 00:00:00 2001
+From b6d1fa994e61ce3ca7fc92c7ce0549412145b3e0 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Fri, 16 Oct 2026 13:42:01 +0530
-Subject: [PATCH 08/13] jm-v7 008: Bifrost transform feedback from the geometry
+Subject: [PATCH] jm-v7 008: Bifrost transform feedback from the geometry
  emulation
 
 ---
@@ -525,7 +525,7 @@ index 6066cff..64a410e 100644
         * gl_Position stays in clip space (skip_viewport_transform) and is
         * stored unsnapped.
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index 20f40ae..a3eb731 100644
+index 6514ead..ef0fd67 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
 @@ -216,7 +216,7 @@ panvk_per_arch(get_physical_device_extensions)(
@@ -620,5 +620,5 @@ index f8057d3..1a2e285 100644
           .output_verts_per_prim = out_verts,
           .max_output_verts = variant->gs.max_output_verts,
 -- 
-2.43.0
+2.55.0
 

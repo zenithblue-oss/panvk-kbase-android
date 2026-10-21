@@ -1,8 +1,7 @@
-From 0343545db60448006dcef3bb0703da4ad7f454aa Mon Sep 17 00:00:00 2001
+From 3c270d73da2403af15c6577747c06082e329aa1d Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 16 Oct 2026 11:59:59 +0000
-Subject: [PATCH 11/13] jm-v7 011: fix geometry emulation NIR and the GS tiler
- DCD
+Subject: [PATCH] jm-v7 011: fix geometry emulation NIR and the GS tiler DCD
 
 Found by recording v6/v7 (G72, G52, G76) command buffers on a host debug
 build under the panfrost drm-shim, with NIR validation and genxml asserts
@@ -115,5 +114,5 @@ index 4f45703..07d912e 100644
     nir->info.workgroup_size[1] = 1;
     nir->info.workgroup_size[2] = 1;
 -- 
-2.43.0
+2.55.0
 

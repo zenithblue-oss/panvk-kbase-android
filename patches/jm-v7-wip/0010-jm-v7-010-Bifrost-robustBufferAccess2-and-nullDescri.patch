@@ -1,8 +1,7 @@
-From f0bfabd9ff1f3ab0535fed2e9e1408d7c0a0a00c Mon Sep 17 00:00:00 2001
+From 93a2c8b9383bc2c88c10784f14738fb82c3e75b6 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 16 Oct 2026 11:52:08 +0000
-Subject: [PATCH 10/13] jm-v7 010: Bifrost robustBufferAccess2 and
- nullDescriptor
+Subject: [PATCH] jm-v7 010: Bifrost robustBufferAccess2 and nullDescriptor
 
 VK_EXT_robustness2 on v6/v7, ported from JimVulkan/mesa-unified-drivers
 (MIT, Copyright 2026 XclipseTools). The v9/v10 work (jm-v9 010/030,
@@ -43,10 +42,10 @@ Claude-Session: https://claude.ai/code/session_0153VvtSm6m7BrM4NCBq8MMc
  7 files changed, 309 insertions(+), 18 deletions(-)
 
 diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
-index 2b96abd..2220120 100644
+index d131dc8..e4822ed 100644
 --- a/src/panfrost/vulkan/panvk_device.h
 +++ b/src/panfrost/vulkan/panvk_device.h
-@@ -88,6 +88,26 @@ struct panvk_device {
+@@ -107,6 +107,26 @@ struct panvk_device {
     /* Bound in place of a missing FS so the depth bounds test still runs. */
     struct panvk_shader *depth_bounds_fs;
  
@@ -244,7 +243,7 @@ index 4df1003..0d7251f 100644
     }
  
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index edb350b..84b1e85 100644
+index 4cd9903..8f19631 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
 @@ -30,6 +30,7 @@
@@ -475,7 +474,7 @@ index d37d06e..927e3e7 100644
     return loaded_samples;
  }
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index cb75601..9bc0288 100644
+index cac9108..a18857e 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
 @@ -211,7 +211,7 @@ panvk_per_arch(get_physical_device_extensions)(
@@ -571,5 +570,5 @@ index 1ab0b76..4d00226 100644
     /* v9/v10 image loads need a shader fix-up for robustImageAccess2. */
     if (info->robustness->images ==
 -- 
-2.43.0
+2.55.0
 

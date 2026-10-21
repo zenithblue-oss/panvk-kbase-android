@@ -1,8 +1,8 @@
-From 7e2bc464cd6e0e48c0cc90b63c1efaa6d77adb04 Mon Sep 17 00:00:00 2001
+From 3a70e1ba6566f92ad07a399a27f9f5f73105bfb8 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 06:39:26 +0000
-Subject: [PATCH 14/15] jm-v7 015: Bifrost depthBounds through the FS depth
- bounds emulation
+Subject: [PATCH] jm-v7 015: Bifrost depthBounds through the FS depth bounds
+ emulation
 
 Bifrost has no depth bounds test either. Enable the csf-v11/092 FS
 emulation on v6/v7: the FS loads the stored depth of each sample with
@@ -89,7 +89,7 @@ index 15807e7..02f968d 100644
     if (dyn_gfx_state_dirty(cmdbuf, INPUT_ATTACHMENT_MAP))
        prepare_iam_sysvals(cmdbuf, dirty_sysvals);
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index 80f675d..50b396d 100644
+index a94c3c6..747b251 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
 @@ -333,7 +333,8 @@ panvk_per_arch(get_physical_device_features)(

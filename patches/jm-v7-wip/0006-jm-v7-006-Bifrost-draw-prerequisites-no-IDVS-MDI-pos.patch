@@ -1,8 +1,8 @@
-From 6c1ac2474089add9c3291c4e7700b5c700058c68 Mon Sep 17 00:00:00 2001
+From 642f0b3f90c257e75f8a562c869c26a423ad685b Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Fri, 16 Oct 2026 13:21:27 +0530
-Subject: [PATCH 06/13] jm-v7 006: Bifrost draw prerequisites (no IDVS, MDI,
- position buffer)
+Subject: [PATCH] jm-v7 006: Bifrost draw prerequisites (no IDVS, MDI, position
+ buffer)
 
 ---
  src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c    | 70 +++++++++++--------
@@ -109,7 +109,7 @@ index e2d92e6..d7f7423 100644
  #else /* PAN_ARCH == 9 */
  
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index 5091109..4005c56 100644
+index a045707..8954636 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
 @@ -322,7 +322,8 @@ panvk_per_arch(get_physical_device_features)(
@@ -173,5 +173,5 @@ index a69c148..ef7a623 100644
           nir_alu_type_get_type_size(vs_pos_slot->alu_type);
     }
 -- 
-2.43.0
+2.55.0
 

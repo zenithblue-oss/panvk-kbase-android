@@ -1,4 +1,4 @@
-From e5a0a7bf617179a0310e22c7640133bff7778f42 Mon Sep 17 00:00:00 2001
+From 6830edf58b74610c040a3453808586bdbc5e2760 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 07:36:31 +0000
 Subject: [PATCH] jm-v7 020: PANVK_DEBUG=ria2 exposes robustImageAccess2 on
@@ -19,23 +19,23 @@ measure the hardware on a device. Default behaviour is unchanged.
  3 files changed, 13 insertions(+), 2 deletions(-)
 
 diff --git a/src/panfrost/vulkan/panvk_instance.c b/src/panfrost/vulkan/panvk_instance.c
-index a87d6c0..09ffe70 100644
+index 1926b88..74520c4 100644
 --- a/src/panfrost/vulkan/panvk_instance.c
 +++ b/src/panfrost/vulkan/panvk_instance.c
-@@ -68,6 +68,7 @@ static const struct debug_control panvk_debug_options[] = {
-    {"bc_compute", PANVK_DEBUG_BC_COMPUTE},
+@@ -69,6 +69,7 @@ static const struct debug_control panvk_debug_options[] = {
     {"bc_wide", PANVK_DEBUG_BC_WIDE},
+    {"bc_timing", PANVK_DEBUG_BC_TIMING},
     {"no_tess", PANVK_DEBUG_NO_TESS},
 +   {"ria2", PANVK_DEBUG_RIA2},
     {NULL, 0},
  };
  
 diff --git a/src/panfrost/vulkan/panvk_instance.h b/src/panfrost/vulkan/panvk_instance.h
-index a5fded7..3b66223 100644
+index 91ebd86..56fe41e 100644
 --- a/src/panfrost/vulkan/panvk_instance.h
 +++ b/src/panfrost/vulkan/panvk_instance.h
-@@ -44,6 +44,10 @@ enum panvk_debug_flags {
-    PANVK_DEBUG_BC_WIDE = 1 << 27,
+@@ -45,6 +45,10 @@ enum panvk_debug_flags {
+    PANVK_DEBUG_BC_TIMING = 1 << 29,
     /* v6/v7: do not expose the tessellation emulation (jm-v7 014). */
     PANVK_DEBUG_NO_TESS = 1 << 28,
 +   /* v6/v7: advertise robustImageAccess2 with no emulation, to measure
@@ -46,10 +46,10 @@ index a5fded7..3b66223 100644
  
  extern uint64_t panvk_debug;
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index 0f4c50a..1a0122a 100644
+index 831a5e2..9c436f8 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
-@@ -673,10 +673,16 @@ panvk_per_arch(get_physical_device_features)(
+@@ -671,10 +671,16 @@ panvk_per_arch(get_physical_device_features)(
         * buffers, storage images and vertex attributes the hardware bounds
         * of their descriptors, and null descriptors are emulated
         * (panvk_device::null_descs), as in JimVulkan. robustImageAccess2
