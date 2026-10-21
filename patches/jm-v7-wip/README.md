@@ -2,6 +2,31 @@
 
 `scripts/apply-patches.sh` does not apply these. Apply them with `git am`, in order, on top of the full series (`apply-patches.sh --profile g615-v11-csf`, which already applies jm-v7 001-005). They are `git format-patch` files and depend on each other, so plain `git apply` of one alone fails.
 
+## Renumbering (v7wip-order): file order = apply order
+
+The files are now numbered so that `git am patches/jm-v7-wip/00*.patch` (glob order) on the 197-patch base (`ab7d630`) reproduces the v7gDI tree (`/home/flux/src/mesa-v7DI`, `v7DI-full`, 0b26a4a). Patch contents are unchanged; subjects keep their "jm-v7 NNN" numbers. Verified in `/home/flux/src/mesa-v7wip-order`: the result differs from 0b26a4a only in `PANVK_DEBUG_RIA2` (`1 << 30` here, the M14 fix in 0019; the v7DI build still had `1 << 29`, colliding with `BC_TIMING`).
+
+Everything below this section and all worklogs (including the v7G/v7H/v7GDI build records) use the OLD numbers. Old -> new:
+
+| Old file number | New | jm-v7 subject |
+|---|---|---|
+| 0006-0021 | 0006-0021 (unchanged) | 006-022 |
+| 0030 | 0022 | 030 |
+| 0031 | 0023 | 031 |
+| 0032 | 0024 | 023 |
+| 0033 | 0025 | 024 |
+| 0034 | 0026 | 025 |
+| 0040-0049 | 0027-0036 | 040-049 |
+| 0035 | 0037 | 035 |
+| 0036 | 0038 | 036 |
+| 0025 | 0039 | 026 |
+| 0026 | 0040 | 027 |
+| 0070-0080 | 0041-0051 | 070-080 |
+| 0050 | 0052 | 050 |
+| 0051 | 0053 | 051 |
+
+Apply order (= file order): 0006-0021, 0022-0026, 0027-0036, 0037, 0038, 0039, 0040, 0041-0051, 0052, 0053.
+
 Worktrees: `work/mesa-b2` (branch `v7port2`) is the previous base: the full series as one commit `30a2037`, with the old 006-013 on top (014 = `5995e81`; old numbering, includes the dropped BC patch). `work/mesa-j` is the current base: the strict series as one commit `a709962` on Mesa `98c8b2f~1`, with the new 006-013 on top (013 = tessellation, `608f61d`). `work/mesa-b` (branch `v7port`) is the oldest base.
 
 **Nothing here has run on a Bifrost device.** All results below are from builds and code review.
