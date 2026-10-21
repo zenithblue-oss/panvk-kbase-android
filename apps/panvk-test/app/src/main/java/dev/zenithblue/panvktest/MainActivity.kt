@@ -302,6 +302,7 @@ class MainActivity : ComponentActivity() {
         if (autorunExtra != null && (savedInstanceState == null || gameLoop)) {
             selectedTabState.intValue = 2 // Switch UI to Tests tab
             window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) // live surface needs the screen on
+            setShowWhenLocked(true); setTurnScreenOn(true)  // wake the display so the SurfaceView window becomes visible
             lifecycleScope.launch(Dispatchers.IO) {
                 runHeadlessAutorun(autorunExtra)
             }
