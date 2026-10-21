@@ -173,3 +173,6 @@ Every tess kernel is a barrier job. The TCS output, the counts and the tessellat
 - CTS subsets: `dEQP-VK.tessellation.*` (watch for TCS barrier hangs, truncated large draws, winding), `dEQP-VK.geometry.*`, `transform_feedback.*`, `robustness.robustness2.*`, `texture.compressed.*bc*`, `draw.*indirect*`.
 - DXVK D3D9 and D3D11 in PanPlay. With 0013, DXVK can report FL11_0, so check that D3D11 titles that ran at FL10_x before still run (fall back with `PANVK_DEBUG=no_tess`).
 - Move the series to `patches/jm-v7` (006+) once A06/A14 gets past 14/38.
+
+## Rebase note (2026-10-21)
+0006-0019 were refreshed onto the 197-patch `g615-v11-csf` series (csf-v11 up to 202). 0010 had a 19-line offset and 0013 conflicted with csf-v11/200 (`PANVK_DEBUG_BC_TIMING`) in `panvk_instance.[ch]`; both fixed. The set applies strictly (no offset, no fuzz) with `git am` in order. The earlier build statements above (BuildIDs, 189/191/192-patch bases) describe the older base.
