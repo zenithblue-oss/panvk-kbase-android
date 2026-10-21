@@ -1,0 +1,129 @@
+const WebSocket = require('ws');
+const Net = require('net');
+const { execFile } = require("child_process");
+const which = require("which");
+
+// Patched version of Samsung's bin.js (see tools/samsung-rdb/README.md):
+//  - per-connection state: a stale ws close no longer runs `adb disconnect` for a newer session
+//  - ws ping every 20 s to keep the tunnel alive
+//  - env RDB_WS_PORT (default 8888), RDB_LOOPBACK=1 (listen on 127.0.0.1 only), RDB_NO_ADB=1 (test: never call adb)
+let websocket;
+let adbsocket;
+const adbPort = process.env.RDB_TCP_PORT ? parseInt(process.env.RDB_TCP_PORT, 10) : Math.floor(Math.random() * (60000 - 30000)) + 30000;
+const wsPort = process.env.RDB_WS_PORT ? parseInt(process.env.RDB_WS_PORT, 10) : 8888;
+const loopback = process.env.RDB_LOOPBACK === '1';
+const noAdb = process.env.RDB_NO_ADB === '1';
+
+// find adb path
+const adbPath = noAdb ? 'adb' : which.sync("adb", { nothrow: true});
+
+if(!adbPath){
+    console.log('Could not find adb in PATH');
+    process.exit(1);
+}
+
+function runAdb(args, cb) {
+    if (noAdb) {
+        console.log("[test] would run: adb " + args.join(' '));
+        if (cb) cb(null, '', '');
+        return;
+    }
+    execFile(adbPath, args, cb);
+}
+
+//WS
+const wsOpts = { port: wsPort };
+if (loopback) wsOpts.host = '127.0.0.1';
+const wsServer = new WebSocket.Server(wsOpts);
+
+wsServer.binaryType = 'arraybuffer';
+wsServer.on('connection', function connection(ws) {
+    console.log("Web client connected to RDB");
+    let deviceInfo = false;
+
+    websocket = ws;
+    ws.isAlive = true;
+    ws.on('pong', function() { ws.isAlive = true; });
+    const pingTimer = setInterval(function() {
+        if (ws.readyState === WebSocket.OPEN) {
+            try { ws.ping(); } catch (e) {}
+        }
+    }, 20000);
+
+    runAdb(['connect', `localhost:${adbPort}`], (error, stdout, stderr)=>{
+        if (error) {
+            console.log("adb error: " + error.message);
+            return;
+        }
+        if (stderr && !stderr.includes("daemon not running")) {
+            console.log("adb output: " + stderr);
+            return;
+        }
+    });
+
+    ws.on('message', function message(data) {
+	if (!deviceInfo) {
+            deviceInfo = JSON.parse(data);
+	    console.log("Connected device: " + deviceInfo.name);
+	}
+
+        if (adbsocket && ws === websocket) {
+            adbsocket.write(data);
+        }
+    });
+
+    ws.on('close', function disconnect(data) {
+        clearInterval(pingTimer);
+	if (deviceInfo) {
+           console.log("Disconnected device: " + deviceInfo.name);
+	}
+        if (ws !== websocket) {
+            console.log("Stale ws closed; newer session active, not disconnecting adb");
+            return;
+        }
+        websocket = null;
+        runAdb(['disconnect', `localhost:${adbPort}`]);
+    });
+
+    ws.on('error', function(err) {
+        console.log("ws error: " + err);
+    });
+});
+
+wsServer.on('error', function error(error) {
+    if (error.message.includes("EADDRINUSE")) {
+        console.log("RDB is already running. Please close it and try again.");
+    } else {
+        console.log(error);
+    }
+    process.exit(1);
+});
+
+//TCP
+const tcpServer = new Net.Server();
+const tcpHost = loopback ? '127.0.0.1' : undefined;
+tcpServer.listen(adbPort, tcpHost, function() {
+    console.log("RDB server listening on port: " + adbPort);
+});
+
+tcpServer.on('connection', function(socket) {
+    console.log("ADB connected to RDB");
+
+    adbsocket = socket
+
+    socket.on('data', function(chunk) {
+        if (websocket) {
+            websocket.send(chunk);
+        }
+    });
+
+    socket.on('end', function() {
+        if (adbsocket === socket) adbsocket = null;
+        console.log("ADB disconnected from RDB");
+    });
+
+    socket.on('error', function(err) {
+        socket.end();
+        console.log("ADB connection error: " + err);
+    });
+});

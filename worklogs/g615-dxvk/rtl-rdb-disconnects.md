@@ -99,3 +99,16 @@ Keepalive / session settings:
 - Samsung RTL troubleshooting: https://developer.samsung.com/sdp/blog/en/2022/08/23/troubleshooting-common-issues-while-using-the-remote-test-lab-service
 - epoll ENOSYS under sandboxes (analogous): https://gitlab.torproject.org/legacy/trac/-/issues/23449
 - No source found for the exact RTL "Terminal activity is monitored" text or an adb poll env var.
+
+## Commands that drop RTL (avoid)
+- `adb shell svc power stayon true` (and other `svc power ...`)
+- `run-as <pkg>`
+- `settings put ...` (global/system)
+- `setprop ...`
+- `reboot`
+- `adb root`, `adb usb`, `adb tcpip`
+
+## Update: patched rdb (2026-10-21)
+`tools/samsung-rdb/bin.js.fixed` (per-connection state, ws ping every 20 s, optional RDB_LOOPBACK=1) is installed as
+`/opt/samsung-rdb/current/bin.js.fixed`; `rdb-daemon` uses it when present, and the adb wrapper exports
+ADB_MDNS=0 ADB_MDNS_OPENSCREEN=0 ADB_LIBUSB=0. Both take effect only on the next rdb / adb-server start.
