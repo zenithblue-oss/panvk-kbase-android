@@ -1,4 +1,4 @@
-From 6830edf58b74610c040a3453808586bdbc5e2760 Mon Sep 17 00:00:00 2001
+From 834eec4936e1c85a585bf6602bbe949daed1a3aa Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 07:36:31 +0000
 Subject: [PATCH] jm-v7 020: PANVK_DEBUG=ria2 exposes robustImageAccess2 on
@@ -31,7 +31,7 @@ index 1926b88..74520c4 100644
  };
  
 diff --git a/src/panfrost/vulkan/panvk_instance.h b/src/panfrost/vulkan/panvk_instance.h
-index 91ebd86..56fe41e 100644
+index 91ebd86..ec1544e 100644
 --- a/src/panfrost/vulkan/panvk_instance.h
 +++ b/src/panfrost/vulkan/panvk_instance.h
 @@ -45,6 +45,10 @@ enum panvk_debug_flags {
@@ -41,7 +41,7 @@ index 91ebd86..56fe41e 100644
 +   /* v6/v7: advertise robustImageAccess2 with no emulation, to measure
 +    * what the hardware returns out of bounds (jm-v7 020).
 +    */
-+   PANVK_DEBUG_RIA2 = 1 << 29,
++   PANVK_DEBUG_RIA2 = 1 << 30,
  };
  
  extern uint64_t panvk_debug;
