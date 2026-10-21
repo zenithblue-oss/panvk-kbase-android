@@ -41,3 +41,38 @@ working-tree change on top of 3925d56 + jm-v9 + jm-v7, like the jm patches).
 Build: `PANVK_KBASE_RELEASE=RC5-dev-bc-r30-vp`, fresh BDIR
 `/home/flux/build-lowmem/bionic-r30-vp`, DDIR
 `/home/flux/build-out/2026-10-21-bc-r30-vp`, NDK r30, 4 jobs (thermal NONE).
+Full build (1168 steps + host tools), exit 0.
+
+- .so: `/home/flux/build-out/2026-10-21-bc-r30-vp/libvulkan_panfrost.so`
+  (stripped), sha256 `fcb2086bda99c8c58c307f42f1cef40f1a66903e53e8569b76f957b4bef8566c`,
+  BuildID `598609873c7b2282bf4b6530ad5f71f18f23a485`, driverInfo
+  `PanVK-kbase RC5-dev-bc-r30-vp (Mesa 26.3.0-devel (git-3925d562d7))`.
+- APK: gradle as in the bc-r30 record with `-PpanvkSoRc5=` the .so above
+  (BUILD SUCCESSFUL). Gradle writes `app/build/outputs/apk/debug/app-debug.apk`;
+  `/home/flux/build-out/apks/panprobe-bc.apk` is a manual copy of it (the first
+  check of the old copy still held the old rc5 .so). rc5 lib inside the APK
+  verified `fcb2086b…`. Installed APK sha256
+  `1c83b6bc80de7a7f913fc73346d3434a312a062cbd88b51296b14107aadedb76`.
+
+Device (G615, 2026-10-21 15:41-15:47):
+
+| run | dir under ab-runs | result |
+|---|---|---|
+| rc5 `--es autorun gs_viewport_depth` | 20261021-154150 | PASS (1/0) |
+| rc5 `--es autorun all` | 20261021-154724 | **pass=38 fail=0 skip=0** |
+
+gs_viewport_depth after the fix:
+
+```
+PASS case A_clamp depthL=[0.25..0.25] expL=0.25 depthR=[0.5..0.5] expR=0.5 badDepth=0 badColor=0
+PASS case B_clamp_clip depthL=[0.125..0.125] depthR=[0.75..0.75] badDepth=0 badColor=0
+PASS case C_noclamp depthL=[0.125..0.125] depthR=[0.75..0.75] badDepth=0 badColor=0
+```
+
+bc_decode still PASS (0 failures). Done: RC5 38/38 vs RC4-lowmem 37/1.
+
+Notes for the next runs: the logcat main buffer on this device is flooded by
+`MML` errors and loses the PANPROBE lines within minutes; pull
+`files/runs/` instead. An `am start` while PanProbe is in the foreground is
+delivered to the running instance (it ran the suite here); a start right
+after `am force-stop` produced no new run dir within 5 minutes.
