@@ -19,6 +19,8 @@ Worktrees: `work/mesa-b2` (branch `v7port2`) is the previous base: the full seri
 | 0012 | New (review of 009-011): `meta_gfx_start`/`meta_gfx_end` did not save or restore the bound geometry shader on v6/v7. A meta pipeline bind clears it, so the first draw after a blit, clear or resolve ran without the app's GS and without XFB capture. It is now saved, cleared and restored, as v9+ does. |
 | (old 0013) | Dropped. The BC zero-init decode call in the JM `CmdPipelineBarrier2` is now `patches/jm-v9/031`, which adds it without a PAN_ARCH gate, so v6/v7 get it from the series. See "BC texture compression" below. |
 | 0013 | New: tessellation on v6/v7 (`tessellationShader`, `extendedDynamicState2PatchControlPoints`). See "Tessellation (0013)" below. The subject line still says "jm-v7 014" (old numbering). |
+| 0014 | (jm-v7 015) `depthBounds`: the csf-v11/092 FS emulation (LD_TILE of the stored depth with the Bifrost Z_STENCIL message, SampleMask cleared outside the bounds) on v6/v7, the device depth-bounds FS, a ZS tile read in the RSD while the test is on, and the late ZS update with EarlyFragmentTests (jm-v9/018). See "Features added in v7feat" below. |
+| 0015 | (jm-v7 016) `pipelineStatisticsQuery` and `transformFeedbackQueries`, GPU-counted in the v9 JM report layout. See "Features added in v7feat" below. |
 
 ## Build status (2026-10-16, cloud session)
 
@@ -36,7 +38,7 @@ Worktrees: `work/mesa-b2` (branch `v7port2`) is the previous base: the full seri
 | geometryShader, geometryStreams | 007 (compute emulation) |
 | transformFeedback | 008 (from a GS), 009 (from a VS, through the passthrough GS) |
 | transformFeedbackDraw | 009 |
-| transformFeedbackQueries | off |
+| transformFeedbackQueries | 0015 (from the capture scan) |
 | robustBufferAccess2, nullDescriptor | 010 |
 | robustImageAccess2 | off: the out-of-bounds alpha value on Bifrost is unknown |
 | shaderClipDistance/CullDistance | on, through the arch-independent VS store + FS discard lowering. The passthrough also forwards them (009). |
@@ -44,7 +46,38 @@ Worktrees: `work/mesa-b2` (branch `v7port2`) is the previous base: the full seri
 | textureCompressionBC | on (emulated), see below |
 | tessellationShader, extendedDynamicState2PatchControlPoints | 013 (on; `PANVK_DEBUG=no_tess` turns them off) |
 | shaderTessellationAndGeometryPointSize | off |
-| fillModeNonSolid, multiViewport, depthBounds, pipelineStatisticsQuery | off (v9+ only) |
+| depthBounds | 0014 (FS emulation) |
+| pipelineStatisticsQuery | 0015 |
+| fillModeNonSolid, multiViewport | off (in progress) |
+
+## Features added in v7feat (0014+)
+
+Files are numbered one below their subject (file 0014 = "jm-v7 015"), as 0013 = "jm-v7 014". Base: `/home/flux/src/mesa-v7feat` (branch `v7feat`): Mesa 5a07217 + the 192-patch `g615-v11-csf` series as one commit, then `git am` of 0006-0013 and the new patches.
+
+### depthBounds (0014)
+
+- Same design as v10+: when the pipeline may enable the test (static or dynamic), the FS loops over the samples (uniform sample index), loads the stored depth with `nir_load_tile_pan` (Bifrost `LD_TILE` with `z_stencil`, which `bi_message_type_for_instr()` sends as a Z_STENCIL message) and clears the SampleMask bit of samples outside `[min, max]`. Bounds, enable and sample count come from the `ds.*` graphics sysvals, now filled on every arch.
+- The device depth-bounds FS (bound when the app has no FS) is created on v6/v7.
+- v6/v7 RSD: while the test is on, `zs_read = PAN_EARLYZS_ZS_TILEBUF_READ_NO_OPT`; with EarlyFragmentTests and ZS writes or an occlusion query, the ZS update is forced late (the jm-v9/018 / csf-v11/116 rule).
+- Cost: a lowered FS writes SampleMask, so it has no FPK or early ZS even while the test is off. DXVK makes the test dynamic, so every DXVK FS is lowered.
+- Unknown until a device run: LD_TILE of Z16 and Z24S8 depth formats on Bifrost.
+
+### pipelineStatisticsQuery, transformFeedbackQueries (0015)
+
+Reports use the v9 JM layout (two u64 per statistic; kernels and shaders write the second half; results are the sum), so `vkGetQueryPoolResults` and `panlib_copy_pstats_query_result` take the v9 paths.
+
+| Statistic | Counted by |
+|---|---|
+| IA vertices, IA primitives, VS invocations, TCS patches | `panlib_v7_update_pstats_draw()`, one thread per API draw (the draw's Vk[Indexed]DrawIndirectCommand; written at record time for vkCmdDraw). Primitive restart: serial index scan (the v9 kernel needs 16-wide subgroups). |
+| TES invocations | the same kernel on the tess eval draw's generated command (one invocation per tessellator index, which is how the TES runs). |
+| Clipping invocations/primitives | the draw kernel without a GS; with a GS, the emulation (stream 0 primitives). |
+| GS invocations, GS primitives | the emulation itself, at the end of every live invocation (`panvk_gs_push::pstats`, four counter addresses). The xfb passthrough is not counted as a GS. |
+| FS invocations | the hardware occlusion counter while no occlusion query owns it (as v9 JM). Bifrost writes it per core, so it points at a per-query scratch (one u64 per core, zeroed by GPU write jobs), which `panlib_v7_pstats_sum_cores()` adds into the report at vkCmdEndQuery. |
+| CS invocations | `panlib_v7_update_pstats_dispatch()`. |
+
+Transform feedback stream queries: `panlib_xfb_scan` adds the primitives written and needed of its stream to the active query (`libpan_xfb_draw::query`). A stream that captures to no buffer is still scanned while a query is active.
+
+Limits (ponytail, same as v9 JM): FS invocations miss fragments killed by late ZS, count samples with MSAA, and are not counted while an occlusion query is active. Layered (non-multiview) draws count layer 0 only. vk_meta draws are not counted. Stream queries count only while transform feedback is active (the capture only runs then).
 
 ## BC texture compression
 

@@ -1,0 +1,170 @@
+From 7e2bc464cd6e0e48c0cc90b63c1efaa6d77adb04 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Wed, 21 Oct 2026 06:39:26 +0000
+Subject: [PATCH 14/15] jm-v7 015: Bifrost depthBounds through the FS depth
+ bounds emulation
+
+Bifrost has no depth bounds test either. Enable the csf-v11/092 FS
+emulation on v6/v7: the FS loads the stored depth of each sample with
+LD_TILE (the Bifrost compiler emits it with the Z_STENCIL message,
+bi_message_type_for_instr()) and clears the SampleMask bits of samples
+outside [min, max]. The device depth-bounds FS is created on v6/v7 too,
+and the ds.* graphics sysvals are filled on every arch.
+
+v6/v7 RSD: a draw with the test on declares a ZS tile buffer read
+(PAN_EARLYZS_ZS_TILEBUF_READ_NO_OPT, as an input attachment read), and
+with EarlyFragmentTests updates ZS after the FS, as jm-v9/018 and
+csf-v11/116 do.
+
+Cost: a lowered FS writes SampleMask, so it loses FPK and early ZS even
+while the test is off (same trade-off as v9+). DXVK makes the test
+dynamic, so every DXVK FS is lowered.
+
+Not device-tested. Unknown: LD_TILE of Z16/Z24S8 depth on Bifrost.
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c    | 20 ++++++++++++++++++-
+ src/panfrost/vulkan/panvk_vX_cmd_draw.c       |  2 --
+ .../vulkan/panvk_vX_physical_device.c         |  3 ++-
+ src/panfrost/vulkan/panvk_vX_shader.c         | 11 +++-------
+ 4 files changed, 24 insertions(+), 12 deletions(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index 27bd910..df2e2b9 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -409,9 +409,17 @@ panvk_draw_prepare_fs_rsd(struct panvk_cmd_buffer *cmdbuf,
+          uint8_t rt_written = color_attachment_written_mask(
+             fs, &cmdbuf->vk.dynamic_graphics_state.cal);
+          uint8_t rt_read = color_attachment_read_mask(fs, &dyns->ial, rt_mask);
++         /* Depth bounds emulation (jm-v7 015): the lowered FS reads the
++          * tile depth with LD_TILE, as an input attachment read would. Same
++          * condition as the ds.enable sysval.
++          */
++         const bool db_on = fs->fs.depth_bounds &&
++                            dyns->ds.depth.bounds_test.enable &&
++                            (cmdbuf->state.gfx.render.bound_attachments &
++                             MESA_VK_RP_ATTACHMENT_DEPTH_BIT);
+          enum pan_earlyzs_zs_tilebuf_read zs_read =
+             (z_attachment_read(fs, &dyns->ial) ||
+-             s_attachment_read(fs, &dyns->ial))
++             s_attachment_read(fs, &dyns->ial) || db_on)
+                ? PAN_EARLYZS_ZS_TILEBUF_READ_NO_OPT
+                : PAN_EARLYZS_ZS_TILEBUF_NOT_READ;
+ 
+@@ -436,6 +444,16 @@ panvk_draw_prepare_fs_rsd(struct panvk_cmd_buffer *cmdbuf,
+ 
+          cfg.properties.pixel_kill_operation = earlyzs.kill;
+          cfg.properties.zs_update_operation = earlyzs.update;
++         /* With EarlyFragmentTests, an early ZS update would let the depth
++          * bounds FS read its own depth and keep the writes of samples
++          * outside the bounds: test early, update after the FS (v9 JM
++          * jm-v9/018, csf-v11/116). Not when the app FS discards, writes
++          * SampleMask or uses alpha-to-coverage.
++          */
++         if (db_on && fs->info.fs.early_fragment_tests &&
++             (writes_zs || oq) && !fs->info.fs.can_discard &&
++             !fs->fs.depth_bounds_app_mask && !alpha_to_coverage)
++            cfg.properties.zs_update_operation = MALI_PIXEL_KILL_FORCE_LATE;
+          cfg.multisample_misc.evaluate_per_sample =
+             (fs->info.fs.sample_shading && dyns->ms.rasterization_samples > 1);
+       } else {
+diff --git a/src/panfrost/vulkan/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/panvk_vX_cmd_draw.c
+index 15807e7..02f968d 100644
+--- a/src/panfrost/vulkan/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/panvk_vX_cmd_draw.c
+@@ -1005,7 +1005,6 @@ panvk_per_arch(cmd_prepare_draw_sysvals)(struct panvk_cmd_buffer *cmdbuf,
+    panvk_upload_prerast_viewports(cmdbuf, dirty_sysvals);
+ #endif
+ 
+-#if PAN_ARCH >= 9
+    {
+       const struct vk_depth_stencil_state *dss =
+          &cmdbuf->vk.dynamic_graphics_state.ds;
+@@ -1023,7 +1022,6 @@ panvk_per_arch(cmd_prepare_draw_sysvals)(struct panvk_cmd_buffer *cmdbuf,
+          cmdbuf, dirty_sysvals, ds.samples,
+          MAX2(cmdbuf->vk.dynamic_graphics_state.ms.rasterization_samples, 1));
+    }
+-#endif
+ 
+    if (dyn_gfx_state_dirty(cmdbuf, INPUT_ATTACHMENT_MAP))
+       prepare_iam_sysvals(cmdbuf, dirty_sysvals);
+diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
+index 80f675d..50b396d 100644
+--- a/src/panfrost/vulkan/panvk_vX_physical_device.c
++++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
+@@ -333,7 +333,8 @@ panvk_per_arch(get_physical_device_features)(
+       .depthClamp = true,
+       .depthBiasClamp = true,
+       .fillModeNonSolid = PAN_ARCH >= 9,
+-      .depthBounds = PAN_ARCH >= 9,
++      /* v6/v7: emulated in the FS with LD_TILE of the depth (jm-v7 015). */
++      .depthBounds = true,
+       .wideLines = true,
+       .largePoints = true,
+       .alphaToOne = PAN_ARCH >= 10,
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index 541dc99..b6f0a39 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -2372,8 +2372,8 @@ panvk_gpu_prerast_gs_passthrough_nir(const nir_shader_compiler_options *options,
+ #undef GS_PARAM
+ #endif
+ 
+-#if PAN_ARCH >= 9
+-/* The FS tests the depth bounds against the tile-resident depth. Lowered
++/* The FS tests the depth bounds against the tile-resident depth (LD_TILE
++ * with the Z/S message on Bifrost, jm-v7 015). Lowered
+  * whenever the test may be on: statically enabled, or dynamic.
+  */
+ static bool
+@@ -2467,7 +2467,6 @@ panvk_lower_depth_bounds(nir_shader *nir)
+    nir_progress(true, impl, nir_metadata_none);
+    return app_mask != NULL;
+ }
+-#endif
+ 
+ static void
+ panvk_hash_state(struct vk_physical_device *device,
+@@ -2503,9 +2502,9 @@ panvk_hash_state(struct vk_physical_device *device,
+       if (state->ial)
+          _mesa_blake3_update(&blake3_ctx, state->ial, sizeof(*state->ial));
+ 
+-#if PAN_ARCH >= 9
+       bool depth_bounds = panvk_depth_bounds_lowered(enabled_features, state);
+       _mesa_blake3_update(&blake3_ctx, &depth_bounds, sizeof(depth_bounds));
++#if PAN_ARCH >= 9
+       bool non_solid = (stages & VK_SHADER_STAGE_VERTEX_BIT) && state->rs &&
+                        state->rs->polygon_mode != VK_POLYGON_MODE_FILL;
+       _mesa_blake3_update(&blake3_ctx, &non_solid, sizeof(non_solid));
+@@ -4450,12 +4449,10 @@ panvk_compile_shader(struct panvk_device *dev,
+                &variant->fs.tile_image_z_read,
+                &variant->fs.tile_image_s_read);
+ 
+-#if PAN_ARCH >= 9
+       if (panvk_depth_bounds_lowered(&dev->vk.enabled_features, state)) {
+          variant->fs.depth_bounds_app_mask = panvk_lower_depth_bounds(nir);
+          variant->fs.depth_bounds = true;
+       }
+-#endif
+ 
+       /* Lower input intrinsics for fragment shaders early to get the max
+        * number of varying loads, as this number is required during descriptor
+@@ -5517,7 +5514,6 @@ static const struct vk_shader_ops panvk_shader_ops = {
+ VkResult
+ panvk_per_arch(create_depth_bounds_fs)(struct panvk_device *dev)
+ {
+-#if PAN_ARCH >= 9
+    if (!dev->vk.enabled_features.depthBounds)
+       return VK_SUCCESS;
+ 
+@@ -5542,7 +5538,6 @@ panvk_per_arch(create_depth_bounds_fs)(struct panvk_device *dev)
+ 
+    dev->depth_bounds_fs = container_of(shader, struct panvk_shader, vk);
+    dev->depth_bounds_fs->variants[0].fs.depth_bounds_only = true;
+-#endif
+    return VK_SUCCESS;
+ }
+ 
+-- 
+2.55.0
+
