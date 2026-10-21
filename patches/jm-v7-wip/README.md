@@ -203,3 +203,10 @@ The merged v7G tree (`/home/flux/src/mesa-v7G`, branch `v7G`) is the 197-patch b
 - Conflicts resolved (both sides kept): 0046 vs 0030 in `libpan/draw_helper.cl` (new kernels next to each other); 0049 vs 0030 in the `emit_gs_job()` push initializer (`.tess_params` next to the psiz/viewport fields).
 - 0020-0049 were regenerated with `git format-patch` from the v7G tree, so the files reproduce the tree exactly.
 - `PANVK_NULLIMG_INBOUNDS` defaults to 1 (0048); `PANVK_NULLIMG_INBOUNDS=0` restores the 0-byte null image.
+
+## v7G-A4 (2026-10-21): 0025-0029
+
+Made on top of the v7G tree HEAD (`121f9b1`, after 0049) in `/home/flux/src/mesa-v7fixA4` (branch `v7fixA4`), so they apply AFTER 0049 (`git am` 0025.. on the v7G tree), not in file order before 0030.
+
+- 0025 (jm-v7 026): xfb gl_CullDistance capture on v6/v7. The VS's CULL_DIST0/1 hold the FS kill flags (`panvk_lower_cull_dist_flags_intr()`), so jm-v7 023 captured 1/0 flags. A VS/TES whose xfb captures cull also writes the raw distances to TEX0/1 (`PANVK_XFB_RAW_CULL_SLOT0/1`), the passthrough captures them from there. PanProbe xfb vs_clip_cull_capture.
+- 0026 (jm-v7 027): tessellated draws up to 1 << 18 patches (was 8192, the serial prefix sum). Workgroup prefix sum in `panlib_v7_tess_prefix()`; direct draws size the tessellator grid for their own patches. PanProbe large_draw tess_*.
