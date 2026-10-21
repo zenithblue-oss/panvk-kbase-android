@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 typedef unsigned int uint;
 #define I(x) ((int)(x))
@@ -15,4 +16,6 @@ typedef unsigned int uint;
 #define clamp(x, a, b) ((x) < (a) ? (a) : ((x) > (b) ? (b) : (x)))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
+#define bitCount(x) __builtin_popcount(x)
+#define UNROLL
 #define PANVK_BC_C_TEST 1

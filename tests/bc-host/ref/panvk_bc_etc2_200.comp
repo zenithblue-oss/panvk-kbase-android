@@ -3,7 +3,8 @@
  * Copyright 2026 PanVK-kbase contributors
  * SPDX-License-Identifier: MIT
  *
- * BC1-BC5 -> ETC2/EAC transcoder for the BC lowmem path (csf-v11/197).
+ * BC1-BC5 -> ETC2/EAC transcoder for the BC lowmem path (csf-v11/197,
+ * sped up in csf-v11/198).
  *
  * One invocation per 4x4 block. The BC block is decoded exactly (same
  * arithmetic as panvk_bc_s3tc.comp / panvk_bc_rgtc.comp) and re-encoded:
@@ -17,16 +18,30 @@
  * The output goes straight into the U-interleaved shadow plane: 4x4-block
  * tiles, blocks inside a tile in the u-interleaved order of pan_tiling.c.
  *
+ * 198 keeps the 197 output bit-identical (tests/bc-host checks it on random
+ * and picture blocks) and cuts the work:
+ *  - one packed word per decoded texel (r, g, b, transparent, group) instead
+ *    of five int arrays (16 live registers instead of 80);
+ *  - BC palettes (4 colours, 8 RGTC values) decoded once per block, not per
+ *    texel;
+ *  - candidate colours / EAC values clamped once per table, not per texel;
+ *  - every search stops a candidate as soon as its partial error reaches the
+ *    best one, and stops searching once the error is 0 (all comparisons are
+ *    strict, so neither changes the winner);
+ * The workgroup size is a specialization constant (default 8x8).
+ *
  * The encoder is written in the GLSL subset that is also valid C (I()/U()/F()
  * casts, CARR tables, no out parameters) so it can be unit tested on the
- * host by including this file with PANVK_BC_C_TEST defined (skip line 1).
+ * host by including this file with PANVK_BC_C_TEST defined (skip line 1),
+ * see tests/bc-host in panvk-kbase-android.
  */
 
 #ifndef PANVK_BC_C_TEST
 #extension GL_EXT_buffer_reference : require
 #extension GL_EXT_buffer_reference_uvec2 : require
 
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1,
+       local_size_x_id = 0, local_size_y_id = 1) in;
 
 layout(buffer_reference, std430, buffer_reference_align = 4) readonly buffer InBuf {
     uint data[];
@@ -100,12 +115,12 @@ CARR(int, EAC_MOD, 128)
    -3, -5, -7, -9, 2, 4, 6, 8
 CEND
 
-/* Decoded block, pixel p = 4 * y + x. */
-GLOBAL int g_r[16];
-GLOBAL int g_g[16];
-GLOBAL int g_b[16];
-GLOBAL bool g_t[16];     /* transparent (BC1 punch-through) */
-GLOBAL int g_grp[16];    /* BC colour index group, seeds the H mode */
+/* Decoded block, pixel p = 4 * y + x: r | g << 8 | b << 16, bit 24 set for
+ * a transparent texel (BC1 punch-through), bit 25 for the BC colour index
+ * group (endpoint 1 side, seeds the H mode). */
+#define PX_T   0x1000000
+#define PX_GRP 0x2000000
+GLOBAL int g_px[16];
 GLOBAL int g_v[16];      /* EAC input, in the output domain */
 
 /* Results of the search helpers (no out parameters, see above). */
@@ -133,10 +148,36 @@ clamp255(int x)
 }
 
 int
-px_err(int p, int r, int g, int b)
+px_r(int p)
 {
-   return sq(clamp255(r) - g_r[p]) + sq(clamp255(g) - g_g[p]) +
-          sq(clamp255(b) - g_b[p]);
+   return g_px[p] & 255;
+}
+
+int
+px_g(int p)
+{
+   return (g_px[p] >> 8) & 255;
+}
+
+int
+px_b(int p)
+{
+   return (g_px[p] >> 16) & 255;
+}
+
+bool
+px_t(int p)
+{
+   return (g_px[p] & PX_T) != 0;
+}
+
+/* Error of texel p against an already clamped colour. */
+int
+px_err_c(int p, int r, int g, int b)
+{
+   int v = g_px[p];
+   return sq(r - (v & 255)) + sq(g - ((v >> 8) & 255)) +
+          sq(b - ((v >> 16) & 255));
 }
 
 uint
@@ -172,6 +213,10 @@ etc_sub_search(int sub, int flip, int br, int bg, int bb, bool punch)
    for (int t = 0; t < 8; t++) {
       int a = punch ? 0 : ETC1_A[t];
       int b = ETC1_B[t];
+      int c0r = clamp255(br + a), c0g = clamp255(bg + a), c0b = clamp255(bb + a);
+      int c1r = clamp255(br + b), c1g = clamp255(bg + b), c1b = clamp255(bb + b);
+      int c2r = clamp255(br - a), c2g = clamp255(bg - a), c2b = clamp255(bb - a);
+      int c3r = clamp255(br - b), c3g = clamp255(bg - b), c3b = clamp255(bb - b);
       int err = 0;
       uint bits = 0u;
 
@@ -182,11 +227,11 @@ etc_sub_search(int sub, int flip, int br, int bg, int bb, bool punch)
 
          int idx = 2;
          int e = 0;
-         if (!(punch && g_t[p])) {
-            int e0 = px_err(p, br + a, bg + a, bb + a);
-            int e1 = px_err(p, br + b, bg + b, bb + b);
-            int e2 = punch ? BIG_ERR : px_err(p, br - a, bg - a, bb - a);
-            int e3 = px_err(p, br - b, bg - b, bb - b);
+         if (!(punch && px_t(p))) {
+            int e0 = px_err_c(p, c0r, c0g, c0b);
+            int e1 = px_err_c(p, c1r, c1g, c1b);
+            int e2 = punch ? BIG_ERR : px_err_c(p, c2r, c2g, c2b);
+            int e3 = px_err_c(p, c3r, c3g, c3b);
             idx = 0;
             e = e0;
             if (e1 < e) { e = e1; idx = 1; }
@@ -195,12 +240,16 @@ etc_sub_search(int sub, int flip, int br, int bg, int bb, bool punch)
          }
          err += e;
          bits |= U(idx) << U(2 * p);
+         if (err >= best)
+            break;
       }
 
       if (err < best) {
          best = err;
          g_sub_t = t;
          g_sub_bits = bits;
+         if (best == 0)
+            break;
       }
    }
    return best;
@@ -214,13 +263,13 @@ etc_try_flip(int flip, bool punch_fmt, bool transparent)
    int sr1 = 0, sg1 = 0, sb1 = 0, n1 = 0;
 
    for (int p = 0; p < 16; p++) {
-      if (transparent && g_t[p])
+      if (transparent && px_t(p))
          continue;
       int s = (flip != 0) ? ((p >> 2) >= 2 ? 1 : 0) : ((p & 3) >= 2 ? 1 : 0);
       if (s == 0) {
-         sr0 += g_r[p]; sg0 += g_g[p]; sb0 += g_b[p]; n0++;
+         sr0 += px_r(p); sg0 += px_g(p); sb0 += px_b(p); n0++;
       } else {
-         sr1 += g_r[p]; sg1 += g_g[p]; sb1 += g_b[p]; n1++;
+         sr1 += px_r(p); sg1 += px_g(p); sb1 += px_b(p); n1++;
       }
    }
    n0 = max(n0, 1);
@@ -301,18 +350,19 @@ etc_force_overflow(uint byte_v)
 }
 
 /* H mode: two 444 base colours +- a distance. Seeds the two colours with
- * the BC colour index groups (endpoint 0 side, endpoint 1 side). */
+ * the BC colour index groups (endpoint 0 side, endpoint 1 side). Only tried
+ * when it can beat 'limit'. */
 int
-etc_try_h(bool punch_fmt)
+etc_try_h(bool punch_fmt, int limit)
 {
    int s0r = 0, s0g = 0, s0b = 0, n0 = 0;
    int s1r = 0, s1g = 0, s1b = 0, n1 = 0;
 
    for (int p = 0; p < 16; p++) {
-      if (g_grp[p] == 0) {
-         s0r += g_r[p]; s0g += g_g[p]; s0b += g_b[p]; n0++;
+      if ((g_px[p] & PX_GRP) == 0) {
+         s0r += px_r(p); s0g += px_g(p); s0b += px_b(p); n0++;
       } else {
-         s1r += g_r[p]; s1g += g_g[p]; s1b += g_b[p]; n1++;
+         s1r += px_r(p); s1g += px_g(p); s1b += px_b(p); n1++;
       }
    }
    if (n0 == 0 || n1 == 0)
@@ -327,7 +377,9 @@ etc_try_h(bool punch_fmt)
    int v0 = (q0r << 8) | (q0g << 4) | q0b;
    int v1 = (q1r << 8) | (q1g << 4) | q1b;
 
-   int best = BIG_ERR, best_di = 0;
+   /* The caller only takes a strictly smaller error: candidates are cut
+    * at 'limit' just like at the best H distance so far. */
+   int best = limit, best_di = -1;
    bool best_swap = false;
    uint best_bits = 0u;
 
@@ -342,29 +394,37 @@ etc_try_h(bool punch_fmt)
       int cr = (swap ? q0r : q1r) * 17, cg = (swap ? q0g : q1g) * 17,
           cb = (swap ? q0b : q1b) * 17;
       int d = ETC_H_DIST[di];
+      int c0r = clamp255(ar + d), c0g = clamp255(ag + d), c0b = clamp255(ab + d);
+      int c1r = clamp255(ar - d), c1g = clamp255(ag - d), c1b = clamp255(ab - d);
+      int c2r = clamp255(cr + d), c2g = clamp255(cg + d), c2b = clamp255(cb + d);
+      int c3r = clamp255(cr - d), c3g = clamp255(cg - d), c3b = clamp255(cb - d);
       int err = 0;
       uint bits = 0u;
 
       for (int p = 0; p < 16; p++) {
-         int e0 = px_err(p, ar + d, ag + d, ab + d);
-         int e1 = px_err(p, ar - d, ag - d, ab - d);
-         int e2 = px_err(p, cr + d, cg + d, cb + d);
-         int e3 = px_err(p, cr - d, cg - d, cb - d);
+         int e0 = px_err_c(p, c0r, c0g, c0b);
+         int e1 = px_err_c(p, c1r, c1g, c1b);
+         int e2 = px_err_c(p, c2r, c2g, c2b);
+         int e3 = px_err_c(p, c3r, c3g, c3b);
          int idx = 0, e = e0;
          if (e1 < e) { e = e1; idx = 1; }
          if (e2 < e) { e = e2; idx = 2; }
          if (e3 < e) { e = e3; idx = 3; }
          err += e;
          bits |= U(idx) << U(2 * p);
+         if (err >= best)
+            break;
       }
       if (err < best) {
          best = err;
          best_di = di;
          best_swap = swap;
          best_bits = bits;
+         if (best == 0)
+            break;
       }
    }
-   if (best == BIG_ERR)
+   if (best_di < 0)
       return BIG_ERR;
 
    uint r1 = U(best_swap ? q1r : q0r), g1 = U(best_swap ? q1g : q0g),
@@ -404,7 +464,7 @@ etc_planar_err(int o_r, int o_g, int o_b, int h_r, int h_g, int h_b, int v_r,
       int r = (x * (h_r - o_r) + y * (v_r - o_r) + 4 * o_r + 2) >> 2;
       int g = (x * (h_g - o_g) + y * (v_g - o_g) + 4 * o_g + 2) >> 2;
       int b = (x * (h_b - o_b) + y * (v_b - o_b) + 4 * o_b + 2) >> 2;
-      err += px_err(p, r, g, b);
+      err += px_err_c(p, clamp255(r), clamp255(g), clamp255(b));
    }
    return err;
 }
@@ -418,9 +478,10 @@ etc_try_planar()
 
    for (int p = 0; p < 16; p++) {
       float dx = F(p & 3) - 1.5, dy = F(p >> 2) - 1.5;
-      mr += F(g_r[p]); mg += F(g_g[p]); mb += F(g_b[p]);
-      xr += dx * F(g_r[p]); xg += dx * F(g_g[p]); xb += dx * F(g_b[p]);
-      yr += dy * F(g_r[p]); yg += dy * F(g_g[p]); yb += dy * F(g_b[p]);
+      float r = F(px_r(p)), g = F(px_g(p)), b = F(px_b(p));
+      mr += r; mg += g; mb += b;
+      xr += dx * r; xg += dx * g; xb += dx * b;
+      yr += dy * r; yg += dy * g; yb += dy * b;
    }
    /* c(x, y) = a + bx x + by y; sum (x - 1.5)^2 over the block is 20. */
    float bxr = xr / 20.0, bxg = xg / 20.0, bxb = xb / 20.0;
@@ -461,15 +522,14 @@ etc_try_planar()
    return err;
 }
 
-/* ETC2 RGB8 / RGB8A1 block for g_r/g_g/g_b (g_t, g_grp). Result in
- * g_w0/g_w1. */
+/* ETC2 RGB8 / RGB8A1 block for g_px. Result in g_w0/g_w1. */
 void
 etc2_encode_rgb(bool punch_fmt, uint opts)
 {
    bool transparent = false;
    if (punch_fmt) {
       for (int p = 0; p < 16; p++)
-         transparent = transparent || g_t[p];
+         transparent = transparent || px_t(p);
    }
 
    int best = etc_try_flip(0, punch_fmt, transparent);
@@ -482,7 +542,7 @@ etc2_encode_rgb(bool punch_fmt, uint opts)
    }
    /* H and planar have no transparent texels. */
    if (!transparent && best > 0 && (opts & OPT_HMODE) != 0u) {
-      e = etc_try_h(punch_fmt);
+      e = etc_try_h(punch_fmt, best);
       if (e < best) { best = e; w0 = g_w0; w1 = g_w1; }
    }
    if (!transparent && best > 0 && (opts & OPT_PLANAR) != 0u) {
@@ -522,7 +582,7 @@ eac_encode(int kind, uint opts)
    int best_base = 0, best_mult = 1, best_t = 0;
    uint best_hi = 0u, best_lo = 0u;
 
-   for (int t = 0; t < 16; t++) {
+   for (int t = 0; t < 16 && best > 0; t++) {
       int m3 = EAC_MOD[t * 8 + 3], m7 = EAC_MOD[t * 8 + 7];
       int mult = clamp(rnd(F(hi - lo) / F(scale * (m7 - m3))), 1, 15);
       float center = 0.5 * F(lo + hi) - 0.5 * F((m3 + m7) * mult * scale);
@@ -530,18 +590,30 @@ eac_encode(int kind, uint opts)
          center -= 4.0;
       int base0 = rnd(center / F(scale));
 
-      for (int k = 0; k < nb; k++) {
+      for (int k = 0; k < nb && best > 0; k++) {
          int base = clamp(base0 + (k == 1 ? 1 : (k == 2 ? -1 : 0)), bmin, bmax);
+         /* The 8 reconstructed values of this (table, base, mult). */
+         int q0 = eac_value(kind, base, mult, EAC_MOD[t * 8 + 0]);
+         int q1 = eac_value(kind, base, mult, EAC_MOD[t * 8 + 1]);
+         int q2 = eac_value(kind, base, mult, EAC_MOD[t * 8 + 2]);
+         int q3 = eac_value(kind, base, mult, EAC_MOD[t * 8 + 3]);
+         int q4 = eac_value(kind, base, mult, EAC_MOD[t * 8 + 4]);
+         int q5 = eac_value(kind, base, mult, EAC_MOD[t * 8 + 5]);
+         int q6 = eac_value(kind, base, mult, EAC_MOD[t * 8 + 6]);
+         int q7 = eac_value(kind, base, mult, EAC_MOD[t * 8 + 7]);
          int err = 0;
          uint ihi = 0u, ilo = 0u;
 
          for (int p = 0; p < 16; p++) {
-            int be = BIG_ERR, bi = 0;
-            for (int i = 0; i < 8; i++) {
-               int e = sq(eac_value(kind, base, mult, EAC_MOD[t * 8 + i]) -
-                          g_v[p]);
-               if (e < be) { be = e; bi = i; }
-            }
+            int v = g_v[p];
+            int be = sq(q0 - v), bi = 0, e;
+            e = sq(q1 - v); if (e < be) { be = e; bi = 1; }
+            e = sq(q2 - v); if (e < be) { be = e; bi = 2; }
+            e = sq(q3 - v); if (e < be) { be = e; bi = 3; }
+            e = sq(q4 - v); if (e < be) { be = e; bi = 4; }
+            e = sq(q5 - v); if (e < be) { be = e; bi = 5; }
+            e = sq(q6 - v); if (e < be) { be = e; bi = 6; }
+            e = sq(q7 - v); if (e < be) { be = e; bi = 7; }
             err += be;
             /* Pixel (x, y) is the 3-bit field at 45 - 3 (4x + y). */
             int pos = 45 - 3 * ((p & 3) * 4 + (p >> 2));
@@ -552,6 +624,8 @@ eac_encode(int kind, uint opts)
                if (pos + 3 > 32)
                   ihi |= U(bi) >> U(32 - pos);
             }
+            if (err >= best)
+               break;
          }
          if (err < best) {
             best = err;
@@ -580,7 +654,14 @@ unorm8(float f)
    return clamp(rnd(f * 255.0), 0, 255);
 }
 
-/* BC1 colour block (words c0, c1) into g_r/g_g/g_b/g_t/g_grp. */
+int
+pack_px(float r, float g, float b)
+{
+   return unorm8(r) | (unorm8(g) << 8) | (unorm8(b) << 16);
+}
+
+/* BC1 colour block (words c0, c1) into g_px. The palette is decoded once:
+ * every entry is the same expression the per-texel decode evaluated. */
 void
 bc_decode_color(uint c0w, uint c1w, bool four)
 {
@@ -591,36 +672,37 @@ bc_decode_color(uint c0w, uint c1w, bool four)
    float r1 = F((e1 >> 11) & 31u) / 31.0, g1 = F((e1 >> 5) & 63u) / 63.0,
          b1 = F(e1 & 31u) / 31.0;
 
-   for (int p = 0; p < 16; p++) {
-      int bits = I((c1w >> U(2 * p)) & 3u);
-      float r, g, b;
-      bool t = false;
+   float f2 = opaque ? (1.0 / 3.0) * F(1) : 0.5;
+   float f3 = (1.0 / 3.0) * F(2);
+   int pal0 = pack_px(r0 + (r1 - r0) * 0.0, g0 + (g1 - g0) * 0.0,
+                      b0 + (b1 - b0) * 0.0);
+   int pal1 = pack_px(r0 + (r1 - r0) * 1.0, g0 + (g1 - g0) * 1.0,
+                      b0 + (b1 - b0) * 1.0) | PX_GRP;
+   int pal2 = pack_px(r0 + (r1 - r0) * f2, g0 + (g1 - g0) * f2,
+                      b0 + (b1 - b0) * f2) | (opaque ? 0 : PX_GRP);
+   int pal3 = opaque ? (pack_px(r0 + (r1 - r0) * f3, g0 + (g1 - g0) * f3,
+                                b0 + (b1 - b0) * f3) | PX_GRP)
+                     : (PX_T | PX_GRP);
 
-      if (opaque) {
-         float f = bits == 0 ? 0.0 : (bits == 1 ? 1.0 : (1.0 / 3.0) * F(bits - 1));
-         r = r0 + (r1 - r0) * f;
-         g = g0 + (g1 - g0) * f;
-         b = b0 + (b1 - b0) * f;
-      } else if (bits == 3) {
-         r = 0.0; g = 0.0; b = 0.0;
-         t = true;
-      } else {
-         float f = bits == 0 ? 0.0 : (bits == 1 ? 1.0 : 0.5);
-         r = r0 + (r1 - r0) * f;
-         g = g0 + (g1 - g0) * f;
-         b = b0 + (b1 - b0) * f;
-      }
-      g_r[p] = unorm8(r);
-      g_g[p] = unorm8(g);
-      g_b[p] = unorm8(b);
-      g_t[p] = t;
-      /* Endpoint 0 side: index 0 and, in 4-colour mode, 2. */
-      g_grp[p] = (bits == 0 || (opaque && bits == 2)) ? 0 : 1;
+   for (int p = 0; p < 16; p++) {
+      uint bits = (c1w >> U(2 * p)) & 3u;
+      g_px[p] = bits == 0u ? pal0 : (bits == 1u ? pal1 : (bits == 2u ? pal2 : pal3));
    }
 }
 
 /* RGTC/BC3 alpha channel (words a0, a1) as floats in [0, 1] / [-1, 1],
- * converted to the EAC domain of 'kind'. */
+ * converted to the EAC domain of 'kind'. The 8 palette values are decoded
+ * once, with the per-texel expressions of the exact decoder. */
+int
+rgtc_out(float res, int kind)
+{
+   if (kind == 0)
+      return unorm8(res);
+   if (kind == 1)
+      return clamp(rnd(res * 2047.0), 0, 2047);
+   return clamp(rnd(res * 1023.0), -1023, 1023);
+}
+
 void
 bc_decode_rgtc(uint a0w, uint a1w, bool snorm, int kind)
 {
@@ -634,6 +716,25 @@ bc_decode_rgtc(uint a0w, uint a1w, bool snorm, int kind)
    }
    bool range7 = ep0 > ep1;
 
+   int pv0 = rgtc_out(ep0, kind);
+   int pv1 = rgtc_out(ep1, kind);
+   int pv2, pv3, pv4, pv5, pv6, pv7;
+   if (range7) {
+      pv2 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 7.0) * F(1u)), kind);
+      pv3 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 7.0) * F(2u)), kind);
+      pv4 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 7.0) * F(3u)), kind);
+      pv5 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 7.0) * F(4u)), kind);
+      pv6 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 7.0) * F(5u)), kind);
+      pv7 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 7.0) * F(6u)), kind);
+   } else {
+      pv2 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 5.0) * F(1u)), kind);
+      pv3 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 5.0) * F(2u)), kind);
+      pv4 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 5.0) * F(3u)), kind);
+      pv5 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 5.0) * F(4u)), kind);
+      pv6 = rgtc_out(snorm ? -1.0 : 0.0, kind);
+      pv7 = rgtc_out(1.0, kind);
+   }
+
    for (int p = 0; p < 16; p++) {
       int off = 16 + 3 * p;
       uint bits;
@@ -644,22 +745,10 @@ bc_decode_rgtc(uint a0w, uint a1w, bool snorm, int kind)
       else
          bits = (a0w >> 31) | ((a1w & 3u) << 1);
 
-      float res;
-      if (bits < 2u)
-         res = bits != 0u ? ep1 : ep0;
-      else if (range7)
-         res = ep0 + (ep1 - ep0) * ((1.0 / 7.0) * F(bits - 1u));
-      else if (bits > 5u)
-         res = snorm ? (bits == 6u ? -1.0 : 1.0) : F(bits & 1u);
-      else
-         res = ep0 + (ep1 - ep0) * ((1.0 / 5.0) * F(bits - 1u));
-
-      if (kind == 0)
-         g_v[p] = unorm8(res);
-      else if (kind == 1)
-         g_v[p] = clamp(rnd(res * 2047.0), 0, 2047);
-      else
-         g_v[p] = clamp(rnd(res * 1023.0), -1023, 1023);
+      int v = bits < 4u
+                 ? (bits < 2u ? (bits == 0u ? pv0 : pv1) : (bits == 2u ? pv2 : pv3))
+                 : (bits < 6u ? (bits == 4u ? pv4 : pv5) : (bits == 6u ? pv6 : pv7));
+      g_v[p] = v;
    }
 }
 

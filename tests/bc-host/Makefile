@@ -1,32 +1,39 @@
 # Host tests of the panvk BC transcoder shaders (bodies compiled as C).
 #   make MESA=/path/to/patched/mesa         build
 #   make run                                run all checks
+#   make lut                                regenerate EAC_TM_LUT (stdout)
 MESA ?= /home/flux/src/mesa-lowmem
 BC = $(MESA)/src/panfrost/vulkan/bc
 CFLAGS ?= -O2 -g
 CFLAGS += -I. -Iref -Wall -Wno-unused-function -Wno-unused-variable
 ASTCENC ?=
 
-all: test_etc2 bench_etc2
+all: test_etc2 bench_etc2 gen_eac_lut
 astc: test_astc
 
 etc2_new.h: $(BC)/panvk_bc_etc2.comp
 	tail -n +2 $< > $@
-etc2_197.h: ref/panvk_bc_etc2_197.comp
+etc2_200.h: ref/panvk_bc_etc2_200.comp
 	tail -n +2 $< > $@
 
 xc_new.o: xc_wrap.c etc2_new.h
-	$(CC) $(CFLAGS) -DXC_BODY='"etc2_new.h"' -DXC_FN=xc_new -c $< -o $@
-	objcopy --keep-global-symbol=xc_new $@
-xc_old.o: xc_wrap.c etc2_197.h
-	$(CC) $(CFLAGS) -DXC_BODY='"etc2_197.h"' -DXC_FN=xc_old -c $< -o $@
+	$(CC) $(CFLAGS) -DXC_NEW -DXC_BODY='"etc2_new.h"' -DXC_FN=xc_new -c $< -o $@
+	objcopy --keep-global-symbol=xc_new --keep-global-symbol=xc_new_dec $@
+xc_old.o: xc_wrap.c etc2_200.h
+	$(CC) $(CFLAGS) -DXC_BODY='"etc2_200.h"' -DXC_FN=xc_old -c $< -o $@
 	objcopy --keep-global-symbol=xc_old $@
 
-bench_etc2: bench_etc2.c xc_new.o xc_old.o pics.h
+bench_etc2: bench_etc2.c xc_new.o xc_old.o pics.h etc_ref.h
 	$(CC) $(CFLAGS) $< xc_new.o xc_old.o -lm -o $@
 
-test_etc2: test_etc2.c etc2_new.h pics.h
+test_etc2: test_etc2.c etc2_new.h pics.h etc_ref.h
 	$(CC) $(CFLAGS) $< -lm -o $@
+
+gen_eac_lut: gen_eac_lut.c etc2_new.h
+	$(CC) $(CFLAGS) $< -lm -o $@
+
+lut: gen_eac_lut
+	./gen_eac_lut
 
 # BC6H -> ASTC HDR test: needs the ARM astc-encoder sources (ASTCENC=dir of
 # a checkout, e.g. tag 4.8.0); the core codec is built into libastcenc.a.
@@ -51,4 +58,4 @@ run: all
 	./bench_etc2
 
 clean:
-	rm -rf *.o etc2_new.h etc2_197.h test_etc2 bench_etc2 test_astc libastcenc.a astcenc-obj
+	rm -rf *.o etc2_new.h etc2_200.h test_etc2 bench_etc2 gen_eac_lut test_astc libastcenc.a astcenc-obj

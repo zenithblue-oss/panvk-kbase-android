@@ -1,5 +1,6 @@
-/* Host test of panvk_bc_etc2.comp (csf-v11/197, 198): bitstream check against Mesa's ETC2/EAC
- * decoder (texcompress_etc.c) and transcode PSNR vs exact BC decode. */
+/* Host test of panvk_bc_etc2.comp (csf-v11/197, palette encoder of 200):
+ * bitstream checks against Mesa's ETC2/EAC decoder (texcompress_etc.c) and
+ * transcode PSNR against the exact BC decode on the test pictures. */
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -10,133 +11,151 @@
 #include "c_subset.h"
 #include "etc2_new.h"
 #include "pics.h"
-
-/* Mesa reference decoder. */
-typedef unsigned GLuint;
-typedef short GLshort;
-typedef unsigned short GLushort;
-typedef int GLint;
-typedef signed char GLbyte;
-typedef bool GLboolean;
-#define TAG(x) x
-#define UINT8_TYPE uint8_t
-#define UNREACHABLE(x) abort()
-#define CLAMP(x, a, b) clamp(x, a, b)
-#include "ref_etc1.h"
-#include "ref_etc2a.h"
-#include "ref_etc2b.h"
-
-static void
-words_to_bytes(uint w0, uint w1, uint8_t *b)
-{
-   for (int i = 0; i < 4; i++) {
-      b[i] = (w0 >> (8 * i)) & 0xff;
-      b[4 + i] = (w1 >> (8 * i)) & 0xff;
-   }
-}
-
-/* Mesa decode of an RGB(A1) block, error vs g_r/g_g/g_b (+ transparency). */
-static int
-ref_rgb_err(uint w0, uint w1, bool punch, int *mode_out, int *alpha_bad)
-{
-   uint8_t b[8];
-   struct etc2_block blk;
-   memset(&blk, 0, sizeof(blk));
-   words_to_bytes(w0, w1, b);
-   etc2_rgb8_parse_block(&blk, b, punch);
-   *mode_out = blk.is_ind_mode ? 0 : blk.is_diff_mode ? 1 : blk.is_t_mode ? 2 :
-               blk.is_h_mode ? 3 : 4;
-   int err = 0;
-   *alpha_bad = 0;
-   for (int p = 0; p < 16; p++) {
-      uint8_t d[4] = {0, 0, 0, 255};
-      etc2_rgb8_fetch_texel(&blk, p & 3, p >> 2, d, punch);
-      if (punch) {
-         bool t = d[3] == 0;
-         if (t != px_t(p))
-            (*alpha_bad)++;
-         if (t)
-            continue;
-      }
-      err += sq(d[0] - px_r(p)) + sq(d[1] - px_g(p)) + sq(d[2] - px_b(p));
-   }
-   return err;
-}
-
-static int
-ref_eac_err(uint w0, uint w1, int kind, double *sse_norm)
-{
-   uint8_t b[8];
-   struct etc2_block blk;
-   memset(&blk, 0, sizeof(blk));
-   words_to_bytes(w0, w1, b);
-   etc2_alpha8_parse_block(&blk, b);
-   int err = 0;
-   for (int p = 0; p < 16; p++) {
-      int x = p & 3, y = p >> 2;
-      int v;
-      if (kind == 0) {
-         uint8_t d[4];
-         etc2_alpha8_fetch_texel(&blk, x, y, d);
-         v = d[3];
-      } else {
-         /* Undo Mesa's bit replication to get the 11-bit value. */
-         int idx = etc2_get_pixel_index(&blk, x, y);
-         int mod = etc2_modifier_tables[blk.table_index][idx];
-         if (kind == 1) {
-            v = blk.multiplier ? etc2_clamp2(((blk.base_codeword << 3) | 4) + ((mod * blk.multiplier) << 3))
-                               : etc2_clamp2(((blk.base_codeword << 3) | 4) + mod);
-            uint8_t d[2];
-            etc2_r11_fetch_texel(&blk, x, y, d);
-         } else {
-            GLbyte bc = (GLbyte)blk.base_codeword;
-            if (bc == -128)
-               bc = -127;
-            v = blk.multiplier ? etc2_clamp3((bc << 3) + ((mod * blk.multiplier) << 3))
-                               : etc2_clamp3((bc << 3) + mod);
-         }
-      }
-      err += sq(v - g_v[p]);
-   }
-   double scale = kind == 0 ? 1.0 : kind == 1 ? 255.0 / 2047.0 : 127.5 / 1023.0;
-   *sse_norm = err * scale * scale;
-   return err;
-}
+#include "etc_ref.h"
 
 static int fails;
+#define FAIL(...)                                                            \
+   do {                                                                      \
+      if (fails++ < 20)                                                      \
+         printf(__VA_ARGS__);                                                \
+   } while (0)
+
+/* Error of an ETC2 RGB block against the BC1 palette decode (g_c*, g_ci);
+ * *abad: transparency mismatches (RGB8A1). */
+static int
+rgb_err(uint w0, uint w1, bool punch, int *mode, int *abad)
+{
+   int rgb[16][3];
+   bool tr[16];
+   ref_rgb(w0, w1, punch, rgb, tr, mode);
+   int err = 0;
+   *abad = 0;
+   for (int p = 0; p < 16; p++) {
+      int k = (g_ci >> (2 * p)) & 3;
+      bool t = punch && g_c3t && k == 3;
+      if (punch && t != tr[p])
+         (*abad)++;
+      if (t)
+         continue;
+      int c = pal_c(k);
+      err += sq(rgb[p][0] - c_r(c)) + sq(rgb[p][1] - c_g(c)) + sq(rgb[p][2] - c_b(c));
+   }
+   return err;
+}
+
+/* Error of an EAC block against the RGTC palette decode (or BC2 values). */
+static int
+eac_err(uint w0, uint w1, int kind, const int *bc2)
+{
+   int v[16], err = 0;
+   ref_eac(w0, w1, kind, v);
+   for (int p = 0; p < 16; p++)
+      err += sq(v[p] - (bc2 ? bc2[p] : pv(texel_bi(p))));
+   return err;
+}
 
 static void
-check_rgb_modes(bool punch_fmt, uint opts)
+check_bits(void)
 {
-   bool transparent = false;
-   for (int p = 0; p < 16; p++)
-      transparent |= punch_fmt && px_t(p);
-   int mode, abad;
-   for (int flip = 0; flip < 2; flip++) {
-      int e = etc_try_flip(flip, punch_fmt, transparent);
-      int r = ref_rgb_err(g_w0, g_w1, punch_fmt, &mode, &abad);
-      if (e != r || abad || mode > 1) {
-         if (fails++ < 10)
-            printf("FAIL flip%d punch=%d tr=%d enc=%d ref=%d mode=%d abad=%d\n",
-                   flip, punch_fmt, transparent, e, r, mode, abad);
+   for (uint x = 0; x < 65536; x++) {
+      uint t = 0;
+      for (int b = 0; b < 16; b++)
+         if (x & (1u << b))
+            t |= 1u << ((b & 3) * 4 + (b >> 2));
+      if (transpose4(x) != t)
+         FAIL("FAIL transpose4(%#x) = %#x, want %#x\n", x, transpose4(x), t);
+      uint s = 0;
+      for (int b = 0; b < 16; b++)
+         s |= ((x >> b) & 1u) << (2 * b);
+      if (compact_even(s | (rnd32() & 0xaaaaaaaau)) != x)
+         FAIL("FAIL compact_even(%#x)\n", s);
+   }
+}
+
+static uint
+rnd_bc1(int it)
+{
+   uint w0 = rnd32();
+   if (it & 1) /* close endpoints */
+      w0 = (w0 & 0xffff) | ((((w0 & 0xffff) + (rnd32() % 64) - 32) & 0xffff) << 16);
+   return w0;
+}
+
+/* Every RGB mode, its bitstream, and the error the encoder reports. */
+static void
+check_rgb(void)
+{
+   const uint optset[3] = {0x30000, 0xf0000, 0};
+   for (int it = 0; it < 40000; it++) {
+      uint w0 = rnd_bc1(it), w1 = rnd32();
+      bc_decode_color(w0, w1, false);
+      for (int punch = 0; punch < 2; punch++) {
+         uint tm = (punch && g_c3t) ? pal_mask(3) : 0u;
+         bool transparent = tm != 0;
+         int mode, abad;
+         for (int flip = 0; flip < 2; flip++) {
+            int e = etc_try_flip(flip, punch, transparent, tm, 0x30000);
+            int r = rgb_err(g_w0, g_w1, punch, &mode, &abad);
+            if (e != r || abad || mode > 1)
+               FAIL("FAIL flip%d punch=%d tr=%d enc=%d ref=%d mode=%d abad=%d\n",
+                    flip, punch, transparent, e, r, mode, abad);
+         }
+         if (!transparent) {
+            int e = etc_try_h();
+            if (e != BIG_ERR) {
+               int r = rgb_err(g_w0, g_w1, punch, &mode, &abad);
+               if (e != r || mode != 3 || abad)
+                  FAIL("FAIL H punch=%d enc=%d ref=%d mode=%d\n", punch, e, r, mode);
+            }
+            etc_try_planar();
+            rgb_err(g_w0, g_w1, punch, &mode, &abad);
+            if (mode != 4 || abad)
+               FAIL("FAIL planar punch=%d mode=%d\n", punch, mode);
+         }
+         for (int o = 0; o < 3; o++) {
+            int e = etc2_encode_rgb(punch, optset[o]);
+            int r = rgb_err(g_w0, g_w1, punch, &mode, &abad);
+            if ((g_exact && e != r) || abad)
+               FAIL("FAIL rgb punch=%d opts=%#x enc=%d ref=%d abad=%d\n", punch,
+                    optset[o], e, r, abad);
+         }
       }
    }
-   if (transparent)
-      return;
-   int e = etc_try_h(punch_fmt, BIG_ERR);
-   if (e != BIG_ERR) {
-      int r = ref_rgb_err(g_w0, g_w1, punch_fmt, &mode, &abad);
-      if (e != r || mode != 3 || abad) {
-         if (fails++ < 10)
-            printf("FAIL H punch=%d enc=%d ref=%d mode=%d\n", punch_fmt, e, r, mode);
+}
+
+/* EAC: the error the encoder reports is the Mesa decode's, every kind. */
+static void
+check_eac(void)
+{
+   for (int it = 0; it < 40000; it++) {
+      uint w0 = rnd32(), w1 = rnd32();
+      if (it & 1) /* close endpoints */
+         w0 = (w0 & 0xffff00ffu) | ((((w0 & 0xff) + (rnd32() % 16) - 8) & 0xff) << 8);
+      for (int kind = 0; kind < 3; kind++) {
+         bc_decode_rgtc(w0, w1, kind == 2, kind);
+         int tm = eac_encode_pal(kind, it & 2 ? 0x230000 : 0x30000);
+         int e = g_sub_t;
+         eac_emit(tm);
+         int r = eac_err(g_w0, g_w1, kind, NULL);
+         if (e != r)
+            FAIL("FAIL eac kind=%d enc=%d ref=%d\n", kind, e, r);
       }
+      int v[16];
+      for (int p = 0; p < 16; p++)
+         v[p] = bc2_v(w0, w1, p);
+      int tm = eac_encode_bc2(w0, w1);
+      int e = g_sub_t;
+      eac_emit(tm);
+      int r = eac_err(g_w0, g_w1, 0, v);
+      if (e != r)
+         FAIL("FAIL eac bc2 enc=%d ref=%d\n", e, r);
    }
-   e = etc_try_planar();
-   int r = ref_rgb_err(g_w0, g_w1, punch_fmt, &mode, &abad);
-   if (e != r || mode != 4 || abad) {
-      if (fails++ < 10)
-         printf("FAIL planar punch=%d enc=%d ref=%d mode=%d\n", punch_fmt, e, r, mode);
-   }
+}
+
+static double
+psnr(double sse, double n)
+{
+   return sse > 0 ? 10 * log10(255.0 * 255.0 / (sse / n)) : 99.0;
 }
 
 int
@@ -144,108 +163,76 @@ main(int argc, char **argv)
 {
    uint opts = argc > 1 ? strtoul(argv[1], NULL, 0) : 0x30000;
 
-   /* 1. Bitstream: random BC1/BC1A/BC4/BC5 blocks, every mode checked. */
-   for (int it = 0; it < 20000; it++) {
-      uint w0 = rnd32(), w1 = rnd32();
-      if (it & 1)
-         w0 = (w0 & 0xffff) | ((w0 & 0xffff) + (rnd32() % 64) - 32) << 16;
-      bc_decode_color(w0, w1, false);
-      check_rgb_modes(false, opts);
-      check_rgb_modes(true, opts);
-      for (int kind = 0; kind < 3; kind++) {
-         bc_decode_rgtc(w0, w1, kind == 2, kind);
-         double sn;
-         int nb = 2;
-         for (int k = 0; k < nb; k++) {
-            eac_encode(kind, k ? opts | OPT_EAC_REFINE : opts);
-            /* Re-derive the encoder's error. */
-            int r = ref_eac_err(g_w0, g_w1, kind, &sn);
-            (void)r;
-         }
-      }
-   }
+   check_bits();
+   check_rgb();
+   check_eac();
+   printf("bitstream checks: fails=%d\n", fails);
 
-   /* EAC exactness: encoder error must match Mesa's decode. */
-   for (int it = 0; it < 20000; it++) {
-      uint w0 = rnd32(), w1 = rnd32();
-      for (int kind = 0; kind < 3; kind++) {
-         bc_decode_rgtc(w0, w1, kind == 2, kind);
-         eac_encode(kind, opts);
-         uint a = g_w0, b = g_w1;
-         /* Brute-force error of the emitted block with our model. */
-         uint8_t bytes[8];
-         words_to_bytes(a, b, bytes);
-         int base = kind == 2 ? (int)(signed char)bytes[0] : bytes[0];
-         int mult = bytes[1] >> 4, t = bytes[1] & 15;
-         uint64_t idx = 0;
-         for (int i = 2; i < 8; i++) idx = (idx << 8) | bytes[i];
-         int e_model = 0;
-         for (int p = 0; p < 16; p++) {
-            int pos = ((3 - (p >> 2)) + (3 - (p & 3)) * 4) * 3;
-            int m = EAC_MOD[t * 8 + ((idx >> pos) & 7)];
-            e_model += sq(eac_value(kind, base, mult, m) - g_v[p]);
-         }
-         double sn;
-         int r = ref_eac_err(a, b, kind, &sn);
-         if (r != e_model) {
-            if (fails++ < 20)
-               printf("FAIL eac kind=%d model=%d ref=%d\n", kind, e_model, r);
-         }
-      }
-   }
-
-   /* 2. Quality on a synthetic picture, 512x512. */
+   /* Quality on the synthetic pictures, 512x512 each. */
    const int W = 512;
-   double sse_rgb[2] = {0, 0}, sse_eac[3] = {0, 0, 0}, sse_a = 0;
-   int modes[5] = {0};
-   long n = 0;
-   for (int by = 0; by < W / 4; by++)
-      for (int bx = 0; bx < W / 4; bx++) {
-         int rgb[16][3], v[16];
-         for (int p = 0; p < 16; p++) {
-            int x = bx * 4 + (p & 3), y = by * 4 + (p >> 2);
-            for (int c = 0; c < 3; c++) rgb[p][c] = pic(0, x, y, c);
-            v[p] = pic(0, x, y, 3);
-         }
-         uint c0, c1, a0, a1;
-         bc1_enc(rgb, &c0, &c1);
-         bc4_enc(v, &a0, &a1);
-         n += 16;
+   printf("opts=%#x, PSNR vs the exact BC decode (dB):\n", opts);
+   printf("%-5s %8s %8s %8s %8s %8s %8s\n", "pic", "BC1", "BC1A", "BC2 a", "BC3 a",
+          "BC4 U", "BC4 S");
+   for (int kind = 0; kind < 4; kind++) {
+      double sse[6] = {0};
+      int modes[5] = {0};
+      long n = 0;
+      for (int by = 0; by < W / 4; by++)
+         for (int bx = 0; bx < W / 4; bx++) {
+            int rgb[16][3], v[16];
+            for (int p = 0; p < 16; p++) {
+               int x = bx * 4 + (p & 3), y = by * 4 + (p >> 2);
+               for (int c = 0; c < 3; c++)
+                  rgb[p][c] = pic(kind, x, y, c);
+               v[p] = pic(kind, x, y, 3);
+            }
+            uint c0, c1, a0, a1;
+            bc1_enc(rgb, &c0, &c1);
+            bc4_enc(v, &a0, &a1);
+            n += 16;
 
-         /* BC1 RGB and BC3 colour. */
-         for (int f = 0; f < 2; f++) {
-            transcode_block(f ? XC_BC3 : XC_BC1_RGB, f ? a0 : c0, f ? a1 : c1, c0, c1, opts);
-            bc_decode_color(c0, c1, f == 1);
             int mode, abad;
-            int r = ref_rgb_err(g_out[f ? 2 : 0], g_out[f ? 3 : 1], false, &mode, &abad);
-            sse_rgb[f] += r;
-            if (f == 0) modes[mode]++;
-            if (f == 1) {
-               bc_decode_rgtc(a0, a1, false, 0);
-               double sn;
-               ref_eac_err(g_out[0], g_out[1], 0, &sn);
-               sse_a += sn;
+            transcode_block(XC_BC1_RGB, c0, c1, 0, 0, opts);
+            bc_decode_color(c0, c1, false);
+            sse[0] += rgb_err(g_out0, g_out1, false, &mode, &abad) / 3.0;
+            modes[mode]++;
+            /* BC1A: the same colours as a 3-colour block where possible. */
+            uint c0a = ((c0 & 0xffff) < (c0 >> 16)) ? c0 : ((c0 >> 16) | (c0 << 16));
+            uint c1a = c1;
+            transcode_block(XC_BC1_RGBA, c0a, c1a, 0, 0, opts);
+            bc_decode_color(c0a, c1a, false);
+            sse[1] += rgb_err(g_out0, g_out1, true, &mode, &abad) / 3.0;
+            if (abad)
+               FAIL("FAIL BC1A transparency %d\n", abad);
+
+            /* BC2 alpha from the 4-bit values, BC3 alpha. */
+            uint q0 = 0, q1 = 0;
+            int bv[16];
+            for (int p = 0; p < 16; p++) {
+               uint q = (uint)(v[p] * 15 + 127) / 255;
+               bv[p] = q * 17;
+               if (p < 8) q0 |= q << (4 * p);
+               else q1 |= q << (4 * (p - 8));
+            }
+            transcode_block(XC_BC2, q0, q1, c0, c1, opts);
+            sse[2] += eac_err(g_out0, g_out1, 0, bv);
+            transcode_block(XC_BC3, a0, a1, c0, c1, opts);
+            bc_decode_rgtc(a0, a1, false, 0);
+            sse[3] += eac_err(g_out0, g_out1, 0, NULL);
+            for (int k = 1; k < 3; k++) {
+               /* SNORM: the same picture shifted by -128 (both endpoint
+                * bytes XOR 0x80). */
+               uint s0 = k == 2 ? a0 ^ 0x8080u : a0;
+               transcode_block(k == 1 ? XC_BC4_U : XC_BC4_S, s0, a1, 0, 0, opts);
+               bc_decode_rgtc(s0, a1, k == 2, k);
+               double sc = ref_eac_scale(k);
+               sse[3 + k] += eac_err(g_out0, g_out1, k, NULL) * sc * sc;
             }
          }
-         for (int kind = 1; kind < 3; kind++) {
-            /* SNORM: the same picture shifted by -128, i.e. the UNORM
-             * encoding with both endpoint bytes XOR 0x80. */
-            uint s0 = kind == 2 ? a0 ^ 0x8080u : a0;
-            transcode_block(kind == 1 ? XC_BC4_U : XC_BC4_S, s0, a1, 0, 0, opts);
-            bc_decode_rgtc(s0, a1, kind == 2, kind);
-            double sn;
-            ref_eac_err(g_out[0], g_out[1], kind, &sn);
-            sse_eac[kind] += sn;
-         }
-      }
-   printf("opts=%#x fails=%d\n", opts, fails);
-   printf("modes ind %d diff %d T %d H %d planar %d\n", modes[0], modes[1], modes[2], modes[3], modes[4]);
-   printf("PSNR vs exact BC decode: BC1 RGB %.2f dB, BC3 colour %.2f dB, BC3 alpha %.2f dB\n",
-          10 * log10(255.0 * 255 / (sse_rgb[0] / (3.0 * n))),
-          10 * log10(255.0 * 255 / (sse_rgb[1] / (3.0 * n))),
-          10 * log10(255.0 * 255 / (sse_a / n)));
-   printf("PSNR vs exact BC decode: BC4 UNORM %.2f dB, BC4 SNORM %.2f dB (8-bit scale)\n",
-          10 * log10(255.0 * 255 / (sse_eac[1] / n)),
-          10 * log10(255.0 * 255 / (sse_eac[2] / n)));
+      printf("pic%-2d %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f   modes ind %d diff %d H %d planar %d\n",
+             kind, psnr(sse[0], n), psnr(sse[1], n), psnr(sse[2], n), psnr(sse[3], n),
+             psnr(sse[4], n), psnr(sse[5], n), modes[0], modes[1], modes[3], modes[4]);
+   }
+   printf("fails=%d\n", fails);
    return fails != 0;
 }
