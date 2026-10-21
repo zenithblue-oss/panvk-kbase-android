@@ -683,6 +683,9 @@ check_recs(const char *name, const struct rec *got, uint32_t ng, const struct re
       printf("FAIL case %s got_count=%u exp_count=%u first_missing=(%u,%u,%u,%u)\n",
              name, ng, ne, miss.v[0], miss.v[1], miss.v[2], miss.v[3]);
    }
+   for (uint32_t g = 0; g < nseen; g++)
+      printf("  rec[%u]=(%u,%u,%u,%u)%s\n", g, got[g].v[0], got[g].v[1], got[g].v[2],
+             got[g].v[3], used[g] ? "" : " unmatched");
    (*fails)++;
 }
 

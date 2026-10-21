@@ -1,8 +1,8 @@
-From 511a5c5d654b08ca90dbf02aea0d9711afdd807c Mon Sep 17 00:00:00 2001
+From 560932cf7d64ba50a73019577b377ec6bae56870 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 12:13:45 +0000
-Subject: [PATCH] jm-v7 046: skip vertex shader side effects of unreferenced
- vertices on v6/v7
+Subject: [PATCH 46/49] jm-v7 046: skip vertex shader side effects of
+ unreferenced vertices on v6/v7
 
 The vertex job of an indexed draw on v6/v7 shades every vertex of the
 [min, max] index range the GPU min/max search found, including vertices
@@ -25,11 +25,11 @@ atomics of skipped vertices return undef (their outputs are never drawn).
 Direct indexed draws go through the same indirect path on v6/v7, so both
 are covered. Tess eval shaders run non-indexed and are not guarded.
 ---
- src/panfrost/libpan/draw_helper.cl         |  65 +++++++++++++
- src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c |  37 ++++++++
+ src/panfrost/libpan/draw_helper.cl         |  65 ++++++++++++
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c |  37 +++++++
  src/panfrost/vulkan/panvk_shader.h         |   5 +
- src/panfrost/vulkan/panvk_vX_shader.c      | 104 +++++++++++++++++++++
- 4 files changed, 211 insertions(+)
+ src/panfrost/vulkan/panvk_vX_shader.c      | 109 +++++++++++++++++++++
+ 4 files changed, 216 insertions(+)
 
 diff --git a/src/panfrost/libpan/draw_helper.cl b/src/panfrost/libpan/draw_helper.cl
 index 1bb1861..a4c0d10 100644
@@ -179,7 +179,7 @@ index 907ce3e..e5f7773 100644
  } __attribute__((aligned(FAU_WORD_SIZE)));
  
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index 03ff3e3..0db82ff 100644
+index 03ff3e3..7577bd1 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
 @@ -3800,6 +3800,106 @@ panvk_v7_lower_tes_index(nir_shader *nir)
@@ -289,17 +289,29 @@ index 03ff3e3..0db82ff 100644
  /* TES inputs become loads from the tess control output buffer, then the TES
   * is a vertex shader (poly_nir_lower_tes(to_hw_vs)).
   */
-@@ -3939,6 +4039,10 @@ panvk_compile_shader(struct panvk_device *dev,
+@@ -3939,6 +4039,7 @@ panvk_compile_shader(struct panvk_device *dev,
     struct panvk_tess_info tes_info = {0};
     if (info->stage == MESA_SHADER_TESS_EVAL)
        panvk_v7_lower_tes(info->nir, &tes_info);
 +
-+   if (info->stage == MESA_SHADER_VERTEX &&
-+       dev->vk.enabled_features.vertexPipelineStoresAndAtomics)
-+      NIR_PASS(_, info->nir, panvk_v7_lower_vs_ref_guard);
  #endif
  
  #if PAN_ARCH == 9
+@@ -4029,6 +4130,14 @@ panvk_compile_shader(struct panvk_device *dev,
+                          info->set_layouts, info->robustness,
+                           state, &shader->desc_info, false);
+ 
++#if PAN_ARCH < 9
++         /* After panvk_lower_nir(): SSBO and image accesses are explicit
++          * intrinsics only then (jm-v7 046). */
++         if (info->stage == MESA_SHADER_VERTEX &&
++             dev->vk.enabled_features.vertexPipelineStoresAndAtomics)
++            NIR_PASS(_, nir, panvk_v7_lower_vs_ref_guard);
++#endif
++
+ #if PAN_ARCH >= 10 && PAN_ARCH < 14
+          if (inputs.view_mask) {
+             nir_lower_multiview_options options = {
 -- 
 2.55.0
 
