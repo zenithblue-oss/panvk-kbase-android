@@ -11,6 +11,8 @@ while [ $# -gt 0 ]; do case "$1" in
 [ -n "$PROFILE" ] || { echo "--profile required" >&2; exit 2; }
 NDK_BIN="$(ls -d "$NDK"/*/toolchains/llvm/prebuilt/linux-$(uname -m)/bin 2>/dev/null | sort -V | tail -n1)"
 if [ -z "$NDK_BIN" ]; then NDK_BIN="$(ls -d "$NDK"/toolchains/llvm/prebuilt/linux-$(uname -m)/bin 2>/dev/null | head -n1)"; fi
+# Community aarch64 NDKs (e.g. HomuHomu833 r30) name the host dir linux-arm64 instead of linux-aarch64.
+if [ -z "$NDK_BIN" ] && [ "$(uname -m)" = aarch64 ]; then NDK_BIN="$(ls -d "$NDK"/toolchains/llvm/prebuilt/linux-arm64/bin 2>/dev/null | head -n1)"; fi
 [ -n "$NDK_BIN" ] || { echo "NDK toolchain not found under $NDK" >&2; exit 1; }
 MESA="${MESA:-$ROOT/work/mesa}"; BDIR="${BDIR:-$ROOT/build/android-bionic}"; DDIR="${DDIR:-$ROOT/dist/android-$PROFILE}"
 if [ -z "${HOST_TOOLS:-}" ]; then
