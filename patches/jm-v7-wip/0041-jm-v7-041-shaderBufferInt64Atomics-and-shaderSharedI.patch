@@ -1,7 +1,7 @@
-From 8c1441d3c92917676c04755ac1e8e14da3f2baca Mon Sep 17 00:00:00 2001
+From b3cf40d2d2cfd61980c522a7ccdb9f2ccbf90321 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 10:27:45 +0000
-Subject: [PATCH 41/45] jm-v7 041: shaderBufferInt64Atomics and
+Subject: [PATCH] jm-v7 041: shaderBufferInt64Atomics and
  shaderSharedInt64Atomics on v6/v7
 
 Bifrost has 64-bit atomics (ATOM_C.i64/ATOM_C1.i64 with ATOM_POST.i64,
@@ -18,10 +18,10 @@ SSBO members) runs once the feature is reported.
  1 file changed, 4 insertions(+), 3 deletions(-)
 
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index 26094aa..37960b3 100644
+index 994a0d7..b89fee4 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
-@@ -50,7 +50,7 @@ panvk_per_arch(get_physical_device_extensions)(
+@@ -48,7 +48,7 @@ panvk_per_arch(get_physical_device_extensions)(
     *ext = (struct vk_device_extension_table){
        .KHR_8bit_storage = true,
        .KHR_16bit_storage = true,
@@ -30,7 +30,7 @@ index 26094aa..37960b3 100644
        .KHR_bind_memory2 = true,
        .KHR_buffer_device_address = true,
        .KHR_calibrated_timestamps =
-@@ -410,8 +410,9 @@ panvk_per_arch(get_physical_device_features)(
+@@ -409,8 +409,9 @@ panvk_per_arch(get_physical_device_features)(
        .storageBuffer8BitAccess = true,
        .uniformAndStorageBuffer8BitAccess = true,
        .storagePushConstant8 = true,

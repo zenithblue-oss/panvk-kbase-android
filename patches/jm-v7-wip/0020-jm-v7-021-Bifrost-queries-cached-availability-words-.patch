@@ -1,8 +1,8 @@
-From 0ad045f4c6bcfb35a5e43e26e06ae7f5f2c791ac Mon Sep 17 00:00:00 2001
+From 6017f94dbb619683a279b6a37dfcf3770dae52eb Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 10:24:15 +0000
-Subject: [PATCH 20/21] jm-v7 021: Bifrost queries: cached availability words
- and timestamp queries
+Subject: [PATCH] jm-v7 021: Bifrost queries: cached availability words and
+ timestamp queries
 
 The query test processes on the A06 (Mali-G52, kbase JM) failed from their
 first chain: CmdResetQueryPool's clear_query_result compute job was
@@ -131,10 +131,10 @@ index 25cd8fe..336092d 100644
                 ? 64
                 : 0,
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index 1a0122a..4e69d6d 100644
+index 9c436f8..5781071 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
-@@ -1063,10 +1063,10 @@ panvk_per_arch(get_physical_device_properties)(
+@@ -1061,10 +1061,10 @@ panvk_per_arch(get_physical_device_properties)(
        .sampledImageStencilSampleCounts = sample_counts,
        .storageImageSampleCounts = VK_SAMPLE_COUNT_1_BIT,
        .maxSampleMaskWords = 1,

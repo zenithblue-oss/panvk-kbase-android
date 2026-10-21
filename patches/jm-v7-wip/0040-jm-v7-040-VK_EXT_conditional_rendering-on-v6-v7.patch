@@ -1,7 +1,7 @@
-From 23958a6e92cde9e2055776d14924d17f3478d912 Mon Sep 17 00:00:00 2001
+From 22fd56a5593d01da6b8afbe93bb3a84c2120dabc Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 10:27:21 +0000
-Subject: [PATCH 40/45] jm-v7 040: VK_EXT_conditional_rendering on v6/v7
+Subject: [PATCH] jm-v7 040: VK_EXT_conditional_rendering on v6/v7
 
 The v9 JM predicate job (panlib_v9_cond_render, which rewrites the job
 header types of a draw or dispatch to their recorded type or NULL) does
@@ -30,10 +30,10 @@ VK_ERROR_EXTENSION_NOT_PRESENT on v7).
  7 files changed, 193 insertions(+), 171 deletions(-)
 
 diff --git a/src/panfrost/libpan/draw_helper.cl b/src/panfrost/libpan/draw_helper.cl
-index 31714d9..1bb1861 100644
+index 4cda8b1..1b4a535 100644
 --- a/src/panfrost/libpan/draw_helper.cl
 +++ b/src/panfrost/libpan/draw_helper.cl
-@@ -2173,7 +2173,11 @@ panlib_v9_vp_partition(global const struct panlib_vp_run_header *header,
+@@ -2274,7 +2274,11 @@ panlib_v9_vp_partition(global const struct panlib_vp_run_header *header,
     }
  }
  
@@ -47,10 +47,10 @@ index 31714d9..1bb1861 100644
   * to { count, (job header address, recorded job type) x count }. Each job
   * gets its recorded type back when the predicate passes, so a resubmitted
 diff --git a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
-index 9ccd4ca..ec89e40 100644
+index 8ddba55..99200af 100644
 --- a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
 +++ b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
-@@ -97,7 +97,7 @@ struct panvk_cmd_buffer {
+@@ -104,7 +104,7 @@ struct panvk_cmd_buffer {
        struct panvk_cmd_graphics_state gfx;
        struct panvk_cmd_compute_state compute;
        struct panvk_push_constant_state push_constants;
@@ -59,7 +59,7 @@ index 9ccd4ca..ec89e40 100644
        struct {
           bool enabled;
           /* Saved by meta, secondaries replay into the primary on JM. */
-@@ -109,7 +109,7 @@ struct panvk_cmd_buffer {
+@@ -116,7 +116,7 @@ struct panvk_cmd_buffer {
     } state;
  };
  
@@ -68,7 +68,7 @@ index 9ccd4ca..ec89e40 100644
  /* A draw or dispatch recorded while conditional rendering is active: the
   * predicate job queued before its jobs (see cmd_cond_render_begin). */
  struct panvk_cond_render_mark {
-@@ -165,7 +165,7 @@ struct panvk_batch *
+@@ -172,7 +172,7 @@ struct panvk_batch *
  
  void panvk_per_arch(cmd_close_batch)(struct panvk_cmd_buffer *cmdbuf);
  
@@ -112,10 +112,10 @@ index 0423bce..85965f0 100644
  #endif
  }
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index c6ebf68..1eaccec 100644
+index 0f17b6b..2fd7609 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-@@ -3189,7 +3189,10 @@ panvk_per_arch(CmdDraw)(VkCommandBuffer commandBuffer, uint32_t vertexCount,
+@@ -3510,7 +3510,10 @@ panvk_per_arch(CmdDraw)(VkCommandBuffer commandBuffer, uint32_t vertexCount,
           padded_vertex_count(cmdbuf, vertexCount, instanceCount),
     };
  
@@ -126,7 +126,7 @@ index c6ebf68..1eaccec 100644
  }
  
  VKAPI_ATTR void VKAPI_CALL
-@@ -3233,7 +3236,10 @@ panvk_per_arch(CmdDrawIndexed)(VkCommandBuffer commandBuffer,
+@@ -3554,7 +3557,10 @@ panvk_per_arch(CmdDrawIndexed)(VkCommandBuffer commandBuffer,
        .cpu_instances = instanceCount,
     };
  
@@ -137,7 +137,7 @@ index c6ebf68..1eaccec 100644
  }
  
  VKAPI_ATTR void VKAPI_CALL
-@@ -3258,7 +3264,10 @@ panvk_per_arch(CmdDrawIndirect)(VkCommandBuffer commandBuffer, VkBuffer _buffer,
+@@ -3579,7 +3585,10 @@ panvk_per_arch(CmdDrawIndirect)(VkCommandBuffer commandBuffer, VkBuffer _buffer,
           },
        };
  
@@ -148,7 +148,7 @@ index c6ebf68..1eaccec 100644
     }
  }
  
-@@ -3292,7 +3301,10 @@ panvk_per_arch(CmdDrawIndexedIndirect)(VkCommandBuffer commandBuffer,
+@@ -3613,7 +3622,10 @@ panvk_per_arch(CmdDrawIndexedIndirect)(VkCommandBuffer commandBuffer,
           },
        };
  
@@ -159,7 +159,7 @@ index c6ebf68..1eaccec 100644
     }
  }
  
-@@ -3405,6 +3417,11 @@ panvk_per_arch(CmdDrawIndirectByteCountEXT)(
+@@ -3726,6 +3738,11 @@ panvk_per_arch(CmdDrawIndirectByteCountEXT)(
     if (!cmd.gpu)
        return;
  
@@ -171,7 +171,7 @@ index c6ebf68..1eaccec 100644
     /* The draw may open a new batch (job index overflow), which would leave
      * this job behind in the old one: open it first.
      */
-@@ -3443,6 +3460,7 @@ panvk_per_arch(CmdDrawIndirectByteCountEXT)(
+@@ -3764,6 +3781,7 @@ panvk_per_arch(CmdDrawIndirectByteCountEXT)(
     };
  
     panvk_cmd_draw_indirect(cmdbuf, &draw);
@@ -179,7 +179,7 @@ index c6ebf68..1eaccec 100644
  }
  #else /* PAN_ARCH == 9 */
  
-@@ -5944,160 +5962,6 @@ v9_attachmentless_samples(struct panvk_cmd_buffer *cmdbuf)
+@@ -6265,160 +6283,6 @@ v9_attachmentless_samples(struct panvk_cmd_buffer *cmdbuf)
     render->fb.layout.sample_count = 0;
  }
  
@@ -340,7 +340,7 @@ index c6ebf68..1eaccec 100644
  static void
  v9_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *info)
  {
-@@ -6422,6 +6286,160 @@ panvk_per_arch(CmdDrawIndirectByteCountEXT)(
+@@ -6743,6 +6607,160 @@ panvk_per_arch(CmdDrawIndirectByteCountEXT)(
  
  #endif /* PAN_ARCH != 9 */
  
@@ -502,10 +502,10 @@ index c6ebf68..1eaccec 100644
  panvk_per_arch(CmdBeginRendering)(VkCommandBuffer commandBuffer,
                                    const VkRenderingInfo *pRenderingInfo)
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c b/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
-index e207ff2..4ab181e 100644
+index bc29c06..27fef03 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
-@@ -453,7 +453,7 @@ panvk_per_arch(gpu_queue_submit)(struct vk_queue *vk_queue, struct vk_queue_subm
+@@ -447,7 +447,7 @@ panvk_per_arch(gpu_queue_submit)(struct vk_queue *vk_queue, struct vk_queue_subm
        struct panvk_cmd_buffer *cmdbuf =
           container_of(submit->command_buffers[j], struct panvk_cmd_buffer, vk);
  
@@ -515,7 +515,7 @@ index e207ff2..4ab181e 100644
         * later batches of its draw (cmd_cond_render_end()). Reset (CPU write
         * plus cache flush) every batch before any of them runs, so that no
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_meta.c b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
-index c925ac3..7707b78 100644
+index 6e1177b..afd06a4 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 +++ b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 @@ -105,7 +105,7 @@ meta_compute_start(struct panvk_cmd_buffer *cmdbuf,
@@ -564,10 +564,10 @@ index c925ac3..7707b78 100644
      * the state that meta_gfx_start disabled.
      */
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index 1a0122a..26094aa 100644
+index f986a08..994a0d7 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
-@@ -150,7 +150,7 @@ panvk_per_arch(get_physical_device_extensions)(
+@@ -148,7 +148,7 @@ panvk_per_arch(get_physical_device_extensions)(
        .EXT_buffer_device_address = true,
        .EXT_calibrated_timestamps =
           device->kmod.dev->props.gpu_can_query_timestamp,

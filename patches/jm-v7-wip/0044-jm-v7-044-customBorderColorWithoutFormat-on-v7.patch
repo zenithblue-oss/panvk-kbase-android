@@ -1,7 +1,7 @@
-From b286aaf423bb04aa723a917626337d9bd2b4cea0 Mon Sep 17 00:00:00 2001
+From 19c0ff93c566349dd5b7429cd15c4b6b4bacaf9e Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 10:30:24 +0000
-Subject: [PATCH 44/45] jm-v7 044: customBorderColorWithoutFormat on v7
+Subject: [PATCH] jm-v7 044: customBorderColorWithoutFormat on v7
 
 v7 AFBC only takes RGB component orders, so texture views of R/B-swapped
 formats (BGRA8, ...) use the RGB format with an R/B swizzle
@@ -28,7 +28,7 @@ Needed by PanProbe bachata_reqs (hard requirement).
  4 files changed, 32 insertions(+), 5 deletions(-)
 
 diff --git a/src/panfrost/vulkan/panvk_image.c b/src/panfrost/vulkan/panvk_image.c
-index 7605c2d..e1afe49 100644
+index bb1ec79..ae00436 100644
 --- a/src/panfrost/vulkan/panvk_image.c
 +++ b/src/panfrost/vulkan/panvk_image.c
 @@ -191,6 +191,22 @@ panvk_image_can_use_mod(struct panvk_image *image,
@@ -77,7 +77,7 @@ index 994dda8..b916caf 100644
  #endif
  
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index 27dd06d..89fe4e0 100644
+index 6696ec0..7587dbc 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
 @@ -656,9 +656,10 @@ panvk_per_arch(get_physical_device_features)(

@@ -1,4 +1,4 @@
-From 847215f1657278fd2d46e24ddd8ba84151c47a4f Mon Sep 17 00:00:00 2001
+From 9a19fd2417301fc7be543618a3e9c5e902019fcd Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 12:30:50 +0000
 Subject: [PATCH] jm-v7 030: Bifrost restart in the GS emulation, per-viewport
@@ -159,10 +159,10 @@ index 31714d9..0e92ee8 100644
  
  #if PAN_ARCH == 9
 diff --git a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
-index 9ccd4ca..13f8fb6 100644
+index 0de71d3..9305604 100644
 --- a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
 +++ b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
-@@ -88,6 +88,8 @@ struct panvk_cmd_buffer {
+@@ -89,6 +89,8 @@ struct panvk_cmd_buffer {
  
     struct panvk_pool desc_pool;
     struct panvk_pool varying_pool;
@@ -806,7 +806,7 @@ index 9c17320..fe4b213 100644
     struct panvk_bo_pool tls_big_bo_pool;
     struct list_head push_sets;
 diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
-index 9a13586..f4a15a1 100644
+index 70aad83..a24b6c8 100644
 --- a/src/panfrost/vulkan/panvk_device.h
 +++ b/src/panfrost/vulkan/panvk_device.h
 @@ -41,7 +41,7 @@
@@ -1134,10 +1134,10 @@ index 4d2db6d..a643221 100644
  #undef P64
  #undef P32
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index 1a0122a..455d67e 100644
+index 5781071..f986a08 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
-@@ -361,7 +361,8 @@ panvk_per_arch(get_physical_device_features)(
+@@ -359,7 +359,8 @@ panvk_per_arch(get_physical_device_features)(
           (PAN_ARCH >= 9 && instance->drirc.misc.enable_vertex_pipeline_stores_atomics) ||
           instance->drirc.misc.force_enable_shader_atomics,
        .fragmentStoresAndAtomics = true,
@@ -1147,7 +1147,7 @@ index 1a0122a..455d67e 100644
        .shaderImageGatherExtended = true,
        .shaderStorageImageExtendedFormats = true,
        .shaderStorageImageMultisample = false,
-@@ -454,7 +455,8 @@ panvk_per_arch(get_physical_device_features)(
+@@ -452,7 +453,8 @@ panvk_per_arch(get_physical_device_features)(
        .vulkanMemoryModel = true,
        .vulkanMemoryModelDeviceScope = true,
        .vulkanMemoryModelAvailabilityVisibilityChains = true,
@@ -1158,10 +1158,10 @@ index 1a0122a..455d67e 100644
        .subgroupBroadcastDynamicId = true,
  
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index 03ff3e3..3281a94 100644
+index dfb8705..47746e5 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
-@@ -3430,6 +3430,26 @@ panvk_vs_wants_xfb_passthrough(const struct vk_shader_compile_info *info)
+@@ -3439,6 +3439,26 @@ panvk_vs_wants_xfb_passthrough(const struct vk_shader_compile_info *info)
     return panvk_gs_xfb_table(info->nir->xfb_info, table) > 0;
  }
  
@@ -1188,7 +1188,7 @@ index 03ff3e3..3281a94 100644
  static void
  panvk_vs_store_xfb(struct panvk_shader_variant *variant,
                     const nir_xfb_info *xfb)
-@@ -3535,8 +3555,8 @@ panvk_build_passthrough_gs(const struct panvk_shader_variant *vs,
+@@ -3544,8 +3564,8 @@ panvk_build_passthrough_gs(const struct panvk_shader_variant *vs,
        nir->info.has_transform_feedback_varyings = true;
     }
  
@@ -1199,7 +1199,7 @@ index 03ff3e3..3281a94 100644
     unsigned n = 0;
  
     /* gl_Position always: the emulation reads it from the position buffer. */
-@@ -3577,10 +3597,26 @@ panvk_build_passthrough_gs(const struct panvk_shader_variant *vs,
+@@ -3586,10 +3606,26 @@ panvk_build_passthrough_gs(const struct panvk_shader_variant *vs,
           glsl_vector_type(nir_get_glsl_base_type_for_nir_type(base | 32),
                            ncomps),
           "out_slot");
@@ -1227,7 +1227,7 @@ index 03ff3e3..3281a94 100644
     /* Polygon mode: the tiler only sees lines or points, so the faces are
      * culled here, with the Vulkan area rule in framebuffer coordinates
      * (a = -1/2 sum(x_i y_i+1 - x_i+1 y_i); the viewport offset cancels).
-@@ -3926,7 +3962,26 @@ panvk_compile_shader(struct panvk_device *dev,
+@@ -3935,7 +3971,26 @@ panvk_compile_shader(struct panvk_device *dev,
      * geometry shader or transform feedback follows.
      */
     const bool vs_xfb_passthrough = panvk_vs_wants_xfb_passthrough(info);

@@ -1,8 +1,8 @@
-From 56b2a0c2ceace2ecda232960248180518f0637c6 Mon Sep 17 00:00:00 2001
+From 663135e1963483b69e5ab9ae5731c25f735dc291 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 13:04:30 +0000
-Subject: [PATCH 48/49] jm-v7 048: robust storage images on v6/v7: in-bounds
- null image, robustImageAccess2 bounds check
+Subject: [PATCH] jm-v7 048: robust storage images on v6/v7: in-bounds null
+ image, robustImageAccess2 bounds check
 
 A06 robustness2 passes every case with PANVK_NULLIMG_INBOUNDS=1, so make
 it the default; PANVK_NULLIMG_INBOUNDS=0 restores the 0-byte buffer.
@@ -21,7 +21,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  2 files changed, 122 insertions(+), 6 deletions(-)
 
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index df22aef..49391cf 100644
+index cc252fd..3692ceb 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
 @@ -547,12 +547,12 @@ panvk_init_null_descs(struct panvk_device *dev)
@@ -44,7 +44,7 @@ index df22aef..49391cf 100644
           cfg.size = PANVK_NULL_SCRATCH_SIZE;
        }
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index 7577bd1..cffb785 100644
+index bc94cd0..5829a18 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
 @@ -27,6 +27,7 @@
@@ -55,7 +55,7 @@ index 7577bd1..cffb785 100644
  #include "poly/geometry.h"
  #include "poly/tessellator.h"
  #include "poly/nir/poly_nir.h"
-@@ -2805,6 +2806,115 @@ glsl_type_size(const struct glsl_type *type, bool bindless)
+@@ -2814,6 +2815,115 @@ glsl_type_size(const struct glsl_type *type, bool bindless)
     return glsl_count_attribute_slots(type, false);
  }
  
@@ -171,7 +171,7 @@ index 7577bd1..cffb785 100644
  static void
  panvk_lower_nir(struct panvk_device *dev, nir_shader *nir,
                  uint32_t set_layout_count,
-@@ -2842,6 +2952,12 @@ panvk_lower_nir(struct panvk_device *dev, nir_shader *nir,
+@@ -2851,6 +2961,12 @@ panvk_lower_nir(struct panvk_device *dev, nir_shader *nir,
     if (PAN_ARCH < 9)
        NIR_PASS(_, nir, pan_nir_lower_image_ms);
  

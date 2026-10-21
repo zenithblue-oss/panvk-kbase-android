@@ -1,8 +1,8 @@
-From 560932cf7d64ba50a73019577b377ec6bae56870 Mon Sep 17 00:00:00 2001
+From a2760d02e4730f78eb4311d98595be36e1df88ab Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 12:13:45 +0000
-Subject: [PATCH 46/49] jm-v7 046: skip vertex shader side effects of
- unreferenced vertices on v6/v7
+Subject: [PATCH] jm-v7 046: skip vertex shader side effects of unreferenced
+ vertices on v6/v7
 
 The vertex job of an indexed draw on v6/v7 shades every vertex of the
 [min, max] index range the GPU min/max search found, including vertices
@@ -32,11 +32,11 @@ are covered. Tess eval shaders run non-indexed and are not guarded.
  4 files changed, 216 insertions(+)
 
 diff --git a/src/panfrost/libpan/draw_helper.cl b/src/panfrost/libpan/draw_helper.cl
-index 1bb1861..a4c0d10 100644
+index 1b4a535..09c8ffb 100644
 --- a/src/panfrost/libpan/draw_helper.cl
 +++ b/src/panfrost/libpan/draw_helper.cl
-@@ -1892,6 +1892,71 @@ panlib_v7_pstats_sum_cores(global uint32_t *counter, constant uint64_t *cores,
-    v7_pstats_add(counter, sum);
+@@ -1993,6 +1993,71 @@ panlib_v7_gs_restart_list(global uint32_t *out_idx, global uint32_t *out_cmd,
+    out_cmd[4] = cmd[4];
  }
  
 +/* vertexPipelineStoresAndAtomics (jm-v7 046): the vertex job of an indexed
@@ -108,10 +108,10 @@ index 1bb1861..a4c0d10 100644
  
  #if PAN_ARCH == 9
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index 7f3e1cf..df2abf0 100644
+index 8a5884f..fb5b1c3 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-@@ -2535,6 +2535,12 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+@@ -2850,6 +2850,12 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
     cmdbuf->state.gfx.fs.required =
        fs_required(&cmdbuf->state.gfx, &cmdbuf->vk.dynamic_graphics_state);
  
@@ -124,7 +124,7 @@ index 7f3e1cf..df2abf0 100644
     result = prepare_draw(cmdbuf, draw);
     if (result != VK_SUCCESS)
        return;
-@@ -2721,6 +2727,37 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+@@ -3042,6 +3048,37 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
           offsetof(struct libpan_draw_helper_index_min_max_result, min);
     }
  
@@ -163,10 +163,10 @@ index 7f3e1cf..df2abf0 100644
     if (draw->tess_phase == PANVK_TESS_PHASE_VS_TCS)
        enabled_layer_count = 1;
 diff --git a/src/panfrost/vulkan/panvk_shader.h b/src/panfrost/vulkan/panvk_shader.h
-index 907ce3e..e5f7773 100644
+index 0530388..c9775eb 100644
 --- a/src/panfrost/vulkan/panvk_shader.h
 +++ b/src/panfrost/vulkan/panvk_shader.h
-@@ -208,6 +208,11 @@ struct panvk_graphics_sysvals {
+@@ -214,6 +214,11 @@ struct panvk_graphics_sysvals {
      * shader running as the vertex shader.
      */
     aligned_u64 tess_params;
@@ -179,10 +179,10 @@ index 907ce3e..e5f7773 100644
  } __attribute__((aligned(FAU_WORD_SIZE)));
  
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index 03ff3e3..7577bd1 100644
+index f781fd8..bc94cd0 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
-@@ -3800,6 +3800,106 @@ panvk_v7_lower_tes_index(nir_shader *nir)
+@@ -3877,6 +3877,106 @@ panvk_v7_lower_tes_index(nir_shader *nir)
     return nir_progress(true, impl, nir_metadata_control_flow);
  }
  
@@ -289,7 +289,7 @@ index 03ff3e3..7577bd1 100644
  /* TES inputs become loads from the tess control output buffer, then the TES
   * is a vertex shader (poly_nir_lower_tes(to_hw_vs)).
   */
-@@ -3939,6 +4039,7 @@ panvk_compile_shader(struct panvk_device *dev,
+@@ -4035,6 +4135,7 @@ panvk_compile_shader(struct panvk_device *dev,
     struct panvk_tess_info tes_info = {0};
     if (info->stage == MESA_SHADER_TESS_EVAL)
        panvk_v7_lower_tes(info->nir, &tes_info);
@@ -297,7 +297,7 @@ index 03ff3e3..7577bd1 100644
  #endif
  
  #if PAN_ARCH == 9
-@@ -4029,6 +4130,14 @@ panvk_compile_shader(struct panvk_device *dev,
+@@ -4127,6 +4228,14 @@ panvk_compile_shader(struct panvk_device *dev,
                           info->set_layouts, info->robustness,
                            state, &shader->desc_info, false);
  

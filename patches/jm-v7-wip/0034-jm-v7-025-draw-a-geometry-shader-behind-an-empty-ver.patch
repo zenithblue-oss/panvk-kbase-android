@@ -1,4 +1,4 @@
-From f3b22ee05e215a1b022d6453982a7a3df3c65b1d Mon Sep 17 00:00:00 2001
+From 8d471e348e2d93da2e0bc230dac21bfda2406d8d Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 13:16:44 +0000
 Subject: [PATCH] jm-v7 025: draw a geometry shader behind an empty vertex
@@ -21,10 +21,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  1 file changed, 32 insertions(+), 9 deletions(-)
 
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index ed73ffe..d9ff156 100644
+index adc3d97..0f17b6b 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-@@ -2087,9 +2087,16 @@ prepare_draw_layer(struct panvk_cmd_buffer *cmdbuf,
+@@ -2108,9 +2108,16 @@ prepare_draw_layer(struct panvk_cmd_buffer *cmdbuf,
        /* A vertex shader that writes no gl_Position leaves the position
         * buffer undefined: rasterize nothing rather than garbage.
         */
@@ -42,7 +42,7 @@ index ed73ffe..d9ff156 100644
              : pan_varying_layout_find_slot(&vs->info.varyings.formats,
                                             VARYING_SLOT_POS) != NULL;
        bool needs_tiling =
-@@ -2785,8 +2792,14 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+@@ -2806,8 +2813,14 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
     const struct panvk_shader_variant *vs = panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
     VkResult result;
  
@@ -59,7 +59,7 @@ index ed73ffe..d9ff156 100644
        return;
  
     v7_count_draw_queries(cmdbuf, draw);
-@@ -2849,8 +2862,10 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+@@ -2870,8 +2883,10 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
                          false, 0, copy_desc_job_id, &draw->jobs.idvs, false);
        } else {
           unsigned vjob_id =
@@ -72,7 +72,7 @@ index ed73ffe..d9ff156 100644
  
           /* Tessellation: the tess control job instead of a tiler job. The
            * rest of the draw is recorded by panvk_tess_draw().
-@@ -2885,8 +2900,14 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+@@ -2906,8 +2921,14 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
     const struct panvk_shader_variant *vs = panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
     VkResult result;
  
@@ -89,7 +89,7 @@ index ed73ffe..d9ff156 100644
        return;
  
     v7_count_draw_queries(cmdbuf, draw);
-@@ -3095,8 +3116,10 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+@@ -3116,8 +3137,10 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
                          false, 0, prev_job, &draw->jobs.idvs, false);
        } else {
           unsigned vjob_id =

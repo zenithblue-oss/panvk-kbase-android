@@ -1,7 +1,7 @@
-From d030337d890a7fb0bdb0767c7d867df976d174e0 Mon Sep 17 00:00:00 2001
+From 9d4af5314500f4e406a8c4ff1c0699072f8c7758 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 10:31:37 +0000
-Subject: [PATCH 45/45] jm-v7 045: vertexPipelineStoresAndAtomics on v6/v7
+Subject: [PATCH] jm-v7 045: vertexPipelineStoresAndAtomics on v6/v7
 
 v6/v7 have no IDVS (jm-v7 006): the vertex shader runs in a plain VERTEX
 job, once per vertex of the draw's vertex range and instance, before the
@@ -23,10 +23,10 @@ Unblocks PanProbe vertex_stores, draw_params and gs_tess_primitive_id
  1 file changed, 4 insertions(+), 2 deletions(-)
 
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index 89fe4e0..2fc9464 100644
+index 7587dbc..c6ab245 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
-@@ -356,9 +356,11 @@ panvk_per_arch(get_physical_device_features)(
+@@ -354,9 +354,11 @@ panvk_per_arch(get_physical_device_features)(
           indices anymore. On v9-v12, pre-rasterization stages that write
           memory run through gpu_prerast compute instead of IDVS. On by default
           on v9+ (DXVK FL11_1); pan_enable_vertex_pipeline_stores_atomics=false
@@ -39,7 +39,7 @@ index 89fe4e0..2fc9464 100644
 +         instance->drirc.misc.enable_vertex_pipeline_stores_atomics ||
           instance->drirc.misc.force_enable_shader_atomics,
        .fragmentStoresAndAtomics = true,
-       .shaderTessellationAndGeometryPointSize = PAN_ARCH >= 10,
+       /* v6/v7: jm-v7 033 (TES point size, GS point output size). */
 -- 
 2.55.0
 

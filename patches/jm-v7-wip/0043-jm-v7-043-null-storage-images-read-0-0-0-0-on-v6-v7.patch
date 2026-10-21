@@ -1,7 +1,7 @@
-From 1f4c3015aeeae3ca90c882412eb694d5813f8a15 Mon Sep 17 00:00:00 2001
+From c7339c6245a4307f4df1c5304090cff1a13af5e3 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 10:29:07 +0000
-Subject: [PATCH 43/45] jm-v7 043: null storage images read (0,0,0,0) on v6/v7
+Subject: [PATCH] jm-v7 043: null storage images read (0,0,0,0) on v6/v7
 
 PanProbe robustness2 null_descriptors on the A06 (G52) read alpha 1.0
 from a null storage image (imageLoad on an rgba8 image2D), where
@@ -24,7 +24,7 @@ the out-of-bounds value does not go through the component order.
  1 file changed, 34 insertions(+), 3 deletions(-)
 
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index afefe0f..df22aef 100644
+index f0a19ea..cc252fd 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
 @@ -44,6 +44,7 @@

@@ -1,4 +1,4 @@
-From 92d4919def9bd4156ee5466537c6b92024d095d8 Mon Sep 17 00:00:00 2001
+From 45660826407f020436a41b354e2f58e8768ed60f Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 13:09:04 +0000
 Subject: [PATCH] jm-v7 024: Bifrost instanced attributes undo the DCD
@@ -52,10 +52,10 @@ index 5ba538c..135214a 100644
  
  /* Transform feedback captured from the geometry shader emulation, one per
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index 7d594fd..ed73ffe 100644
+index 1a8cb11..adc3d97 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-@@ -942,10 +942,19 @@ panvk_draw_emit_attrib(const struct panvk_draw_data *draw,
+@@ -960,10 +960,19 @@ panvk_draw_emit_attrib(const struct panvk_draw_data *draw,
        if (helper_attrib_info != NULL) {
           helper_attrib_info->base_offset = offset;
           helper_attrib_info->stride = per_instance ? buf_info->stride : 0;

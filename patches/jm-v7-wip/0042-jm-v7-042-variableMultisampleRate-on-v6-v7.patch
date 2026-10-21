@@ -1,7 +1,7 @@
-From 5e2fd0b7b5e06a25cc46e6d5b9351da2dcaa4712 Mon Sep 17 00:00:00 2001
+From 06f254c9ca6786ee284b2b3f6aa4bd976b0b15a2 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 10:28:29 +0000
-Subject: [PATCH 42/45] jm-v7 042: variableMultisampleRate on v6/v7
+Subject: [PATCH] jm-v7 042: variableMultisampleRate on v6/v7
 
 An attachment-less pass takes the rasterization sample count of its
 draws, but the FBD and tiler context of a JM batch have one sample
@@ -22,10 +22,10 @@ dynamic rendering, primary and secondary).
  2 files changed, 17 insertions(+), 1 deletion(-)
 
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index 1eaccec..7f3e1cf 100644
+index 2fd7609..8a5884f 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-@@ -1651,6 +1651,21 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+@@ -1878,6 +1878,21 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
        batch = panvk_per_arch(cmd_open_batch)(cmdbuf);
     }
  
@@ -48,10 +48,10 @@ index 1eaccec..7f3e1cf 100644
      * shader compiled to feed it (transform feedback, or a shader object
      * linked to a geometry shader that is not bound) the passthrough
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index 37960b3..27dd06d 100644
+index b89fee4..6696ec0 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
-@@ -387,7 +387,8 @@ panvk_per_arch(get_physical_device_features)(
+@@ -386,7 +386,8 @@ panvk_per_arch(get_physical_device_features)(
        .sparseResidency8Samples = false,
        .sparseResidency16Samples = false,
        .sparseResidencyAliased = false, /* https://gitlab.freedesktop.org/panfrost/mesa/-/issues/237 */

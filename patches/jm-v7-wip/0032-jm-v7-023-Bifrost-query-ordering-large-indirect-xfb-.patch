@@ -1,4 +1,4 @@
-From 77e4820de87918f36103d615987b038242bd4c85 Mon Sep 17 00:00:00 2001
+From ea830327f3b5f0cb119ad3f3c5828b9b613d8337 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 12:55:45 +0000
 Subject: [PATCH] jm-v7 023: Bifrost query ordering, large indirect xfb,
@@ -52,7 +52,7 @@ index 9305604..8ddba55 100644
     struct pan_jc vtc_jc;
     struct pan_jc frag_jc;
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index 1e6c1cd..7d594fd 100644
+index d8730a0..1a8cb11 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 @@ -200,9 +200,19 @@ static uint32_t

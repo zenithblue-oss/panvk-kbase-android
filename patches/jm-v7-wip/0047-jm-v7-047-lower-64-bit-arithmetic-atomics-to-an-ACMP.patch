@@ -1,8 +1,8 @@
-From 1874bd5beced2487dfe2453d30a7960577939bad Mon Sep 17 00:00:00 2001
+From b68d166fe30e5e7a10b57344df30340c15f02bad Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 13:04:29 +0000
-Subject: [PATCH 47/49] jm-v7 047: lower 64-bit arithmetic atomics to an
- ACMPXCHG loop on Bifrost
+Subject: [PATCH] jm-v7 047: lower 64-bit arithmetic atomics to an ACMPXCHG
+ loop on Bifrost
 
 ATOM_C.i64 on Mali-G52 stores a value whose high word equals the low word (A06 bachata_exec int64_atomics: max = 0x13e7_000013e7). Route every 64-bit arithmetic atomic through nir_lower_atomics on arch < 9; 64-bit xchg and cmpxchg build their staging vector explicitly and stay native.
 

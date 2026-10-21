@@ -192,3 +192,14 @@ Base: `/home/flux/src/mesa-v7fixB` (branch `v7fixB`) = the v7E tree (0006-0019 +
 
 - The emulation tiler DCD had instance_primitive_size = 1, so the FS primitive ID (tiler primitive index modulo that size) was always 0. Now the padded output primitive count, or the exact per-instance count when CPU-known and encodable. One passthrough invocation is one primitive, so the slot index is the input primitive ID. A user GS that writes gl_PrimitiveID still gets its output slot index, not the written value.
 - 0030/0031 and group A 0020/0021 are independent: they apply in either order (b3 tree: 0030, 0031, 0020, 0021).
+
+## v7G merge (2026-10-21): series order and renumbering
+
+The merged v7G tree (`/home/flux/src/mesa-v7G`, branch `v7G`) is the 197-patch base (`ab7d630`) + this series applied with `git am` in file order. jm-v7 023 needs jm-v7 030 (growable `gs_pool`), so the group A patches after 0021 were renumbered to follow 0030/0031:
+
+- 0022 (jm-v7 023) -> 0032, 0023 (jm-v7 024) -> 0033, 0024 (jm-v7 025) -> 0034. Subjects keep their jm-v7 numbers.
+- jm-v7 024 (instanced attribute offset_start) appears once, as 0033.
+- Order: 0006-0019, 0020, 0021, 0030, 0031, 0032-0034, 0040-0049.
+- Conflicts resolved (both sides kept): 0046 vs 0030 in `libpan/draw_helper.cl` (new kernels next to each other); 0049 vs 0030 in the `emit_gs_job()` push initializer (`.tess_params` next to the psiz/viewport fields).
+- 0020-0049 were regenerated with `git format-patch` from the v7G tree, so the files reproduce the tree exactly.
+- `PANVK_NULLIMG_INBOUNDS` defaults to 1 (0048); `PANVK_NULLIMG_INBOUNDS=0` restores the 0-byte null image.
