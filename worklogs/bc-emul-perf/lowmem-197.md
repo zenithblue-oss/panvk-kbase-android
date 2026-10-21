@@ -89,6 +89,18 @@ Mesa's ETC2/EAC decoder (`src/mesa/main/texcompress_etc.c`, verbatim):
     BC4 UNORM 49.3 dB (modes: diff 58%, planar 33%, H 7%, ind 2%).
   - opts 0 (ETC1 modes only): BC1 34.6 dB. 0x70000: EAC +0.5 dB.
 
+## Build
+
+- Worktree `/home/flux/src/mesa-lowmem` (upstream 5a07217 + series through
+  csf-v11/196, 197, then jm-v9 + jm-v7: all apply strictly after 197).
+- `scripts/build-android.sh --profile g615-v11-csf --api 29`, NDK
+  29.0.14206865, PANVK_JOBS=4, PANVK_KBASE_RELEASE=RC5-dev-lowmem, build
+  dir `/home/flux/build-lowmem/bionic`: OK, no warnings in the new code.
+- `/home/flux/build-out/lowmem-197/libvulkan_panfrost.so`, sha256
+  `69be4f7f3d18b85c263ef01d90780cf234ba7dc93fe41f6d841b697a230a6b23`.
+- The transcoder SPIR-V is only compiled to Mali code at runtime (vk_meta
+  pipeline), so shader compile issues would show up on the device.
+
 ## Device test plan (not run yet)
 
 Run on the G615 (Poco X6 Pro) with the 197 build, default env unless noted.

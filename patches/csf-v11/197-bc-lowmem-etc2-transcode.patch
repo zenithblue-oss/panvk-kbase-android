@@ -1,9 +1,76 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: abhay-byte <zenithblue.dev@gmail.com>
 Date: Wed, 21 Oct 2026 04:30:52 +0000
-Subject: [PATCH] WIP: panvk: transcode BC1-BC5 to ETC2/EAC shadows and drop
- the raw plane (lowmem)
+Subject: [PATCH] panvk: transcode BC1-BC5 to ETC2/EAC shadows and drop
+ unreadable raw planes
 
+Recreates the lost RC4-lowmem BC patch (see
+worklogs/g615-dxvk/rc4-binary-analysis.md, "Result 3") on top of the
+150/151/180/185 fragment-decode shadows, with its readback bug fixed.
+
+Gate (panvk_bc_lowmem_enabled()): v10+ (CSF), BC emulation on, the
+fragment decode path available (no PANVK_DEBUG=bc_compute/no_gs) and all
+ten ETC2/EAC formats native. On by default like the released RC4-lowmem
+binary; PANVK_BC_MODE=exact keeps the exact shadows (unknown values also
+fall back to exact, with a warning). The log line becomes
+"panvk: BC emulation on, lowmem (native compressed mask ...)".
+
+Per image (2D bc_gfx images only; OPTIMAL tiling; no SPARSE_*, DISJOINT,
+ALIAS, BLOCK_TEXEL_VIEW_COMPATIBLE, external memory or HOST_TRANSFER
+usage; BC4/BC5 with MUTABLE_FORMAT only with a format list of their own
+format, since the EAC shadow fixes the signedness):
+
+  bc_lowmem = 1, BC1-BC5: bc_shadow is an ETC2/EAC image, U-interleaved,
+    SAMPLED only, sRGB from the view:
+      BC1 RGB  -> ETC2 RGB8         BC1 RGBA -> ETC2 RGB8A1
+      BC2/BC3  -> ETC2 RGBA8        BC4      -> EAC R11 (signed)
+      BC5      -> EAC RG11 (signed)
+  bc_lowmem = 2, BC6H/BC7 without a raw plane: the exact shadow.
+  bc_no_raw: no TRANSFER_SRC usage, so the raw blocks can never be read
+    back. planes[0] gets no memory and is never written.
+
+The transcoder (bc/panvk_bc_etc2.comp, SPIR-V header built by gen_spv.sh,
+run through vk_meta like the 022/150 decoders) runs one invocation per
+block: exact BC decode, then ETC1 differential/individual (both flips),
+ETC2 H and planar modes for colour and a 16-table EAC search for
+alpha/R11/RG11, written straight into the U-interleaved shadow plane.
+The encoder is written in the common GLSL/C subset; a host test that
+includes it and decodes with Mesa's texcompress_etc.c finds bit-exact
+agreement on 20000 random blocks for every mode, and on a synthetic
+picture (crude BC encoder) PSNR against the exact BC decode of
+BC1/BC3 colour 38.7 dB, BC3 alpha 49.1 dB, BC4 49.3 dB.
+
+PANVK_BC_LM_OPTS is kept, with new bit meanings (default 0x30000):
+0x10000 try the planar mode, 0x20000 try the H mode (both off: 34.6 dB on
+BC1), 0x40000 EAC base codeword +-1 search (+0.5 dB, 3x the EAC work).
+No device BO: zero-initialized raw-less images transcode a zeroed block
+row from command buffer memory, read with zero pitches.
+
+Readback bug fix. RC4-lowmem never stored the raw blocks, so
+vkCmdCopyImage from BC images, image->buffer readback and host copies
+were wrong for all 16 formats. Raw blocks can only be read back from
+TRANSFER_SRC (or HOST_TRANSFER) images, so those keep the raw plane and
+every readback and BC-source copy is bit-exact, as on the exact path;
+they still get the ETC2/EAC shadow (BC1-BC5: raw + shadow = 2x the BC
+size, about -33% against 180/185). Images without TRANSFER_SRC drop the
+raw plane (RC4-lowmem sizes). Copies into those transcode or decode from
+the source's raw plane (a copy source always has TRANSFER_SRC), or for a
+non-BC source from a staging copy in command buffer memory. Trade-off:
+DXVK sets TRANSFER_SRC on every texture, so under DXVK the saving is the
+shadow part only. Transcoding copies from the decoded data (option b)
+would give DXVK the full saving, but raw readback would still need a BC
+re-encoder, so it does not fix the bug.
+
+Tested GPU: none yet (host bitstream test only, see
+ worklogs/bc-emul-perf/lowmem-197.md for the device test plan)
+Mesa base range: 5a07217f034b3e50d8c7c7794f97a2df1742613b
+Dependencies: csf-v11/022, 040, 108, 150, 151, 180, 185
+Validation test: device plan in worklogs/bc-emul-perf/lowmem-197.md
+ (bc_decode/bc_verify 16/16 with PANVK_BC_MODE=exact and raw readback
+ exact by default, vkCmdCopyImage BC test for all 16 formats, PSNR vs
+ exact, bc_perf memory)
+
+Generated-by: LLM
 ---
  src/panfrost/vulkan/bc/gen_spv.sh           |    3 +
  src/panfrost/vulkan/bc/panvk_bc_etc2.comp   |  752 +++++++
