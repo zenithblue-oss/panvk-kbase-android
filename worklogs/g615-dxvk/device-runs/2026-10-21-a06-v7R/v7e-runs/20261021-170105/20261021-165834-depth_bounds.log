@@ -1,0 +1,47 @@
+MESA: info: kbase: JM driver, uAPI version 11.38, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+MESA: info: kbase: using ION system heap, mask 0x1
+MESA: info: panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: warning: panvk: v7 (Bifrost) support is experimental
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe03fe)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+Failed to create /data/.cache for shader cache (Permission denied)---disabling.
+PHYS 0 Mali-G52 r1 MC2 vendor=0x13b5 device=0x74021000
+FEATURE depthBounds=1
+MESA: info: kbase: JM driver, uAPI version 11.38, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+MESA: info: kbase: using ION system heap, mask 0x1
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 32768 pages committed
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 35157 pages committed
+ALLOC image fmt=37 type=0 bits=0x7 flags=0x1
+ALLOC image fmt=126 type=0 bits=0x7 flags=0x1
+MESA: error: kbase: JM atom 2 failed: event=0x51 core_req=0x1
+MESA: error: kbase: JM atom 3 failed: event=0x58 core_req=0x1
+MESA: error: kbase: JM atom 4 failed: event=0x58 core_req=0x1
+MESA: error: kbase: JM atom 5 failed: event=0x58 core_req=0x1
+MESA: error: kbase: JM atom 6 failed: event=0x58 core_req=0x1
+FAIL case A_static bounds=[0.30,0.60] checkedIn=288 checkedOut=672 partial=0 skipped=64 badColor=288 badDepth=1024
+MESA: error: kbase: JM atom 10 failed: event=0x51 core_req=0x1
+FAIL case B_dynamic fence r=-4
+MESA: error: kbase: JM atom 14 failed: event=0x5b core_req=0x1
+FAIL case C_dynamic_low fence r=-4
+PASS case D_dyn_enable_off bounds=[0.30,0.60] checkedIn=1024 checkedOut=0 partial=0 skipped=0 badColor=0 badDepth=0
+MESA: error: kbase: JM atom 22 failed: event=0x51 core_req=0x1
+FAIL case E_dyn_enable_on fence r=-4
+MESA: error: kbase: JM atom 26 failed: event=0x51 core_req=0x1
+FAIL case G_no_fs_static fence r=-4
+MESA: error: kbase: JM atom 30 failed: event=0x51 core_req=0x1
+FAIL case H_eft_depth_write fence r=-4
+PASS case I_perf_dyn_off plain=10.519ms dyn_off=12.884ms ratio=1.22
+ALLOC image fmt=37 type=0 bits=0x7 flags=0x1
+ALLOC image fmt=126 type=0 bits=0x7 flags=0x1
+MESA: error: kbase: JM atom 58 failed: event=0x51 core_req=0x1
+FAIL case F_msaa4_static fence r=-4
+RESULT FAIL
