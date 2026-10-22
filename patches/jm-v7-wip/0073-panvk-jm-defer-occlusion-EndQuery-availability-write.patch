@@ -1,0 +1,143 @@
+From a724b88f5d866481b5105bad29e51d51547889a6 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 22 Oct 2026 04:55:44 +0000
+Subject: [PATCH] panvk/jm: defer occlusion EndQuery availability writes to
+ batch close (jm-v7 100)
+
+Occlusion EndQuery inside an open batch no longer splits the batch; the
+availability write is recorded and flushed in an after-frag job at batch
+close. PANVK_V7_QUERY_END_DEFER=0 restores the old split.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c | 42 ++++++++++++++++++++
+ src/panfrost/vulkan/jm/panvk_vX_cmd_query.c  | 33 +++++++++++++++
+ src/panfrost/vulkan/panvk_cmd_draw.h         |  6 +++
+ 3 files changed, 81 insertions(+)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
+index 0de4efb..77a4c5a 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
+@@ -88,8 +88,50 @@ panvk_cmd_prepare_fragment_job(struct panvk_cmd_buffer *cmdbuf, uint64_t fbd)
+    return VK_SUCCESS;
+ }
+ 
++static void cmd_close_batch_impl(struct panvk_cmd_buffer *cmdbuf);
++
+ void
+ panvk_per_arch(cmd_close_batch)(struct panvk_cmd_buffer *cmdbuf)
++{
++#if PAN_ARCH < 9
++   /* jm-v7 100: availability of the occlusion queries ended in this batch,
++    * in an after_frag batch of its own so it follows the fragment job that
++    * finished counting.
++    */
++   const uint32_t n = cmdbuf->state.gfx.v7_query_end_count;
++   if (n && cmdbuf->cur_batch) {
++      uint64_t ends[PANVK_V7_MAX_DEFERRED_QUERY_ENDS];
++      memcpy(ends, cmdbuf->state.gfx.v7_query_ends, n * sizeof(ends[0]));
++      cmdbuf->state.gfx.v7_query_end_count = 0;
++
++      cmd_close_batch_impl(cmdbuf);
++
++      struct panvk_batch *batch = panvk_per_arch(cmd_open_batch)(cmdbuf);
++      batch->after_frag = true;
++      for (uint32_t i = 0; i < n; i++) {
++         struct pan_ptr job =
++            pan_pool_alloc_desc(&cmdbuf->desc_pool.base, WRITE_VALUE_JOB);
++         if (!job.gpu)
++            break;
++         pan_section_pack(job.cpu, WRITE_VALUE_JOB, PAYLOAD, payload) {
++            payload.type = MALI_WRITE_VALUE_TYPE_IMMEDIATE_32;
++            payload.address = ends[i];
++            payload.immediate_value = 1;
++         };
++         pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_WRITE_VALUE, true, false,
++                        0, 0, &job, false);
++         util_dynarray_append(&batch->jobs, job.cpu);
++      }
++      cmd_close_batch_impl(cmdbuf);
++      return;
++   }
++   cmdbuf->state.gfx.v7_query_end_count = 0;
++#endif
++   cmd_close_batch_impl(cmdbuf);
++}
++
++static void
++cmd_close_batch_impl(struct panvk_cmd_buffer *cmdbuf)
+ {
+    struct panvk_batch *batch = cmdbuf->cur_batch;
+ 
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c
+index 8a20238..c48017f 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c
+@@ -68,6 +68,13 @@ static struct panvk_batch *
+ open_batch_flags(struct panvk_cmd_buffer *cmd, bool *had_batch,
+                  bool after_frag)
+ {
++#if PAN_ARCH < 9
++   /* jm-v7 100: deferred occlusion ends become available before any
++    * timestamp, copy, reset or non-deferred end that follows them.
++    */
++   if (after_frag && cmd->state.gfx.v7_query_end_count && cmd->cur_batch)
++      panvk_per_arch(cmd_close_batch)(cmd);
++#endif
+    bool res = cmd->cur_batch != NULL;
+ 
+    if (!res)
+@@ -373,6 +380,32 @@ panvk_per_arch(CmdEndQueryIndexedEXT)(VkCommandBuffer commandBuffer,
+    VK_FROM_HANDLE(panvk_cmd_buffer, cmd, commandBuffer);
+    VK_FROM_HANDLE(panvk_query_pool, pool, queryPool);
+ 
++#if PAN_ARCH < 9
++   /* jm-v7 100: an occlusion query ended in an open batch (usually the
++    * render pass batch holding its draws) no longer splits it. Draws count
++    * through their own DCD pointer, so turning the counter off here is
++    * enough; the availability word is written by cmd_close_batch() in an
++    * after_frag batch once this batch (and its fragment job) is done.
++    * PANVK_V7_QUERY_END_DEFER=0 = split here (old).
++    */
++   static int end_defer = -1;
++   if (end_defer < 0) {
++      const char *e = getenv("PANVK_V7_QUERY_END_DEFER");
++      end_defer = !(e && e[0] == '0');
++   }
++   if (end_defer && pool->vk.query_type == VK_QUERY_TYPE_OCCLUSION &&
++       cmd->cur_batch &&
++       cmd->state.gfx.v7_query_end_count < PANVK_V7_MAX_DEFERRED_QUERY_ENDS) {
++      cmd->state.gfx.occlusion_query.ptr = 0;
++      cmd->state.gfx.occlusion_query.mode = MALI_OCCLUSION_MODE_DISABLED;
++      gfx_state_set_dirty(cmd, OQ);
++      pstats_take_oq(cmd);
++      cmd->state.gfx.v7_query_ends[cmd->state.gfx.v7_query_end_count++] =
++         panvk_query_available_dev_addr(pool, query);
++      return;
++   }
++#endif
++
+    bool end_sync = cmd->cur_batch != NULL;
+ 
+    /* Close to ensure we are sync and flush caches */
+diff --git a/src/panfrost/vulkan/panvk_cmd_draw.h b/src/panfrost/vulkan/panvk_cmd_draw.h
+index 8d4104c..148a54b 100644
+--- a/src/panfrost/vulkan/panvk_cmd_draw.h
++++ b/src/panfrost/vulkan/panvk_cmd_draw.h
+@@ -172,6 +172,12 @@ struct panvk_cmd_graphics_state {
+     */
+    uint32_t v7_dirty_sets;
+    bool v7_dirty_sets_valid;
++   /* jm-v7 100: availability words of occlusion queries ended in the
++    * current batch, written once it closes (after its fragment job).
++    */
++#define PANVK_V7_MAX_DEFERRED_QUERY_ENDS 64
++   uint64_t v7_query_ends[PANVK_V7_MAX_DEFERRED_QUERY_ENDS];
++   uint32_t v7_query_end_count;
+ #endif
+ 
+    struct {
+-- 
+2.55.0
+
