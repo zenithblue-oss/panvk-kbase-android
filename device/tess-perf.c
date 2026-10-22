@@ -66,6 +66,36 @@ memlog(const char *what)
 #endif
 }
 
+/* Low-memory guard: below PT_TESS_MIN_AVAIL_KB (default 300000) of
+ * MemAvailable the test stops and FAILs with LOWMEM, instead of being
+ * killed by the low-memory killer together with the test harness. Checked
+ * every 32 recorded draws and after every frame. */
+static int lowmem;
+
+static long
+min_avail_kb(void)
+{
+   const char *e = getenv("PT_TESS_MIN_AVAIL_KB");
+   return e ? atol(e) : 300000;
+}
+
+static int
+check_lowmem(const char *where)
+{
+   if (lowmem)
+      return 1;
+   const long avail = meminfo_kb("/proc/meminfo", "MemAvailable:");
+   if (avail >= 0 && avail < min_avail_kb()) {
+      lowmem = 1;
+      char what[128];
+      snprintf(what, sizeof(what), "LOWMEM at %s", where);
+      memlog(what);
+      printf("LOWMEM %s avail_kb=%ld below %ld: stopping\n", where, avail,
+             min_avail_kb());
+   }
+   return lowmem;
+}
+
 /* The harness has no teardown: destroy the device and instance of a
  * variant before the next one is created, so two devices' tessellation
  * memory is never resident at once. */
@@ -178,6 +208,8 @@ record(struct dx7 *t, VkCommandBuffer cmd, VkPipeline pipe,
                          sizeof(pc), pc);
       /* ref: the 64 control points as 21 triangles. */
       vkCmdDraw(cmd, c->ref ? 63 : VERTS, 1, 0, 0);
+      if ((i & 31) == 31 && check_lowmem("record"))
+         break;
    }
    vkCmdEndRenderPass(cmd);
    VkImageMemoryBarrier bar = {.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -287,7 +319,7 @@ main(int argc, char **argv)
       s = semi ? semi + 1 : NULL;
    }
 
-   uint32_t hashes[MAX_VARIANTS][2][NCFG];
+   uint32_t hashes[MAX_VARIANTS][2][NCFG] = {{{0}}};
    int ran[2][NCFG] = {{0}};
    double headline = 0;
    int fails = 0;
@@ -347,6 +379,10 @@ main(int argc, char **argv)
 
             submit_wait(&t, t.cmd); /* warm-up, and the checked image */
             memlog("first frame");
+            if (check_lowmem("first frame")) {
+               vkDestroyPipeline(t.dev, pipe, NULL);
+               break;
+            }
             hashes[v][gs][ci] = hash_px(t.px);
             submit_wait(&t, t.cmd);
 
@@ -356,7 +392,7 @@ main(int argc, char **argv)
                submit_wait(&t, t.cmd);
                frames++;
                el = now_ms() - start;
-            } while (el < budget_ms || frames < 3);
+            } while ((el < budget_ms || frames < 3) && !check_lowmem("frame"));
 
             const double ms = el / frames;
             printf("BENCH tess_perf opt=%s gs=%d L=%s draws=%d patches=%d "
@@ -381,6 +417,8 @@ main(int argc, char **argv)
             }
             vkDestroyPipeline(t.dev, pipe, NULL);
          }
+         if (lowmem)
+            break;
          /* The TES colour depends on the level and the domain points, so
           * L=1, 4 and 16 must give three different images. Equal hashes
           * mean the level was not applied (cfgs[1..3]). */
@@ -396,6 +434,14 @@ main(int argc, char **argv)
       }
       teardown(&t, argv[1]);
       memlog("teardown");
+      if (lowmem)
+         break;
+   }
+
+   if (lowmem) {
+      printf("FAIL LOWMEM: MemAvailable fell below %ld kB, tess_perf "
+             "stopped before the low-memory killer\n", min_avail_kb());
+      fails++;
    }
 
    if (headline > 0)

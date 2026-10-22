@@ -1,0 +1,217 @@
+From 28b0346c018c144c4a3072b944237651fb01bb40 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Thu, 22 Oct 2026 14:54:22 +0000
+Subject: [PATCH] jm-v7 107: one TLS/WLS buffer per heap half per command
+ buffer; 0079 review fixes
+
+FTL Galaxy S9 (G72) RC5-universal-106 died faster (88 s): tess_perf
+logged MemAvailable 1.58 GB with 19 MB RSS at device creation, then the
+106 batch budget split the first tessellated config into one batch per
+draw ("tess batch budget 32 MiB: new batch (varyings 43 MiB worst
+case)"), and lmkd killed most of userspace including PanProbe within 4 s,
+during recording, before any GPU work and with no new growable BOs. On
+v6/v7 JM every batch allocates its own TLS (total stack size over all
+cores' threads) and WLS buffers from the command buffer's tls_pool, fully
+committed: hundreds of batches multiplied them.
+
+- Batches of a command buffer now share one TLS and one WLS buffer per
+  PANVK_OVERLAP heap half, reallocated only when a batch needs more. A
+  batch's vertex/tiler chain only overlaps the fragment job of the other
+  half; same-half batches are ordered (half_frag_atom), and batches
+  without a fragment job are fully ordered. PANVK_V7_TLS_SHARE=0 = old.
+- 0079 review: picking the heap half early (indirect varying allocator,
+  tess draw) no longer overwrites the layer tiler context a draw already
+  selected (panvk_v7_batch_pick_half() keeps batch->tiler.ctx); nested
+  tess draws with transform feedback keep using gs_pool buffers instead of
+  the per-batch GS scratch.
+
+Not device-tested.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/jm/panvk_cmd_buffer.h    | 10 ++++
+ src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c | 48 ++++++++++++++++++--
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c   | 26 +++++++++--
+ src/panfrost/vulkan/panvk_v7_knobs.h         | 10 ++++
+ 4 files changed, 86 insertions(+), 8 deletions(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
+index 15549de0..57559991 100644
+--- a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
++++ b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
+@@ -106,6 +106,16 @@ struct panvk_cmd_buffer {
+    /* Growable GPU-only memory: geometry emulation of large tess draws. */
+    struct panvk_pool gs_pool;
+    struct panvk_pool tls_pool;
++   /* jm-v7 107: the TLS and WLS buffers of this command buffer, one per
++    * PANVK_OVERLAP heap half, reused by every batch of that half that
++    * fits (a batch runs after the previous batch of its half completed).
++    * Before, every batch allocated its own, so splitting a frame into
++    * many batches multiplied them.
++    */
++   struct {
++      uint64_t tls_ptr, wls_ptr;
++      uint64_t tls_size, wls_size;
++   } tls_half[2];
+    struct list_head batches;
+    struct list_head push_sets;
+    struct panvk_batch *cur_batch;
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
+index ff35002e..f239d45c 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
+@@ -15,6 +15,8 @@
+ #include "panvk_buffer.h"
+ #include "panvk_cmd_alloc.h"
+ #include "panvk_cmd_buffer.h"
++#include "panvk_v7_knobs.h"
++#include "util/log.h"
+ #include "panvk_cmd_desc_state.h"
+ #include "panvk_cmd_draw.h"
+ #include "panvk_cmd_frame_shaders.h"
+@@ -180,14 +182,51 @@ cmd_close_batch_impl(struct panvk_cmd_buffer *cmdbuf)
+ 
+       unsigned size = pan_get_total_stack_size(batch->tlsinfo.tls.size,
+                                                thread_tls_alloc, core_id_range);
+-      batch->tlsinfo.tls.ptr =
+-         panvk_cmd_alloc_dev_mem(cmdbuf, tls, size, 4096).gpu;
++      /* jm-v7 107: reuse this half's buffer when it is large enough. */
++      const unsigned h = batch->heap_half & 1;
++      if (panvk_v7_tls_share() && cmdbuf->tls_half[h].tls_ptr &&
++          cmdbuf->tls_half[h].tls_size >= size) {
++         batch->tlsinfo.tls.ptr = cmdbuf->tls_half[h].tls_ptr;
++      } else {
++         batch->tlsinfo.tls.ptr =
++            panvk_cmd_alloc_dev_mem(cmdbuf, tls, size, 4096).gpu;
++         if (batch->tlsinfo.tls.ptr) {
++            cmdbuf->tls_half[h].tls_ptr = batch->tlsinfo.tls.ptr;
++            cmdbuf->tls_half[h].tls_size = size;
++         }
++         static unsigned tls_logged;
++         if (tls_logged < 4) {
++            tls_logged++;
++            mesa_logi("panvk: v%u batch TLS %u KiB (stack %u B/thread), "
++                      "half %u%s", PAN_ARCH, size >> 10,
++                      batch->tlsinfo.tls.size, h,
++                      panvk_v7_tls_share() ? ", shared per half" : "");
++         }
++      }
+    }
+ 
+    if (batch->tlsinfo.wls.size) {
+       assert(batch->wls_total_size);
+-      batch->tlsinfo.wls.ptr =
+-         panvk_cmd_alloc_dev_mem(cmdbuf, tls, batch->wls_total_size, 4096).gpu;
++      const unsigned h = batch->heap_half & 1;
++      if (panvk_v7_tls_share() && cmdbuf->tls_half[h].wls_ptr &&
++          cmdbuf->tls_half[h].wls_size >= batch->wls_total_size) {
++         batch->tlsinfo.wls.ptr = cmdbuf->tls_half[h].wls_ptr;
++      } else {
++         batch->tlsinfo.wls.ptr =
++            panvk_cmd_alloc_dev_mem(cmdbuf, tls, batch->wls_total_size, 4096)
++               .gpu;
++         if (batch->tlsinfo.wls.ptr) {
++            cmdbuf->tls_half[h].wls_ptr = batch->tlsinfo.wls.ptr;
++            cmdbuf->tls_half[h].wls_size = batch->wls_total_size;
++         }
++         static unsigned wls_logged;
++         if (wls_logged < 4) {
++            wls_logged++;
++            mesa_logi("panvk: v%u batch WLS %u KiB, half %u%s", PAN_ARCH,
++                      (unsigned)(batch->wls_total_size >> 10), h,
++                      panvk_v7_tls_share() ? ", shared per half" : "");
++         }
++      }
+    }
+ 
+    if (batch->tls.cpu)
+@@ -545,6 +584,7 @@ panvk_reset_cmdbuf(struct vk_command_buffer *vk_cmdbuf,
+ 
+    panvk_pool_reset(&cmdbuf->desc_pool);
+    panvk_pool_reset(&cmdbuf->tls_pool);
++   memset(cmdbuf->tls_half, 0, sizeof(cmdbuf->tls_half));
+    panvk_pool_reset(&cmdbuf->varying_pool);
+    panvk_pool_reset(&cmdbuf->gs_pool);
+    panvk_cmd_buffer_obj_list_reset(cmdbuf, push_sets);
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index 84ead75b..7e4aef5c 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -572,6 +572,22 @@ panvk_draw_prepare_tiler_context(struct panvk_cmd_buffer *cmdbuf,
+    return VK_SUCCESS;
+ }
+ 
++/* jm-v7 107: the heap half of the current batch is picked with its tiler
++ * context. Creating it early must not change which layer's context a draw
++ * already selected (batch->tiler.ctx), so that is kept.
++ */
++static VkResult
++panvk_v7_batch_pick_half(struct panvk_cmd_buffer *cmdbuf)
++{
++   struct panvk_batch *batch = cmdbuf->cur_batch;
++   if (batch->tiler.ctx_descs.gpu)
++      return VK_SUCCESS; /* half already picked */
++   const struct pan_tiler_context saved = batch->tiler.ctx;
++   VkResult result = panvk_per_arch(cmd_prepare_tiler_context)(cmdbuf, 0);
++   batch->tiler.ctx = saved;
++   return result;
++}
++
+ /* The allocator indirect draws take their varyings from, see
+  * panlib_patch_varying_bufs(). One per batch (or per ~1024 indirect draws).
+  */
+@@ -590,7 +606,7 @@ panvk_draw_get_indirect_varying_info(struct panvk_cmd_buffer *cmdbuf)
+     */
+    const struct panvk_priv_bo *vary_bo = dev->indirect_varying_buffer;
+    if (dev->indirect_varying_buffer2 && cmdbuf->cur_batch) {
+-      VkResult result = panvk_per_arch(cmd_prepare_tiler_context)(cmdbuf, 0);
++      VkResult result = panvk_v7_batch_pick_half(cmdbuf);
+       if (result != VK_SUCCESS)
+          return result;
+       if (cmdbuf->cur_batch->heap_half & 1)
+@@ -3839,8 +3855,7 @@ panvk_tess_draw(struct panvk_cmd_buffer *cmdbuf,
+    }
+    if (dev->tess_gs_scratch[0] || dev->indirect_varying_buffer2) {
+       /* The heap half picks the buffers this batch reuses. */
+-      if (panvk_per_arch(cmd_prepare_tiler_context)(cmdbuf, 0) !=
+-          VK_SUCCESS) {
++      if (panvk_v7_batch_pick_half(cmdbuf) != VK_SUCCESS) {
+          vk_command_buffer_set_error(&cmdbuf->vk,
+                                      VK_ERROR_OUT_OF_DEVICE_MEMORY);
+          return;
+@@ -3968,7 +3983,10 @@ panvk_tess_draw(struct panvk_cmd_buffer *cmdbuf,
+       .tess_phase = PANVK_TESS_PHASE_TES,
+       .gs_max_prims = nested ? max_indices / vpp : 0,
+    };
+-   gfx->tess.gs_scratch = nested && dev->tess_gs_scratch[0];
++   /* Not with transform feedback: keep its buffers out of the per-batch
++    * reuse (jm-v7 107 review). */
++   gfx->tess.gs_scratch =
++      nested && dev->tess_gs_scratch[0] && !gfx->xfb.active;
+    panvk_cmd_draw_indirect(cmdbuf, &out);
+    gfx->tess.gs_scratch = false;
+ #undef TD
+diff --git a/src/panfrost/vulkan/panvk_v7_knobs.h b/src/panfrost/vulkan/panvk_v7_knobs.h
+index 13eb907a..28172a7e 100644
+--- a/src/panfrost/vulkan/panvk_v7_knobs.h
++++ b/src/panfrost/vulkan/panvk_v7_knobs.h
+@@ -114,6 +114,16 @@ panvk_v7_tess_gs_tight(void)
+    return panvk_v7_knob_on("PANVK_V7_TESS_GS_TIGHT", &v);
+ }
+ 
++/* jm-v7 107: batches of a command buffer share one TLS and one WLS buffer
++ * per heap half. PANVK_V7_TLS_SHARE=0 = one per batch (old).
++ */
++static inline bool
++panvk_v7_tls_share(void)
++{
++   static int v = -1;
++   return panvk_v7_knob_on("PANVK_V7_TLS_SHARE", &v);
++}
++
+ /* PANVK_OVERLAP (v67b, default on), as panvk_overlap_enabled(). */
+ static inline bool
+ panvk_v7_overlap_on(void)
+-- 
+2.55.0
+

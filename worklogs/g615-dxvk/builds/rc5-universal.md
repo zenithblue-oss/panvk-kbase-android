@@ -60,3 +60,10 @@ d. **v9, v10:** no device.
 - .so `/home/flux/build-out/2026-10-22-rc5-universal-106/libvulkan_panfrost.so`, sha256 `1cb2c074bb1f234ca4fc3a5f1eb12eb048ba7ca74d93710a45351ffbea51c7e5`. The version string is `PanVK-kbase RC5-universal-106 (Mesa 26.3.0-devel (git-710db1f998))`; the build was made before the commit. BDIR `/home/flux/build-rc5/bionic-r30-RC5-universal-106`.
 - APK `/home/flux/build-out/apks/panprobe-rc5u-106.apk`, sha256 `7356674b2481f39b9297a7c45e4b6f41e448e7a85f723339bdd84c6614b88010`, package `dev.zenithblue.panvktest.rc5u`, rc5 1cb2c074, rc4 c395db09. tess_perf now logs memory (`PanProbeTess`) and tears down each variant's device.
 - To rebuild the tree: `prepare-rc5-tree.sh --csf-max 219 --wip-max 0079`.
+
+## RC5-universal-107 (2026-10-22): third FTL starlte fix
+- RC5-universal-106 (matrix 5926634178382505063) was LMK-killed while recording tess_perf gs=0 L=1: per-batch TLS/WLS times the 0079 batch splits. See `device-runs/2026-10-22-ftl-v6-starlte-rc5u-106/results.md`.
+- Fix: `patches/jm-v7-wip/0080` (jm-v7 107), mesa-rc5g HEAD `28b0346c`. tess_perf now also has a LOWMEM guard (FAIL instead of a kill).
+- .so `/home/flux/build-out/2026-10-22-rc5-universal-107/libvulkan_panfrost.so`, sha256 `9a6308c8be00f5ea58c59f9a399f329790fc7e2ee55a49a7544becc594eabbbd` (`PanVK-kbase RC5-universal-107 (Mesa 26.3.0-devel (git-28b0346c01))`), BDIR `/home/flux/build-rc5/bionic-r30-RC5-universal-107`.
+- APK `/home/flux/build-out/apks/panprobe-rc5u-107.apk`, sha256 `0c3a8f5192301c30404d5f07aa2c19b3b784f099d19994b8cc302d185e84702d`, package `dev.zenithblue.panvktest.rc5u`, rc5 9a6308c8, rc4 c395db09.
+- To rebuild the tree: `prepare-rc5-tree.sh --csf-max 219 --wip-max 0080`.
