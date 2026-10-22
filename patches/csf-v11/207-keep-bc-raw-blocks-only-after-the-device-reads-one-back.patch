@@ -471,7 +471,7 @@ index 3d13c58a..6e1cc455 100644
  
  static inline VkFormat
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_meta.c b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
-index 1f40dba8..cf49ccb4 100644
+index 1f40dba8..894493a9 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 +++ b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 @@ -867,6 +867,7 @@ bc_decode_region(struct panvk_cmd_buffer *cmdbuf, struct panvk_image *img,
@@ -482,21 +482,8 @@ index 1f40dba8..cf49ccb4 100644
  #define PANVK_BC_EAC_NO_DATA 1
  #include "bc/panvk_bc_eac_lut.h"
  #include "panvk_priv_bo.h"
-@@ -1672,6 +1673,12 @@ panvk_per_arch(CmdCopyImageToMemoryKHR)(
-       panvk_meta_copy_get_image_properties(img, false, false);
-    struct panvk_cmd_meta_compute_save_ctx save = {0};
- 
-+   /* csf-v11/207: no raw blocks to read (PANVK_BC_RAW=lazy). */
-+   if (img->bc_raw_lazy) {
-+      bc_raw_lazy_hit(dev, "copy to memory");
-+      return;
-+   }
-+
-    /* Raw blocks of a raw-store image (csf-v11/201). */
-    if (!bc_raw_use(cmdbuf, img, false, false))
-       return;
-@@ -1930,6 +1937,165 @@ bc_copy_image_no_raw(struct panvk_cmd_buffer *cmdbuf,
-    STACK_ARRAY_FINISH(srcs);
+@@ -1660,6 +1661,18 @@ copy_memory_to_image_raw(
+    }
  }
  
 +/* csf-v11/207: the device read the raw blocks of a BC image that kept none
@@ -511,6 +498,26 @@ index 1f40dba8..cf49ccb4 100644
 +                "keeps them from the start)", what);
 +}
 +
+ VKAPI_ATTR void VKAPI_CALL
+ panvk_per_arch(CmdCopyImageToMemoryKHR)(
+    VkCommandBuffer commandBuffer,
+@@ -1672,6 +1685,12 @@ panvk_per_arch(CmdCopyImageToMemoryKHR)(
+       panvk_meta_copy_get_image_properties(img, false, false);
+    struct panvk_cmd_meta_compute_save_ctx save = {0};
+ 
++   /* csf-v11/207: no raw blocks to read (PANVK_BC_RAW=lazy). */
++   if (img->bc_raw_lazy) {
++      bc_raw_lazy_hit(dev, "copy to memory");
++      return;
++   }
++
+    /* Raw blocks of a raw-store image (csf-v11/201). */
+    if (!bc_raw_use(cmdbuf, img, false, false))
+       return;
+@@ -1930,6 +1949,153 @@ bc_copy_image_no_raw(struct panvk_cmd_buffer *cmdbuf,
+    STACK_ARRAY_FINISH(srcs);
+ }
+ 
 +struct panvk_bc_scopy_push {
 +   uint32_t src[2];
 +   uint32_t dst[2];
