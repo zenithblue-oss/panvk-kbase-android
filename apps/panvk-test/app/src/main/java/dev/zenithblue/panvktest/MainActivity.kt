@@ -917,7 +917,10 @@ class MainActivity : ComponentActivity() {
         if (isDraw) {
             envList.add("PT_FPS_MS=1000")
         }
-        return envList.toTypedArray()
+        // Native.run puts these entries first in envp and getenv() returns the FIRST match, so a
+        // duplicate key must be collapsed here or the default above wins over --es env (bc5 "cache ON"
+        // runs really ran with the cache off). Keep the last value per key, at the key's first position.
+        return envList.associateBy { it.substringBefore('=') }.values.toTypedArray()
     }
 
     private fun createLogFile(name: String): File {
