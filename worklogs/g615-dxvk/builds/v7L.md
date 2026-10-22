@@ -42,7 +42,21 @@ All toggles are read once per process.
 
 ## Build
 
-BUILD_SECTION
+- **Mesa tree:** `/home/flux/src/mesa-v7J` branch `v7L`, HEAD `a724b88`. Patches 0006-0073 in file order are in `patches/jm-v7-wip`.
+- **Command** (thermal NONE, 2 jobs, fresh BDIR):
+  ```
+  flock /home/flux/build-cache/build.lock env MESA=/home/flux/src/mesa-v7J BDIR=/home/flux/build-v7feat/bionic-r30-v7L HOST_TOOLS=/home/flux/repos/panvk-kbase-android/build/host-tools/bin PANVK_KBASE_RELEASE=RC5-dev-v7L PANVK_JOBS=2 scripts/build-android.sh --profile g615-v11-csf --api 29 --ndk /opt/android-sdk/ndk/30.0.16248370
+  ```
+  Exit code 0.
+- **.so:** `/home/flux/build-out/2026-10-22-v7L/libvulkan_panfrost.so`, sha256 `3c582fb7d9397098de6ef245548c24d3b44db4957a54b5b02f1ac923d04ff013`. It contains the strings `RC5-dev-v7L` and `a724b88`.
+- **APK:** built from repo `55d76bb`, which includes the Firebase game-loop MainActivity (6faf253).
+  ```
+  apps/panvk-test/gradlew -p apps/panvk-test assembleDebug -PpanvkSoRc4=/home/flux/build-out/rc4/libvulkan_panfrost-android-aarch64.so -PpanvkSoRc5=/home/flux/build-out/2026-10-22-v7L/libvulkan_panfrost.so -PpanprobeSuffix=v7l
+  ```
+  - Built under the lock: BUILD SUCCESSFUL.
+  - `/home/flux/build-out/apks/panprobe-v7L.apk`, sha256 `6f527a2d3330cfe528364201ad78e6ff1eed83d9ceb10350451b3b3c550fe904`.
+  - Package `dev.zenithblue.panvktest.v7l`.
+  - Its `lib/arm64-v8a/libvulkan_panfrost_rc5.so` hash was checked and matches the .so (3c582fb7...).
 
 ## Device test plan
 
