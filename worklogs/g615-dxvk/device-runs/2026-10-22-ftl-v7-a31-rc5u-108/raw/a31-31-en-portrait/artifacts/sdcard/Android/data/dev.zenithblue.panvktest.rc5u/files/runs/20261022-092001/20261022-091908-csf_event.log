@@ -1,0 +1,63 @@
+PID 16612
+Tgid:	16612
+Pid:	16612
+PPid:	12316
+READY
+T 3975.997043004 go
+MESA: info: kbase: JM driver, uAPI version 11.27, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+MESA: warning: kbase: GPU timestamp counter measured at 26000577 Hz (26001153 / 26000002), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)
+MESA: info: kbase: no usable ION system heap
+MESA: info: panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: warning: panvk: v7 (Bifrost) support is experimental
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe03fe)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+PHYS 0 Mali-G52 r1 MC2 vendor=0x13b5 device=0x74021000
+FEATURE synchronization2=1
+QFAM 0 flags=0x7 count=1
+MESA: info: kbase: JM driver, uAPI version 11.27, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+MESA: warning: kbase: GPU timestamp counter measured at 26000795 Hz (26002353 / 25999238), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)
+MESA: info: kbase: no usable ION system heap
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 70313 pages committed
+SYNC2 enabled
+T 3980.048358927 host-set
+T 3980.048697389 host-submit
+FENCE host r=0 dt=0.003
+CASE host got=0x085000a1 expect=0x085000a1
+T 3980.051443927 host-set-replay
+T 3980.054107927 host-submit-replay
+FENCE host-replay r=0 dt=0.001
+CASE host-replay got=0x085000a2 expect=0x085000a2
+T 3980.054731312 gpu-write
+T 3980.055922927 gpu-submit-set
+FENCE gpu-set r=0 dt=0.001
+GPU_EVENT_STATUS 3
+T 3980.056625697 gpu-submit-wait
+FENCE gpu r=0 dt=0.001
+CASE gpu got=0x085000b1 expect=0x085000b1
+T 3980.057096543 gpu-write-replay
+T 3980.058077697 gpu-submit-set-replay
+FENCE gpu-set-replay r=0 dt=0.000
+GPU_EVENT_STATUS 3
+T 3980.058539004 gpu-submit-wait-replay
+FENCE gpu-replay r=0 dt=0.001
+CASE gpu-replay got=0x085000b2 expect=0x085000b2
+T 3980.153568466 ring-begin
+FENCE ring r=0 dt=0.111
+FENCE ring-copy r=0 dt=0.001
+CASE ring submit=0 red=64/64 passes=1700
+FENCE ring r=0 dt=0.300
+FENCE ring-copy r=0 dt=0.000
+CASE ring submit=1 red=64/64 passes=1700
+T 3980.576667927 ring-end
+RESULT PASS
