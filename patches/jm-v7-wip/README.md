@@ -280,3 +280,4 @@ Base: `mesa-v7J` HEAD f69289a (after 0058); same worktree `/home/flux/src/mesa-v
 Base: `mesa-v7J` HEAD d160802 (after 0062); same worktree, new branch `v7L`. Apply in file order after 0062. Review: `worklogs/g615-dxvk/perf-review-2026-10-22.md`. Build record: `worklogs/g615-dxvk/builds/v7L.md`.
 
 - 0063 (jm-v7 090, review item 5): the VS copy-desc job runs on every draw of a VS with storage images; the attribute table that holds the image entries is new per draw, so the second draw without a rebind read an unwritten table. Correctness fix, no toggle. PanProbe vertex_stores case `vs_img_redraw`.
+- 0064 (jm-v7 091, review item 15): the compile knobs `PANVK_TEX_WATERFALL`, `PANVK_V7_IDVS` and `PANVK_V7_DESC_REORDER` move to `panvk_v7_knobs.h` (resolved once per process) and their resolved values are hashed into the shader cache key on v6/v7, so A/B runs no longer need `MESA_SHADER_CACHE_DISABLE`.

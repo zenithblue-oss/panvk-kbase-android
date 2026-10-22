@@ -1,0 +1,174 @@
+From a0c4ae00f09e018000781b4c0ee3fb8c6099bc87 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 22 Oct 2026 04:25:04 +0000
+Subject: [PATCH] jm-v7 091: hash the v6/v7 compile knobs into the shader cache
+ key
+
+PANVK_TEX_WATERFALL (jm-v7 085/087), PANVK_V7_IDVS (jm-v7 075) and
+PANVK_V7_DESC_REORDER (jm-v7 086) change the compiled binary but were
+not part of panvk_hash_state(), so a device A/B run that toggled one of
+them without MESA_SHADER_CACHE_DISABLE got the cached binary of the
+other setting (perf review item 15).
+
+The knobs move to panvk_v7_knobs.h, each resolved once per process
+(PANVK_TEX_WATERFALL was a getenv per compile), and panvk_hash_state()
+hashes the resolved values plus a knob-set version tag on PAN_ARCH < 9.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_v7_knobs.h          | 57 +++++++++++++++++++
+ .../vulkan/panvk_vX_nir_lower_descriptors.c   |  8 +--
+ src/panfrost/vulkan/panvk_vX_shader.c         | 26 ++++++---
+ 3 files changed, 77 insertions(+), 14 deletions(-)
+ create mode 100644 src/panfrost/vulkan/panvk_v7_knobs.h
+
+diff --git a/src/panfrost/vulkan/panvk_v7_knobs.h b/src/panfrost/vulkan/panvk_v7_knobs.h
+new file mode 100644
+index 0000000..dbd1d1b
+--- /dev/null
++++ b/src/panfrost/vulkan/panvk_v7_knobs.h
+@@ -0,0 +1,57 @@
++/*
++ * Copyright © 2026 Collabora Ltd.
++ * SPDX-License-Identifier: MIT
++ */
++
++/* jm-v7 091: the v6/v7 environment knobs that change a shader compile.
++ * Each one is resolved once per process. panvk_hash_state() hashes the
++ * resolved values, so a device A/B run with a knob toggled never gets a
++ * binary compiled with the other setting from the disk cache.
++ */
++
++#ifndef PANVK_V7_KNOBS_H
++#define PANVK_V7_KNOBS_H
++
++#include <stdbool.h>
++#include <stdlib.h>
++#include <string.h>
++
++/* PANVK_TEX_WATERFALL: 0 = off, 1 = NonUniform divergent indices (default,
++ * jm-v7 087), 2 = every divergent index ("all", jm-v7 085).
++ */
++static inline int
++panvk_v7_knob_tex_waterfall(void)
++{
++   static int v = -1;
++   if (v < 0) {
++      const char *e = getenv("PANVK_TEX_WATERFALL");
++      v = !e ? 1 : !strcmp(e, "0") ? 0 : !strcmp(e, "all") ? 2 : 1;
++   }
++   return v;
++}
++
++/* PANVK_V7_IDVS: -1 = default rules, 0 = never, 1 = also on quirked GPUs. */
++static inline int
++panvk_v7_knob_idvs(void)
++{
++   static int v = -2;
++   if (v == -2) {
++      const char *e = getenv("PANVK_V7_IDVS");
++      v = e ? (e[0] == '1' ? 1 : 0) : -1;
++   }
++   return v;
++}
++
++/* PANVK_V7_DESC_REORDER: jm-v7 086, on unless "0". */
++static inline bool
++panvk_v7_knob_desc_reorder(void)
++{
++   static int v = -1;
++   if (v < 0) {
++      const char *e = getenv("PANVK_V7_DESC_REORDER");
++      v = !(e && e[0] == '0');
++   }
++   return v;
++}
++
++#endif /* PANVK_V7_KNOBS_H */
+diff --git a/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c b/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c
+index 2f423e9..ae59e27 100644
+--- a/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c
++++ b/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c
+@@ -14,6 +14,7 @@
+ #include "panvk_image.h"
+ #include "panvk_sampler.h"
+ #include "panvk_shader.h"
++#include "panvk_v7_knobs.h"
+ 
+ #include "vk_format.h"
+ #include "vk_graphics_state.h"
+@@ -531,12 +532,7 @@ get_resource_deref_binding(nir_deref_instr *deref, uint32_t *set,
+ static bool
+ panvk_v7_desc_reorder(void)
+ {
+-   static int on = -1;
+-   if (on < 0) {
+-      const char *e = getenv("PANVK_V7_DESC_REORDER");
+-      on = !(e && e[0] == '0');
+-   }
+-   return on;
++   return panvk_v7_knob_desc_reorder();
+ }
+ #endif
+ 
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index 1cd7352..366e752 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -20,6 +20,7 @@
+ #include "panvk_physical_device.h"
+ #include "panvk_sampler.h"
+ #include "panvk_shader.h"
++#include "panvk_v7_knobs.h"
+ #if PAN_ARCH >= 9
+ #include "panvk_gpu_prerast.h"
+ #include "libpan/draw_helper_vp.h"
+@@ -2540,6 +2541,19 @@ panvk_hash_state(struct vk_physical_device *device,
+    const bool robust_ssbo_vec = PANVK_DEBUG(ROBUST_SSBO_VEC);
+    _mesa_blake3_update(&blake3_ctx, &robust_ssbo_vec, sizeof(robust_ssbo_vec));
+ #endif
++#if PAN_ARCH < 9
++   /* jm-v7 091: the compile knobs (panvk_v7_knobs.h), resolved, so an A/B
++    * run with a knob toggled never reuses a cached binary of the other
++    * setting. The tag versions the knob set.
++    */
++   const int32_t v7_knobs[] = {
++      0x76370091, /* knob set version */
++      panvk_v7_knob_tex_waterfall(),
++      panvk_v7_knob_idvs(),
++      panvk_v7_knob_desc_reorder(),
++   };
++   _mesa_blake3_update(&blake3_ctx, v7_knobs, sizeof(v7_knobs));
++#endif
+ 
+    if (state != NULL) {
+       /* This doesn't impact the shader compile but it does go in the
+@@ -3335,9 +3349,9 @@ panvk_lower_nir(struct panvk_device *dev, nir_shader *nir,
+ 
+    /* jm-v7 085: divergent texture/sampler indices, all lanes active. */
+    {
+-      const char *wf = getenv("PANVK_TEX_WATERFALL");
+-      if (!wf || strcmp(wf, "0"))
+-         panvk_v7_lower_divergent_tex(nir, wf && !strcmp(wf, "all"));
++      const int wf = panvk_v7_knob_tex_waterfall();
++      if (wf)
++         panvk_v7_lower_divergent_tex(nir, wf == 2);
+    }
+ #endif
+ 
+@@ -4607,11 +4621,7 @@ panvk_compile_shader(struct panvk_device *dev,
+     * G72/G76.
+     */
+    if (info->stage == MESA_SHADER_VERTEX && !vs_clip_space) {
+-      static int idvs_env = -2;
+-      if (idvs_env == -2) {
+-         const char *e = getenv("PANVK_V7_IDVS");
+-         idvs_env = e ? (e[0] == '1' ? 1 : 0) : -1;
+-      }
++      const int idvs_env = panvk_v7_knob_idvs();
+       const uint32_t prod = (inputs.gpu_id >> 16) & 0xff0f;
+       const bool idvs_quirk = prod == 0x6201 /* G72 */ ||
+                               prod == 0x7201 /* G76 */;
+-- 
+2.55.0
+
