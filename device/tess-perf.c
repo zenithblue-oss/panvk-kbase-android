@@ -17,6 +17,8 @@
  * PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0"
  * (the second variant is the pre-tess-perf behaviour). The readback of
  * every config must be identical across variants, or the test FAILs.
+ * The TES colour is not affine in (u, v) and carries the level, so within
+ * a variant L=1, 4 and 16 must also differ (LEVEL_IGNORED otherwise).
  *
  * Output: one BENCH line per (variant, config), e.g.
  *   BENCH tess_perf opt=default gs=0 L=16 draws=256 patches=4096 ms=12.34 us_draw=48.2 frames=57
@@ -302,6 +304,18 @@ main(int argc, char **argv)
                fails++;
             }
             vkDestroyPipeline(t.dev, pipe, NULL);
+         }
+         /* The TES colour depends on the level and the domain points, so
+          * L=1, 4 and 16 must give three different images. Equal hashes
+          * mean the level was not applied (cfgs[1..3]). */
+         for (unsigned ci = 2; ci <= 3; ci++) {
+            if (hashes[v][gs][ci] == hashes[v][gs][ci - 1]) {
+               printf("LEVEL_IGNORED opt=%s gs=%d L=%s hash=%08x equals "
+                      "L=%s\n",
+                      variants[v], gs, cfgs[ci].name, hashes[v][gs][ci],
+                      cfgs[ci - 1].name);
+               fails++;
+            }
          }
       }
       /* The device is left alive: the harness has no teardown, and a new
