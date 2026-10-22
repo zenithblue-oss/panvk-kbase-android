@@ -265,6 +265,11 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // Game loop: v6/v7 drivers may still check the env gate (rc4 does); harmless where it is not needed.
+        if (gameLoop && extraEnv.none { it.startsWith("PAN_I_WANT_A_BROKEN_VULKAN_DRIVER=") }) {
+            extraEnv.add("PAN_I_WANT_A_BROKEN_VULKAN_DRIVER=1")
+        }
+
         // Debug builds only (checked in DriverUpdate): --es updateAs 0.1.0-beta.15 makes an older release look newer.
         intent.getStringExtra("updateAs")?.let { DriverUpdate.debugInstalledAs = it.ifEmpty { null } }
 
@@ -304,7 +309,17 @@ class MainActivity : ComponentActivity() {
             window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) // live surface needs the screen on
             setShowWhenLocked(true); setTurnScreenOn(true)  // wake the display so the SurfaceView window becomes visible
             lifecycleScope.launch(Dispatchers.IO) {
-                runHeadlessAutorun(autorunExtra)
+                if (gameLoop) {
+                    // Firebase scenario 1 = rc5 then rc4, scenario 2 = rc5 only (--scenario-numbers).
+                    // --ei scenario N overrides for local testing. rc4 may refuse v6; that is recorded.
+                    val scenario = intent.getIntExtra("scenario", 1)
+                    say0("GAMELOOP scenario=$scenario")
+                    runHeadlessAutorun(autorunExtra, final = scenario == 2)
+                    if (scenario != 2) {
+                        withContext(Dispatchers.Main) { driverTypeState.value = DriverType.RC4 }
+                        runHeadlessAutorun(autorunExtra, final = true, first = false)
+                    }
+                } else runHeadlessAutorun(autorunExtra)
             }
         }
 
@@ -1136,9 +1151,19 @@ class MainActivity : ComponentActivity() {
 
     private fun oneLine(s: String?) = (s ?: "").replace(Regex("\\s+"), " ").trim().take(300)
 
-    private suspend fun runHeadlessAutorun(which: String) {
+    private fun say0(s: String) {
         java.io.File(filesDir, "autorun.txt").delete()
         try { java.io.File(getExternalFilesDir(null), "autorun.txt").delete() } catch (_: Exception) {}
+        say(s)
+    }
+
+    private val glPrev = JSONArray()
+
+    private suspend fun runHeadlessAutorun(which: String, final: Boolean = true, first: Boolean = true) {
+        if (!gameLoop) {
+            java.io.File(filesDir, "autorun.txt").delete()
+            try { java.io.File(getExternalFilesDir(null), "autorun.txt").delete() } catch (_: Exception) {}
+        } else if (!first) say("GAMELOOP phase 2 driver=${driverTypeState.value.name}")
         val (json, _) = runInfo()
         val devicesArr = json?.optJSONArray("devices")
         val numDevices = devicesArr?.length() ?: 0
@@ -1202,7 +1227,7 @@ class MainActivity : ComponentActivity() {
         }
         if (gameLoop) {
             writeGameLoopResult(runResults, savedRun)
-            withContext(Dispatchers.Main) { finish() }
+            if (final) withContext(Dispatchers.Main) { finish() }
         }
     }
 
@@ -1231,8 +1256,13 @@ class MainActivity : ComponentActivity() {
             }
         } catch (e: Exception) { out.put("error", e.toString()) }
         out.put("complete", run != null)
+        out.put("driverSlot", driverTypeState.value.name)
+        if (glPrev.length() > 0) out.put("previousPhases", glPrev)
         val text = out.toString(2)
-        if (run != null) text.lines().forEach { Log.i("PanProbeGameLoop", it) }
+        if (run != null) {
+            text.lines().forEach { Log.i("PanProbeGameLoop", it) }
+            glPrev.put(JSONObject(text).apply { remove("previousPhases") })
+        }
         try {
             intent.data?.let { uri -> contentResolver.openOutputStream(uri, "wt")?.use { it.write(text.toByteArray()) } }
         } catch (e: Exception) { Log.e("PanProbeGameLoop", "write result failed", e) }
