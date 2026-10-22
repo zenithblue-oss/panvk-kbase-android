@@ -40,5 +40,7 @@ gcloud firebase test android models list --filter="model_id=<MODEL>"
 Example game-loop run:
 
 ```
-gcloud firebase test android run --type game-loop --app <apk> --device model=<model>,version=<api> --scenario-numbers 1 --timeout 30m --directories-to-pull /sdcard/Android/data/<pkg>/files
+gcloud firebase test android run --type game-loop --app <apk> --device model=<model>,version=<api> --scenario-numbers 2 --timeout 30m --directories-to-pull /sdcard/Android/data/<pkg>/files
 ```
+
+Use `--scenario-numbers 2` by default. Scenario 2 runs RC5 only, which is what the user wants. Scenario 1 runs RC5 and then RC4, so use it only when RC4 is needed.
