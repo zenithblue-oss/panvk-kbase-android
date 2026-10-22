@@ -204,6 +204,12 @@ main(int argc, char **argv)
    }
    const char *outdir = argv[2];
    setvbuf(stdout, NULL, _IONBF, 0);
+   /* This test reads the BC blocks back bit-exact (raw and copy checks).
+    * Since csf-v11/207 panvk keeps them only on demand (PANVK_BC_RAW=lazy:
+    * the first read-back of an image without them is skipped), so ask for
+    * them up front like any app that reads BC images back. An explicit
+    * PANVK_BC_RAW from the environment wins. */
+   setenv("PANVK_BC_RAW", "store", 0);
    void *h = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
    if (!h) {
       printf("FAIL dlopen %s\n", dlerror());

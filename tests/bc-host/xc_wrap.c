@@ -5,9 +5,24 @@
 #include "c_subset.h"
 #include XC_BODY
 
+#ifdef XC_LUT
+/* csf-v11/206: the expanded EAC endpoint pair tables (eac_fast()). */
+#include "panvk_bc_eac_lut.h"
+static uint32_t xc_lut_tab[PANVK_BC_EAC_KINDS][2 * PANVK_BC_EAC_KEYS];
+static bool xc_lut_init;
+#endif
+
 void
 XC_FN(uint mode, const uint *w, uint opts, uint *out)
 {
+#ifdef XC_LUT
+   if (!xc_lut_init) {
+      for (int k = 0; k < PANVK_BC_EAC_KINDS; k++)
+         panvk_bc_eac_expand(k, xc_lut_tab[k]);
+      xc_lut_init = true;
+   }
+   xc_eac_lut = xc_lut_tab[mode == XC_BC3 ? 0 : (mode == XC_BC4_S || mode == XC_BC5_S) ? 2 : 1];
+#endif
    transcode_block(mode, w[0], w[1], w[2], w[3], opts);
 #ifdef XC_NEW
    out[0] = g_out0;

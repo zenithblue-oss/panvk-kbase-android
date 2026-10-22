@@ -1,8 +1,10 @@
 /* Throughput and quality of the BC1-BC5 -> ETC2/EAC transcoder body of
  * three versions over a dim x dim texture of BC blocks:
  *   lowmem = mesa-lowmem (csf-v11/200 per-texel encoder),
- *   bc2    = mesa-bc at csf-v11/202 (palette encoder),
- *   bc3    = mesa-bc HEAD.
+ *   bc3    = mesa-bc at csf-v11/203 (Makefile BC2REV),
+ *   bc4    = mesa-bc HEAD (csf-v11/206: EAC endpoint pair table, opts).
+ * Opts (argv[4], default 0x30000) go to every version; the bc4 default is
+ * 0x20000 and 0xc30000 is the bc3 encoder.
  * The versions are timed interleaved (one pass of each per rep), so their
  * ratio holds under thermal throttling. Inputs are deterministic: "random"
  * (random words) and "gradient" (blocks encoded from the synthetic pictures
@@ -25,7 +27,7 @@ void xc_new(uint mode, const uint *w, uint opts, uint *out);
 void xc_new_dec(uint mode, const uint *w, int rgb[16][3], int ch[16][2], bool tr[16]);
 
 #define NV 3
-static const char *ver_name[NV] = {"lowmem", "bc2", "bc3"};
+static const char *ver_name[NV] = {"lowmem", "bc3", "bc4"};
 static void (*ver_fn[NV])(uint, const uint *, uint, uint *) = {xc_old, xc_bc2, xc_new};
 static const char *mode_name[8] = {"BC1", "BC1A", "BC2", "BC3", "BC4U", "BC4S", "BC5U", "BC5S"};
 
@@ -114,7 +116,7 @@ main(int argc, char **argv)
    printf("%-5s %-9s", "mode", "input");
    for (int v = 0; v < NV; v++)
       printf(" %7s-Mblk/s %6s-dB %6s-max", ver_name[v], ver_name[v], ver_name[v]);
-   printf(" bc3/lowmem bc3/bc2\n");
+   printf(" bc4/lowmem bc4/bc3\n");
    for (uint mode = 0; mode < 8; mode++) {
       if (!(mmask & (1 << mode)))
          continue;

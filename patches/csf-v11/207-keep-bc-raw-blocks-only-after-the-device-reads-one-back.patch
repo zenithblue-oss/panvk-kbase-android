@@ -1,0 +1,684 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 22 Oct 2026 06:18:17 +0000
+Subject: [PATCH] panvk: keep BC raw blocks only after the device reads one
+ back
+
+csf-v11/201 gave every readable (TRANSFER_SRC) BC lowmem image a raw
+store, and 203 made every upload write the raw blocks next to the
+transcode: one more write of the source size per upload, a BO per full
+upload (memset on the CPU) and a spill to flash later. DXVK sets
+TRANSFER_SRC on nearly every texture but almost never reads one back.
+RC4-lowmem and the GunaCharanTeja fork keep no raw blocks at all.
+
+PANVK_BC_RAW=lazy (the new default): readable 2D BC1-BC5 images (ETC2/EAC
+shadows) created before the device ever read a BC image back keep no
+raw blocks (bc_raw_lazy, with bc_no_raw). Uploads write only the shadow.
+A BC -> BC vkCmdCopyImage from such an image into one with the same
+shadow format copies the shadow blocks (panvk_bc_scopy.comp), which is
+exact for sampling. Any other read of its raw blocks (copy to a
+buffer or memory, copy to a non-BC image) is skipped with one warning
+and sets the device's bc_raw.needed, so BC images created after it get a
+raw store again and read back exactly. BC6H/BC7 and 3D images keep
+their raw stores.
+
+PANVK_BC_RAW=store restores csf-v11/201-206 (a raw store for every
+readable image), PANVK_BC_RAW=plane the raw plane in the image memory.
+Apps that check raw readback bit-exactly (PanProbe bc_decode) set
+PANVK_BC_RAW=store.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/bc/gen_spv.sh           |   4 +
+ src/panfrost/vulkan/bc/panvk_bc_scopy.comp  |  85 +++++++++
+ src/panfrost/vulkan/bc/panvk_bc_scopy_spv.h | 201 ++++++++++++++++++++
+ src/panfrost/vulkan/panvk_device.h          |   4 +
+ src/panfrost/vulkan/panvk_image.c           |  39 +++-
+ src/panfrost/vulkan/panvk_image.h           |   7 +
+ src/panfrost/vulkan/panvk_meta.h            |   2 +
+ src/panfrost/vulkan/panvk_vX_cmd_meta.c     | 177 +++++++++++++++++
+ 8 files changed, 513 insertions(+), 6 deletions(-)
+ create mode 100644 src/panfrost/vulkan/bc/panvk_bc_scopy.comp
+ create mode 100644 src/panfrost/vulkan/bc/panvk_bc_scopy_spv.h
+
+diff --git a/src/panfrost/vulkan/bc/gen_spv.sh b/src/panfrost/vulkan/bc/gen_spv.sh
+index bedb2ab..99a05ce 100644
+--- a/src/panfrost/vulkan/bc/gen_spv.sh
++++ b/src/panfrost/vulkan/bc/gen_spv.sh
+@@ -15,3 +15,7 @@ glslangValidator -V --target-env vulkan1.1 --vn panvk_bc_etc2_spv \
+ glslangValidator -V --target-env vulkan1.1 --vn panvk_bc_astc_spv \
+    -o panvk_bc_astc_spv.h panvk_bc_astc.comp
+ sed -i 's/^const uint32_t/static const uint32_t/' panvk_bc_*_spv.h
++# BC lowmem shadow -> shadow block copy (csf-v11/207, compute only).
++glslangValidator -V --target-env vulkan1.1 --vn panvk_bc_scopy_spv \
++   -o panvk_bc_scopy_spv.h panvk_bc_scopy.comp
++sed -i 's/^const uint32_t/static const uint32_t/' panvk_bc_scopy_spv.h
+diff --git a/src/panfrost/vulkan/bc/panvk_bc_scopy.comp b/src/panfrost/vulkan/bc/panvk_bc_scopy.comp
+new file mode 100644
+index 0000000..6f5b878
+--- /dev/null
++++ b/src/panfrost/vulkan/bc/panvk_bc_scopy.comp
+@@ -0,0 +1,85 @@
++#version 450
++/*
++ * Copyright 2026 PanVK-kbase contributors
++ * SPDX-License-Identifier: MIT
++ *
++ * BC lowmem shadow -> shadow block copy (csf-v11/207). A BC -> BC
++ * vkCmdCopyImage from an image that keeps no raw blocks (PANVK_BC_RAW=lazy)
++ * copies the transcoded ETC2/EAC blocks of the source shadow into the
++ * destination shadow: exact with respect to what is sampled. Both shadows
++ * are U-interleaved planes of 4x4-block tiles (see panvk_bc_etc2.comp),
++ * one invocation per block, 8 (WIDE = 0) or 16 bytes per block.
++ */
++#extension GL_EXT_buffer_reference : require
++#extension GL_EXT_buffer_reference_uvec2 : require
++
++layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
++
++layout(constant_id = 0) const uint WIDE = 0u;
++
++layout(buffer_reference, std430, buffer_reference_align = 8) buffer B2 {
++    uvec2 data[];
++};
++
++layout(buffer_reference, std430, buffer_reference_align = 16) buffer B4 {
++    uvec4 data[];
++};
++
++layout(push_constant) uniform Registers
++{
++    uvec2 src;        /* shadow level base, first layer of the region */
++    uvec2 dst;
++    uint src_row_B;   /* bytes per row of 4x4-block tiles */
++    uint src_slice_B; /* array stride */
++    uint dst_row_B;
++    uint dst_slice_B;
++    uint sbx0;        /* region origins in blocks */
++    uint sby0;
++    uint dbx0;
++    uint dby0;
++    uint bw;          /* region size in blocks */
++    uint bh;
++} registers;
++
++uvec2
++addr_mad(uvec2 a, uint m0, uint m1)
++{
++   uint hi, lo, c;
++   umulExtended(m0, m1, hi, lo);
++   a.x = uaddCarry(a.x, lo, c);
++   a.y += hi + c;
++   return a;
++}
++
++/* Element index of block (bx, by) inside its tile row. */
++uint
++tiled_elem(uint bx, uint by)
++{
++   uint ix = bx & 3u, iy = by & 3u;
++   uint in_tile = ((iy >> 1) << 3) | (((ix ^ iy) >> 1) << 2) |
++                  ((iy & 1u) << 1) | ((ix ^ iy) & 1u);
++   return (bx >> 2) * 16u + in_tile;
++}
++
++void
++main()
++{
++   uint x = gl_GlobalInvocationID.x;
++   uint y = gl_GlobalInvocationID.y;
++   uint z = gl_GlobalInvocationID.z;
++
++   if (x >= registers.bw || y >= registers.bh)
++      return;
++
++   uint sbx = registers.sbx0 + x, sby = registers.sby0 + y;
++   uint dbx = registers.dbx0 + x, dby = registers.dby0 + y;
++   uvec2 sa = addr_mad(addr_mad(registers.src, z, registers.src_slice_B),
++                       sby >> 2, registers.src_row_B);
++   uvec2 da = addr_mad(addr_mad(registers.dst, z, registers.dst_slice_B),
++                       dby >> 2, registers.dst_row_B);
++
++   if (WIDE != 0u)
++      B4(da).data[tiled_elem(dbx, dby)] = B4(sa).data[tiled_elem(sbx, sby)];
++   else
++      B2(da).data[tiled_elem(dbx, dby)] = B2(sa).data[tiled_elem(sbx, sby)];
++}
+diff --git a/src/panfrost/vulkan/bc/panvk_bc_scopy_spv.h b/src/panfrost/vulkan/bc/panvk_bc_scopy_spv.h
+new file mode 100644
+index 0000000..de4d786
+--- /dev/null
++++ b/src/panfrost/vulkan/bc/panvk_bc_scopy_spv.h
+@@ -0,0 +1,201 @@
++	// 1116.2.0
++	 #pragma once
++static const uint32_t panvk_bc_scopy_spv[] = {
++	0x07230203,0x00010300,0x0008000b,0x000000ed,0x00000000,0x00020011,0x00000001,0x00020011,
++	0x000014e3,0x0009000a,0x5f565053,0x5f52484b,0x73796870,0x6c616369,0x6f74735f,0x65676172,
++	0x6675625f,0x00726566,0x0006000b,0x00000001,0x4c534c47,0x6474732e,0x3035342e,0x00000000,
++	0x0003000e,0x000014e4,0x00000001,0x0006000f,0x00000005,0x00000004,0x6e69616d,0x00000000,
++	0x0000005a,0x00060010,0x00000004,0x00000011,0x00000008,0x00000008,0x00000001,0x00030003,
++	0x00000002,0x000001c2,0x00070004,0x455f4c47,0x625f5458,0x65666675,0x65725f72,0x65726566,
++	0x0065636e,0x00090004,0x455f4c47,0x625f5458,0x65666675,0x65725f72,0x65726566,0x5f65636e,
++	0x63657675,0x00000032,0x00040005,0x00000004,0x6e69616d,0x00000000,0x00070005,0x0000000e,
++	0x72646461,0x64616d5f,0x32757628,0x3b31753b,0x003b3175,0x00030005,0x0000000b,0x00000061,
++	0x00030005,0x0000000c,0x0000306d,0x00030005,0x0000000d,0x0000316d,0x00070005,0x00000013,
++	0x656c6974,0x6c655f64,0x75286d65,0x31753b31,0x0000003b,0x00030005,0x00000011,0x00007862,
++	0x00030005,0x00000012,0x00007962,0x00030005,0x00000017,0x00006968,0x00030005,0x00000018,
++	0x00006f6c,0x00040005,0x00000019,0x54736552,0x00657079,0x00030005,0x00000021,0x00000063,
++	0x00030005,0x00000031,0x00007869,0x00030005,0x00000035,0x00007969,0x00040005,0x00000038,
++	0x745f6e69,0x00656c69,0x00030005,0x00000057,0x00000078,0x00080005,0x0000005a,0x475f6c67,
++	0x61626f6c,0x766e496c,0x7461636f,0x496e6f69,0x00000044,0x00030005,0x0000005e,0x00000079,
++	0x00030005,0x00000061,0x0000007a,0x00050005,0x00000067,0x69676552,0x72657473,0x00000073,
++	0x00040006,0x00000067,0x00000000,0x00637273,0x00040006,0x00000067,0x00000001,0x00747364,
++	0x00060006,0x00000067,0x00000002,0x5f637273,0x5f776f72,0x00000042,0x00060006,0x00000067,
++	0x00000003,0x5f637273,0x63696c73,0x00425f65,0x00060006,0x00000067,0x00000004,0x5f747364,
++	0x5f776f72,0x00000042,0x00060006,0x00000067,0x00000005,0x5f747364,0x63696c73,0x00425f65,
++	0x00050006,0x00000067,0x00000006,0x30786273,0x00000000,0x00050006,0x00000067,0x00000007,
++	0x30796273,0x00000000,0x00050006,0x00000067,0x00000008,0x30786264,0x00000000,0x00050006,
++	0x00000067,0x00000009,0x30796264,0x00000000,0x00040006,0x00000067,0x0000000a,0x00007762,
++	0x00040006,0x00000067,0x0000000b,0x00006862,0x00050005,0x00000069,0x69676572,0x72657473,
++	0x00000073,0x00030005,0x0000007b,0x00786273,0x00030005,0x00000081,0x00796273,0x00030005,
++	0x00000087,0x00786264,0x00030005,0x0000008d,0x00796264,0x00030005,0x00000093,0x00006173,
++	0x00040005,0x00000095,0x61726170,0x0000006d,0x00040005,0x00000099,0x61726170,0x0000006d,
++	0x00040005,0x0000009b,0x61726170,0x0000006d,0x00040005,0x000000a1,0x61726170,0x0000006d,
++	0x00040005,0x000000a2,0x61726170,0x0000006d,0x00040005,0x000000a3,0x61726170,0x0000006d,
++	0x00030005,0x000000a7,0x00006164,0x00040005,0x000000a9,0x61726170,0x0000006d,0x00040005,
++	0x000000ac,0x61726170,0x0000006d,0x00040005,0x000000ae,0x61726170,0x0000006d,0x00040005,
++	0x000000b5,0x61726170,0x0000006d,0x00040005,0x000000b6,0x61726170,0x0000006d,0x00040005,
++	0x000000b7,0x61726170,0x0000006d,0x00040005,0x000000bb,0x45444957,0x00000000,0x00030005,
++	0x000000c3,0x00003442,0x00050006,0x000000c3,0x00000000,0x61746164,0x00000000,0x00040005,
++	0x000000c5,0x61726170,0x0000006d,0x00040005,0x000000c7,0x61726170,0x0000006d,0x00040005,
++	0x000000cc,0x61726170,0x0000006d,0x00040005,0x000000ce,0x61726170,0x0000006d,0x00030005,
++	0x000000d9,0x00003242,0x00050006,0x000000d9,0x00000000,0x61746164,0x00000000,0x00040005,
++	0x000000db,0x61726170,0x0000006d,0x00040005,0x000000dd,0x61726170,0x0000006d,0x00040005,
++	0x000000e2,0x61726170,0x0000006d,0x00040005,0x000000e4,0x61726170,0x0000006d,0x00040047,
++	0x0000005a,0x0000000b,0x0000001c,0x00030047,0x00000067,0x00000002,0x00050048,0x00000067,
++	0x00000000,0x00000023,0x00000000,0x00050048,0x00000067,0x00000001,0x00000023,0x00000008,
++	0x00050048,0x00000067,0x00000002,0x00000023,0x00000010,0x00050048,0x00000067,0x00000003,
++	0x00000023,0x00000014,0x00050048,0x00000067,0x00000004,0x00000023,0x00000018,0x00050048,
++	0x00000067,0x00000005,0x00000023,0x0000001c,0x00050048,0x00000067,0x00000006,0x00000023,
++	0x00000020,0x00050048,0x00000067,0x00000007,0x00000023,0x00000024,0x00050048,0x00000067,
++	0x00000008,0x00000023,0x00000028,0x00050048,0x00000067,0x00000009,0x00000023,0x0000002c,
++	0x00050048,0x00000067,0x0000000a,0x00000023,0x00000030,0x00050048,0x00000067,0x0000000b,
++	0x00000023,0x00000034,0x00040047,0x000000bb,0x00000001,0x00000000,0x00040047,0x000000c2,
++	0x00000006,0x00000010,0x00030047,0x000000c3,0x00000002,0x00050048,0x000000c3,0x00000000,
++	0x00000023,0x00000000,0x00040047,0x000000d8,0x00000006,0x00000008,0x00030047,0x000000d9,
++	0x00000002,0x00050048,0x000000d9,0x00000000,0x00000023,0x00000000,0x00040047,0x000000ec,
++	0x0000000b,0x00000019,0x00020013,0x00000002,0x00030021,0x00000003,0x00000002,0x00040015,
++	0x00000006,0x00000020,0x00000000,0x00040017,0x00000007,0x00000006,0x00000002,0x00040020,
++	0x00000008,0x00000007,0x00000007,0x00040020,0x00000009,0x00000007,0x00000006,0x00060021,
++	0x0000000a,0x00000007,0x00000008,0x00000009,0x00000009,0x00050021,0x00000010,0x00000006,
++	0x00000009,0x00000009,0x0004001e,0x00000019,0x00000006,0x00000006,0x0004002b,0x00000006,
++	0x0000001d,0x00000000,0x0004002b,0x00000006,0x00000029,0x00000001,0x0004002b,0x00000006,
++	0x00000033,0x00000003,0x00040015,0x0000003a,0x00000020,0x00000001,0x0004002b,0x0000003a,
++	0x0000003b,0x00000001,0x0004002b,0x0000003a,0x0000003d,0x00000003,0x0004002b,0x0000003a,
++	0x00000043,0x00000002,0x0004002b,0x00000006,0x00000051,0x00000010,0x00040017,0x00000058,
++	0x00000006,0x00000003,0x00040020,0x00000059,0x00000001,0x00000058,0x0004003b,0x00000059,
++	0x0000005a,0x00000001,0x00040020,0x0000005b,0x00000001,0x00000006,0x0004002b,0x00000006,
++	0x00000062,0x00000002,0x00020014,0x00000065,0x000e001e,0x00000067,0x00000007,0x00000007,
++	0x00000006,0x00000006,0x00000006,0x00000006,0x00000006,0x00000006,0x00000006,0x00000006,
++	0x00000006,0x00000006,0x00040020,0x00000068,0x00000009,0x00000067,0x0004003b,0x00000068,
++	0x00000069,0x00000009,0x0004002b,0x0000003a,0x0000006a,0x0000000a,0x00040020,0x0000006b,
++	0x00000009,0x00000006,0x0004002b,0x0000003a,0x00000073,0x0000000b,0x0004002b,0x0000003a,
++	0x0000007c,0x00000006,0x0004002b,0x0000003a,0x00000082,0x00000007,0x0004002b,0x0000003a,
++	0x00000088,0x00000008,0x0004002b,0x0000003a,0x0000008e,0x00000009,0x0004002b,0x0000003a,
++	0x00000094,0x00000000,0x00040020,0x00000096,0x00000009,0x00000007,0x0004002b,0x0000003a,
++	0x000000a8,0x00000005,0x0004002b,0x0000003a,0x000000b4,0x00000004,0x00040032,0x00000006,
++	0x000000bb,0x00000000,0x00060034,0x00000065,0x000000bc,0x000000ab,0x000000bb,0x0000001d,
++	0x00030027,0x000000c0,0x000014e5,0x00040017,0x000000c1,0x00000006,0x00000004,0x0003001d,
++	0x000000c2,0x000000c1,0x0003001e,0x000000c3,0x000000c2,0x00040020,0x000000c0,0x000014e5,
++	0x000000c3,0x00040020,0x000000d1,0x000014e5,0x000000c1,0x00030027,0x000000d7,0x000014e5,
++	0x0003001d,0x000000d8,0x00000007,0x0003001e,0x000000d9,0x000000d8,0x00040020,0x000000d7,
++	0x000014e5,0x000000d9,0x00040020,0x000000e7,0x000014e5,0x00000007,0x0004002b,0x00000006,
++	0x000000eb,0x00000008,0x0006002c,0x00000058,0x000000ec,0x000000eb,0x000000eb,0x00000029,
++	0x00050036,0x00000002,0x00000004,0x00000000,0x00000003,0x000200f8,0x00000005,0x0004003b,
++	0x00000009,0x00000057,0x00000007,0x0004003b,0x00000009,0x0000005e,0x00000007,0x0004003b,
++	0x00000009,0x00000061,0x00000007,0x0004003b,0x00000009,0x0000007b,0x00000007,0x0004003b,
++	0x00000009,0x00000081,0x00000007,0x0004003b,0x00000009,0x00000087,0x00000007,0x0004003b,
++	0x00000009,0x0000008d,0x00000007,0x0004003b,0x00000008,0x00000093,0x00000007,0x0004003b,
++	0x00000008,0x00000095,0x00000007,0x0004003b,0x00000009,0x00000099,0x00000007,0x0004003b,
++	0x00000009,0x0000009b,0x00000007,0x0004003b,0x00000008,0x000000a1,0x00000007,0x0004003b,
++	0x00000009,0x000000a2,0x00000007,0x0004003b,0x00000009,0x000000a3,0x00000007,0x0004003b,
++	0x00000008,0x000000a7,0x00000007,0x0004003b,0x00000008,0x000000a9,0x00000007,0x0004003b,
++	0x00000009,0x000000ac,0x00000007,0x0004003b,0x00000009,0x000000ae,0x00000007,0x0004003b,
++	0x00000008,0x000000b5,0x00000007,0x0004003b,0x00000009,0x000000b6,0x00000007,0x0004003b,
++	0x00000009,0x000000b7,0x00000007,0x0004003b,0x00000009,0x000000c5,0x00000007,0x0004003b,
++	0x00000009,0x000000c7,0x00000007,0x0004003b,0x00000009,0x000000cc,0x00000007,0x0004003b,
++	0x00000009,0x000000ce,0x00000007,0x0004003b,0x00000009,0x000000db,0x00000007,0x0004003b,
++	0x00000009,0x000000dd,0x00000007,0x0004003b,0x00000009,0x000000e2,0x00000007,0x0004003b,
++	0x00000009,0x000000e4,0x00000007,0x00050041,0x0000005b,0x0000005c,0x0000005a,0x0000001d,
++	0x0004003d,0x00000006,0x0000005d,0x0000005c,0x0003003e,0x00000057,0x0000005d,0x00050041,
++	0x0000005b,0x0000005f,0x0000005a,0x00000029,0x0004003d,0x00000006,0x00000060,0x0000005f,
++	0x0003003e,0x0000005e,0x00000060,0x00050041,0x0000005b,0x00000063,0x0000005a,0x00000062,
++	0x0004003d,0x00000006,0x00000064,0x00000063,0x0003003e,0x00000061,0x00000064,0x0004003d,
++	0x00000006,0x00000066,0x00000057,0x00050041,0x0000006b,0x0000006c,0x00000069,0x0000006a,
++	0x0004003d,0x00000006,0x0000006d,0x0000006c,0x000500ae,0x00000065,0x0000006e,0x00000066,
++	0x0000006d,0x000400a8,0x00000065,0x0000006f,0x0000006e,0x000300f7,0x00000071,0x00000000,
++	0x000400fa,0x0000006f,0x00000070,0x00000071,0x000200f8,0x00000070,0x0004003d,0x00000006,
++	0x00000072,0x0000005e,0x00050041,0x0000006b,0x00000074,0x00000069,0x00000073,0x0004003d,
++	0x00000006,0x00000075,0x00000074,0x000500ae,0x00000065,0x00000076,0x00000072,0x00000075,
++	0x000200f9,0x00000071,0x000200f8,0x00000071,0x000700f5,0x00000065,0x00000077,0x0000006e,
++	0x00000005,0x00000076,0x00000070,0x000300f7,0x00000079,0x00000000,0x000400fa,0x00000077,
++	0x00000078,0x00000079,0x000200f8,0x00000078,0x000100fd,0x000200f8,0x00000079,0x00050041,
++	0x0000006b,0x0000007d,0x00000069,0x0000007c,0x0004003d,0x00000006,0x0000007e,0x0000007d,
++	0x0004003d,0x00000006,0x0000007f,0x00000057,0x00050080,0x00000006,0x00000080,0x0000007e,
++	0x0000007f,0x0003003e,0x0000007b,0x00000080,0x00050041,0x0000006b,0x00000083,0x00000069,
++	0x00000082,0x0004003d,0x00000006,0x00000084,0x00000083,0x0004003d,0x00000006,0x00000085,
++	0x0000005e,0x00050080,0x00000006,0x00000086,0x00000084,0x00000085,0x0003003e,0x00000081,
++	0x00000086,0x00050041,0x0000006b,0x00000089,0x00000069,0x00000088,0x0004003d,0x00000006,
++	0x0000008a,0x00000089,0x0004003d,0x00000006,0x0000008b,0x00000057,0x00050080,0x00000006,
++	0x0000008c,0x0000008a,0x0000008b,0x0003003e,0x00000087,0x0000008c,0x00050041,0x0000006b,
++	0x0000008f,0x00000069,0x0000008e,0x0004003d,0x00000006,0x00000090,0x0000008f,0x0004003d,
++	0x00000006,0x00000091,0x0000005e,0x00050080,0x00000006,0x00000092,0x00000090,0x00000091,
++	0x0003003e,0x0000008d,0x00000092,0x00050041,0x00000096,0x00000097,0x00000069,0x00000094,
++	0x0004003d,0x00000007,0x00000098,0x00000097,0x0003003e,0x00000095,0x00000098,0x0004003d,
++	0x00000006,0x0000009a,0x00000061,0x0003003e,0x00000099,0x0000009a,0x00050041,0x0000006b,
++	0x0000009c,0x00000069,0x0000003d,0x0004003d,0x00000006,0x0000009d,0x0000009c,0x0003003e,
++	0x0000009b,0x0000009d,0x00070039,0x00000007,0x0000009e,0x0000000e,0x00000095,0x00000099,
++	0x0000009b,0x0004003d,0x00000006,0x0000009f,0x00000081,0x000500c2,0x00000006,0x000000a0,
++	0x0000009f,0x00000043,0x0003003e,0x000000a1,0x0000009e,0x0003003e,0x000000a2,0x000000a0,
++	0x00050041,0x0000006b,0x000000a4,0x00000069,0x00000043,0x0004003d,0x00000006,0x000000a5,
++	0x000000a4,0x0003003e,0x000000a3,0x000000a5,0x00070039,0x00000007,0x000000a6,0x0000000e,
++	0x000000a1,0x000000a2,0x000000a3,0x0003003e,0x00000093,0x000000a6,0x00050041,0x00000096,
++	0x000000aa,0x00000069,0x0000003b,0x0004003d,0x00000007,0x000000ab,0x000000aa,0x0003003e,
++	0x000000a9,0x000000ab,0x0004003d,0x00000006,0x000000ad,0x00000061,0x0003003e,0x000000ac,
++	0x000000ad,0x00050041,0x0000006b,0x000000af,0x00000069,0x000000a8,0x0004003d,0x00000006,
++	0x000000b0,0x000000af,0x0003003e,0x000000ae,0x000000b0,0x00070039,0x00000007,0x000000b1,
++	0x0000000e,0x000000a9,0x000000ac,0x000000ae,0x0004003d,0x00000006,0x000000b2,0x0000008d,
++	0x000500c2,0x00000006,0x000000b3,0x000000b2,0x00000043,0x0003003e,0x000000b5,0x000000b1,
++	0x0003003e,0x000000b6,0x000000b3,0x00050041,0x0000006b,0x000000b8,0x00000069,0x000000b4,
++	0x0004003d,0x00000006,0x000000b9,0x000000b8,0x0003003e,0x000000b7,0x000000b9,0x00070039,
++	0x00000007,0x000000ba,0x0000000e,0x000000b5,0x000000b6,0x000000b7,0x0003003e,0x000000a7,
++	0x000000ba,0x000300f7,0x000000be,0x00000000,0x000400fa,0x000000bc,0x000000bd,0x000000d5,
++	0x000200f8,0x000000bd,0x0004003d,0x00000007,0x000000bf,0x000000a7,0x0004007c,0x000000c0,
++	0x000000c4,0x000000bf,0x0004003d,0x00000006,0x000000c6,0x00000087,0x0003003e,0x000000c5,
++	0x000000c6,0x0004003d,0x00000006,0x000000c8,0x0000008d,0x0003003e,0x000000c7,0x000000c8,
++	0x00060039,0x00000006,0x000000c9,0x00000013,0x000000c5,0x000000c7,0x0004003d,0x00000007,
++	0x000000ca,0x00000093,0x0004007c,0x000000c0,0x000000cb,0x000000ca,0x0004003d,0x00000006,
++	0x000000cd,0x0000007b,0x0003003e,0x000000cc,0x000000cd,0x0004003d,0x00000006,0x000000cf,
++	0x00000081,0x0003003e,0x000000ce,0x000000cf,0x00060039,0x00000006,0x000000d0,0x00000013,
++	0x000000cc,0x000000ce,0x00060041,0x000000d1,0x000000d2,0x000000cb,0x00000094,0x000000d0,
++	0x0006003d,0x000000c1,0x000000d3,0x000000d2,0x00000002,0x00000010,0x00060041,0x000000d1,
++	0x000000d4,0x000000c4,0x00000094,0x000000c9,0x0005003e,0x000000d4,0x000000d3,0x00000002,
++	0x00000010,0x000200f9,0x000000be,0x000200f8,0x000000d5,0x0004003d,0x00000007,0x000000d6,
++	0x000000a7,0x0004007c,0x000000d7,0x000000da,0x000000d6,0x0004003d,0x00000006,0x000000dc,
++	0x00000087,0x0003003e,0x000000db,0x000000dc,0x0004003d,0x00000006,0x000000de,0x0000008d,
++	0x0003003e,0x000000dd,0x000000de,0x00060039,0x00000006,0x000000df,0x00000013,0x000000db,
++	0x000000dd,0x0004003d,0x00000007,0x000000e0,0x00000093,0x0004007c,0x000000d7,0x000000e1,
++	0x000000e0,0x0004003d,0x00000006,0x000000e3,0x0000007b,0x0003003e,0x000000e2,0x000000e3,
++	0x0004003d,0x00000006,0x000000e5,0x00000081,0x0003003e,0x000000e4,0x000000e5,0x00060039,
++	0x00000006,0x000000e6,0x00000013,0x000000e2,0x000000e4,0x00060041,0x000000e7,0x000000e8,
++	0x000000e1,0x00000094,0x000000e6,0x0006003d,0x00000007,0x000000e9,0x000000e8,0x00000002,
++	0x00000008,0x00060041,0x000000e7,0x000000ea,0x000000da,0x00000094,0x000000df,0x0005003e,
++	0x000000ea,0x000000e9,0x00000002,0x00000008,0x000200f9,0x000000be,0x000200f8,0x000000be,
++	0x000100fd,0x00010038,0x00050036,0x00000007,0x0000000e,0x00000000,0x0000000a,0x00030037,
++	0x00000008,0x0000000b,0x00030037,0x00000009,0x0000000c,0x00030037,0x00000009,0x0000000d,
++	0x000200f8,0x0000000f,0x0004003b,0x00000009,0x00000017,0x00000007,0x0004003b,0x00000009,
++	0x00000018,0x00000007,0x0004003b,0x00000009,0x00000021,0x00000007,0x0004003d,0x00000006,
++	0x00000015,0x0000000c,0x0004003d,0x00000006,0x00000016,0x0000000d,0x00050097,0x00000019,
++	0x0000001a,0x00000015,0x00000016,0x00050051,0x00000006,0x0000001b,0x0000001a,0x00000000,
++	0x0003003e,0x00000018,0x0000001b,0x00050051,0x00000006,0x0000001c,0x0000001a,0x00000001,
++	0x0003003e,0x00000017,0x0000001c,0x00050041,0x00000009,0x0000001e,0x0000000b,0x0000001d,
++	0x0004003d,0x00000006,0x0000001f,0x0000001e,0x0004003d,0x00000006,0x00000020,0x00000018,
++	0x00050095,0x00000019,0x00000022,0x0000001f,0x00000020,0x00050051,0x00000006,0x00000023,
++	0x00000022,0x00000001,0x0003003e,0x00000021,0x00000023,0x00050051,0x00000006,0x00000024,
++	0x00000022,0x00000000,0x00050041,0x00000009,0x00000025,0x0000000b,0x0000001d,0x0003003e,
++	0x00000025,0x00000024,0x0004003d,0x00000006,0x00000026,0x00000017,0x0004003d,0x00000006,
++	0x00000027,0x00000021,0x00050080,0x00000006,0x00000028,0x00000026,0x00000027,0x00050041,
++	0x00000009,0x0000002a,0x0000000b,0x00000029,0x0004003d,0x00000006,0x0000002b,0x0000002a,
++	0x00050080,0x00000006,0x0000002c,0x0000002b,0x00000028,0x00050041,0x00000009,0x0000002d,
++	0x0000000b,0x00000029,0x0003003e,0x0000002d,0x0000002c,0x0004003d,0x00000007,0x0000002e,
++	0x0000000b,0x000200fe,0x0000002e,0x00010038,0x00050036,0x00000006,0x00000013,0x00000000,
++	0x00000010,0x00030037,0x00000009,0x00000011,0x00030037,0x00000009,0x00000012,0x000200f8,
++	0x00000014,0x0004003b,0x00000009,0x00000031,0x00000007,0x0004003b,0x00000009,0x00000035,
++	0x00000007,0x0004003b,0x00000009,0x00000038,0x00000007,0x0004003d,0x00000006,0x00000032,
++	0x00000011,0x000500c7,0x00000006,0x00000034,0x00000032,0x00000033,0x0003003e,0x00000031,
++	0x00000034,0x0004003d,0x00000006,0x00000036,0x00000012,0x000500c7,0x00000006,0x00000037,
++	0x00000036,0x00000033,0x0003003e,0x00000035,0x00000037,0x0004003d,0x00000006,0x00000039,
++	0x00000035,0x000500c2,0x00000006,0x0000003c,0x00000039,0x0000003b,0x000500c4,0x00000006,
++	0x0000003e,0x0000003c,0x0000003d,0x0004003d,0x00000006,0x0000003f,0x00000031,0x0004003d,
++	0x00000006,0x00000040,0x00000035,0x000500c6,0x00000006,0x00000041,0x0000003f,0x00000040,
++	0x000500c2,0x00000006,0x00000042,0x00000041,0x0000003b,0x000500c4,0x00000006,0x00000044,
++	0x00000042,0x00000043,0x000500c5,0x00000006,0x00000045,0x0000003e,0x00000044,0x0004003d,
++	0x00000006,0x00000046,0x00000035,0x000500c7,0x00000006,0x00000047,0x00000046,0x00000029,
++	0x000500c4,0x00000006,0x00000048,0x00000047,0x0000003b,0x000500c5,0x00000006,0x00000049,
++	0x00000045,0x00000048,0x0004003d,0x00000006,0x0000004a,0x00000031,0x0004003d,0x00000006,
++	0x0000004b,0x00000035,0x000500c6,0x00000006,0x0000004c,0x0000004a,0x0000004b,0x000500c7,
++	0x00000006,0x0000004d,0x0000004c,0x00000029,0x000500c5,0x00000006,0x0000004e,0x00000049,
++	0x0000004d,0x0003003e,0x00000038,0x0000004e,0x0004003d,0x00000006,0x0000004f,0x00000011,
++	0x000500c2,0x00000006,0x00000050,0x0000004f,0x00000043,0x00050084,0x00000006,0x00000052,
++	0x00000050,0x00000051,0x0004003d,0x00000006,0x00000053,0x00000038,0x00050080,0x00000006,
++	0x00000054,0x00000052,0x00000053,0x000200fe,0x00000054,0x00010038
++};
+diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
+index 1ff7d5a..dd01c0e 100644
+--- a/src/panfrost/vulkan/panvk_device.h
++++ b/src/panfrost/vulkan/panvk_device.h
+@@ -102,6 +102,10 @@ struct panvk_device {
+       uint64_t file_end;
+       struct util_queue *queue;
+       uint64_t resident_B, spilled_B;
++      /* csf-v11/207, PANVK_BC_RAW=lazy: set (atomically) at the first read
++       * of a BC image that kept no raw blocks; BC images created after it
++       * keep a raw store again. */
++      int needed;
+    } bc_raw;
+ 
+    /* Bound in place of a missing FS so the depth bounds test still runs. */
+diff --git a/src/panfrost/vulkan/panvk_image.c b/src/panfrost/vulkan/panvk_image.c
+index 7ebed15..af6bd0d 100644
+--- a/src/panfrost/vulkan/panvk_image.c
++++ b/src/panfrost/vulkan/panvk_image.c
+@@ -859,8 +859,25 @@ panvk_bc_lowmem_astc(const struct panvk_physical_device *phys_dev)
+            pan_query_compressed_formats(&phys_dev->kmod.dev->props));
+ }
+ 
+-/* PANVK_BC_RAW=store (default) | plane, PANVK_BC_RAW_MIN (bytes, default
+- * 64 KiB): raw block planes at least that big go to the raw store. */
++/* PANVK_BC_RAW=lazy (default since csf-v11/207) | store | plane: lazy
++ * gives readable BC1-BC5 images no raw blocks until the device first
++ * reads a BC image back (bc_raw_lazy), store keeps a raw store for every
++ * readable image (csf-v11/201-206), plane keeps the raw blocks in the
++ * image memory. */
++static bool
++panvk_bc_raw_lazy_mode(void)
++{
++   static int lazy = -1;
++
++   if (p_atomic_read(&lazy) < 0) {
++      const char *mode = os_get_option("PANVK_BC_RAW");
++      p_atomic_set(&lazy, !mode || !strcmp(mode, "lazy"));
++   }
++   return p_atomic_read(&lazy);
++}
++
++/* PANVK_BC_RAW_MIN (bytes, default 64 KiB): raw block planes at least that
++ * big go to the raw store. */
+ static bool
+ panvk_bc_raw_store_wanted(const struct panvk_image *image)
+ {
+@@ -870,8 +887,9 @@ panvk_bc_raw_store_wanted(const struct panvk_image *image)
+       const char *mode = os_get_option("PANVK_BC_RAW");
+       int64_t v = debug_get_num_option("PANVK_BC_RAW_MIN", 64 * 1024);
+ 
+-      if (mode && strcmp(mode, "store") && strcmp(mode, "plane"))
+-         mesa_logw("panvk: unknown PANVK_BC_RAW=%s, using store", mode);
++      if (mode && strcmp(mode, "store") && strcmp(mode, "plane") &&
++          strcmp(mode, "lazy"))
++         mesa_logw("panvk: unknown PANVK_BC_RAW=%s, using lazy", mode);
+       p_atomic_set(&min_B,
+                    (mode && !strcmp(mode, "plane")) ? INT64_MAX : MAX2(v, 0));
+    }
+@@ -915,6 +933,7 @@ panvk_image_init(struct panvk_image *image,
+    image->bc_lowmem = 0;
+    image->bc_no_raw = false;
+    image->bc_raw_store = false;
++   image->bc_raw_lazy = false;
+    if (image->bc_gfx && panvk_bc_lowmem_enabled(phys_dev) &&
+        panvk_bc_lowmem_allowed(image, pCreateInfo)) {
+       const VkFormat lm_format = panvk_bc_lowmem_format(image->vk.format);
+@@ -935,10 +954,18 @@ panvk_image_init(struct panvk_image *image,
+          image->bc_no_raw = no_raw;
+          image->bc_raw_store = raw_store;
+       } else if (lm_format != VK_FORMAT_UNDEFINED) {
++         struct panvk_device *dev = to_panvk_device(image->vk.base.device);
++         /* csf-v11/207: no raw blocks until the device reads one back. */
++         const bool lazy = raw_store &&
++                           image->vk.image_type != VK_IMAGE_TYPE_3D &&
++                           panvk_bc_raw_lazy_mode() &&
++                           !p_atomic_read(&dev->bc_raw.needed);
++
+          image->bc_lowmem = 1;
+          image->bc_format = lm_format;
+-         image->bc_no_raw = no_raw;
+-         image->bc_raw_store = raw_store;
++         image->bc_no_raw = no_raw || lazy;
++         image->bc_raw_store = raw_store && !lazy;
++         image->bc_raw_lazy = lazy;
+       } else if (no_raw || raw_store) {
+          image->bc_lowmem = 2;
+          image->bc_no_raw = no_raw;
+diff --git a/src/panfrost/vulkan/panvk_image.h b/src/panfrost/vulkan/panvk_image.h
+index a52770c..992232b 100644
+--- a/src/panfrost/vulkan/panvk_image.h
++++ b/src/panfrost/vulkan/panvk_image.h
+@@ -87,6 +87,13 @@ struct panvk_image {
+    /* Set by panvk_image_init() when the image gets a raw store (bc_raw is
+     * created by vkCreateImage). The raw blocks take no image memory. */
+    bool bc_raw_store;
++   /* csf-v11/207, PANVK_BC_RAW=lazy (default): a readable (TRANSFER_SRC)
++    * 2D BC1-BC5 lowmem image created before the device ever read a BC
++    * image back keeps no raw blocks either (bc_no_raw is set too). A BC ->
++    * BC copy from it copies the shadow blocks; a read of its raw blocks
++    * (copy to memory, to a non-BC or differently shadowed image) is
++    * skipped, logged, and switches the device to raw stores. */
++   bool bc_raw_lazy;
+ };
+ 
+ VK_DEFINE_NONDISP_HANDLE_CASTS(panvk_image, vk.base, VkImage,
+diff --git a/src/panfrost/vulkan/panvk_meta.h b/src/panfrost/vulkan/panvk_meta.h
+index 3d13c58..6e1cc45 100644
+--- a/src/panfrost/vulkan/panvk_meta.h
++++ b/src/panfrost/vulkan/panvk_meta.h
+@@ -28,6 +28,8 @@ enum panvk_meta_object_key_type {
+    PANVK_META_OBJECT_KEY_BC_DECODE_GFX_SHADER,
+    PANVK_META_OBJECT_KEY_BC_XCODE_LAYOUT,
+    PANVK_META_OBJECT_KEY_BC_XCODE_SHADER,
++   PANVK_META_OBJECT_KEY_BC_SCOPY_LAYOUT,
++   PANVK_META_OBJECT_KEY_BC_SCOPY_SHADER,
+ };
+ 
+ static inline VkFormat
+diff --git a/src/panfrost/vulkan/panvk_vX_cmd_meta.c b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
+index 1f40dba..cf49ccb 100644
+--- a/src/panfrost/vulkan/panvk_vX_cmd_meta.c
++++ b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
+@@ -867,6 +867,7 @@ bc_decode_region(struct panvk_cmd_buffer *cmdbuf, struct panvk_image *img,
+  * here rather than at the top to keep the later series' hunks in place. */
+ #include "bc/panvk_bc_etc2_spv.h"
+ #include "bc/panvk_bc_astc_spv.h"
++#include "bc/panvk_bc_scopy_spv.h"
+ #define PANVK_BC_EAC_NO_DATA 1
+ #include "bc/panvk_bc_eac_lut.h"
+ #include "panvk_priv_bo.h"
+@@ -1672,6 +1673,12 @@ panvk_per_arch(CmdCopyImageToMemoryKHR)(
+       panvk_meta_copy_get_image_properties(img, false, false);
+    struct panvk_cmd_meta_compute_save_ctx save = {0};
+ 
++   /* csf-v11/207: no raw blocks to read (PANVK_BC_RAW=lazy). */
++   if (img->bc_raw_lazy) {
++      bc_raw_lazy_hit(dev, "copy to memory");
++      return;
++   }
++
+    /* Raw blocks of a raw-store image (csf-v11/201). */
+    if (!bc_raw_use(cmdbuf, img, false, false))
+       return;
+@@ -1930,6 +1937,165 @@ bc_copy_image_no_raw(struct panvk_cmd_buffer *cmdbuf,
+    STACK_ARRAY_FINISH(srcs);
+ }
+ 
++/* csf-v11/207: the device read the raw blocks of a BC image that kept none
++ * (PANVK_BC_RAW=lazy). The read is skipped; BC images created from now on
++ * keep a raw store, so later reads of them are exact. */
++static void
++bc_raw_lazy_hit(struct panvk_device *dev, const char *what)
++{
++   if (!p_atomic_xchg(&dev->bc_raw.needed, 1))
++      mesa_logw("panvk: %s of a BC image without raw blocks skipped; BC "
++                "images created from now on keep them (PANVK_BC_RAW=store "
++                "keeps them from the start)", what);
++}
++
++struct panvk_bc_scopy_push {
++   uint32_t src[2];
++   uint32_t dst[2];
++   uint32_t src_row_B;
++   uint32_t src_slice_B;
++   uint32_t dst_row_B;
++   uint32_t dst_slice_B;
++   uint32_t sbx0, sby0, dbx0, dby0;
++   uint32_t bw, bh;
++};
++
++static VkResult
++get_bc_scopy_pipeline(struct panvk_device *dev, bool wide,
++                      VkPipelineLayout *layout_out, VkPipeline *pipeline_out)
++{
++   const enum panvk_meta_object_key_type layout_key =
++      PANVK_META_OBJECT_KEY_BC_SCOPY_LAYOUT;
++   const VkPushConstantRange push_range = {
++      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
++      .offset = 0,
++      .size = sizeof(struct panvk_bc_scopy_push),
++   };
++   VkResult result =
++      vk_meta_get_pipeline_layout(&dev->vk, &dev->meta, NULL, &push_range,
++                                  &layout_key, sizeof(layout_key), layout_out);
++   if (result != VK_SUCCESS)
++      return result;
++
++   struct {
++      enum panvk_meta_object_key_type type;
++      uint32_t wide;
++   } key = {
++      .type = PANVK_META_OBJECT_KEY_BC_SCOPY_SHADER,
++      .wide = wide,
++   };
++   VkPipeline cached = vk_meta_lookup_pipeline(&dev->meta, &key, sizeof(key));
++   if (cached != VK_NULL_HANDLE) {
++      *pipeline_out = cached;
++      return VK_SUCCESS;
++   }
++
++   const VkSpecializationMapEntry spec_map = {
++      .constantID = 0, .offset = offsetof(__typeof__(key), wide), .size = 4};
++   const VkSpecializationInfo spec = {
++      .mapEntryCount = 1,
++      .pMapEntries = &spec_map,
++      .dataSize = sizeof(key),
++      .pData = &key,
++   };
++   const VkShaderModuleCreateInfo module_info = {
++      .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
++      .codeSize = sizeof(panvk_bc_scopy_spv),
++      .pCode = panvk_bc_scopy_spv,
++   };
++   const VkComputePipelineCreateInfo info = {
++      .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
++      .stage = {
++         .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
++         .pNext = &module_info,
++         .stage = VK_SHADER_STAGE_COMPUTE_BIT,
++         .pName = "main",
++         .pSpecializationInfo = &spec,
++      },
++      .layout = *layout_out,
++   };
++
++   return vk_meta_create_compute_pipeline(&dev->vk, &dev->meta, &info, &key,
++                                          sizeof(key), pipeline_out);
++}
++
++/* A BC -> BC copy whose source keeps no raw blocks can copy the shadow
++ * blocks: same ETC2/EAC shadow format, 2D. */
++static bool
++bc_copy_shadow_ok(const struct panvk_image *src, const struct panvk_image *dst)
++{
++   return src->bc_lowmem == 1 && dst->bc_emul && dst->bc_lowmem == 1 &&
++          src->bc_format == dst->bc_format &&
++          src->vk.image_type != VK_IMAGE_TYPE_3D &&
++          dst->vk.image_type != VK_IMAGE_TYPE_3D;
++}
++
++/* csf-v11/207: BC -> BC copy of the ETC2/EAC shadow blocks (no raw blocks
++ * involved; the destination's raw store, if it has one, is not written). */
++static void
++bc_copy_image_shadow(struct panvk_cmd_buffer *cmdbuf,
++                     const VkCopyImageInfo2 *info)
++{
++   struct panvk_device *dev = to_panvk_device(cmdbuf->vk.base.device);
++   const struct vk_device_dispatch_table *disp = &dev->vk.dispatch_table;
++   VkCommandBuffer cmd = panvk_cmd_buffer_to_handle(cmdbuf);
++   VK_FROM_HANDLE(panvk_image, src_img, info->srcImage);
++   VK_FROM_HANDLE(panvk_image, dst_img, info->dstImage);
++   const bool wide = vk_format_get_blocksize(dst_img->bc_format) == 16;
++   struct panvk_cmd_meta_compute_save_ctx save = {0};
++   VkPipelineLayout layout;
++   VkPipeline pipeline;
++
++   VkResult result = get_bc_scopy_pipeline(dev, wide, &layout, &pipeline);
++   if (result != VK_SUCCESS) {
++      vk_command_buffer_set_error(&cmdbuf->vk, result);
++      return;
++   }
++
++   /* The source shadow was written by a transcode or copy dispatch. */
++   bc_decode_barrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
++                     VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
++   meta_compute_start(cmdbuf, &save);
++   disp->CmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
++   for (uint32_t i = 0; i < info->regionCount; i++) {
++      const VkImageCopy2 *r = &info->pRegions[i];
++      const struct pan_image_layout *sl = &src_img->bc_decoded.plane.layout;
++      const struct pan_image_layout *dl = &dst_img->bc_decoded.plane.layout;
++      const struct pan_image_slice_layout *ss =
++         &sl->slices[r->srcSubresource.mipLevel];
++      const struct pan_image_slice_layout *ds =
++         &dl->slices[r->dstSubresource.mipLevel];
++      const uint64_t sa = src_img->bc_decoded.plane.base + ss->offset_B +
++                          r->srcSubresource.baseArrayLayer * sl->array_stride_B;
++      const uint64_t da = dst_img->bc_decoded.plane.base + ds->offset_B +
++                          r->dstSubresource.baseArrayLayer * dl->array_stride_B;
++      const uint32_t layers =
++         vk_image_subresource_layer_count(&dst_img->vk, &r->dstSubresource);
++      const struct panvk_bc_scopy_push push = {
++         .src = {(uint32_t)sa, (uint32_t)(sa >> 32)},
++         .dst = {(uint32_t)da, (uint32_t)(da >> 32)},
++         .src_row_B = ss->tiled_or_linear.row_stride_B,
++         .src_slice_B = sl->array_stride_B,
++         .dst_row_B = ds->tiled_or_linear.row_stride_B,
++         .dst_slice_B = dl->array_stride_B,
++         .sbx0 = r->srcOffset.x / 4,
++         .sby0 = r->srcOffset.y / 4,
++         .dbx0 = r->dstOffset.x / 4,
++         .dby0 = r->dstOffset.y / 4,
++         .bw = DIV_ROUND_UP(r->extent.width, 4),
++         .bh = DIV_ROUND_UP(r->extent.height, 4),
++      };
++
++      if (!push.bw || !push.bh || !layers)
++         continue;
++      disp->CmdPushConstants(cmd, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0,
++                             sizeof(push), &push);
++      disp->CmdDispatch(cmd, DIV_ROUND_UP(push.bw, 8), DIV_ROUND_UP(push.bh, 8),
++                        layers);
++   }
++   meta_compute_end(cmdbuf, &save);
++}
++
+ static void cmd_copy_image(VkCommandBuffer commandBuffer,
+                            const VkCopyImageInfo2 *pCopyImageInfo);
+ 
+@@ -1963,6 +2129,17 @@ cmd_copy_image(VkCommandBuffer commandBuffer,
+    VK_FROM_HANDLE(panvk_image, bc_dst, pCopyImageInfo->dstImage);
+    VK_FROM_HANDLE(panvk_cmd_buffer, cmdbuf, commandBuffer);
+ 
++   /* csf-v11/207: a source without raw blocks (PANVK_BC_RAW=lazy). */
++   if (bc_src->bc_raw_lazy) {
++      if (bc_copy_shadow_ok(bc_src, bc_dst)) {
++         bc_copy_image_shadow(cmdbuf, pCopyImageInfo);
++      } else {
++         bc_raw_lazy_hit(to_panvk_device(cmdbuf->vk.base.device),
++                         "image copy");
++      }
++      return;
++   }
++
+    /* Raw blocks of raw-store images (csf-v11/201): read from the source,
+     * written to the destination (unless it keeps none). */
+    /* A BC -> BC copy writes whole blocks of the copy extent. */
+-- 
+2.55.0
+

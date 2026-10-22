@@ -1389,6 +1389,60 @@ probe(void)
    }
 }
 
+/* Process memory (bc4): heapUsage of VK_EXT_memory_budget (VkDeviceMemory
+ * the driver counts), VmRSS / VmHWM, and the size / RSS of the GPU
+ * (/dev/mali*) mappings, which also cover driver-internal BOs that are
+ * CPU mapped. One "MEM" line per call. */
+static void
+mem_report(const char *tag, VkPhysicalDevice phys)
+{
+   unsigned long long heap_used = 0, rss = 0, hwm = 0, gpu_size = 0, gpu_rss = 0;
+   PFN_vkGetPhysicalDeviceMemoryProperties2 gpmp2 =
+      (PFN_vkGetPhysicalDeviceMemoryProperties2)gipa(
+         inst, "vkGetPhysicalDeviceMemoryProperties2");
+   if (gpmp2 && phys) {
+      VkPhysicalDeviceMemoryBudgetPropertiesEXT bud = {
+         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT};
+      VkPhysicalDeviceMemoryProperties2 mp2 = {
+         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2,
+         .pNext = &bud};
+      gpmp2(phys, &mp2);
+      for (uint32_t i = 0; i < mp2.memoryProperties.memoryHeapCount; i++)
+         heap_used += bud.heapUsage[i];
+   }
+   char line[512];
+   FILE *f = fopen("/proc/self/status", "r");
+   if (f) {
+      while (fgets(line, sizeof(line), f)) {
+         sscanf(line, "VmRSS: %llu", &rss);
+         sscanf(line, "VmHWM: %llu", &hwm);
+      }
+      fclose(f);
+   }
+   f = fopen("/proc/self/smaps", "r");
+   if (f) {
+      int gpu = 0;
+      while (fgets(line, sizeof(line), f)) {
+         unsigned long long v;
+         /* Mapping header: "<lowercase hex>-<hex> perms ... path". */
+         const char *dash = strchr(line, '-'), *sp = strchr(line, ' ');
+         if (((line[0] >= '0' && line[0] <= '9') ||
+              (line[0] >= 'a' && line[0] <= 'f')) &&
+             dash && sp && dash < sp) {
+            gpu = strstr(line, "mali") != NULL;
+         } else if (gpu && sscanf(line, "Size: %llu", &v) == 1) {
+            gpu_size += v;
+         } else if (gpu && sscanf(line, "Rss: %llu", &v) == 1) {
+            gpu_rss += v;
+         }
+      }
+      fclose(f);
+   }
+   printf("MEM tag=%s heap_used_KiB=%llu rss_KiB=%llu hwm_KiB=%llu "
+          "gpu_map_KiB=%llu gpu_rss_KiB=%llu\n",
+          tag, heap_used / 1024, rss, hwm, gpu_size, gpu_rss);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1464,6 +1518,30 @@ main(int argc, char **argv)
           feats.textureCompressionETC2, feats.textureCompressionASTC_LDR,
           qfp[0].timestampValidBits, ts_period_ns, size_px);
    probe();
+
+   /* Per-VkDevice memory with every supported core feature enabled, as
+    * DXVK does (geometry, tessellation, ...): RC4-lowmem vs RC5. */
+   mem_report("before_device", phys);
+   {
+      float fprio = 1.0f;
+      VkDeviceQueueCreateInfo fq = {.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                                    .queueCount = 1,
+                                    .pQueuePriorities = &fprio};
+      VkDeviceCreateInfo fci = {.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+                                .queueCreateInfoCount = 1,
+                                .pQueueCreateInfos = &fq,
+                                .pEnabledFeatures = &feats};
+      VkDevice fdev;
+      if (vkCreateDevice(phys, &fci, NULL, &fdev) == VK_SUCCESS) {
+         mem_report("full_feature_device", phys);
+         PFN_vkDestroyDevice dd =
+            (PFN_vkDestroyDevice)vkGetDeviceProcAddr(fdev, "vkDestroyDevice");
+         dd(fdev, NULL);
+         mem_report("after_full_feature_device", phys);
+      } else {
+         printf("MEM tag=full_feature_device create_failed\n");
+      }
+   }
 
    VkPhysicalDeviceMemoryProperties mp;
    vkGetPhysicalDeviceMemoryProperties(phys, &mp);
@@ -2002,6 +2080,7 @@ main(int argc, char **argv)
       vkFreeMemory(dev, im, NULL);
       freebuf(&stg);
    }
+   mem_report("end", phys);
    printf("RESULT DONE\n");
    return 0;
 }

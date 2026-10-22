@@ -35,7 +35,7 @@ Validation test: PanProbe transform feedback cases; dEQP-VK.transform_feedback.s
 
 ---
 diff --git a/src/panfrost/libpan/draw_helper.cl b/src/panfrost/libpan/draw_helper.cl
-index 9e04977..a217629 100644
+index 9e04977a2e3b94919a30026c1e6ddb1cbc91756f..a217629ce58e14b5480d6710f4cfdf9e5f25967f 100644
 --- a/src/panfrost/libpan/draw_helper.cl
 +++ b/src/panfrost/libpan/draw_helper.cl
 @@ -15,7 +15,7 @@
@@ -182,7 +182,7 @@ index 9e04977..a217629 100644
 +}
  #endif
 diff --git a/src/panfrost/libpan/draw_helper.h b/src/panfrost/libpan/draw_helper.h
-index bcdab62..c93a003 100644
+index bcdab62a24a30e8a2e7b4c896980cb6457b49ccd..c93a0038d89b56cf400549b9855fcfcaba24e696 100644
 --- a/src/panfrost/libpan/draw_helper.h
 +++ b/src/panfrost/libpan/draw_helper.h
 @@ -45,3 +45,37 @@ struct libpan_draw_helper_attrib_info {
@@ -224,7 +224,7 @@ index bcdab62..c93a003 100644
 +};
 +#endif
 diff --git a/src/panfrost/vulkan/csf/panvk_gpu_prerast.c b/src/panfrost/vulkan/csf/panvk_gpu_prerast.c
-index 0355a77..b6c9ef2 100644
+index 0355a77fc5a679a7c6641dd79217487e6dd2796f..b6c9ef255686743d29e6346836075590f8e0c143 100644
 --- a/src/panfrost/vulkan/csf/panvk_gpu_prerast.c
 +++ b/src/panfrost/vulkan/csf/panvk_gpu_prerast.c
 @@ -4,7 +4,8 @@
@@ -238,7 +238,7 @@ index 0355a77..b6c9ef2 100644
  
  struct panvk_gpu_prerast_draw
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index fa089f0..bc53e1c 100644
+index fa089f0830100e6fbf10fa07d24ce64e6b7e0e1a..bc53e1ce2eb440a9e401059fec6415316eb41cfc 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 @@ -2209,6 +2209,44 @@ panvk_skip_fs(unsigned regs, unsigned tls)
@@ -1037,7 +1037,7 @@ index fa089f0..bc53e1c 100644
  
  VKAPI_ATTR void VKAPI_CALL
 diff --git a/src/panfrost/vulkan/meson.build b/src/panfrost/vulkan/meson.build
-index dc050bb..437a8e7 100644
+index dc050bb070d24acb2bbdac31b4cf9524055f7ec8..437a8e730633c00466854cfb6e61f229a3988160 100644
 --- a/src/panfrost/vulkan/meson.build
 +++ b/src/panfrost/vulkan/meson.build
 @@ -161,6 +161,10 @@ foreach arch : [6, 7, 9, 10, 11, 12, 13, 14]
@@ -1052,7 +1052,7 @@ index dc050bb..437a8e7 100644
      inc_panvk_per_arch += csf_inc_dir
      per_arch_files += csf_files
 diff --git a/src/panfrost/vulkan/panvk_cmd_draw.h b/src/panfrost/vulkan/panvk_cmd_draw.h
-index c60e682..a8798a0 100644
+index c60e682cb33fad9bf9fe99654cd279b997d2ad3e..a8798a0596718cd2035ec754aec2ad92f99dc16c 100644
 --- a/src/panfrost/vulkan/panvk_cmd_draw.h
 +++ b/src/panfrost/vulkan/panvk_cmd_draw.h
 @@ -169,7 +169,7 @@ struct panvk_cmd_graphics_state {
@@ -1083,7 +1083,7 @@ index c60e682..a8798a0 100644
   * TES, else VS), or NULL.
   */
 diff --git a/src/panfrost/vulkan/panvk_cmd_meta.h b/src/panfrost/vulkan/panvk_cmd_meta.h
-index 031194b..6d5f698 100644
+index 031194b31dd9a355f83a11ed6596e92f9f969a9d..6d5f698faf1781d10b4a0078fa07cf33ea986aa0 100644
 --- a/src/panfrost/vulkan/panvk_cmd_meta.h
 +++ b/src/panfrost/vulkan/panvk_cmd_meta.h
 @@ -62,7 +62,7 @@ struct panvk_cmd_meta_graphics_save_ctx {
@@ -1096,7 +1096,7 @@ index 031194b..6d5f698 100644
  #endif
  
 diff --git a/src/panfrost/vulkan/panvk_cmd_query.h b/src/panfrost/vulkan/panvk_cmd_query.h
-index f4184fd..a8e7625 100644
+index f4184fd613a2e542017aa61ef5d7c52828010eb4..a8e762519278599901daad12043867aa9a219e74 100644
 --- a/src/panfrost/vulkan/panvk_cmd_query.h
 +++ b/src/panfrost/vulkan/panvk_cmd_query.h
 @@ -22,7 +22,7 @@ struct panvk_occlusion_query_state {
@@ -1109,7 +1109,7 @@ index f4184fd..a8e7625 100644
     uint64_t syncobj;
     uint64_t ptr;
 diff --git a/src/panfrost/vulkan/panvk_shader.h b/src/panfrost/vulkan/panvk_shader.h
-index cdf4875..bf2904f 100644
+index cdf4875ac9b15fd40a25659b1e5294b468caa587..bf2904f4a6832e9af361a71b813ef8e72d4549cb 100644
 --- a/src/panfrost/vulkan/panvk_shader.h
 +++ b/src/panfrost/vulkan/panvk_shader.h
 @@ -19,7 +19,7 @@
@@ -1185,7 +1185,7 @@ index cdf4875..bf2904f 100644
        return i == PANVK_GS_VARIANT_KERNEL ? "GS_KERNEL" : "GS_PASSTHROUGH";
  #endif
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/panvk_vX_cmd_draw.c
-index 06e9523..f66c9ed 100644
+index 06e95238c146b6a39f20a9ca7ff6db4add2389b3..f66c9edfee8e79573815aa5a41d1c6ae8e0642aa 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/panvk_vX_cmd_draw.c
 @@ -828,7 +828,7 @@ prepare_iam_sysvals(struct panvk_cmd_buffer *cmdbuf, BITSET_WORD *dirty_sysvals)
@@ -1220,7 +1220,7 @@ index 06e9523..f66c9ed 100644
        /* The raster VS for a geometry draw is the GS passthrough, not the
         * HW VS masked above. Mask that variant too.
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_meta.c b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
-index 76960e6..7b7d3cf 100644
+index cf49ccb4088e0f39ef217227089489950f7d8b2e..e423f63551c05d3dc90cc6098be586e5dbd81541 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 +++ b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 @@ -183,7 +183,7 @@ meta_gfx_start(struct panvk_cmd_buffer *cmdbuf,
@@ -1242,7 +1242,7 @@ index 76960e6..7b7d3cf 100644
     cmdbuf->state.gfx.tcs.shader = save_ctx->tcs;
     cmdbuf->state.gfx.tes.shader = save_ctx->tes;
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index 17b3987..5afdac8 100644
+index 51e669c2c1486639be0952406b4cfc342a3fa68d..bfba7b310d5207490b86671cba9f35ad65ba7d4a 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
 @@ -20,7 +20,7 @@
@@ -1254,7 +1254,7 @@ index 17b3987..5afdac8 100644
  #include "panvk_gpu_prerast.h"
  #endif
  #include "panvk_cmd_draw.h"
-@@ -130,7 +130,7 @@ panvk_device_cleanup_tls(struct panvk_device *dev)
+@@ -132,7 +132,7 @@ panvk_device_cleanup_tls(struct panvk_device *dev)
     simple_mtx_destroy(&dev->tls.lock);
  }
  
@@ -1263,7 +1263,7 @@ index 17b3987..5afdac8 100644
  /* Commit the gpu_prerast arenas at creation.  On MediaTek kbase (CSF 1.21),
   * GPU-fault growth loses the first gpu_prerast draw's output: PanProbe
   * gs_viewport_depth case A drew nothing on every run; without alloc-on-fault,
-@@ -617,7 +617,7 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+@@ -664,7 +664,7 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
     simple_mtx_init(&device->tls.lock, mtx_plain);
     util_dynarray_init(&device->tls.bos, NULL);
  
@@ -1273,7 +1273,7 @@ index 17b3987..5afdac8 100644
         device->vk.enabled_features.geometryShader ||
         device->vk.enabled_features.transformFeedback ||
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index eb230c3..eab134a 100644
+index 2e69f1e0d80a11f5673bf2f8e1389f78bf17e689..28caf3981be8838ede5d0e52a9d3d6a031445c3f 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
 @@ -216,7 +216,7 @@ panvk_per_arch(get_physical_device_extensions)(
@@ -1318,7 +1318,7 @@ index eb230c3..eab134a 100644
  
        /* VK_EXT_shader_tile_image */
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index d9444f4..a6d282a 100644
+index fb061bf8b10b48644da504aa1a385ed912ddf267..1474eee8f2e515551820f2525f9c11891366145e 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
 @@ -20,7 +20,7 @@

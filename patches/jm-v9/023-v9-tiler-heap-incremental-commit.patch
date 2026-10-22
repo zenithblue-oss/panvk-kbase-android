@@ -34,7 +34,7 @@ Validation test: PanProbe all on a G57, /proc/<pid>/smaps or kbase mem_profile b
  5 files changed, 60 insertions(+), 2 deletions(-)
 
 diff --git a/src/panfrost/lib/kmod/kbase_kmod.c b/src/panfrost/lib/kmod/kbase_kmod.c
-index 477b548..1b7035b 100644
+index 1bc84c66dc09f815a6c2fb2957b7a9e0bd77c7ff..c71685a3faa1b609274fb192c429d85fd5090919 100644
 --- a/src/panfrost/lib/kmod/kbase_kmod.c
 +++ b/src/panfrost/lib/kmod/kbase_kmod.c
 @@ -93,6 +93,9 @@ struct base_jd_atom {
@@ -85,7 +85,7 @@ index 477b548..1b7035b 100644
           goto err_free_bo;
        }
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
-index 09400e9..b7845ed 100644
+index 09400e9876fe05afbc7b87fdbe4f37c5e991504a..b7845edfb82f5f59f2d4d194fb47b7542913f79c 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
 @@ -325,6 +325,23 @@ panvk_per_arch(cmd_prepare_tiler_context)(struct panvk_cmd_buffer *cmdbuf,
@@ -121,7 +121,7 @@ index 09400e9..b7845ed 100644
  
     pan_pack(&batch->tiler.ctx_templ, TILER_CONTEXT, cfg) {
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c b/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
-index cf4df11..7a2023f 100644
+index cf4df1198b5b2b8478b11bcf88346413f94eeb8c..7a2023fb02e7d1f0be70c7c4215d73f6279c2d01 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
 @@ -453,7 +453,9 @@ panvk_per_arch(gpu_queue_submit)(struct vk_queue *vk_queue, struct vk_queue_subm
@@ -136,7 +136,7 @@ index cf4df11..7a2023f 100644
           bos[bo_idx++] = dev->sample_positions->bo;
           assert(bo_idx == nr_bos);
 diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
-index e90787b..2b96abd 100644
+index dd01c0e953ad7dbeb7ffe95e9e349d9a607c5ff5..5761db1b9273cfc85c87a57c4d2cd738c55aade0 100644
 --- a/src/panfrost/vulkan/panvk_device.h
 +++ b/src/panfrost/vulkan/panvk_device.h
 @@ -72,6 +72,9 @@ struct panvk_device {
@@ -150,10 +150,10 @@ index e90787b..2b96abd 100644
     struct panvk_priv_bo *sample_positions;
  
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index 5afdac8..edb350b 100644
+index bfba7b310d5207490b86671cba9f35ad65ba7d4a..3e9f926df460126711d85a1ae28f98fcab927501 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
-@@ -685,6 +685,15 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+@@ -726,6 +726,15 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
     if (result != VK_SUCCESS)
        goto err_free_priv_bos;
  
@@ -169,7 +169,7 @@ index 5afdac8..edb350b 100644
     result = panvk_priv_bo_create(
        device,
        PANVK_JM_MAX_VERTICES_INDIRECT * PANVK_JM_MAX_PER_VTX_ATTRIBUTES_INDIRECT_SIZE,
-@@ -808,6 +817,7 @@ err_free_priv_bos:
+@@ -849,6 +858,7 @@ err_free_priv_bos:
     panvk_priv_bo_unref(device->sample_positions);
     panvk_priv_bo_unref(device->indirect_varying_buffer);
     panvk_priv_bo_unref(device->tiler_heap);
@@ -177,7 +177,7 @@ index 5afdac8..edb350b 100644
     panvk_device_cleanup_mempools(device);
     vk_free(&device->vk.alloc, device->dump_region_size);
  err_free_heaps:
-@@ -862,6 +872,7 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
+@@ -903,6 +913,7 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
     panvk_priv_bo_unref(device->tiler_oom.handlers_bo);
      panvk_priv_bo_unref(device->indirect_varying_buffer);
      panvk_priv_bo_unref(device->tiler_heap);
