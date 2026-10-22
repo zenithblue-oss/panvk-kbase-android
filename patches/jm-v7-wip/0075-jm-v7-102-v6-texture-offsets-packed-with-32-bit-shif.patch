@@ -1,0 +1,64 @@
+From bd6d38d376241644c5b1b3fb180f7f0fd9cbcc7f Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 22 Oct 2026 05:21:44 +0000
+Subject: [PATCH 75/75] jm-v7 102: v6 texture offsets packed with 32-bit shifts
+
+The FTL Galaxy S9 (Mali-G72, RC5-dev-v7K) PanProbe sampler test lost the
+device in gather_offsets (kbase event 0x51, INSTR_INVALID_ENC, compute
+job; the output stayed at its -1.0 fill, hence got (-255,-255)). The
+shader does textureGatherOffsets with constant offsets (nir_lower_tex
+lower_tg4_offsets: four single-offset gathers) and a textureGatherOffset
+with a dynamic offset. The core gather case, a constant
+textureGatherOffset, passes, and constant and dynamic offsets use the same
+TEXC with the offset staging register, so the only new code is the
+non-constant u8vec4 pack of the offset (nir_pack_32_4x8 of i2i8, which
+bi_lower_mkvec_swz turns into MKVEC.v4i8 or other 8-bit vector ops).
+
+On v6, build the offset/MS-index word with 32-bit AND/shift/OR. Constant
+offsets fold to the same immediate as before. v7 and later are unchanged.
+This is the most likely cause; it is to be confirmed on the device.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/compiler/pan_nir_lower_tex.c | 25 +++++++++++++++++++++--
+ 1 file changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/panfrost/compiler/pan_nir_lower_tex.c b/src/panfrost/compiler/pan_nir_lower_tex.c
+index b9a87e7..b12828f 100644
+--- a/src/panfrost/compiler/pan_nir_lower_tex.c
++++ b/src/panfrost/compiler/pan_nir_lower_tex.c
+@@ -593,8 +593,29 @@ bi_lower_tex(nir_builder *b, nir_tex_instr *tex, uint64_t gpu_id)
+             comps[i] = nir_get_scalar(nir_imm_int(b, 0), 0);
+       }
+ 
+-      sr[BI_TEX_SR_OFFSET] =
+-         nir_pack_32_4x8(b, nir_i2i8(b, nir_vec_scalars(b, comps, 4)));
++      if (pan_arch(gpu_id) == 6) {
++         /* jm-v7 102: pack the u8vec4 with 32-bit shifts on v6. The 8-bit
++          * vector pack (MKVEC.v4i8 and friends) of a non-constant offset
++          * faulted with INSTR_INVALID_ENC (event 0x51) on the FTL Galaxy S9
++          * (Mali-G72): PanProbe sampler gather_offsets, whose only
++          * difference from the passing gather case is a dynamic
++          * textureGatherOffset. Constant offsets fold to the same
++          * immediate as before.
++          */
++         nir_def *packed = NULL;
++         for (unsigned i = 0; i < 4; i++) {
++            nir_def *c = nir_u2u32(b, nir_mov_scalar(b, comps[i]));
++            if (i < 3)
++               c = nir_iand_imm(b, c, 0xff);
++            if (i)
++               c = nir_ishl_imm(b, c, i * 8);
++            packed = packed ? nir_ior(b, packed, c) : c;
++         }
++         sr[BI_TEX_SR_OFFSET] = packed;
++      } else {
++         sr[BI_TEX_SR_OFFSET] =
++            nir_pack_32_4x8(b, nir_i2i8(b, nir_vec_scalars(b, comps, 4)));
++      }
+       desc.offset_or_bias_disable = true;
+    }
+ 
+-- 
+2.55.0
+

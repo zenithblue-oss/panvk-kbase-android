@@ -290,3 +290,10 @@ Base: `mesa-v7J` HEAD d160802 (after 0062); same worktree, new branch `v7L`. App
 - 0071 (jm-v7 098, review item 9): rebinding a shader whose 076/077 alternate is bound is not a change (no VS/FS dirty flip per rebind). `PANVK_V7_ALT_REBIND_DIRTY=1` = old.
 - 0072 (jm-v7 099, review K2): with PANVK_OVERLAP, v6/v7 get one 64 MiB GROW_ON_GPF tiler heap BO per half (was one 128 MiB BO, so half 1's first fault committed 64 MiB); hierarchy mask sized for the half. `PANVK_V7_SPLIT_HEAP=0` = old.
 - 0073 (jm-v7 100, review item 10): occlusion EndQuery inside an open batch no longer closes/splits the batch; the availability write is deferred (up to 64 per batch) and flushed in an after-frag job at batch close. `PANVK_V7_QUERY_END_DEFER=0` = old.
+
+## v7M (2026-10-22): 0074+, FTL G72 (v6) open items
+
+Base: `mesa-v7J` HEAD a724b88 (after 0073); same worktree, new branch `v7M`. Apply in file order after 0073. Build record: `worklogs/g615-dxvk/builds/v7M.md`.
+
+- 0074 (jm-v7 101, v6): robustImageAccess2 out-of-bounds alpha for format-less storage image loads and uniform texel buffer fetches comes from the view's hardware format on v6. The 048/083 "invert the hardware alpha" rule is v7 behaviour; on G72 the hardware alpha is nonzero for both rgba8 and r32ui, so all 10 r32ui OOB cases read alpha 0. New `image_deref_format` lowering in nir_lower_descriptors (v6/v7) reads the 22-bit format from the set (image word 2 >> 10, texel buffer word 4 >> 10); alpha is 1 when the v6 alpha swizzle is the constant 1. 084 null texel buffer rule kept. v7 unchanged.
+- 0075 (jm-v7 102, v6, compiler): the Bifrost texture offset/MS-index staging word is packed with 32-bit AND/shift/OR on v6 instead of `pack_32_4x8(i2i8())` (8-bit vector ops such as MKVEC.v4i8). G72 sampler gather_offsets (dynamic textureGatherOffset) faulted with INSTR_INVALID_ENC; the constant-offset gather passed. Constant offsets fold to the same immediate. v7+ unchanged. Likely cause, to be confirmed on the device.
