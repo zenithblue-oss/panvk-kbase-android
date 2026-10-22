@@ -11,7 +11,7 @@ DRIVER line on every rc5 run: `PanVK-kbase RC5-universal (Mesa 26.3.0-devel (git
 - tess_perf hashes are identical to bc6d in every config (default and legacy, gs=0/1, all L). The new path is still 7-15% faster than legacy.
 - bc_perf (warm, standalone): 27676 / 27517 ms (mean 27597). bc6d rc5 was 28559 / 27799 ms (mean 28179), so this run is 2% faster, which is within noise.
 - tessellation: 2629.5 fps inside autorun, and 2376 / 2432 / 2258 fps standalone. bc6d's single sample was 2877 fps. The rc5 history on this phone (bc6b/bc6c/bc6d) runs from 2409 to 2877 fps, and an rc4 control run now gave 2608 fps (bc6d's rc4 run gave 2587). The rc5u numbers are at the low end of the rc5 range. It is a 1-second fps loop and its spread is large, so this is not conclusive. See the note below.
-- **PanPlay cube tests: NOT RUN. panplay-rc5u.apk cannot replace the installed PanPlay without an uninstall** (details below).
+- **PanPlay cube tests (after the user-approved uninstall and a fresh panplay-rc5u.apk install): D3D11 ARM64EC PASS 47.1 fps, D3D9 i686 PASS 48.4 fps**, both on `PanVK-kbase RC5-universal (Mesa 26.3.0-devel (git-3093e6a58e))` with soSha256 ab7eaa92. That is the same 46-47 fps as earlier cube runs on this phone. panplay-rc5u.apk is a download-only build (no bundled components), so FEX, DXVK and the other components had to be installed by hand first. See "PanPlay cube tests" below.
 - The filtered logcat for the full run has no FATAL lines or crashes.
 
 ## autorun all (run=20261022-185328)
@@ -84,7 +84,51 @@ Totals: rc5u 27676 / 27517 ms (mean 27597). bc6d rc5 mean 28179, rc4 mean 28364.
 
 The stable large wins over RC4 hold: BC6H at -41..-44% and BC7 at -14..-15%. The sub-2 ms formats (BC4/BC5) swing by about 2x from run to run on this phone, so their changes are noise. REF_* formats are within noise of bc6d.
 
-## PanPlay cube tests (not run)
+## PanPlay cube tests
+APK: /home/flux/build-out/apks/panplay-rc5u.apk, `dev.zenithblue.panvklauncher` 1.2.7 / vc 33, debug, installed 19:08 after the user-approved uninstall of the old 1.2.8 (see "Earlier attempt" below).
+The installed `lib/arm64/libvulkan_panfrost.so` sha256 is ab7eaa92...a5c4, and both sessions record `soSha256: ab7eaa92...`.
+Launched with `am start -n dev.zenithblue.panvklauncher/.MainActivity --es dev.zenithblue.panvklauncher.LAUNCH_SHORTCUT <id>` after `am force-stop`.
+
+| cube | session | result | avg fps | 1% low | p50 frametime | GPU load avg | HUD driver line |
+|---|---|---|---|---|---|---|---|
+| builtin-d3d11-arm64ec (D3D11 FL11_0, ARM64EC + FEX arm64ec) | 20261022-195905 | **PASS**, rendered, exit 0 after 27 s | **47.1** (1141 frames / 24.2 s) | 24.7 | 21.67 ms | 49% | `PanVK-kbase RC5-universal (Mesa 26.3.0-devel (git-3093e6a58e))`, Mali-G615 MC6, DXVK v3.1.1+ |
+| builtin-d3d9-i686 (D3D9, i686 via FEX WoW64) | 20261022-200113 | **PASS**, rendered, exit 0 after 28 s | **48.4** (1134 frames / 23.4 s) | 23.9 | 21.66 ms | 48% | same |
+
+- The baseline for these cubes on this phone is 46-47 fps for every arch and API (091-placed-dma-heap, PROGRESS.md; Tab S10 Ultra about 47 fps). RC5-universal shows no regression. The flat 21.7 ms p50 at half GPU load points to presentation pacing, not to GPU limits.
+- Geometry and shading are correct in both (four lit cubes, full DXVK HUD): screenshots `cube-d3d11-10-run25s.png` and `cube-d3d9-02-run25s.png`.
+- DXVK log: `Found device: Mali-G615 MC6 (panvk 26.2.99)`. That is the Vulkan driverVersion encoding; the full RC5-universal string is on the HUD.
+- Wine errors in both runs are the usual harmless ones: nsiproxy/winebth ZwLoadDriver, rpcrt4 wait error 87, and `X11DRV_OpenGLInit ... libGL.so.1 not found` (wgl only; the cubes use DXVK). The filtered logcat has no FATAL, SIGSEGV, GPU fault or DEVICE_LOST.
+- Cosmetic: `device.txt` and the perf json label the driver "RC3 lowmem" because `bundled-driver.json` still pins RC3 (known, see builds/rc5-universal.md). The .so sha is RC5-universal.
+
+### Dependencies (what was missing and how it was fixed)
+panplay-rc5u.apk is 94 MB. It was built **without bundled components** (no `assets/components/`), and in `Contents.kt` only the rootfs and Proton have a download URL. FEX, DXVK, vkd3d, Box64, PulseAudio, ALSA and Mesa-Zink have `url = ""`, so their Download buttons only set "<X> ships only inside the full PanPlay APK" and do nothing.
+
+| component | version | sha256 (= pin in app/bundled-components.json?) | source | installed via |
+|---|---|---|---|---|
+| Rootfs imagefs_bionic | bionic | 368db62b... (yes) | in-app download (downloads.gamenative.app) | Components > Download |
+| Wine (Proton) | 11.0-2-arm64ec | fffa4672... (yes) | in-app download (GameNative/proton-wine GitHub release) | Components > Download |
+| FEXCore | 2609.1 | 1701380b... (yes) | extracted from the PanPlay v1.2.7 release APK (zenithblue-oss/panplay, 383 MB) | Install local .wcp |
+| DXVK | 3.1.1-4-arm64ec | c812e000... (yes) | same | Install local .wcp |
+| VKD3D | 3.0.1-452-g22307558 | dd00eac3... (yes) | same | Install local .wcp |
+| Box64 | 0.4.5-2f47bdf | d71d5a21... (yes) | same | Install local .wcp |
+| PulseAudio | 17.0-2 | 15604aa0... (yes) | same | Install local .wcp |
+| ALSA | 1.2.16.1-2 | 723aaf3c... (yes) | same | Install local .wcp |
+| Mesa-Zink (OpenGL) | 26.2.4-1 | 1f1eb714... (**no**: pin is 46707d28...) | **built here** with `apps/panvk-launcher/scripts/build-mesa-zink.sh` (NDK 29.0.14206865, mesa-26.2.4.tar.xz sha OK), because the v1.2.7 APK predates it | Install local .wcp |
+
+- All archives are in /var/tmp/panvk/components, the default `-PcomponentsDir`. All except Zink match the pins byte for byte. Zink is a local rebuild and is not bit-reproducible against the pin. It is not used by the D3D cubes.
+- They were pushed to `/sdcard/Download/panplay-components/` (sha256 checked on the phone) and installed one by one with Components > Install local .wcp (SAF picker, adb taps). Afterwards Components shows every entry Installed, and `files/contents` = ALSA Box64 DXVK FEXCore Mesa-Zink Proton PulseAudio VKD3D imagefs. See `screenshots/cube-components-installed.png`.
+- To make a self-contained PanPlay rc5u for testers: rebuild with `-PpanvkSo=<rc5u .so>` and the default componentsDir (now filled). The Zink pin would need updating to 1f1eb714, or use the published Zink build.
+
+### First attempt (setup ordering, launcher issue, not the driver)
+- First launch: "Allow access to all files" dialog (tapped Not now; built-in cubes do not need it), then the "What's new in 1.2.7" dialog (OK). Then nothing launched, because the shortcut waits for container setup, which needs Proton and the rootfs installed.
+- As soon as Proton finished installing, container setup ran and the pending LAUNCH_SHORTCUT fired before FEX and DXVK existed. That gave session 20261022-193201: **exit 53**, `err:module:load_arm64ec_module could not load L"C:\\windows\\system32\\libarm64ecfex.dll", status c0000135` (raw/cube/d3d11-attempt1-exit53/). **Cause: launcher setup** (FEX missing). The driver was never loaded.
+- Launcher follow-ups: (1) The shortcut and container setup gate only on Proton and imagefs, so a game can start without FEX or DXVK. It should also check FEXCore (and DXVK for D3D). (2) A download-only APK should either give FEX/DXVK/ALSA a URL or hide those Download buttons. The current message is easy to miss.
+
+### Files
+- screenshots/: cube-d3d11-01-start (all-files dialog), -02 (what's new), -03 (games list, nothing launched), -04-components (all not installed), -05-exit53 (first attempt), cube-components-installed, cube-d3d11-10-run25s / -11-run40s / -12-run60s (rendering, then session summary), cube-d3d9-01-run15s / -02-run25s (rendering) / -03-session.
+- raw/cube/d3d11/ and raw/cube/d3d9/: session files (summary, config, device, session.json, wine-run.log, launcher.log, mesa-panvk.txt, DXVK logs), perf json/csv, and logcat-filtered.txt.
+
+### Earlier attempt (before the uninstall)
 `adb install -r panplay-rc5u.apk` failed: `INSTALL_FAILED_VERSION_DOWNGRADE: Update version code 33 is older than current 34`.
 `adb install -r -d` failed: `INSTALL_FAILED_DUPLICATE_PERMISSION ... DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION already owned by dev.zenithblue.panvklauncher`.
 Cause: the installed PanPlay is versionName 1.2.8 / versionCode 34 (lastUpdate 2026-10-13, about 387 MB, signer cert SHA-256 8b10fde8...). panplay-rc5u.apk is 1.2.7 / vc 33 (the repo's apps/panvk-launcher value) and is **signed with a different key** (cert bc517d8c...). Android cannot update across different signing keys, so replacing it needs `adb uninstall dev.zenithblue.panvklauncher`, which wipes the installed Wine container and imagefs. I did not do that without the user's go-ahead.
