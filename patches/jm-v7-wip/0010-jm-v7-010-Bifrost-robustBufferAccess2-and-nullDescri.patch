@@ -1,4 +1,4 @@
-From 93a2c8b9383bc2c88c10784f14738fb82c3e75b6 Mon Sep 17 00:00:00 2001
+From e2365ec884f6f5dd5f686b1d256a46f39ed0b84f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 16 Oct 2026 11:52:08 +0000
 Subject: [PATCH] jm-v7 010: Bifrost robustBufferAccess2 and nullDescriptor
@@ -42,10 +42,10 @@ Claude-Session: https://claude.ai/code/session_0153VvtSm6m7BrM4NCBq8MMc
  7 files changed, 309 insertions(+), 18 deletions(-)
 
 diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
-index d131dc8..e4822ed 100644
+index 5761db1b..89755d67 100644
 --- a/src/panfrost/vulkan/panvk_device.h
 +++ b/src/panfrost/vulkan/panvk_device.h
-@@ -107,6 +107,26 @@ struct panvk_device {
+@@ -114,6 +114,26 @@ struct panvk_device {
     /* Bound in place of a missing FS so the depth bounds test still runs. */
     struct panvk_shader *depth_bounds_fs;
  
@@ -73,7 +73,7 @@ index d131dc8..e4822ed 100644
        struct panvk_pool rw;
        struct panvk_pool rw_nc;
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/panvk_vX_cmd_draw.c
-index deabfc7..15807e7 100644
+index deabfc77..15807e75 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/panvk_vX_cmd_draw.c
 @@ -1128,7 +1128,17 @@ panvk_per_arch(CmdBindVertexBuffers2)(VkCommandBuffer commandBuffer,
@@ -95,7 +95,7 @@ index deabfc7..15807e7 100644
        }
     }
 diff --git a/src/panfrost/vulkan/panvk_vX_descriptor_set.c b/src/panfrost/vulkan/panvk_vX_descriptor_set.c
-index 4df1003..0d7251f 100644
+index 4df10030..0d7251f5 100644
 --- a/src/panfrost/vulkan/panvk_vX_descriptor_set.c
 +++ b/src/panfrost/vulkan/panvk_vX_descriptor_set.c
 @@ -91,6 +91,66 @@ write_desc_data(struct panvk_descriptor_set *set, uint32_t binding,
@@ -243,7 +243,7 @@ index 4df1003..0d7251f 100644
     }
  
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index 4cd9903..8f19631 100644
+index 3e9f926d..599e0fc9 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
 @@ -30,6 +30,7 @@
@@ -254,7 +254,7 @@ index 4cd9903..8f19631 100644
  #include "panvk_queue.h"
  #include "panvk_utrace.h"
  #include "panvk_utrace_perfetto.h"
-@@ -46,6 +47,9 @@
+@@ -48,6 +49,9 @@
  #include "util/u_printf.h"
  #include "pan_props.h"
  #include "pan_samples.h"
@@ -264,7 +264,7 @@ index 4cd9903..8f19631 100644
  
  static void *
  panvk_kmod_zalloc(const struct pan_kmod_allocator *allocator, size_t size,
-@@ -435,6 +439,131 @@ panvk_queue_destroy(struct vk_queue *queue)
+@@ -482,6 +486,131 @@ panvk_queue_destroy(struct vk_queue *queue)
     }
  }
  
@@ -396,7 +396,7 @@ index 4cd9903..8f19631 100644
  VkResult
  panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
                                const VkDeviceCreateInfo *pCreateInfo,
-@@ -760,6 +889,15 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+@@ -801,6 +930,15 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
     if (result != VK_SUCCESS)
        goto err_finish_queues;
  
@@ -412,7 +412,7 @@ index 4cd9903..8f19631 100644
     for (unsigned i = 0; i < pCreateInfo->queueCreateInfoCount; i++) {
        const VkDeviceQueueCreateInfo *queue_create =
           &pCreateInfo->pQueueCreateInfos[i];
-@@ -793,6 +931,10 @@ err_finish_queues:
+@@ -834,6 +972,10 @@ err_finish_queues:
     vk_foreach_queue_safe(queue, &device->vk)
        panvk_queue_destroy(queue);
  
@@ -423,7 +423,7 @@ index 4cd9903..8f19631 100644
     if (device->depth_bounds_fs)
        vk_shader_destroy(&device->vk, &device->depth_bounds_fs->vk, NULL);
     panvk_meta_cleanup(device);
-@@ -861,6 +1003,9 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
+@@ -902,6 +1044,9 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
     panvk_precomp_cleanup(device);
  #if PAN_ARCH >= 10 && PAN_ARCH < 14
     panvk_per_arch(device_draw_context_cleanup)(device);
@@ -434,7 +434,7 @@ index 4cd9903..8f19631 100644
     if (device->depth_bounds_fs)
        vk_shader_destroy(&device->vk, &device->depth_bounds_fs->vk, NULL);
 diff --git a/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c b/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c
-index d37d06e..927e3e7 100644
+index d37d06ed..927e3e7b 100644
 --- a/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c
 +++ b/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c
 @@ -604,8 +604,9 @@ load_tex_size(nir_builder *b, nir_deref_instr *deref, enum glsl_sampler_dim dim,
@@ -474,7 +474,7 @@ index d37d06e..927e3e7 100644
     return loaded_samples;
  }
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index cac9108..a18857e 100644
+index cac9108b..a18857e7 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
 @@ -211,7 +211,7 @@ panvk_per_arch(get_physical_device_extensions)(
@@ -507,7 +507,7 @@ index cac9108..a18857e 100644
        /* VK_EXT_shader_tile_image */
        .shaderTileImageColorReadAccess = PAN_ARCH >= 9,
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index 1ab0b76..4d00226 100644
+index 0971f476..16a1aeca 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
 @@ -408,6 +408,19 @@ panvk_buffer_ubo_addr_format(VkPipelineRobustnessBufferBehaviorEXT robustness)

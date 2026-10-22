@@ -1,4 +1,4 @@
-From c7339c6245a4307f4df1c5304090cff1a13af5e3 Mon Sep 17 00:00:00 2001
+From 645bc35e35d036ccc24594066f70b70add0acf41 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 10:29:07 +0000
 Subject: [PATCH] jm-v7 043: null storage images read (0,0,0,0) on v6/v7
@@ -24,18 +24,18 @@ the out-of-bounds value does not go through the component order.
  1 file changed, 34 insertions(+), 3 deletions(-)
 
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index f0a19ea..cc252fd 100644
+index bd3b6030..4dc14008 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
-@@ -44,6 +44,7 @@
- 
- #include "kmod/pan_kmod.h"
+@@ -46,6 +46,7 @@
  #include "util/os_file.h"
+ #include "util/log.h"
+ #include "util/os_misc.h"
 +#include "util/u_debug.h"
  #include "util/u_printf.h"
  #include "pan_props.h"
  #include "pan_samples.h"
-@@ -441,6 +442,7 @@ panvk_queue_destroy(struct vk_queue *queue)
+@@ -488,6 +489,7 @@ panvk_queue_destroy(struct vk_queue *queue)
  
  #if PAN_ARCH < 9
  #define PANVK_NULL_ZERO_SIZE (PANVK_NULL_UBO_ENTRIES * 16)
@@ -43,7 +43,7 @@ index f0a19ea..cc252fd 100644
  
  /* See panvk_device::null_descs. The texture and storage image descriptors
   * come from the device's own entry points, so they are exactly what an
-@@ -457,14 +459,18 @@ panvk_init_null_descs(struct panvk_device *dev)
+@@ -504,14 +506,18 @@ panvk_init_null_descs(struct panvk_device *dev)
     VkDevice h = panvk_device_to_handle(dev);
     VkResult result;
  
@@ -65,7 +65,7 @@ index f0a19ea..cc252fd 100644
     dev->null_descs.zero_addr = dev->null_descs.zero_bo->addr.dev;
  
     const VkImageCreateInfo ici = {
-@@ -525,6 +531,31 @@ panvk_init_null_descs(struct panvk_device *dev)
+@@ -572,6 +578,31 @@ panvk_init_null_descs(struct panvk_device *dev)
     pan_pack(&img[0], ATTRIBUTE_BUFFER, cfg) {
        cfg = img_cfg;
        cfg.size = 0;

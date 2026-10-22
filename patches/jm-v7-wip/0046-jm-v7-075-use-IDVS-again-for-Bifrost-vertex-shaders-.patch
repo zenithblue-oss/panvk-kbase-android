@@ -1,4 +1,4 @@
-From 9fb19a85d603096c7572589e35235e2c38f5eb88 Mon Sep 17 00:00:00 2001
+From 1713ca16efd55276a1f0d1e67f763dc5a0de7308 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 13:57:51 +0000
 Subject: [PATCH] jm-v7 075: use IDVS again for Bifrost vertex shaders that
@@ -29,10 +29,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  1 file changed, 40 insertions(+), 4 deletions(-)
 
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index 5829a18..a7c5f40 100644
+index 62f6bfd9..a13fc60a 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
-@@ -4205,10 +4205,8 @@ panvk_compile_shader(struct panvk_device *dev,
+@@ -4273,10 +4273,8 @@ panvk_compile_shader(struct panvk_device *dev,
     };
  
  #if PAN_ARCH < 9
@@ -45,7 +45,7 @@ index 5829a18..a7c5f40 100644
      */
     inputs.no_idvs = true;
  
-@@ -4248,6 +4246,44 @@ panvk_compile_shader(struct panvk_device *dev,
+@@ -4316,6 +4314,44 @@ panvk_compile_shader(struct panvk_device *dev,
          vs_xfb_passthrough));
     inputs.skip_viewport_transform = vs_clip_space;
  

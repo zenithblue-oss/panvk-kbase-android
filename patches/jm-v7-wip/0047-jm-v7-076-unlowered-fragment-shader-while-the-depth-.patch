@@ -1,4 +1,4 @@
-From 2e1fb19a471a80949fda0bce0dee38a94b485594 Mon Sep 17 00:00:00 2001
+From 640306565b2fc529a4a0e914e283f148db65e99c Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 14:01:40 +0000
 Subject: [PATCH] jm-v7 076: unlowered fragment shader while the depth bounds
@@ -31,7 +31,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  3 files changed, 154 insertions(+), 5 deletions(-)
 
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index 2009efa..d981ceb 100644
+index c73bb18f..5f296b05 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 @@ -2896,9 +2896,44 @@ v7_count_draw_queries(struct panvk_cmd_buffer *cmdbuf,
@@ -91,7 +91,7 @@ index 2009efa..d981ceb 100644
     VkResult result;
  
 diff --git a/src/panfrost/vulkan/panvk_shader.h b/src/panfrost/vulkan/panvk_shader.h
-index c9775eb..802cd02 100644
+index c9775eba..802cd021 100644
 --- a/src/panfrost/vulkan/panvk_shader.h
 +++ b/src/panfrost/vulkan/panvk_shader.h
 @@ -600,6 +600,16 @@ struct panvk_shader {
@@ -112,10 +112,10 @@ index c9775eb..802cd02 100644
  
     struct panvk_shader_variant variants[];
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index a7c5f40..776c90d 100644
+index a13fc60a..12da80b2 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
-@@ -3510,6 +3510,8 @@ panvk_shader_destroy(struct vk_device *vk_dev, struct vk_shader *vk_shader,
+@@ -3554,6 +3554,8 @@ panvk_shader_destroy(struct vk_device *vk_dev, struct vk_shader *vk_shader,
              panvk_shader_destroy(vk_dev, &shader->polygon_gs[m][c]->vk, NULL);
        }
     }
@@ -124,7 +124,7 @@ index a7c5f40..776c90d 100644
  #endif
  
     vk_shader_free(vk_dev, pAllocator, &shader->vk);
-@@ -4149,7 +4151,7 @@ panvk_compile_shader(struct panvk_device *dev,
+@@ -4217,7 +4219,7 @@ panvk_compile_shader(struct panvk_device *dev,
                       const struct vk_graphics_pipeline_state *state,
                       const struct pan_varying_layout *vs_varying_layout,
                       const uint32_t *noperspective_varyings,
@@ -133,7 +133,7 @@ index a7c5f40..776c90d 100644
                       const VkAllocationCallbacks *pAllocator,
                       struct vk_shader **shader_out)
  {
-@@ -4920,7 +4922,7 @@ panvk_compile_shader(struct panvk_device *dev,
+@@ -4988,7 +4990,7 @@ panvk_compile_shader(struct panvk_device *dev,
                 &variant->fs.tile_image_z_read,
                 &variant->fs.tile_image_s_read);
  
@@ -142,7 +142,7 @@ index a7c5f40..776c90d 100644
           variant->fs.depth_bounds_app_mask = panvk_lower_depth_bounds(nir);
           variant->fs.depth_bounds = true;
        }
-@@ -5067,6 +5069,41 @@ panvk_per_arch(create_shader_from_binary)(struct panvk_device *dev,
+@@ -5135,6 +5137,41 @@ panvk_per_arch(create_shader_from_binary)(struct panvk_device *dev,
     return result;
  }
  
@@ -184,7 +184,7 @@ index a7c5f40..776c90d 100644
  static VkResult
  compile_shaders(struct vk_device *vk_dev, uint32_t shader_count,
                  struct vk_shader_compile_info *infos,
-@@ -5135,12 +5172,47 @@ compile_shaders(struct vk_device *vk_dev, uint32_t shader_count,
+@@ -5203,12 +5240,47 @@ compile_shaders(struct vk_device *vk_dev, uint32_t shader_count,
  #endif
        }
  
@@ -234,7 +234,7 @@ index a7c5f40..776c90d 100644
  
        /* Clean up NIR for the current shader */
        ralloc_free(infos[i].nir);
-@@ -5396,6 +5468,27 @@ panvk_deserialize_shader(struct vk_device *vk_dev, struct blob_reader *blob,
+@@ -5464,6 +5536,27 @@ panvk_deserialize_shader(struct vk_device *vk_dev, struct blob_reader *blob,
        }
     }
  
@@ -262,7 +262,7 @@ index a7c5f40..776c90d 100644
     *shader_out = &shader->vk;
  
     return VK_SUCCESS;
-@@ -5515,6 +5608,13 @@ panvk_shader_serialize(struct vk_device *vk_dev,
+@@ -5583,6 +5676,13 @@ panvk_shader_serialize(struct vk_device *vk_dev,
        panvk_shader_serialize_variant(vk_dev, variant, blob);
     }
  
@@ -276,7 +276,7 @@ index a7c5f40..776c90d 100644
     return !blob->out_of_memory;
  }
  
-@@ -6193,7 +6293,7 @@ VkResult panvk_per_arch(create_shader)(
+@@ -6261,7 +6361,7 @@ VkResult panvk_per_arch(create_shader)(
     panvk_preprocess_nir(dev->vk.physical, nir, &rs);
  
     struct vk_shader *vk_shader;

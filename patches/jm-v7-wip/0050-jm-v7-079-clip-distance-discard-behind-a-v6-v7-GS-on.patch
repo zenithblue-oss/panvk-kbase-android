@@ -1,4 +1,4 @@
-From 29708b121f0c5734edf6200291b3e92548569bce Mon Sep 17 00:00:00 2001
+From f588570abe11548c9bf34dbd90fe1f827ff19044 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 14:06:12 +0000
 Subject: [PATCH] jm-v7 079: clip-distance discard behind a v6/v7 GS only for
@@ -21,10 +21,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  1 file changed, 21 insertions(+), 4 deletions(-)
 
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index 8d00d90..48e1e93 100644
+index 1b823eb5..f69106fa 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
-@@ -4151,7 +4151,8 @@ panvk_compile_shader(struct panvk_device *dev,
+@@ -4219,7 +4219,8 @@ panvk_compile_shader(struct panvk_device *dev,
                       const struct vk_graphics_pipeline_state *state,
                       const struct pan_varying_layout *vs_varying_layout,
                       const uint32_t *noperspective_varyings,
@@ -34,7 +34,7 @@ index 8d00d90..48e1e93 100644
                       const VkAllocationCallbacks *pAllocator,
                       struct vk_shader **shader_out)
  {
-@@ -4909,6 +4910,13 @@ panvk_compile_shader(struct panvk_device *dev,
+@@ -4977,6 +4978,13 @@ panvk_compile_shader(struct panvk_device *dev,
              if (slot)
                 prev_dist_outputs |= BITFIELD64_BIT(slot->location);
           }
@@ -48,7 +48,7 @@ index 8d00d90..48e1e93 100644
        }
        NIR_PASS(_, nir, panvk_lower_clip_cull_fs, prev_dist_outputs,
                 scissor_loc);
-@@ -5152,10 +5160,19 @@ compile_shaders(struct vk_device *vk_dev, uint32_t shader_count,
+@@ -5220,10 +5228,19 @@ compile_shaders(struct vk_device *vk_dev, uint32_t shader_count,
         */
        const struct pan_varying_layout *vs_varying_layout = NULL;
        uint8_t scissor_loc = 0;
@@ -68,7 +68,7 @@ index 8d00d90..48e1e93 100644
  
           /* The last geometry stage before the FS will always have a HW vertex
            * shader variant. Geometry's first vertex variant is the passthrough.
-@@ -5197,7 +5214,7 @@ compile_shaders(struct vk_device *vk_dev, uint32_t shader_count,
+@@ -5265,7 +5282,7 @@ compile_shaders(struct vk_device *vk_dev, uint32_t shader_count,
  #endif
  
        result = panvk_compile_shader(dev, &infos[i], state, vs_varying_layout,
@@ -77,7 +77,7 @@ index 8d00d90..48e1e93 100644
                                      false, pAllocator, &shaders_out[i]);
  
        if (result != VK_SUCCESS) {
-@@ -5215,7 +5232,7 @@ compile_shaders(struct vk_device *vk_dev, uint32_t shader_count,
+@@ -5283,7 +5300,7 @@ compile_shaders(struct vk_device *vk_dev, uint32_t shader_count,
           struct vk_shader *alt_vk = NULL;
           /* Not fatal: without it the main compile is used for every draw. */
           if (panvk_compile_shader(dev, &alt_info, state, vs_varying_layout,
@@ -86,7 +86,7 @@ index 8d00d90..48e1e93 100644
                                    true, pAllocator, &alt_vk) == VK_SUCCESS) {
              struct panvk_shader *main_shader =
                 container_of(shaders_out[i], struct panvk_shader, vk);
-@@ -6307,7 +6324,7 @@ VkResult panvk_per_arch(create_shader)(
+@@ -6375,7 +6392,7 @@ VkResult panvk_per_arch(create_shader)(
     panvk_preprocess_nir(dev->vk.physical, nir, &rs);
  
     struct vk_shader *vk_shader;

@@ -1,8 +1,8 @@
-From c375edeadd93537fe376b11f925808e3014580d2 Mon Sep 17 00:00:00 2001
+From 89ea653e98e009c4284a961bfeef879f95cb7d9b Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 16:50:50 +0000
-Subject: [PATCH 50/51] jm-v7 050: bindless update-after-bind and mutable
- bindings on v6/v7
+Subject: [PATCH] jm-v7 050: bindless update-after-bind and mutable bindings on
+ v6/v7
 
 Bifrost copies descriptors per draw into per-type hardware tables (16-bit
 texture/sampler counts, 256 storage images). That cannot cover
@@ -41,10 +41,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  12 files changed, 637 insertions(+), 19 deletions(-)
 
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index 16d45e1..b9ce266 100644
+index eb57ff47..0743ca55 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-@@ -2184,6 +2184,20 @@ emu_prepare_descs(struct panvk_cmd_buffer *cmdbuf,
+@@ -2251,6 +2251,20 @@ emu_prepare_descs(struct panvk_cmd_buffer *cmdbuf,
        if (i < MAX_SETS && desc_state->sets[i])
           sysvals->desc.sets[i] = desc_state->sets[i]->descs.dev;
     }
@@ -66,7 +66,7 @@ index 16d45e1..b9ce266 100644
  
     struct pan_ptr job;
 diff --git a/src/panfrost/vulkan/panvk_cmd_desc_state.h b/src/panfrost/vulkan/panvk_cmd_desc_state.h
-index 9b82fc3..1532f3a 100644
+index 9b82fc38..1532f3ab 100644
 --- a/src/panfrost/vulkan/panvk_cmd_desc_state.h
 +++ b/src/panfrost/vulkan/panvk_cmd_desc_state.h
 @@ -79,6 +79,22 @@ VkResult panvk_per_arch(cmd_prepare_shader_desc_tables)(
@@ -93,7 +93,7 @@ index 9b82fc3..1532f3a 100644
  void panvk_per_arch(cmd_fill_dyn_bufs)(
     const struct panvk_descriptor_state *desc_state,
 diff --git a/src/panfrost/vulkan/panvk_descriptor_set_layout.h b/src/panfrost/vulkan/panvk_descriptor_set_layout.h
-index 603a4c6..35b796f 100644
+index 603a4c63..35b796f2 100644
 --- a/src/panfrost/vulkan/panvk_descriptor_set_layout.h
 +++ b/src/panfrost/vulkan/panvk_descriptor_set_layout.h
 @@ -129,6 +129,37 @@ panvk_get_desc_stride(const struct panvk_descriptor_set_binding_layout *layout)
@@ -135,10 +135,10 @@ index 603a4c6..35b796f 100644
  panvk_get_iub_desc_count(uint32_t size)
  {
 diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
-index a24b6c8..290d6b7 100644
+index b9453203..19ec7628 100644
 --- a/src/panfrost/vulkan/panvk_device.h
 +++ b/src/panfrost/vulkan/panvk_device.h
-@@ -124,6 +124,9 @@ struct panvk_device {
+@@ -131,6 +131,9 @@ struct panvk_device {
        uint32_t tex[8], img[8], texel[8];
        struct panvk_priv_bo *zero_bo;
        uint64_t zero_addr;
@@ -148,7 +148,7 @@ index a24b6c8..290d6b7 100644
        VkImage image;
        VkDeviceMemory image_mem;
        VkImageView view;
-@@ -204,6 +207,19 @@ to_panvk_device(struct vk_device *dev)
+@@ -219,6 +222,19 @@ to_panvk_device(struct vk_device *dev)
     return container_of(dev, struct panvk_device, vk);
  }
  
@@ -169,7 +169,7 @@ index a24b6c8..290d6b7 100644
   * kbase GLB interface depending on which backend the device came from.
   * Always use this instead of calling panthor_kmod_get_csif_props()
 diff --git a/src/panfrost/vulkan/panvk_shader.h b/src/panfrost/vulkan/panvk_shader.h
-index c9775eb..1cb04e5 100644
+index 802cd021..fb89f1ba 100644
 --- a/src/panfrost/vulkan/panvk_shader.h
 +++ b/src/panfrost/vulkan/panvk_shader.h
 @@ -208,6 +208,13 @@ struct panvk_graphics_sysvals {
@@ -221,7 +221,7 @@ index c9775eb..1cb04e5 100644
     struct {
        uint32_t map[MAX_DYNAMIC_BUFFERS];
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_desc_state.c b/src/panfrost/vulkan/panvk_vX_cmd_desc_state.c
-index 6beab5f..3c6cbfd 100644
+index 6beab5f6..3c6cbfd9 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_desc_state.c
 +++ b/src/panfrost/vulkan/panvk_vX_cmd_desc_state.c
 @@ -15,6 +15,7 @@
@@ -254,7 +254,7 @@ index 6beab5f..3c6cbfd 100644
        struct pan_ptr sampler = panvk_cmd_alloc_desc(cmdbuf, SAMPLER);
        if (!sampler.gpu)
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_dispatch.c b/src/panfrost/vulkan/panvk_vX_cmd_dispatch.c
-index 1464e43..59b34d0 100644
+index 1464e43e..59b34d09 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_dispatch.c
 +++ b/src/panfrost/vulkan/panvk_vX_cmd_dispatch.c
 @@ -64,6 +64,25 @@ panvk_per_arch(cmd_prepare_dispatch_sysvals)(
@@ -284,7 +284,7 @@ index 1464e43..59b34d0 100644
  
     /* Dirty push_uniforms if the used_sysvals/dirty_sysvals overlap. */
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/panvk_vX_cmd_draw.c
-index 4d99bd2..28e3d17 100644
+index 4d99bd20..28e3d17b 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/panvk_vX_cmd_draw.c
 @@ -1073,6 +1073,24 @@ panvk_per_arch(cmd_prepare_draw_sysvals)(struct panvk_cmd_buffer *cmdbuf,
@@ -313,7 +313,7 @@ index 4d99bd2..28e3d17 100644
  
     /* We mask the dirty sysvals by the shader usage, and only flag
 diff --git a/src/panfrost/vulkan/panvk_vX_descriptor_set_layout.c b/src/panfrost/vulkan/panvk_vX_descriptor_set_layout.c
-index ecd1b3c..ad0c44d 100644
+index ecd1b3cf..ad0c44de 100644
 --- a/src/panfrost/vulkan/panvk_vX_descriptor_set_layout.c
 +++ b/src/panfrost/vulkan/panvk_vX_descriptor_set_layout.c
 @@ -257,9 +257,12 @@ is_supported_mutable_type(VkDescriptorType t)
@@ -331,10 +331,10 @@ index ecd1b3c..ad0c44d 100644
           return false;
     }
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index 3692ceb..44becb6 100644
+index 88cd56ee..a1e79a2f 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
-@@ -443,6 +443,8 @@ panvk_queue_destroy(struct vk_queue *queue)
+@@ -490,6 +490,8 @@ panvk_queue_destroy(struct vk_queue *queue)
  #if PAN_ARCH < 9
  #define PANVK_NULL_ZERO_SIZE (PANVK_NULL_UBO_ENTRIES * 16)
  #define PANVK_NULL_SCRATCH_SIZE 256
@@ -343,7 +343,7 @@ index 3692ceb..44becb6 100644
  
  /* See panvk_device::null_descs. The texture and storage image descriptors
   * come from the device's own entry points, so they are exactly what an
-@@ -462,16 +464,25 @@ panvk_init_null_descs(struct panvk_device *dev)
+@@ -509,16 +511,25 @@ panvk_init_null_descs(struct panvk_device *dev)
     /* The zero page, then PANVK_NULL_SCRATCH_SIZE bytes for the
      * PANVK_NULLIMG_INBOUNDS null storage image (see below). */
     result = panvk_priv_bo_create(
@@ -375,7 +375,7 @@ index 3692ceb..44becb6 100644
     const VkImageCreateInfo ici = {
        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 diff --git a/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c b/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c
-index 927e3e7..5311e41 100644
+index 927e3e7b..5311e412 100644
 --- a/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c
 +++ b/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c
 @@ -60,6 +60,10 @@ struct lower_desc_ctx {
@@ -909,10 +909,10 @@ index 927e3e7..5311e41 100644
              collect_instr_desc_access, nir_metadata_all, &ctx);
     if (!progress)
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index 5829a18..3b1ce21 100644
+index 81a51d6e..81af627d 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
-@@ -2826,10 +2826,17 @@ glsl_type_size(const struct glsl_type *type, bool bindless)
+@@ -2870,10 +2870,17 @@ glsl_type_size(const struct glsl_type *type, bool bindless)
   * hardware zero and alpha is fixed: from the format when the shader has
   * one, else by inverting the hardware alpha.
   */
@@ -931,7 +931,7 @@ index 5829a18..3b1ce21 100644
     switch (intr->intrinsic) {
     case nir_intrinsic_image_deref_load:
     case nir_intrinsic_image_deref_store:
-@@ -2840,6 +2847,19 @@ panvk_v7_lower_robust_image2_intr(nir_builder *b, nir_intrinsic_instr *intr,
+@@ -2884,6 +2891,19 @@ panvk_v7_lower_robust_image2_intr(nir_builder *b, nir_intrinsic_instr *intr,
        return false;
     }
  
@@ -951,7 +951,7 @@ index 5829a18..3b1ce21 100644
     const enum glsl_sampler_dim dim = nir_intrinsic_image_dim(intr);
     const bool array = nir_intrinsic_image_array(intr);
     if (dim == GLSL_SAMPLER_DIM_MS || dim == GLSL_SAMPLER_DIM_SUBPASS ||
-@@ -2912,10 +2932,11 @@ panvk_v7_lower_robust_image2_intr(nir_builder *b, nir_intrinsic_instr *intr,
+@@ -2956,10 +2976,11 @@ panvk_v7_lower_robust_image2_intr(nir_builder *b, nir_intrinsic_instr *intr,
  }
  
  static bool
@@ -965,7 +965,7 @@ index 5829a18..3b1ce21 100644
        return false;
     /* The guarded accesses use derefs from the block above. */
     nir_foreach_function_impl(impl, nir)
-@@ -2963,8 +2984,13 @@ panvk_lower_nir(struct panvk_device *dev, nir_shader *nir,
+@@ -3007,8 +3028,13 @@ panvk_lower_nir(struct panvk_device *dev, nir_shader *nir,
  
  #if PAN_ARCH < 9
     if (rs->images ==
@@ -981,7 +981,7 @@ index 5829a18..3b1ce21 100644
  #endif
  
     panvk_per_arch(nir_lower_descriptors)(nir, dev, rs, set_layout_count,
-@@ -3222,6 +3248,13 @@ panvk_compile_nir(struct panvk_device *dev, nir_shader *nir,
+@@ -3266,6 +3292,13 @@ panvk_compile_nir(struct panvk_device *dev, nir_shader *nir,
     shader->info.sampler_count =
        desc_info->others.count[PANVK_BIFROST_DESC_TABLE_SAMPLER];
  
@@ -995,7 +995,7 @@ index 5829a18..3b1ce21 100644
     /* Dummy sampler. */
     if (!shader->info.sampler_count && shader->info.texture_count)
        shader->info.sampler_count++;
-@@ -5187,6 +5220,7 @@ shader_desc_info_deserialize(struct panvk_device *dev,
+@@ -5397,6 +5430,7 @@ shader_desc_info_deserialize(struct panvk_device *dev,
        shader->desc_info.others.count[i] = blob_read_uint32(blob);
        others_count += shader->desc_info.others.count[i];
     }
@@ -1003,7 +1003,7 @@ index 5829a18..3b1ce21 100644
  
     if (others_count) {
        struct panvk_pool_alloc_info alloc_info = {
-@@ -5386,6 +5420,7 @@ shader_desc_info_serialize(struct blob *blob,
+@@ -5617,6 +5651,7 @@ shader_desc_info_serialize(struct blob *blob,
        blob_write_uint32(blob, shader->desc_info.others.count[i]);
        others_count += shader->desc_info.others.count[i];
     }

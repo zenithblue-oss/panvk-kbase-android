@@ -1,4 +1,4 @@
-From 065ac3bb9dc8b9359cfeaf702ad6bfec5fa831f6 Mon Sep 17 00:00:00 2001
+From 5ab6d5c66f44027a023187a4ebb3d7d5ac9b62f6 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 14:02:34 +0000
 Subject: [PATCH] jm-v7 077: screen-space vertex shader for xfb VS draws
@@ -25,7 +25,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  2 files changed, 36 insertions(+), 3 deletions(-)
 
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index d981ceb..0b7e9d4 100644
+index 5f296b05..ecb73bfb 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 @@ -2924,6 +2924,25 @@ panvk_v7_select_alt_shaders(struct panvk_cmd_buffer *cmdbuf)
@@ -55,10 +55,10 @@ index d981ceb..0b7e9d4 100644
  #endif
  
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index 776c90d..8d00d90 100644
+index 12da80b2..1b823eb5 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
-@@ -5091,16 +5091,30 @@ panvk_v7_wants_alt(const struct vk_features *features,
+@@ -5159,16 +5159,30 @@ panvk_v7_wants_alt(const struct vk_features *features,
                BITSET_TEST(state->dynamic,
                            MESA_VK_DYNAMIC_DS_DEPTH_BOUNDS_TEST_ENABLE));
  

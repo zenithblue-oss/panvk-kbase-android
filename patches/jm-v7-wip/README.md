@@ -303,3 +303,11 @@ Base: `mesa-v7J` HEAD a724b88 (after 0073); same worktree, new branch `v7M`. App
 Base: `mesa-v7J` HEAD bd6d38d (after 0075); same worktree, new branch `v7N`. Apply in file order after 0075. Build record: `worklogs/g615-dxvk/builds/v7N.md`.
 
 - 0076 (jm-v7 103, v6, compiler): `nir_intrinsic_ballot` no longer emits WMASK on v6. WMASK is a v7 instruction (it came with the full CLPER and shares its subgroup2/4/8 modifier). A host compile for gpu_id 0x6221 (`tools/bifrost-host-compile`) found WMASK.subgroup4 in all three FTL G72 event 0x51 shaders: shader_arith subgroup_size_control (reduce/scan active mask), sampler gather_offsets (waterfall over the dynamic offset) and vkd3d_heap image_heap (085 texture waterfall). It was in none of the passing shaders. On v6 the ballot is the OR of four CLPER_OLD reads of `src & (1 << lane_id)` (CLPER_OLD returns zero for an inactive lane). The packer asserts that no WMASK reaches a v6 clause. v7 (G52 host compile still WMASK.subgroup8 + CLPER.i32), G31 and v9+ are unchanged. This corrects the 0068 note that WMASK exists on all Bifrost.
+
+## RC5 unified rebase (2026-10-22): 0006-0076 on the 203-patch series (csf-v11 through 208)
+
+The base is now the full 203-patch `g615-v11-csf` series (csf-v11 through 208 = bc4, plus jm-v9 and jm-v7 001-005), not the 197-patch `ab7d630`. `scripts/prepare-rc5-tree.sh --mesa <5a07217 worktree>` builds it strictly; the tree is `/home/flux/src/mesa-rc5`, branch `rc5`, HEAD `4554612f`. Plan and checks: `worklogs/g615-dxvk/builds/rc5-unified-plan.md`.
+
+- 0030 conflicted with csf-v11/205 (the `panvk_vX_device.c` include block). The resolution keeps `util/log.h`, `util/os_misc.h`, `util/u_debug.h`, in that order; there is no code change.
+- 0010, 0013, 0035, 0043, 0045, 0046, 0047, 0048, 0050, 0051, 0052 and 0072 applied only with offsets, caused by the 205 lazy-arena code. They were re-exported with `git format-patch`, which changes only the hunk headers and index lines.
+- Result: rc5 = v7N + exactly the csf-v11 203-208 delta (normalized diff check), and rc5-base = the bc4 build tree. These files no longer apply with zero offsets on `ab7d630`; use the git history for that base.

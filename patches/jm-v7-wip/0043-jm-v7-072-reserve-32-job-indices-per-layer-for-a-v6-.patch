@@ -1,4 +1,4 @@
-From 09685d8b2ec9993ed150fcdaaf267e3c520d07cd Mon Sep 17 00:00:00 2001
+From 1328763543ef63ac466906c1b5771e95ce84c0af Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 13:45:12 +0000
 Subject: [PATCH] jm-v7 072: reserve 32 job indices per layer for a v6/v7 draw
@@ -22,7 +22,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  1 file changed, 27 insertions(+), 4 deletions(-)
 
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index 89a6285..3281ce9 100644
+index bb51f350..85cdc801 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 @@ -1857,6 +1857,21 @@ v7_polygon_mode_draw(const struct panvk_cmd_buffer *cmdbuf, enum mesa_prim prim)
@@ -75,7 +75,7 @@ index 89a6285..3281ce9 100644
  }
  
  /*
-@@ -3811,7 +3834,7 @@ panvk_per_arch(CmdDrawIndirectByteCountEXT)(
+@@ -3818,7 +3841,7 @@ panvk_per_arch(CmdDrawIndirectByteCountEXT)(
     const uint32_t draw_jobs =
        panvk_get_client_prim(cmdbuf) == MESA_PRIM_PATCHES
           ? panvk_tess_draw_jobs(cmdbuf->state.gfx.render.layer_count)

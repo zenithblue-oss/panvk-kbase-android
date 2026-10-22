@@ -1,4 +1,4 @@
-From d8c8f2b0aa8d6bfa406c696c0e6b8182f8c199a7 Mon Sep 17 00:00:00 2001
+From 7aafadc24a7c4cc637142b7f9b088ae7f5708036 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 16 Oct 2026 12:56:06 +0000
 Subject: [PATCH] jm-v7 014: Bifrost tessellation
@@ -67,7 +67,7 @@ Claude-Session: https://claude.ai/code/session_0153VvtSm6m7BrM4NCBq8MMc
  15 files changed, 1020 insertions(+), 88 deletions(-)
 
 diff --git a/src/panfrost/libpan/draw_helper.cl b/src/panfrost/libpan/draw_helper.cl
-index 6a23546..d57c108 100644
+index 6a235462..d57c108e 100644
 --- a/src/panfrost/libpan/draw_helper.cl
 +++ b/src/panfrost/libpan/draw_helper.cl
 @@ -1659,6 +1659,112 @@ panlib_xfb_counters(global uint32_t *offsets, uint64_t c0, uint64_t c1,
@@ -184,7 +184,7 @@ index 6a23546..d57c108 100644
  
  #if PAN_ARCH == 9
 diff --git a/src/panfrost/libpan/draw_helper.h b/src/panfrost/libpan/draw_helper.h
-index 615c9c4..594422f 100644
+index 615c9c43..594422f2 100644
 --- a/src/panfrost/libpan/draw_helper.h
 +++ b/src/panfrost/libpan/draw_helper.h
 @@ -10,6 +10,11 @@
@@ -230,7 +230,7 @@ index 615c9c4..594422f 100644
  
  #if PAN_ARCH == 9
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index 1bfe741..27bd910 100644
+index 1bfe7415..27bd9105 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 @@ -97,6 +97,12 @@ struct panvk_draw_data {
@@ -941,7 +941,7 @@ index 1bfe741..27bd910 100644
        panvk_per_arch(cmd_open_batch)(cmdbuf);
     }
 diff --git a/src/panfrost/vulkan/panvk_cmd_draw.h b/src/panfrost/vulkan/panvk_cmd_draw.h
-index 1c668fc..ef7d763 100644
+index 1c668fca..ef7d763b 100644
 --- a/src/panfrost/vulkan/panvk_cmd_draw.h
 +++ b/src/panfrost/vulkan/panvk_cmd_draw.h
 @@ -280,6 +280,25 @@ struct panvk_cmd_graphics_state {
@@ -971,7 +971,7 @@ index 1c668fc..ef7d763 100644
  
     struct {
 diff --git a/src/panfrost/vulkan/panvk_cmd_meta.h b/src/panfrost/vulkan/panvk_cmd_meta.h
-index 2eed362..e468a38 100644
+index 2eed362b..e468a38e 100644
 --- a/src/panfrost/vulkan/panvk_cmd_meta.h
 +++ b/src/panfrost/vulkan/panvk_cmd_meta.h
 @@ -65,8 +65,10 @@ struct panvk_cmd_meta_graphics_save_ctx {
@@ -988,7 +988,7 @@ index 2eed362..e468a38 100644
  
     struct panvk_occlusion_query_state occlusion_query;
 diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
-index e4822ed..70aad83 100644
+index 89755d67..708e56ea 100644
 --- a/src/panfrost/vulkan/panvk_device.h
 +++ b/src/panfrost/vulkan/panvk_device.h
 @@ -76,6 +76,8 @@ struct panvk_device {
@@ -1001,7 +1001,7 @@ index e4822ed..70aad83 100644
  
     struct {
 diff --git a/src/panfrost/vulkan/panvk_gs.h b/src/panfrost/vulkan/panvk_gs.h
-index d21b60c..aad4b5e 100644
+index d21b60c8..aad4b5ef 100644
 --- a/src/panfrost/vulkan/panvk_gs.h
 +++ b/src/panfrost/vulkan/panvk_gs.h
 @@ -197,7 +197,7 @@ enum panvk_xfb_gs_class {
@@ -1084,7 +1084,7 @@ index d21b60c..aad4b5e 100644
 -
  #endif /* PANVK_GS_H */
 diff --git a/src/panfrost/vulkan/panvk_instance.c b/src/panfrost/vulkan/panvk_instance.c
-index 69e1914..1926b88 100644
+index 69e19147..1926b88e 100644
 --- a/src/panfrost/vulkan/panvk_instance.c
 +++ b/src/panfrost/vulkan/panvk_instance.c
 @@ -68,6 +68,7 @@ static const struct debug_control panvk_debug_options[] = {
@@ -1096,7 +1096,7 @@ index 69e1914..1926b88 100644
  };
  
 diff --git a/src/panfrost/vulkan/panvk_instance.h b/src/panfrost/vulkan/panvk_instance.h
-index 3adbf76..91ebd86 100644
+index 3adbf76c..91ebd866 100644
 --- a/src/panfrost/vulkan/panvk_instance.h
 +++ b/src/panfrost/vulkan/panvk_instance.h
 @@ -43,6 +43,8 @@ enum panvk_debug_flags {
@@ -1109,7 +1109,7 @@ index 3adbf76..91ebd86 100644
  
  extern uint64_t panvk_debug;
 diff --git a/src/panfrost/vulkan/panvk_nir_lower_gs.c b/src/panfrost/vulkan/panvk_nir_lower_gs.c
-index 07d912e..84e5491 100644
+index 07d912e4..84e54919 100644
 --- a/src/panfrost/vulkan/panvk_nir_lower_gs.c
 +++ b/src/panfrost/vulkan/panvk_nir_lower_gs.c
 @@ -519,15 +519,24 @@ lower_per_vertex_input(nir_builder *b, nir_intrinsic_instr *intr,
@@ -1170,7 +1170,7 @@ index 07d912e..84e5491 100644
 -   nir_progress(true, impl, nir_metadata_none);
 -}
 diff --git a/src/panfrost/vulkan/panvk_shader.h b/src/panfrost/vulkan/panvk_shader.h
-index 4d850dd..4da02b9 100644
+index 4d850dd1..4da02b90 100644
 --- a/src/panfrost/vulkan/panvk_shader.h
 +++ b/src/panfrost/vulkan/panvk_shader.h
 @@ -203,6 +203,11 @@ struct panvk_graphics_sysvals {
@@ -1198,7 +1198,7 @@ index 4d850dd..4da02b9 100644
  #endif
  
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_meta.c b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
-index 5fa5642..6e1177b 100644
+index df3be1d5..23d19242 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 +++ b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 @@ -195,7 +195,11 @@ meta_gfx_start(struct panvk_cmd_buffer *cmdbuf,
@@ -1223,10 +1223,10 @@ index 5fa5642..6e1177b 100644
  #endif
  
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index 8f19631..f0a19ea 100644
+index 599e0fc9..bd3b6030 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
-@@ -830,6 +830,20 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+@@ -871,6 +871,20 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
        VK_SYSTEM_ALLOCATION_SCOPE_DEVICE, &device->indirect_varying_buffer);
     if (result != VK_SUCCESS)
        goto err_free_priv_bos;
@@ -1247,7 +1247,7 @@ index 8f19631..f0a19ea 100644
  #endif
  
     result = panvk_priv_bo_create(
-@@ -958,6 +972,7 @@ err_free_priv_bos:
+@@ -999,6 +1013,7 @@ err_free_priv_bos:
     panvk_priv_bo_unref(device->tiler_oom.handlers_bo);
     panvk_priv_bo_unref(device->sample_positions);
     panvk_priv_bo_unref(device->indirect_varying_buffer);
@@ -1255,7 +1255,7 @@ index 8f19631..f0a19ea 100644
     panvk_priv_bo_unref(device->tiler_heap);
     panvk_priv_bo_unref(device->tiler_heap2);
     panvk_device_cleanup_mempools(device);
-@@ -1016,6 +1031,7 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
+@@ -1057,6 +1072,7 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
     panvk_priv_bo_unref(device->printf.bo);
     panvk_priv_bo_unref(device->tiler_oom.handlers_bo);
      panvk_priv_bo_unref(device->indirect_varying_buffer);
@@ -1264,7 +1264,7 @@ index 8f19631..f0a19ea 100644
      panvk_priv_bo_unref(device->tiler_heap2);
      panvk_priv_bo_unref(device->sample_positions);
 diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
-index a18857e..a94c3c6 100644
+index a18857e7..a94c3c6a 100644
 --- a/src/panfrost/vulkan/panvk_vX_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
 @@ -319,7 +319,11 @@ panvk_per_arch(get_physical_device_features)(
@@ -1323,7 +1323,7 @@ index a18857e..a94c3c6 100644
        .maxGeometryInputComponents = 64,
        .maxGeometryOutputComponents = 128,
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index 4d00226..541dc99 100644
+index 16a1aeca..fd2c9a06 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
 @@ -25,6 +25,12 @@

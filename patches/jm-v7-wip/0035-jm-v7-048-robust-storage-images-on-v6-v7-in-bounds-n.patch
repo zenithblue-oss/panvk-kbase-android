@@ -1,4 +1,4 @@
-From 663135e1963483b69e5ab9ae5731c25f735dc291 Mon Sep 17 00:00:00 2001
+From 474370d1f46e043d764fb2ab6be7879198580ad6 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 13:04:30 +0000
 Subject: [PATCH] jm-v7 048: robust storage images on v6/v7: in-bounds null
@@ -21,10 +21,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  2 files changed, 122 insertions(+), 6 deletions(-)
 
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index cc252fd..3692ceb 100644
+index 4dc14008..88cd56ee 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
-@@ -547,12 +547,12 @@ panvk_init_null_descs(struct panvk_device *dev)
+@@ -594,12 +594,12 @@ panvk_init_null_descs(struct panvk_device *dev)
  #endif
        hw_fmt = (hw_fmt & ~BITFIELD_MASK(12)) | zero_order;
        cfg.stride = (cfg.stride & BITFIELD_MASK(10)) | (hw_fmt << 10);
@@ -44,7 +44,7 @@ index cc252fd..3692ceb 100644
           cfg.size = PANVK_NULL_SCRATCH_SIZE;
        }
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index bc94cd0..5829a18 100644
+index 22fa26a9..2db3a641 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
 @@ -27,6 +27,7 @@

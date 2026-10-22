@@ -1,4 +1,4 @@
-From dce3e77e8c944d62fd785d70b688089bd66412b4 Mon Sep 17 00:00:00 2001
+From 20896ca20b6c4bd62b396ec2a36531515c36378b Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 13:52:27 +0000
 Subject: [PATCH] jm-v7 074: keep the xfb scan job of a conditional draw
@@ -25,7 +25,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  4 files changed, 52 insertions(+), 2 deletions(-)
 
 diff --git a/src/panfrost/libpan/draw_helper.cl b/src/panfrost/libpan/draw_helper.cl
-index 09c8ffb..c4c2399 100644
+index 7581be22..9476205e 100644
 --- a/src/panfrost/libpan/draw_helper.cl
 +++ b/src/panfrost/libpan/draw_helper.cl
 @@ -1578,6 +1578,20 @@ panlib_xfb_scan(global struct libpan_xfb_draw *d)
@@ -50,7 +50,7 @@ index 09c8ffb..c4c2399 100644
     for (uint32_t i = 0; i < d->invocations; i++) {
        first[i] = total;
 diff --git a/src/panfrost/libpan/draw_helper.h b/src/panfrost/libpan/draw_helper.h
-index 135214a..58a5c89 100644
+index 135214ad..58a5c89b 100644
 --- a/src/panfrost/libpan/draw_helper.h
 +++ b/src/panfrost/libpan/draw_helper.h
 @@ -80,6 +80,14 @@ struct libpan_xfb_draw {
@@ -69,7 +69,7 @@ index 135214a..58a5c89 100644
  
  /* Tessellation, one per tessellated draw (jm-v7 014). The draw path fills
 diff --git a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
-index 99200af..e240b3f 100644
+index 99200af3..e240b3f6 100644
 --- a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
 +++ b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
 @@ -111,6 +111,11 @@ struct panvk_cmd_buffer {
@@ -85,7 +85,7 @@ index 99200af..e240b3f 100644
  #endif
     } state;
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index 2970dd8..2009efa 100644
+index 04b3b2e5..c73bb18f 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 @@ -2590,6 +2590,10 @@ emit_xfb_jobs(struct panvk_cmd_buffer *cmdbuf, unsigned dep_job_id)
@@ -119,7 +119,7 @@ index 2970dd8..2009efa 100644
  
        if (captures) {
           const struct panlib_xfb_copy_args copy = {.d = mem.gpu};
-@@ -6734,6 +6751,7 @@ panvk_per_arch(cmd_cond_render_begin)(struct panvk_cmd_buffer *cmdbuf,
+@@ -6741,6 +6758,7 @@ panvk_per_arch(cmd_cond_render_begin)(struct panvk_cmd_buffer *cmdbuf,
                                        struct panvk_cond_render_mark *m)
  {
     *m = (struct panvk_cond_render_mark){0};
@@ -127,7 +127,7 @@ index 2970dd8..2009efa 100644
     if (!cmdbuf->state.cond_render.enabled)
        return;
  
-@@ -6793,8 +6811,13 @@ jm_cond_render_collect(struct panvk_cmd_buffer *cmdbuf,
+@@ -6800,8 +6818,13 @@ jm_cond_render_collect(struct panvk_cmd_buffer *cmdbuf,
           return;
  
        pan_unpack(hdr, JOB_HEADER, h);

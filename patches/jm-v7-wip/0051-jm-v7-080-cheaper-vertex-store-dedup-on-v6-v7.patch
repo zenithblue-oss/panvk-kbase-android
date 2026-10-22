@@ -1,4 +1,4 @@
-From 7496646bda4f3667369a75ab86021ceea3b7229d Mon Sep 17 00:00:00 2001
+From 55579312815a1adf83f6bb1bc10877c26b5252d9 Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 14:09:08 +0000
 Subject: [PATCH] jm-v7 080: cheaper vertex store dedup on v6/v7
@@ -37,10 +37,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  5 files changed, 68 insertions(+), 15 deletions(-)
 
 diff --git a/src/panfrost/libpan/draw_helper.cl b/src/panfrost/libpan/draw_helper.cl
-index c4c2399..6505b98 100644
+index 9476205e..bad7fd73 100644
 --- a/src/panfrost/libpan/draw_helper.cl
 +++ b/src/panfrost/libpan/draw_helper.cl
-@@ -2015,12 +2015,27 @@ panlib_v7_gs_restart_list(global uint32_t *out_idx, global uint32_t *out_cmd,
+@@ -2076,12 +2076,27 @@ panlib_v7_gs_restart_list(global uint32_t *out_idx, global uint32_t *out_cmd,
   * did not fit), bit i of word 1 + i / 32 is raw vertex id i (index - min).
   */
  KERNEL(64)
@@ -71,7 +71,7 @@ index c4c2399..6505b98 100644
  }
  
  KERNEL(64)
-@@ -2054,13 +2069,23 @@ panlib_v7_vs_ref_mark(global uint8_t *index_buffer_ptr,
+@@ -2115,13 +2130,23 @@ panlib_v7_vs_ref_mark(global uint8_t *index_buffer_ptr,
  #define VS_REF_MARK_CASE(sz)                                                   \
     case sz: {                                                                  \
        global uint##sz##_t *indices = (global uint##sz##_t *)index_buffer_ptr;  \
@@ -97,7 +97,7 @@ index c4c2399..6505b98 100644
     }
        VS_REF_MARK_CASE(32)
 diff --git a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
-index e240b3f..5677b85 100644
+index e240b3f6..5677b85a 100644
 --- a/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
 +++ b/src/panfrost/vulkan/jm/panvk_cmd_buffer.h
 @@ -99,6 +99,10 @@ struct panvk_cmd_buffer {
@@ -112,7 +112,7 @@ index e240b3f..5677b85 100644
     struct {
        struct panvk_cmd_graphics_state gfx;
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
-index 1e18973..82bdce6 100644
+index 1e18973c..82bdce67 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
 @@ -622,6 +622,9 @@ panvk_per_arch(BeginCommandBuffer)(VkCommandBuffer commandBuffer,
@@ -126,7 +126,7 @@ index 1e18973..82bdce6 100644
     return VK_SUCCESS;
  }
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index 662a1d6..b165872 100644
+index 3eb0451c..eb57ff47 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 @@ -3214,18 +3214,36 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
@@ -175,10 +175,10 @@ index 662a1d6..b165872 100644
              vs_ref_bitmap, words, util_logbase2(draw->info.index.index_size),
              draw->info.index.restart_enable);
 diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
-index 48e1e93..04e937e 100644
+index f69106fa..81a51d6e 100644
 --- a/src/panfrost/vulkan/panvk_vX_shader.c
 +++ b/src/panfrost/vulkan/panvk_vX_shader.c
-@@ -4082,9 +4082,12 @@ panvk_v7_lower_vs_ref_guard(nir_shader *nir)
+@@ -4128,9 +4128,12 @@ panvk_v7_lower_vs_ref_guard(nir_shader *nir)
        nir_builder_instr_insert(&b, instr);
        nir_pop_if(&b, NULL);
        if (nir_intrinsic_infos[intr->intrinsic].has_dest) {
