@@ -1,0 +1,47 @@
+GAMELOOP scenario=2
+INFO devices=1 exts=165 formats=193
+DRIVER slot=RC5 driverInfo=PanVK-kbase RC5-dev-v7K (Mesa 26.3.0-devel (git-d160802965))
+COMPLIANCE DXVK compliance PASS items=94 missingHard=[] missingSoft=["tiled resources tier 2 (FL12_0)","VK_EXT_conservative_rasterization (FL12_1)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","shaderFloat16","drawIndirectCount","shaderOutputLayer","samplerFilterMinmax","VK_EXT_memory_priority","VK_EXT_multi_draw","VK_EXT_sample_locations"]
+COMPLIANCE Bachata S4 compliance PASS items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","shaderFloat16","drawIndirectCount","shaderOutputLayer","subgroup_wave64"]
+COMPLIANCE vkd3d compliance PASS items=100 missingHard=[] missingSoft=["viewportSubPixelBits >= 8","64 per-stage storage buffers+images (FL11_1)","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","VK_KHR_draw_indirect_count","shaderFloat64","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: VK_EXT_conservative_rasterization","proton: ROVs (pixel+sample interlock)","proton: SM6.6 (compute derivatives linear + int64 buffer atomics + int8 + fixed wave)","proton: SM6.7 (maximal reconvergence + quad control)","proton: VK_EXT_descriptor_buffer path","proton: shaderOutputViewportIndex+Layer","proton: VK_KHR_fragment_shading_rate","proton: VK_EXT_mesh_shader","proton: VK_KHR_ray_query + acceleration_structure","proton: shaderImageInt64Atomics (sampler feedback 0.9)"]
+RESULT gpu_prerast_slice PASS mismatch=0 fps=0 ms=4191
+RESULT clip_cull PASS mismatch=0 fps=2970.8 ms=5287
+RESULT multi_viewport PASS mismatch=0 fps=2382.1 ms=5202
+RESULT fill_mode PASS mismatch=0 fps=2216.8 ms=5976
+RESULT bc_decode PASS mismatch=0 fps=0 ms=4203
+RESULT bc_perf PASS mismatch=0 fps=0 ms=39117
+RESULT geometry PASS mismatch=0 fps=2249.1 ms=5969
+RESULT tessellation PASS mismatch=0 fps=2259.0 ms=7844
+RESULT xfb PASS mismatch=0 fps=0 ms=6971
+RESULT pipeline_stats PASS mismatch=0 fps=1640.2 ms=5282
+RESULT vertex_stores FAIL mismatch=0 fps=0 ms=4175 extra=Bifrost (v7): feature not implemented yet
+RESULT gs_viewport_depth PASS mismatch=0 fps=0 ms=4174
+RESULT vs_viewport_index PASS mismatch=0 fps=0 ms=4629
+RESULT depth_bounds PASS mismatch=0 fps=0 ms=4355
+RESULT large_draw PASS mismatch=0 fps=0 ms=27302
+RESULT vmr_secondary PASS mismatch=0 fps=0 ms=4142
+RESULT tess_cond_state PASS mismatch=0 fps=0 ms=4295
+RESULT bachata_reqs PASS mismatch=0 fps=0 ms=4113
+RESULT bachata_exec PASS mismatch=0 fps=0 ms=4128
+RESULT robustness2 PASS mismatch=0 fps=0 ms=4135
+RESULT robust_image_access2 FAIL mismatch=0 fps=0 ms=4800 extra=Bifrost (v7): feature not implemented yet | 4096x4096x16 rgba8 loads ria2=33.86ms ria1=32.92ms delta=+2.9% stats(ria2/ria1): Instructions=304/210 Tuples=233/161 Clauses=43/28 Preloads=0/0 Threads=1/1 Code size=3136/2272 Loops=0/0 Spills=0/0 Fills=0/0 Spill cost=0/0 Registers used=17/13 Uniforms used=6/6 | failed=10: r32ui.tbuf_oob got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui.tbuf_alias65537 got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.load_x got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.load_y got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.load_layer got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.load_neg_x got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.load_x_alias65537 got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.load_layer_alias65536 got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.tbuf_oob got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.tbuf_alias65537 got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001)
+RESULT blend PASS mismatch=0 fps=0 ms=4181
+RESULT occlusion_query PASS mismatch=0 fps=0 ms=4134
+RESULT descriptor_model PASS mismatch=0 fps=0 ms=4131
+RESULT shader_arith FAIL mismatch=0 fps=0 ms=4153 extra=Bifrost (v7): feature not implemented yet
+RESULT depth_stencil PASS mismatch=0 fps=0 ms=4201
+RESULT sampler FAIL mismatch=0 fps=0 ms=4177 extra=Bifrost (v7): feature not implemented yet
+RESULT draw_params PASS mismatch=0 fps=0 ms=4174
+RESULT submit_stress PASS mismatch=0 fps=0 ms=34114
+RESULT csf_event PASS mismatch=0 fps=0 ms=4759
+RESULT gs_tess_primitive_id PASS mismatch=0 fps=0 ms=4963
+RESULT bachata_storage_fmtless PASS mismatch=0 fps=0 ms=4112
+RESULT bachata_dynamic_render PASS mismatch=0 fps=0 ms=4100
+RESULT dxvk_reqs PASS mismatch=0 fps=0 ms=2085
+RESULT vkd3d_reqs PASS mismatch=0 fps=0 ms=2069
+RESULT vkd3d_heap FAIL mismatch=0 fps=0 ms=10439 extra=Bifrost (v7): feature not implemented yet
+RESULT vkd3d_timeline PASS mismatch=0 fps=0 ms=4224
+RESULT swapchain_lifecycle PASS mismatch=0 fps=60.2 ms=13395 extra=resized FPS 60.0 | present_main 4984ms, resize 6ms, present_resized 1999ms, destroy 1ms, cycle 1670ms, teardown 78ms
+AUTORUN DONE pass=33 fail=5 skip=0 total=38 (33 pass / 5 fail / 0 skip)
+EXTERNAL READY run=20261021-214809
+AUTOUPLOAD OK id=41f34cb5 size=151664 sha256=41f34cb5c3e0e4647d6c4454fb1d28191bfda09e139d01b7b2c8b7e06d9104b6

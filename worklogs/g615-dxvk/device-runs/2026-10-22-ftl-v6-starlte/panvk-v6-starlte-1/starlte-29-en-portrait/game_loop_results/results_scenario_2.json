@@ -1,0 +1,513 @@
+{
+  "app": "1.2.7",
+  "uploadId": "41f34cb5",
+  "uploadStatus": "Uploaded (id 41f34cb5)",
+  "pass": 33,
+  "fail": 5,
+  "skip": 0,
+  "tests": [
+    {
+      "name": "gpu_prerast_slice",
+      "status": "PASS",
+      "ms": 4191,
+      "extra": null
+    },
+    {
+      "name": "clip_cull",
+      "status": "PASS",
+      "ms": 5287,
+      "extra": null
+    },
+    {
+      "name": "multi_viewport",
+      "status": "PASS",
+      "ms": 5202,
+      "extra": null
+    },
+    {
+      "name": "fill_mode",
+      "status": "PASS",
+      "ms": 5976,
+      "extra": null
+    },
+    {
+      "name": "bc_decode",
+      "status": "PASS",
+      "ms": 4203,
+      "extra": null
+    },
+    {
+      "name": "bc_perf",
+      "status": "PASS",
+      "ms": 39117,
+      "extra": null
+    },
+    {
+      "name": "geometry",
+      "status": "PASS",
+      "ms": 5969,
+      "extra": null
+    },
+    {
+      "name": "tessellation",
+      "status": "PASS",
+      "ms": 7844,
+      "extra": null
+    },
+    {
+      "name": "xfb",
+      "status": "PASS",
+      "ms": 6971,
+      "extra": null
+    },
+    {
+      "name": "pipeline_stats",
+      "status": "PASS",
+      "ms": 5282,
+      "extra": null
+    },
+    {
+      "name": "vertex_stores",
+      "status": "FAIL",
+      "ms": 4175,
+      "extra": "Bifrost (v7): feature not implemented yet",
+      "tail": [
+        "MESA: info: kbase: no usable ION system heap",
+        "MESA: info: panvk: gpu_id 0x62210010 variant 0 arch v6 model Mali-G72 texture_features 0xffffffff 0xff0fff 0xfe3fffff 0",
+        "MESA: warning: panvk: v6 (Bifrost) support is experimental",
+        "MESA: info: panvk: BC emulation off (native compressed mask 0xffffffff)",
+        "WARNING: panvk is not a conformant Vulkan implementation, testing use only.",
+        "MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)",
+        "MESA: info: Using fallback gralloc implementation",
+        "Failed to create \/data\/.cache for shader cache (Permission denied)---disabling.",
+        "ICD device=Mali-G72 MC18 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8",
+        "MESA: info: kbase: JM driver, uAPI version 11.16, page_size=4096",
+        "MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56",
+        "MESA: info: kbase: v6 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region",
+        "MESA: info: kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 (base_jd_atom_v2 without renderpass_id)",
+        "MESA: info: kbase: no usable ION system heap",
+        "MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 32768 pages committed",
+        "MESA: info: kbase: mem_alloc via ALLOC",
+        "MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 70313 pages committed",
+        "CASE iter0 PASS",
+        "CASE iter1 PASS",
+        "CASE iter2 PASS",
+        "CASE iter3 PASS",
+        "CASE iter4 PASS",
+        "CASE iter5 PASS",
+        "CASE indexed_dup PASS",
+        "CASE restart PASS",
+        "CASE instanced PASS",
+        "CASE firstvertex PASS",
+        "MESA: error: kbase: JM atom 21 failed: event=0x51 core_req=0x16",
+        "MESA: error: kbase: JM atom 22 failed: event=0x51 core_req=0x1",
+        "FAIL ImgWait r=-4 line=911"
+      ]
+    },
+    {
+      "name": "gs_viewport_depth",
+      "status": "PASS",
+      "ms": 4174,
+      "extra": null
+    },
+    {
+      "name": "vs_viewport_index",
+      "status": "PASS",
+      "ms": 4629,
+      "extra": null
+    },
+    {
+      "name": "depth_bounds",
+      "status": "PASS",
+      "ms": 4355,
+      "extra": null
+    },
+    {
+      "name": "large_draw",
+      "status": "PASS",
+      "ms": 27302,
+      "extra": null
+    },
+    {
+      "name": "vmr_secondary",
+      "status": "PASS",
+      "ms": 4142,
+      "extra": null
+    },
+    {
+      "name": "tess_cond_state",
+      "status": "PASS",
+      "ms": 4295,
+      "extra": null
+    },
+    {
+      "name": "bachata_reqs",
+      "status": "PASS",
+      "ms": 4113,
+      "extra": null
+    },
+    {
+      "name": "bachata_exec",
+      "status": "PASS",
+      "ms": 4128,
+      "extra": null
+    },
+    {
+      "name": "robustness2",
+      "status": "PASS",
+      "ms": 4135,
+      "extra": null
+    },
+    {
+      "name": "robust_image_access2",
+      "status": "FAIL",
+      "ms": 4800,
+      "extra": "Bifrost (v7): feature not implemented yet | 4096x4096x16 rgba8 loads ria2=33.86ms ria1=32.92ms delta=+2.9% stats(ria2\/ria1): Instructions=304\/210 Tuples=233\/161 Clauses=43\/28 Preloads=0\/0 Threads=1\/1 Code size=3136\/2272 Loops=0\/0 Spills=0\/0 Fills=0\/0 Spill cost=0\/0 Registers used=17\/13 Uniforms used=6\/6 | failed=10: r32ui.tbuf_oob got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui.tbuf_alias65537 got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.load_x got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.load_y got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.load_layer got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.load_neg_x got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.load_x_alias65537 got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.load_layer_alias65536 got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.tbuf_oob got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.tbuf_alias65537 got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001)",
+      "tail": [
+        "PASS case rgba8_nofmt.load_y",
+        "PASS case rgba8_nofmt.load_layer",
+        "PASS case rgba8_nofmt.load_neg_x",
+        "PASS case rgba8_nofmt.load_x_alias65537",
+        "PASS case rgba8_nofmt.load_layer_alias65536",
+        "PASS case rgba8_nofmt.fetch",
+        "PASS case rgba8_nofmt.fetch_lod",
+        "PASS case rgba8_nofmt.fetch_x_lod1",
+        "PASS case rgba8_nofmt.fetch_layer",
+        "PASS case rgba8_nofmt.fetch_neg_y",
+        "PASS case rgba8_nofmt.fetch_lod31",
+        "PASS case rgba8_nofmt.tbuf",
+        "PASS case rgba8_nofmt.tbuf_oob",
+        "PASS case rgba8_nofmt.tbuf_alias65537",
+        "PASS case rgba8_nofmt.store",
+        "PASS case rgba8_nofmt.store_oob",
+        "PASS case rgba8_nofmt.sanity",
+        "BENCH 4096x4096x16 rgba8 loads ria2=33.86ms ria1=32.92ms delta=+2.9% stats(ria2\/ria1): Instructions=304\/210 Tuples=233\/161 Clauses=43\/28 Preloads=0\/0 Threads=1\/1 Code size=3136\/2272 Loops=0\/0 Spills=0\/0 Fills=0\/0 Spill cost=0\/0 Registers used=17\/13 Uniforms used=6\/6",
+        "BENCH failed=10: r32ui.tbuf_oob got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui.tbuf_alias65537 got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.load_x got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.load_y got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.load_layer got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.load_neg_x got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.load_x_alias65537 got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.load_layer_alias65536 got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.tbuf_oob got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001) r32ui_nofmt.tbuf_alias65537 got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001)",
+        "FAILED: r32ui.tbuf_oob got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001)",
+        "FAILED: r32ui.tbuf_alias65537 got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001)",
+        "FAILED: r32ui_nofmt.load_x got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001)",
+        "FAILED: r32ui_nofmt.load_y got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001)",
+        "FAILED: r32ui_nofmt.load_layer got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001)",
+        "FAILED: r32ui_nofmt.load_neg_x got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001)",
+        "FAILED: r32ui_nofmt.load_x_alias65537 got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001)",
+        "FAILED: r32ui_nofmt.load_layer_alias65536 got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001)",
+        "FAILED: r32ui_nofmt.tbuf_oob got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001)",
+        "FAILED: r32ui_nofmt.tbuf_alias65537 got=(0x00000000,0x00000000,0x00000000,0x00000000) want=(0x00000000,0x00000000,0x00000000,0x00000001)",
+        "RESULT FAIL"
+      ]
+    },
+    {
+      "name": "blend",
+      "status": "PASS",
+      "ms": 4181,
+      "extra": null
+    },
+    {
+      "name": "occlusion_query",
+      "status": "PASS",
+      "ms": 4134,
+      "extra": null
+    },
+    {
+      "name": "descriptor_model",
+      "status": "PASS",
+      "ms": 4131,
+      "extra": null
+    },
+    {
+      "name": "shader_arith",
+      "status": "FAIL",
+      "ms": 4153,
+      "extra": "Bifrost (v7): feature not implemented yet",
+      "tail": [
+        "MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56",
+        "MESA: info: kbase: v6 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region",
+        "MESA: info: kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 (base_jd_atom_v2 without renderpass_id)",
+        "MESA: info: kbase: no usable ION system heap",
+        "MESA: info: panvk: gpu_id 0x62210010 variant 0 arch v6 model Mali-G72 texture_features 0xffffffff 0xff0fff 0xfe3fffff 0",
+        "MESA: warning: panvk: v6 (Bifrost) support is experimental",
+        "MESA: info: panvk: BC emulation off (native compressed mask 0xffffffff)",
+        "WARNING: panvk is not a conformant Vulkan implementation, testing use only.",
+        "MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)",
+        "MESA: info: Using fallback gralloc implementation",
+        "Failed to create \/data\/.cache for shader cache (Permission denied)---disabling.",
+        "PHYS 0 Mali-G72 MC18 vendor=0x13b5 device=0x62210010",
+        "INFO features: int8=1 int16=1 int64=1 storage8=1 storage16=1 demote=1 subgroup_size_control=1 compute_full_subgroups=1 zero_init_wg=1 frag_stores=1 subgroupSize=4 minSubgroupSize=4 maxSubgroupSize=4",
+        "MESA: info: kbase: JM driver, uAPI version 11.16, page_size=4096",
+        "MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56",
+        "MESA: info: kbase: v6 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region",
+        "MESA: info: kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 (base_jd_atom_v2 without renderpass_id)",
+        "MESA: info: kbase: no usable ION system heap",
+        "MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 32768 pages committed",
+        "MESA: info: kbase: mem_alloc via ALLOC",
+        "MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 70313 pages committed",
+        "PASS case int8",
+        "PASS case int16",
+        "PASS case int64",
+        "PASS case storage8",
+        "PASS case storage16",
+        "PASS case demote",
+        "MESA: error: kbase: JM atom 9 failed: event=0x51 core_req=0x16",
+        "FAIL case subgroup_size_control DEVICE_LOST",
+        "RESULT FAIL"
+      ]
+    },
+    {
+      "name": "depth_stencil",
+      "status": "PASS",
+      "ms": 4201,
+      "extra": null
+    },
+    {
+      "name": "sampler",
+      "status": "FAIL",
+      "ms": 4177,
+      "extra": "Bifrost (v7): feature not implemented yet",
+      "tail": [
+        "Failed to create \/data\/.cache for shader cache (Permission denied)---disabling.",
+        "PHYS 0 Mali-G72 MC18 vendor=0x13b5 device=0x62210010",
+        "FEATURE samplerAnisotropy=1",
+        "FEATURE samplerMirrorClampToEdge=1",
+        "FEATURE customBorderColors=1",
+        "FEATURE customBorderColorWithoutFormat=1",
+        "FEATURE imageCubeArray=1",
+        "FEATURE nonSeamlessCubeMap=1",
+        "FEATURE shaderImageGatherExtended=1",
+        "MESA: info: kbase: JM driver, uAPI version 11.16, page_size=4096",
+        "MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56",
+        "MESA: info: kbase: v6 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region",
+        "MESA: info: kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 (base_jd_atom_v2 without renderpass_id)",
+        "MESA: info: kbase: no usable ION system heap",
+        "MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 32768 pages committed",
+        "MESA: info: kbase: mem_alloc via ALLOC",
+        "MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 70313 pages committed",
+        "PASS case anisotropy lod_iso=3.00 lod_aniso2=2.00 lod_aniso16=0.00",
+        "PASS case mirror_clamp_to_edge all 9 samples match",
+        "PASS case border_opaque_white border and inside correct",
+        "PASS case border_custom custom border match",
+        "PASS case border_custom_no_format format=UNDEFINED match",
+        "PASS case cube_array all 12 cube layer faces match",
+        "PASS case cube_seamless r0=10 r1=40 (seamless blend)",
+        "PASS case cube_non_seamless r0=10 r1=10",
+        "PASS case gather all 4 gather results exact",
+        "MESA: error: kbase: JM atom 46 failed: event=0x51 core_req=0x16",
+        "FAIL compute wait r=-4",
+        "FAIL case gather_offsets mismatch sample 0 comp 0 got (-255,-255) exp (18,41)",
+        "RESULT FAIL"
+      ]
+    },
+    {
+      "name": "draw_params",
+      "status": "PASS",
+      "ms": 4174,
+      "extra": null
+    },
+    {
+      "name": "submit_stress",
+      "status": "PASS",
+      "ms": 34114,
+      "extra": null
+    },
+    {
+      "name": "csf_event",
+      "status": "PASS",
+      "ms": 4759,
+      "extra": null
+    },
+    {
+      "name": "gs_tess_primitive_id",
+      "status": "PASS",
+      "ms": 4963,
+      "extra": null
+    },
+    {
+      "name": "bachata_storage_fmtless",
+      "status": "PASS",
+      "ms": 4112,
+      "extra": null
+    },
+    {
+      "name": "bachata_dynamic_render",
+      "status": "PASS",
+      "ms": 4100,
+      "extra": null
+    },
+    {
+      "name": "dxvk_reqs",
+      "status": "PASS",
+      "ms": 2085,
+      "extra": null
+    },
+    {
+      "name": "vkd3d_reqs",
+      "status": "PASS",
+      "ms": 2069,
+      "extra": null
+    },
+    {
+      "name": "vkd3d_heap",
+      "status": "FAIL",
+      "ms": 10439,
+      "extra": "Bifrost (v7): feature not implemented yet",
+      "tail": [
+        "MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56",
+        "MESA: info: kbase: v6 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region",
+        "MESA: info: kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 (base_jd_atom_v2 without renderpass_id)",
+        "MESA: info: kbase: no usable ION system heap",
+        "MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 32768 pages committed",
+        "MESA: info: kbase: mem_alloc via ALLOC",
+        "MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 70313 pages committed",
+        "PASS case texel_heap",
+        "INFO heap_count_image_heap 1000000",
+        "MESA: info: kbase: JM driver, uAPI version 11.16, page_size=4096",
+        "MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56",
+        "MESA: info: kbase: v6 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region",
+        "MESA: info: kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 (base_jd_atom_v2 without renderpass_id)",
+        "MESA: info: kbase: no usable ION system heap",
+        "MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 32768 pages committed",
+        "MESA: info: kbase: mem_alloc via ALLOC",
+        "MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 70313 pages committed",
+        "MESA: error: kbase: JM atom 5 failed: event=0x51 core_req=0x16",
+        "FAIL case image_heap vkWaitForFences r=-4",
+        "INFO heap_count_mutable_heap 1000000",
+        "MESA: info: kbase: JM driver, uAPI version 11.16, page_size=4096",
+        "MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56",
+        "MESA: info: kbase: v6 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region",
+        "MESA: info: kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 (base_jd_atom_v2 without renderpass_id)",
+        "MESA: info: kbase: no usable ION system heap",
+        "MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 32768 pages committed",
+        "MESA: info: kbase: mem_alloc via ALLOC",
+        "MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 70313 pages committed",
+        "PASS case mutable_heap",
+        "RESULT FAIL"
+      ]
+    },
+    {
+      "name": "vkd3d_timeline",
+      "status": "PASS",
+      "ms": 4224,
+      "extra": null
+    },
+    {
+      "name": "swapchain_lifecycle",
+      "status": "PASS",
+      "ms": 13395,
+      "extra": "resized FPS 60.0 | present_main 4984ms, resize 6ms, present_resized 1999ms, destroy 1ms, cycle 1670ms, teardown 78ms"
+    }
+  ],
+  "driverLoad": {
+    "source": "bundled-rc5",
+    "driverType": "Bundled PanVK RC5",
+    "path": "\/data\/app\/dev.zenithblue.panvktest.v7kftl-lSIxJsyb0WpVaneunIdyKg==\/lib\/arm64\/libvulkan_panfrost_rc5.so",
+    "readable": true,
+    "soSha256": "badc28eb31786c33495245395f62edcbbfb45d86f73f6e88edb9c8e57b36de4b",
+    "buildId": "d4fa23727ffe32a484bf2428cd343d9abd43c8aa",
+    "driverName": "panvk",
+    "vendorIcdFallback": false,
+    "driverVersion": 109060195,
+    "driverInfo": "PanVK-kbase RC5-dev-v7K (Mesa 26.3.0-devel (git-d160802965))",
+    "bundledRelease": {
+      "id": "panvk-kbase-0.1.0-rc5-dev-v7",
+      "name": "PanVK Kbase RC5 (dev v7)",
+      "packageVersion": "0.1.0-rc5",
+      "displayVersion": "RC5-dev-v7 (local build, Mesa 5a07217f)",
+      "sourceCommit": null,
+      "buildId": "d4fa23727ffe32a484bf2428cd343d9abd43c8aa",
+      "expectedSha256": "badc28eb31786c33495245395f62edcbbfb45d86f73f6e88edb9c8e57b36de4b"
+    },
+    "loadSuccess": true,
+    "deviceCount": 1,
+    "loadError": null,
+    "vkinfoLogTail": [
+      "MESA: info: kbase: JM driver, uAPI version 11.16, page_size=4096",
+      "MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56",
+      "MESA: info: kbase: v6 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region",
+      "MESA: info: kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 (base_jd_atom_v2 without renderpass_id)",
+      "MESA: info: kbase: no usable ION system heap",
+      "MESA: info: panvk: gpu_id 0x62210010 variant 0 arch v6 model Mali-G72 texture_features 0xffffffff 0xff0fff 0xfe3fffff 0",
+      "MESA: warning: panvk: v6 (Bifrost) support is experimental",
+      "MESA: info: panvk: BC emulation off (native compressed mask 0xffffffff)",
+      "WARNING: panvk is not a conformant Vulkan implementation, testing use only.",
+      "MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)",
+      "MESA: info: Using fallback gralloc implementation",
+      "Failed to create \/data\/.cache for shader cache (Permission denied)---disabling."
+    ],
+    "kbaseUapi": "JM 11.16",
+    "gpuId": "0x62210010",
+    "bcEmulation": "BC emulation off (native compressed mask 0xffffffff)",
+    "pageSize": 4096,
+    "appVersion": "1.2.7"
+  },
+  "driver": {
+    "type": "Bundled PanVK RC5",
+    "bundled": true,
+    "path": "\/data\/app\/dev.zenithblue.panvktest.v7kftl-lSIxJsyb0WpVaneunIdyKg==\/lib\/arm64\/libvulkan_panfrost_rc5.so",
+    "soSha256": "badc28eb31786c33495245395f62edcbbfb45d86f73f6e88edb9c8e57b36de4b",
+    "buildId": "d4fa23727ffe32a484bf2428cd343d9abd43c8aa",
+    "driverName": "PanVK Kbase RC5 (dev v7)",
+    "driverInfo": "PanVK-kbase RC5-dev-v7K (Mesa 26.3.0-devel (git-d160802965))",
+    "driverVersion": "RC5-dev-v7 (local build, Mesa 5a07217f)"
+  },
+  "device": {
+    "manufacturer": "samsung",
+    "model": "SM-G960F",
+    "board": "exynos9810",
+    "hardware": "samsungexynos9810",
+    "socManufacturer": null,
+    "socModel": null
+  },
+  "gpu": {
+    "glRenderer": "Mali-G72",
+    "glVendor": "ARM",
+    "glVersion": "OpenGL ES 3.2 v1.r19p0-01rel0.###other-sha0123456789ABCDEF0###",
+    "deviceName": "Mali-G72 MC18",
+    "deviceID": 1646329872,
+    "vendorID": 5045,
+    "apiVersion": "1.3.363",
+    "gpuinfo": null,
+    "gpuinfo_unavailable_reason": "not readable (SELinux\/permissions)",
+    "gpuId": "0x62210010",
+    "arch": "v6",
+    "gpuModel": "Mali-G72 MC18"
+  },
+  "android": {
+    "release": "10",
+    "sdk": 29,
+    "kernel": "4.9.118-23733677"
+  },
+  "deviceFacts": {
+    "kbaseUapi": "JM 11.16",
+    "gpuId": "0x62210010",
+    "textureFeatures": "0xffffffff 0xff0fff 0xfe3fffff 0",
+    "bcEmulation": "BC emulation off (native compressed mask 0xffffffff)",
+    "pageSize": 4096,
+    "kernel": "4.9.118-23733677",
+    "procVersion": null,
+    "props": {
+      "ro.board.platform": "universal9810",
+      "ro.build.version.release": "10",
+      "ro.build.version.sdk": "29",
+      "ro.hardware": "samsungexynos9810",
+      "ro.hardware.egl": "mali",
+      "ro.product.first_api_level": "26",
+      "ro.vndk.version": "29"
+    },
+    "mapperLibs": [
+      "\/vendor\/lib64\/hw\/android.hardware.graphics.mapper@2.0-impl.so"
+    ],
+    "driverLines": [
+      "kbase: JM driver, uAPI version 11.16, page_size=4096",
+      "panvk: gpu_id 0x62210010 variant 0 arch v6 model Mali-G72 texture_features 0xffffffff 0xff0fff 0xfe3fffff 0",
+      "panvk: BC emulation off (native compressed mask 0xffffffff)",
+      "kbase: mem_alloc via ALLOC",
+      "kbase: JM atom 5 failed: event=0x51 core_req=0x16",
+      "kbase: JM atom 46 failed: event=0x51 core_req=0x16",
+      "kbase: JM atom 21 failed: event=0x51 core_req=0x16",
+      "kbase: JM atom 22 failed: event=0x51 core_req=0x1",
+      "kbase: JM atom 9 failed: event=0x51 core_req=0x16",
+      "FULLPLANE] mapper load failed (1 candidate names, first=mediatek); PANVK_MAPPER_NAMES=<suffix> overrides"
+    ]
+  },
+  "complete": true,
+  "driverSlot": "RC5"
+}
