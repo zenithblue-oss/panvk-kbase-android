@@ -1,0 +1,51 @@
+PID 3451
+Tgid:	3451
+Pid:	3451
+PPid:	31022
+READY
+T 43661.617889247 go
+MESA: info: kbase: CSF driver, uAPI version 1.21, page_size=4096
+MESA: info: panvk: gpu_id 0xb8a31030 variant 0x4 arch v11 model Mali-G615 texture_features 0xc7fe001e 0 0 0
+MESA: info: panvk: BC emulation on, lowmem (native compressed mask 0xc7fe001e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+PHYS 0 Mali-G615 MC6 vendor=0x13b5 device=0xb8a31030
+FEATURE synchronization2=1
+QFAM 0 flags=0x7 count=2
+MESA: info: kbase: CSF driver, uAPI version 1.21, page_size=4096
+MESA: info: kbase: mem_alloc via ALLOC_EX
+MESA: info: kbase: queue_group_create layout=32 bytes
+MESA: info: kbase: tiler_heap_init layout=16 bytes
+SYNC2 enabled
+T 43661.634287095 host-set
+T 43661.634571710 host-submit
+FENCE host r=0 dt=0.003
+CASE host got=0x085000a1 expect=0x085000a1
+T 43661.638100634 host-set-replay
+T 43661.638400941 host-submit-replay
+FENCE host-replay r=0 dt=0.000
+CASE host-replay got=0x085000a2 expect=0x085000a2
+T 43661.638908018 gpu-write
+T 43661.639416326 gpu-submit-set
+FENCE gpu-set r=0 dt=0.000
+GPU_EVENT_STATUS 3
+T 43661.639885634 gpu-submit-wait
+FENCE gpu r=0 dt=0.001
+CASE gpu got=0x085000b1 expect=0x085000b1
+T 43661.640318788 gpu-write-replay
+T 43661.640882173 gpu-submit-set-replay
+FENCE gpu-set-replay r=0 dt=0.001
+GPU_EVENT_STATUS 3
+T 43661.641416019 gpu-submit-wait-replay
+FENCE gpu-replay r=0 dt=0.001
+CASE gpu-replay got=0x085000b2 expect=0x085000b2
+T 43661.673552945 ring-begin
+FENCE ring r=0 dt=0.144
+FENCE ring-copy r=0 dt=0.000
+CASE ring submit=0 red=64/64 passes=1700
+FENCE ring r=0 dt=0.120
+FENCE ring-copy r=0 dt=0.000
+CASE ring submit=1 red=64/64 passes=1700
+T 43661.939929279 ring-end
+RESULT PASS
