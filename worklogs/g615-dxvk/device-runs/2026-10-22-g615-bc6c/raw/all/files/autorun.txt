@@ -1,0 +1,47 @@
+INFO devices=1 exts=188 formats=196
+DRIVER slot=RC5 driverInfo=PanVK-kbase RC5-dev-bc6c (Mesa 26.3.0-devel (git-5a07217f03))
+COMPLIANCE DXVK compliance PASS items=94 missingHard=[] missingSoft=["tiled resources tier 2 (FL12_0)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","VK_EXT_sample_locations"]
+COMPLIANCE Bachata S4 compliance PASS items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","subgroup_wave64"]
+COMPLIANCE vkd3d compliance PASS items=100 missingHard=[] missingSoft=["viewportSubPixelBits >= 8","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","shaderFloat64","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: ROVs (pixel+sample interlock)","proton: VK_EXT_descriptor_buffer path","proton: VK_KHR_fragment_shading_rate","proton: VK_EXT_mesh_shader","proton: VK_KHR_ray_query + acceleration_structure"]
+RESULT gpu_prerast_slice PASS mismatch=0 fps=0 ms=92
+RESULT clip_cull PASS mismatch=0 fps=2733.4 ms=1261
+RESULT multi_viewport PASS mismatch=0 fps=3372.7 ms=1130
+RESULT fill_mode PASS mismatch=0 fps=3668.2 ms=1366
+RESULT bc_decode PASS mismatch=0 fps=0 ms=15652
+RESULT bc_perf PASS mismatch=0 fps=0 ms=43185
+RESULT tess_perf FAIL mismatch=0 fps=1.4 ms=48520 extra=tess_perf opt=default gs=0 L=ref draws=256 patches=4096 ms=0.78 us_draw=3.1 frames=893 hash=4807f3f5 | tess_perf opt=default gs=0 L=1 draws=256 patches=4096 ms=85.96 us_draw=335.8 frames=9 hash=1d38b605 | tess_perf opt=default gs=0 L=4 draws=256 patches=4096 ms=283.23 us_draw=1106.4 frames=3 hash=7b274c45 | tess_perf opt=default gs=0 L=16 draws=256 patches=4096 ms=682.61 us_draw=2666.4 frames=3 hash=b360d19b | tess_perf opt=default gs=0 L=mix draws=256 patches=4096 ms=726.08 us_draw=2836.2 frames=3 hash=83089bf5 | tess_perf opt=default gs=1 L=1 draws=256 patches=4096 ms=137.05 us_draw=535.4 frames=6 hash=1d38b605 | tess_perf opt=default gs=1 L=4 draws=256 patches=4096 ms=333.46 us_draw=1302.6 frames=3 hash=e516be97 | tess_perf opt=default gs=1 L=16 draws=256 patches=4096 ms=1108.90 us_draw=4331.6 frames=3 hash=b360d19b | tess_perf opt=default gs=1 L=mix draws=256 patches=4096 ms=895.97 us_draw=3499.9 frames=3 hash=83089bf5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=ref draws=256 patches=4096 ms=0.89 us_draw=3.5 frames=784 hash=4807f3f5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=1 draws=256 patches=4096 ms=148.65 us_draw=580.7 frames=5 hash=1d38b605 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=4 draws=256 patches=4096 ms=148.09 us_draw=578.5 frames=5 hash=1d38b605 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=16 draws=256 patches=4096 ms=800.62 us_draw=3127.4 frames=3 hash=5c061e8a | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=mix draws=256 patches=4096 ms=718.39 us_draw=2806.2 frames=3 hash=1d38b605 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=1 draws=256 patches=4096 ms=185.69 us_draw=725.4 frames=4 hash=1d38b605 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=4 draws=256 patches=4096 ms=248.80 us_draw=971.9 frames=3 hash=1d38b605 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=16 draws=256 patches=4096 ms=1267.07 us_draw=4949.5 frames=3 hash=5c061e8a | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=mix draws=256 patches=4096 ms=1008.80 us_draw=3940.6 frames=3 hash=1d38b605
+RESULT geometry PASS mismatch=0 fps=2594.5 ms=1769
+RESULT tessellation FAIL mismatch=12358 fps=2817.1 ms=2879
+RESULT xfb PASS mismatch=0 fps=0 ms=489
+RESULT pipeline_stats PASS mismatch=0 fps=2149.2 ms=1301
+RESULT vertex_stores PASS mismatch=0 fps=0 ms=213
+RESULT gs_viewport_depth PASS mismatch=0 fps=0 ms=321
+RESULT vs_viewport_index PASS mismatch=0 fps=0 ms=393
+RESULT depth_bounds PASS mismatch=0 fps=0 ms=235
+RESULT large_draw PASS mismatch=0 fps=0 ms=8397
+RESULT vmr_secondary PASS mismatch=0 fps=0 ms=141
+RESULT tess_cond_state PASS mismatch=0 fps=0 ms=384
+RESULT bachata_reqs PASS mismatch=0 fps=0 ms=121
+RESULT bachata_exec PASS mismatch=0 fps=0 ms=119
+RESULT robustness2 PASS mismatch=0 fps=0 ms=174
+RESULT robust_image_access2 PASS mismatch=0 fps=0 ms=727 extra=4096x4096x16 rgba8 loads ria2=30.83ms ria1=31.07ms delta=-0.8% stats(ria2/ria1): Instructions=185/185 Code size=1536/1536 Constant data size=0/0 Threads=2/2 Loops=0/0 Spills=0/0 Fills=0/0 Spill cost=0/0 Registers used=12/12 Uniforms used=4/4
+RESULT blend PASS mismatch=0 fps=0 ms=139
+RESULT occlusion_query PASS mismatch=0 fps=0 ms=127
+RESULT descriptor_model PASS mismatch=0 fps=0 ms=139
+RESULT shader_arith PASS mismatch=0 fps=0 ms=231
+RESULT depth_stencil PASS mismatch=0 fps=0 ms=171
+RESULT sampler PASS mismatch=0 fps=0 ms=177
+RESULT draw_params PASS mismatch=0 fps=0 ms=208
+RESULT submit_stress PASS mismatch=0 fps=0 ms=30139
+RESULT csf_event PASS mismatch=0 fps=0 ms=452
+RESULT gs_tess_primitive_id PASS mismatch=0 fps=0 ms=352
+RESULT bachata_storage_fmtless PASS mismatch=0 fps=0 ms=154
+RESULT bachata_dynamic_render PASS mismatch=0 fps=0 ms=131
+RESULT dxvk_reqs PASS mismatch=0 fps=0 ms=93
+RESULT vkd3d_reqs PASS mismatch=0 fps=0 ms=97
+RESULT vkd3d_heap PASS mismatch=0 fps=0 ms=427
+RESULT vkd3d_timeline PASS mismatch=0 fps=0 ms=352
+RESULT swapchain_lifecycle PASS mismatch=0 fps=64.3 ms=9002 extra=resized FPS 60.5 | present_main 4666ms, resize 8ms, present_resized 1983ms, destroy 2ms, cycle 1695ms, teardown 47ms
+AUTORUN DONE pass=37 fail=2 skip=0 total=39 (37 pass / 2 fail / 0 skip)
+EXTERNAL READY run=20261022-153443
+AUTOUPLOAD OK id=fdebdede size=139283 sha256=fdebdede568fd078ad908c18a0f3f59330c3b0ced3f12f97249af4e3fda598e7

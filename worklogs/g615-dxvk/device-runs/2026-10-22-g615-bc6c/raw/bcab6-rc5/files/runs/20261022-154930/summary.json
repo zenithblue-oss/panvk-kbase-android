@@ -1,0 +1,74 @@
+{
+  "timestamp": "20261022-154930",
+  "startMs": 1792664283967,
+  "appVersion": "1.2.7",
+  "driverType": "Bundled PanVK RC5",
+  "deviceName": "Mali-G615 MC6",
+  "driverName": "panvk",
+  "driverInfo": "PanVK-kbase RC5-dev-bc6c (Mesa 26.3.0-devel (git-5a07217f03))",
+  "driverVersion": 109060195,
+  "apiVersion": "1.4.363",
+  "pass": 1,
+  "fail": 0,
+  "skip": 0,
+  "total": 1,
+  "tests": {
+    "bc_perf": "PASS"
+  },
+  "results": [
+    {
+      "name": "bc_perf",
+      "status": "PASS",
+      "durationMs": 27476,
+      "log": "20261022-154903-bc_perf.log"
+    }
+  ],
+  "compliance": {
+    "dxvk": {
+      "title": "DXVK compliance",
+      "pass": true,
+      "items": 94,
+      "missingHard": [],
+      "missingSoft": [
+        "tiled resources tier 2 (FL12_0)",
+        "fragmentShaderPixelInterlock (FL12_1)",
+        "D16_UNORM_S8_UINT (D3D9)",
+        "shaderFloat64",
+        "VK_EXT_sample_locations"
+      ]
+    },
+    "bachata_s4": {
+      "title": "Bachata S4 compliance",
+      "pass": true,
+      "items": 114,
+      "missingHard": [],
+      "missingSoft": [
+        "primitiveTopologyPatchListRestart",
+        "VK_KHR_fragment_shader_barycentric",
+        "VK_AMD_shader_image_load_store_lod",
+        "VK_EXT_shader_atomic_float2",
+        "VK_EXT_depth_range_unrestricted",
+        "shaderFloat64",
+        "subgroup_wave64"
+      ]
+    },
+    "vkd3d": {
+      "title": "vkd3d compliance",
+      "pass": true,
+      "items": 100,
+      "missingHard": [],
+      "missingSoft": [
+        "viewportSubPixelBits >= 8",
+        "VK_EXT_fragment_shader_interlock pixel+sample (ROVs)",
+        "VK_EXT_shader_viewport_index_layer",
+        "shaderFloat64",
+        "proton: tiled resources tier 2 (sparse residency + sparse queue)",
+        "proton: ROVs (pixel+sample interlock)",
+        "proton: VK_EXT_descriptor_buffer path",
+        "proton: VK_KHR_fragment_shading_rate",
+        "proton: VK_EXT_mesh_shader",
+        "proton: VK_KHR_ray_query + acceleration_structure"
+      ]
+    }
+  }
+}
