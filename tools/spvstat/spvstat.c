@@ -1,8 +1,9 @@
 /* spvstat: compile a Vulkan compute SPIR-V (with spec constants 2 = mode,
  * 3 = opts) for a Mali arch with the panfrost compiler, roughly the way
  * panvk does, and print the Valhall shader stats (BIFROST_MESA_DEBUG=shaderdb)
- * plus the CPU compile time.
- *   spvstat file.spv arch mode opts [reps]  */
+ * plus the CPU compile time. batch (default 0) is spec constant 4
+ * (csf-v11/214 XC_BATCH of panvk_bc_etc2.comp).
+ *   spvstat file.spv arch mode opts [reps] [batch]  */
 #include "compiler/glsl_types.h"
 #include "compiler/spirv/nir_spirv.h"
 #include "panfrost/compiler/bifrost/bifrost_compile.h"
@@ -74,7 +75,7 @@ int
 main(int argc, char **argv)
 {
    if (argc < 5) {
-      fprintf(stderr, "usage: spvstat file.spv arch mode opts [reps]\n");
+      fprintf(stderr, "usage: spvstat file.spv arch mode opts [reps] [batch]\n");
       return 1;
    }
    size_t size = 0;
@@ -82,6 +83,7 @@ main(int argc, char **argv)
    unsigned arch = atoi(argv[2]);
    uint32_t mode = strtoul(argv[3], NULL, 0), opts = strtoul(argv[4], NULL, 0);
    int reps = argc > 5 ? atoi(argv[5]) : 1;
+   uint32_t batch = argc > 6 ? strtoul(argv[6], NULL, 0) : 0;
    if (!words)
       return 1;
 
@@ -98,11 +100,12 @@ main(int argc, char **argv)
       .min_ubo_alignment = 16,
       .min_ssbo_alignment = 4,
    };
-   struct nir_spirv_specialization_entry ents[2] = {
+   struct nir_spirv_specialization_entry ents[3] = {
       {.id = 2, .size = 4, .data = (uint8_t *)&mode},
       {.id = 3, .size = 4, .data = (uint8_t *)&opts},
+      {.id = 4, .size = 4, .data = (uint8_t *)&batch},
    };
-   struct nir_spirv_specialization spec = {2, ents};
+   struct nir_spirv_specialization spec = {3, ents};
    uint64_t gpu_id = (uint64_t)(arch & 0xf) << 28;
    if (arch == 11)
       gpu_id = 0xb8a31030ull; /* G615 (props.gpu_id from the device log) */
