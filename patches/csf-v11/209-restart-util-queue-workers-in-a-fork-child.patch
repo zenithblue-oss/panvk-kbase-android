@@ -24,15 +24,28 @@ Register pthread_atfork handlers next to the atexit handler:
 - the child's first util_queue_add_job starts a new worker.
 So the child's cache writes land and its destroy returns.
 
+Also complete CPU detection before any worker exists (global_init) and
+in the prepare handler. The first worker calls util_get_cpu_caps() ->
+call_once(_util_cpu_detect_once) at nice 19 / SCHED_BATCH, reading sysfs
+for every CPU. vkd3d_heap forks its first case a few ms after
+vkCreateInstance, inside that window, and bionic's pthread_once (unlike
+glibc's, which restarts an in-progress once in a fork child) leaves the
+child's once flag "in progress" forever: the child's respawned disk$
+worker blocks in util_get_cpu_caps and disk_cache_destroy waits on it.
+On G615 that failed only the first case (ssbo_heap, 12 s watchdog) with
+the cache really on; texel/image/mutable, forked later, passed.
+
 Host repro: tools/u-queue-fork-test (HANG before, PASS after, and the
-child's entries are readable from the parent).
+child's entries are readable from the parent; fork_cost: no extra
+threads, only queues that get a job start one). glibc cannot show the
+pthread_once part.
 ---
- src/util/u_queue.c | 107 +++++++++++++++++++++++++++++++++++++++++++++
+ src/util/u_queue.c | 120 +++++++++++++++++++++++++++++++++++++++++++++
  src/util/u_queue.h |   3 ++
- 2 files changed, 110 insertions(+)
+ 2 files changed, 123 insertions(+)
 
 diff --git a/src/util/u_queue.c b/src/util/u_queue.c
-index 6c135210..da40a756 100644
+index 6c135210..3031506e 100644
 --- a/src/util/u_queue.c
 +++ b/src/util/u_queue.c
 @@ -35,6 +35,12 @@
@@ -57,7 +70,7 @@ index 6c135210..da40a756 100644
  
  /****************************************************************************
   * Wait for all queues to assert idle when exit() is called.
-@@ -76,11 +84,106 @@ atexit_handler(void)
+@@ -76,11 +84,119 @@ atexit_handler(void)
     mtx_unlock(&exit_mutex);
  }
  
@@ -87,6 +100,11 @@ index 6c135210..da40a756 100644
 +atfork_prepare(void)
 +{
 +   struct util_queue *iter;
++
++   /* Wait out a CPU detection that another thread may still be running, so
++    * the child never inherits its once flag in the "in progress" state (see
++    * global_init). After the first call this is one atomic load. */
++   util_get_cpu_caps();
 +
 +   mtx_lock(&exit_mutex);
 +   LIST_FOR_EACH_ENTRY(iter, &queue_list, head)
@@ -159,12 +177,20 @@ index 6c135210..da40a756 100644
     mtx_init(&exit_mutex, mtx_plain);
     atexit(atexit_handler);
 +#if DETECT_OS_POSIX
++   /* Run CPU detection here, before any queue worker exists. Otherwise the
++    * first worker (util_queue_thread_func -> util_get_cpu_caps) runs it at
++    * nice 19 / SCHED_BATCH, reading sysfs for every CPU, and a fork() in
++    * that window gives a child whose once flag is stuck "in progress":
++    * bionic's pthread_once (unlike glibc's) does not reset it in a fork
++    * child, so the child's respawned worker blocks forever and its
++    * disk_cache_destroy -> util_queue_finish never returns. */
++   util_get_cpu_caps();
 +   pthread_atfork(atfork_prepare, atfork_parent, atfork_child);
 +#endif
  }
  
  static void
-@@ -555,6 +658,10 @@ util_queue_add_job_locked(struct util_queue *queue,
+@@ -555,6 +671,10 @@ util_queue_add_job_locked(struct util_queue *queue,
  
     if (!locked)
        mtx_lock(&queue->lock);
@@ -191,4 +217,3 @@ index 7cbb89cd..f38e7730 100644
     size_t total_jobs_size;  /* memory use of all jobs in the queue */
 -- 
 2.55.0
-
