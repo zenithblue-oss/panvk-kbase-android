@@ -12,3 +12,33 @@ PanProbe answers `com.google.intent.action.TEST_LOOP` (mime `application/javascr
 ```
 gcloud firebase test android run --type game-loop --app /home/flux/build-out/apks/panprobe-v7K-ftl.apk --scenario-numbers 1 --device model=<m>,version=<v> --timeout 30m --directories-to-pull /sdcard/Android/data/dev.zenithblue.panvktest.v7kftl/files
 ```
+
+## Firebase Test Lab CLI setup (flux PRoot, arm64)
+
+Installed 2026-10-22, no login and no project created yet.
+
+- firebase-tools 15.34.1: `/home/flux/.local/bin/firebase` (npm prefix `/home/flux/.local`).
+- Google Cloud SDK 590.0.0 (core 2026.10.16, bq 2.1.40, gsutil 5.37): `/home/flux/.local/google-cloud-sdk`, symlinked as `/home/flux/.local/bin/gcloud` and `/home/flux/.local/bin/gsutil`. Uses its bundled Python 3.14, so no system python3 is needed.
+- `gcloud firebase test android` is in core (`run`, `models list`, ...).
+- Add `/home/flux/.local/bin` to PATH (or call the full paths above).
+
+Login (run by the user):
+
+```
+gcloud auth login --no-launch-browser
+gcloud config set project <PROJECT_ID>
+firebase login --no-localhost
+```
+
+Device list (needs the login above first):
+
+```
+gcloud firebase test android models list --filter="form=PHYSICAL"
+gcloud firebase test android models list --filter="model_id=<MODEL>"
+```
+
+Example game-loop run:
+
+```
+gcloud firebase test android run --type game-loop --app <apk> --device model=<model>,version=<api> --scenario-numbers 1 --timeout 30m --directories-to-pull /sdcard/Android/data/<pkg>/files
+```
