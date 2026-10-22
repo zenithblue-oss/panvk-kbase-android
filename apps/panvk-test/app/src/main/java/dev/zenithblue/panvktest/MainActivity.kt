@@ -114,6 +114,7 @@ class MainActivity : ComponentActivity() {
         TestCase("fill_mode", isDraw = true),
         TestCase("bc_decode", isDraw = false) { ctx -> listOf(ctx.cacheDir.absolutePath) },
         TestCase("bc_perf", isDraw = false, timeoutMs = 300_000),
+        TestCase("tess_perf", isDraw = false, timeoutMs = 240_000),
         TestCase("geometry", isDraw = true),
         TestCase("tessellation", isDraw = true),
         TestCase("xfb", isDraw = true),
@@ -2726,7 +2727,7 @@ private val TARGET_TAGS: Map<String, List<String>> = run {
     t(listOf(d), "gpu_prerast_slice", "clip_cull", "multi_viewport", "fill_mode", "bc_decode", "bc_perf", "pipeline_stats",
         "vertex_stores", "gs_viewport_depth", "vs_viewport_index", "large_draw", "vmr_secondary", "csf_event",
         "gs_tess_primitive_id", "dxvk_reqs", "swapchain_lifecycle")
-    t(listOf(d, s), "geometry", "tessellation", "tess_cond_state")
+    t(listOf(d, s), "geometry", "tessellation", "tess_cond_state", "tess_perf")
     t(listOf(d, v), "xfb", "depth_bounds", "blend", "occlusion_query", "descriptor_model", "shader_arith",
         "depth_stencil", "draw_params", "submit_stress")
     t(listOf(d, s, v), "robustness2", "robust_image_access2", "sampler")

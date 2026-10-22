@@ -90,7 +90,7 @@ private val TESTED_BY: Map<String, List<String>> = run {
         "scalarBlockLayout", "inlineUniformBlock", "VK_EXT_descriptor_indexing")
     t(listOf("vkd3d_timeline"), "timelineSemaphore", "VK_KHR_timeline_semaphore")
     t(listOf("csf_event", "bachata_dynamic_render"), "synchronization2")
-    t(listOf("tessellation", "tess_cond_state", "gs_tess_primitive_id"), "tessellationShader (FL11_0)", "tessellationShader")
+    t(listOf("tessellation", "tess_cond_state", "gs_tess_primitive_id", "tess_perf"), "tessellationShader (FL11_0)", "tessellationShader")
     t(listOf("vertex_stores"), "vertexPipelineStoresAndAtomics (FL11_1)", "vertexPipelineStoresAndAtomics")
     t(listOf("xfb", "large_draw"), "VK_EXT_transform_feedback")
     t(listOf("xfb", "large_draw", "tess_cond_state"), "VK_EXT_conditional_rendering")
