@@ -1,0 +1,1693 @@
+#version 450
+/*
+ * Copyright 2026 PanVK-kbase contributors
+ * SPDX-License-Identifier: MIT
+ *
+ * BC1-BC5 -> ETC2/EAC transcoder for the BC lowmem path (csf-v11/197,
+ * palette-domain encoder since csf-v11/200).
+ *
+ * One invocation per 4x4 block. The BC block is decoded exactly (same
+ * arithmetic as panvk_bc_s3tc.comp / panvk_bc_rgtc.comp) and re-encoded:
+ *
+ *   BC1 RGB         -> ETC2 RGB8     (diff/individual, H and planar modes)
+ *   BC1 RGBA        -> ETC2 RGB8A1   (punch-through for blocks with alpha)
+ *   BC2, BC3        -> ETC2 RGBA8    (EAC alpha + ETC2 colour)
+ *   BC4 UNORM/SNORM -> EAC R11 (signed)
+ *   BC5 UNORM/SNORM -> EAC RG11 (signed)
+ *
+ * A BC block holds at most 4 colours (BC1) or 8 values (BC3 alpha, BC4,
+ * BC5), so the encoder works on the palette, not on the 16 texels:
+ *
+ *  - EAC: the (table, multiplier) pair comes from EAC_TM_LUT, indexed by
+ *    the span of the palette entries the block uses (built offline by
+ *    tests/bc-host/gen_eac_lut over every BC4 endpoint pair, for exactly
+ *    this encoder). The base codeword is centred, each palette entry is
+ *    mapped to its nearest EAC level once (8 entries x 8 levels) and the
+ *    base is refined by least squares over the entries weighted by their
+ *    texel counts. Texel indices are then a 3-bit remap of the BC indices.
+ *  - ETC2 RGB: palette colour counts per half block come from popcounts of
+ *    the BC index word. The flip is chosen by the half-block variance, the
+ *    ETC1 table by a 1D search on the luma offsets of the (at most 4)
+ *    colours, then the indices exactly (with clamping). The H mode is
+ *    seeded by the two BC1 endpoint groups, its distance by the same 1D
+ *    search; the planar mode is a least-squares plane from palette moments
+ *    with an error estimate. Texel indices are bit planes built from the
+ *    palette masks.
+ *
+ * The block mode and the options are specialization constants (one
+ * pipeline per BC format class), the workgroup size too. Blocks are loaded
+ * and stored as one uvec2 / uvec4, and no per-block array is indexed at run
+ * time (all loops have fixed trip counts).
+ *
+ * The encoder is written in the GLSL subset that is also valid C (I()/U()/F()
+ * casts, CARR tables, no out parameters) so it can be unit tested on the
+ * host by including this file with PANVK_BC_C_TEST defined (skip line 1),
+ * see tests/bc-host in panvk-kbase-android.
+ */
+
+#ifndef PANVK_BC_C_TEST
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_buffer_reference_uvec2 : require
+#extension GL_EXT_control_flow_attributes : require
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1,
+       local_size_x_id = 0, local_size_y_id = 1) in;
+
+layout(constant_id = 2) const uint XC_MODE = 0u;      /* XC_* */
+layout(constant_id = 3) const uint XC_OPTS = 0x30000u; /* PANVK_BC_LM_OPTS */
+
+layout(buffer_reference, std430, buffer_reference_align = 8) readonly buffer In2 {
+    uvec2 data[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer In4 {
+    uvec4 data[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 8) writeonly buffer Out2 {
+    uvec2 data[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 16) writeonly buffer Out4 {
+    uvec4 data[];
+};
+
+layout(push_constant) uniform Registers
+{
+    uvec2 src;        /* block (0, 0) of layer 0 of the region */
+    uvec2 dst;        /* shadow level base, layer 0 */
+    uint src_row_B;
+    uint src_slice_B;
+    uint dst_row_B;   /* bytes per row of 4x4-block tiles */
+    uint dst_slice_B; /* array stride */
+    uint bx0;         /* region origin in blocks (for the tiled address) */
+    uint by0;
+    uint bw;          /* region size in blocks */
+    uint bh;
+} registers;
+
+#define I(x) int(x)
+#define U(x) uint(x)
+#define F(x) float(x)
+#define GLOBAL
+#define CARR(type, name, n) const type name[n] = type[n](
+#define CEND );
+#define UNROLL [[unroll]]
+#endif
+
+/* Must match panvk_vX_cmd_meta.c. */
+#define XC_BC1_RGB  0
+#define XC_BC1_RGBA 1
+#define XC_BC2      2
+#define XC_BC3      3
+#define XC_BC4_U    4
+#define XC_BC4_S    5
+#define XC_BC5_U    6
+#define XC_BC5_S    7
+
+/* PANVK_BC_LM_OPTS bits (default 0x30000). */
+#define OPT_PLANAR 0x10000u /* try the ETC2 planar mode */
+#define OPT_HMODE  0x20000u /* try the ETC2 H mode */
+#define OPT_FLIPS  0x40000u /* always encode both flips (else when plausible) */
+#define OPT_TAB8   0x80000u /* score every clamping ETC1 table / H distance */
+/* Bits 20-21: EAC (table, multiplier) candidates tried per channel are
+ * EAC_MAX_CANDS (4) minus this. */
+
+#define BIG_ERR 0x7fffffff
+
+CARR(int, ETC1_A, 8) 2, 5, 9, 13, 18, 24, 33, 47 CEND
+CARR(int, ETC1_B, 8) 8, 17, 29, 42, 60, 80, 106, 183 CEND
+CARR(int, ETC_DIFF_LUT, 8) 0, 1, 2, 3, -4, -3, -2, -1 CEND
+CARR(int, ETC_H_DIST, 8) 3, 6, 11, 16, 23, 32, 41, 64 CEND
+CARR(int, EAC_MOD, 128)
+   -3, -6, -9, -15, 2, 5, 8, 14,
+   -3, -7, -10, -13, 2, 6, 9, 12,
+   -2, -5, -8, -13, 1, 4, 7, 12,
+   -2, -4, -6, -13, 1, 3, 5, 12,
+   -3, -6, -8, -12, 2, 5, 7, 11,
+   -3, -7, -9, -11, 2, 6, 8, 10,
+   -4, -7, -8, -11, 3, 6, 7, 10,
+   -3, -5, -8, -11, 2, 4, 7, 10,
+   -2, -6, -8, -10, 1, 5, 7, 9,
+   -2, -5, -8, -10, 1, 4, 7, 9,
+   -2, -4, -8, -10, 1, 3, 7, 9,
+   -2, -5, -7, -10, 1, 4, 6, 9,
+   -3, -4, -7, -10, 2, 3, 6, 9,
+   -1, -2, -3, -10, 0, 1, 2, 9,
+   -4, -6, -8, -9, 3, 5, 7, 8,
+   -3, -5, -7, -9, 2, 4, 6, 8
+CEND
+
+/* EAC (table | multiplier << 4) candidates per palette span, 4 per word:
+ * EAC_MAX_CANDS candidates x 3 domains (alpha, R11, signed R11) x 2
+ * (8-value blocks, 6-value blocks without the 0 / 1 entries) x 256 spans
+ * in BC endpoint units, picked greedily for the exact encoder below (the
+ * best of the first c is the best c-subset given the first c - 1).
+ * Generated by tests/bc-host/gen_eac_lut (panvk-kbase-android). */
+#define EAC_MAX_CANDS 4
+#define EAC_KEY_BC2 1536 /* + the span of the 4-bit BC2 alpha */
+#define EAC_NKEY 1552
+CARR(uint, EAC_TM_LUT, 1552)
+/* EAC_TM_LUT begin */
+   0x1d1d1d1du, 0x1d1d1d1du, 0x132d2d2du, 0x3d121b13u, 0x1b1b1a1bu, 0x1217171bu, 0x10111212u, 0x2b101010u,
+   0x2b292b10u, 0x2b2b2b2bu, 0x2727292bu, 0x24242427u, 0x21212222u, 0x3b3b2121u, 0x393b3b3bu, 0x3739393bu,
+   0x37373737u, 0x34323234u, 0x4b4b4b32u, 0x494b4b4bu, 0x49494949u, 0x47474747u, 0x5b5b4747u, 0x5b5b5b5bu,
+   0x5b5b5b5bu, 0x59595959u, 0x57574159u, 0x6b6b6b57u, 0x6b6b6b6bu, 0x696b6b6bu, 0x69696969u, 0x67676969u,
+   0x7b7b7b7bu, 0x7b7b7b7bu, 0x797b7b7bu, 0x79797979u, 0x8b8b8b79u, 0x8b8b8b8bu, 0x8b8b8b8bu, 0x8b8b898bu,
+   0x89898989u, 0x9b9b9b9bu, 0x9b9b9b9bu, 0x9b9b9b9bu, 0x9b999b9bu, 0xab999999u, 0xababababu, 0xababababu,
+   0xababababu, 0xa9a9a9abu, 0xbba9a9a9u, 0xbbbbbbbbu, 0xbbbbbbbbu, 0xbbbbbbbbu, 0xb9b9b9bbu, 0xcbcbb9b9u,
+   0xcbcbcbcbu, 0xcbcbcbcbu, 0xc9c9cbc9u, 0xc9c9c9cbu, 0xdbdbc9c9u, 0xd9d9d9dbu, 0xa1dbd9dbu, 0xb2e9e9d9u,
+   0x1d1d1d1du, 0x1d1d1d1du, 0x132d132du, 0x12121b1bu, 0x18101010u, 0x1423154du, 0x102b5d14u, 0x22221010u,
+   0x7d7d3322u, 0x2828287du, 0x25258d8du, 0x24243232u, 0xadadad21u, 0xbdbdbdadu, 0x202020bdu, 0x35424242u,
+   0xddddddddu, 0xededededu, 0x525252edu, 0x52525252u, 0x45454573u, 0x30453030u, 0x62626262u, 0x58586262u,
+   0x58414444u, 0x72727272u, 0x72727272u, 0x68687272u, 0x40404040u, 0x82828240u, 0x82828282u, 0x65656582u,
+   0x92657865u, 0x92929292u, 0x92929292u, 0x50505092u, 0xa2a25050u, 0xa2a2a2a2u, 0xa2a2a2a2u, 0xb2b2a2a2u,
+   0xb2b2b2b2u, 0xb2b2b2b2u, 0x6060b2b2u, 0x60606060u, 0xc2c2c2c2u, 0xc2c2c2c2u, 0x84c2c2c2u, 0xd2d2a8a8u,
+   0xd2d2d2d2u, 0xd2d2d2d2u, 0x70707070u, 0xe2e2e270u, 0xe2e2e2e2u, 0xe2e2e2e2u, 0xf2f2e2e2u, 0xf2f2f2f2u,
+   0xf2f2f2f2u, 0x80f2f2f2u, 0x80808080u, 0xd8b5b5b5u, 0xd8d8d8d8u, 0x90d8d8d8u, 0x90909090u, 0x90909090u,
+   0x010b0b0du, 0x2d1d1d00u, 0x132d2d2du, 0x191b1b13u, 0x1b1b1b1bu, 0x14171719u, 0x11111112u, 0x10101010u,
+   0x2b2b2f10u, 0x2b2b2b2bu, 0x27272929u, 0x22242427u, 0x21212222u, 0x3b3b2121u, 0x3b3b3b3bu, 0x37393939u,
+   0x37373737u, 0x32323434u, 0x4b4b4b4bu, 0x4b4b4b4bu, 0x49494949u, 0x47474747u, 0x5b5b5b47u, 0x5b5b5b5bu,
+   0x5b5b5b5bu, 0x59595959u, 0x57575757u, 0x6b6b6b6bu, 0x6b6b6b6bu, 0x696b6b6bu, 0x69696969u, 0x7b7b6769u,
+   0x7b7b7b7bu, 0x7b7b7b7bu, 0x797b7b7bu, 0x79797979u, 0x8b8b8b79u, 0x8b8b8b8bu, 0x8b8b8b8bu, 0x89898b8bu,
+   0x89898989u, 0x9b9b9b9bu, 0x9b9b9b9bu, 0x9b9b9b9bu, 0x99999b9bu, 0xab999999u, 0xababababu, 0xababababu,
+   0xababababu, 0xa9a9a9a9u, 0xbba9a9a9u, 0xbbbbbbbbu, 0xbbbbbbbbu, 0xb9bbbbbbu, 0xb9b9b9b9u, 0xcbcbcbb9u,
+   0xcbcbcbcbu, 0xcbcbcbcbu, 0xc9c9cbcbu, 0xc9c9c9cbu, 0xdbdbdbdbu, 0xd9d9dbdbu, 0xd9d9d9dbu, 0xb2e9ebdbu,
+   0x000b0b0du, 0x2d1d1d00u, 0x132d2d2du, 0x12121b13u, 0x18181012u, 0x1415154du, 0x105d5d5du, 0x22221010u,
+   0x7d7d7d22u, 0x8d28287du, 0x25258d8du, 0x24323232u, 0xadadadadu, 0xbdbdbdadu, 0x422020bdu, 0xdd424242u,
+   0xddddddddu, 0xededededu, 0x525252edu, 0x52525252u, 0x45454573u, 0x30303045u, 0x62626262u, 0x58585862u,
+   0x72445858u, 0x72727272u, 0x72727272u, 0x68687272u, 0x40404040u, 0x82828240u, 0x82828282u, 0x65656582u,
+   0x92786565u, 0x92929292u, 0x92929292u, 0x50505050u, 0xa2a25050u, 0xa2a2a2a2u, 0xa2a2a2a2u, 0xb2b2a2a2u,
+   0xb2b2b2b2u, 0xb2b2b2b2u, 0x6060b2b2u, 0xc2606060u, 0xc2c2c2c2u, 0xc2c2c2c2u, 0xa8c2c2c2u, 0xd2d2d2d2u,
+   0xd2d2d2d2u, 0xd2d2d2d2u, 0x70707070u, 0xe2e2e2e2u, 0xe2e2e2e2u, 0xe2e2e2e2u, 0xf2f2f2e2u, 0xf2f2f2f2u,
+   0xf2f2f2f2u, 0x8080f2f2u, 0xb5808080u, 0xd8b5b5b5u, 0xd8d8d8d8u, 0x90d8d8d8u, 0x90909090u, 0x90909090u,
+   0x010b0b00u, 0x2d1d1d00u, 0x132d2d2du, 0x193d1b1bu, 0x1b1b1b19u, 0x12171719u, 0x11111112u, 0x10101010u,
+   0x2b2b2f10u, 0x2b2b2b2bu, 0x27272929u, 0x22242427u, 0x21212222u, 0x3b3b2121u, 0x3b3b3b3bu, 0x37393939u,
+   0x34373737u, 0x32323234u, 0x4b4b4b4bu, 0x494b4b4bu, 0x47494949u, 0x47474747u, 0x5b5b5b47u, 0x5b5b5b5bu,
+   0x5b5b5b5bu, 0x59595959u, 0x57575757u, 0x6b6b6b6bu, 0x6b6b6b6bu, 0x696b6b6bu, 0x69696969u, 0x7b7b6769u,
+   0x7b7b7b7bu, 0x7b7b7b7bu, 0x79797b7bu, 0x79797979u, 0x8b8b8b8bu, 0x8b8b8b8bu, 0x8b8b8b8bu, 0x8989898bu,
+   0x9b898989u, 0x9b9b9b9bu, 0x9b9b9b9bu, 0x9b9b9b9bu, 0x99999b9bu, 0xab999999u, 0xababababu, 0xababababu,
+   0xababababu, 0xa9a9a9abu, 0xbbbbbba9u, 0xbbbbbbbbu, 0xbbbbbbbbu, 0xb9b9bbbbu, 0xcbb9b9b9u, 0xcbcbcbcbu,
+   0xcbcbcbcbu, 0xcbcbcbcbu, 0xc9c9c9cbu, 0xc9c9c9c9u, 0xdbdbdbdbu, 0xd9dbdbdbu, 0xdbd9dbdbu, 0xb2b2ebe9u,
+   0x010b0b0du, 0x2d1d1d00u, 0x132d2d2du, 0x12121b13u, 0x4d181812u, 0x1415154du, 0x2b5d5d5du, 0x22222210u,
+   0x7d7d7d29u, 0x8d28287du, 0x25258d8du, 0x24323232u, 0xadadadadu, 0xbdbdbdadu, 0x422020bdu, 0xdd354242u,
+   0xddddddddu, 0xededededu, 0x52525252u, 0x59525952u, 0x45454573u, 0x62303030u, 0x62626262u, 0x58585862u,
+   0x72414444u, 0x72797272u, 0x72727272u, 0x68687272u, 0x40404040u, 0x82828240u, 0x82828282u, 0x65656582u,
+   0x92926565u, 0x92929292u, 0x92929292u, 0x50505050u, 0xa2a25050u, 0xa2a2a2a2u, 0xa2a2a2a2u, 0xb2b2b2a2u,
+   0xb2b2b2b2u, 0xb2b2b2b2u, 0x606060b2u, 0xc2c26060u, 0xc2c2c2c2u, 0xc2c2c2c2u, 0xd2a8c2c2u, 0xd2d2d2d2u,
+   0xd2d2d2d2u, 0x70d2d2d2u, 0xe2707070u, 0xe2e2e2e2u, 0xe2e2e2e2u, 0xe2e2e2e2u, 0xf2f2f2e2u, 0xf2f2f2f2u,
+   0xf2f2f2f2u, 0x808080f2u, 0xb5b58080u, 0xd8d8b5b5u, 0xd8d8d8d8u, 0x9090d8d8u, 0x90909090u, 0x90909090u,
+   0x22281010u, 0x69423049u, 0xab998979u, 0xdbd9b982u, 0x00000000u, 0x132d0000u, 0x1b133d13u, 0x1f1b132du,
+   0x18171819u, 0x14111a12u, 0x12121111u, 0x10281111u, 0x292b2f2bu, 0x22292729u, 0x2529252au, 0x22222021u,
+   0x2222213bu, 0x20392239u, 0x20202020u, 0x3a3a203au, 0x49314b4bu, 0x4934494au, 0x3232324bu, 0x32323232u,
+   0x304a4a32u, 0x30303030u, 0x30595b59u, 0x42424259u, 0x42424242u, 0x42424242u, 0x69696942u, 0x69696969u,
+   0x5240687bu, 0x52525252u, 0x52525252u, 0x52795252u, 0x52525252u, 0x7a785252u, 0x627a7a7au, 0x89626262u,
+   0x62628962u, 0x62626262u, 0x62626262u, 0x62626262u, 0x72997299u, 0x72727289u, 0x72727272u, 0x72727272u,
+   0xa9727272u, 0x727272a9u, 0x8272959au, 0x95aa8295u, 0x8282aa95u, 0x828282a8u, 0xce828282u, 0xa582ceceu,
+   0xa5b8b882u, 0xb8a5b8b8u, 0x919292c9u, 0xdfde92c8u, 0x91deca91u, 0xc8c8c8c8u, 0xb5b5c8b5u, 0xe9b5b5c8u,
+   0xeeeea1b5u, 0xdba2dbd8u, 0xc2d8b2d8u, 0xfbc2c2b2u, 0x00000000u, 0x2d000000u, 0x1b002d1du, 0x00101313u,
+   0x19154d1cu, 0x11140000u, 0x11111222u, 0x002a337du, 0x003b8d2cu, 0xad297d00u, 0x002bad00u, 0x423200bdu,
+   0x00230042u, 0x002220bdu, 0x4239ed00u, 0xdd3b3852u, 0xed00004bu, 0x00824934u, 0x3300ed62u, 0x73493254u,
+   0x30723259u, 0x62585972u, 0xa3004100u, 0x82425800u, 0x41445858u, 0x00430041u, 0x55000076u, 0x40720000u,
+   0x00000071u, 0x00004082u, 0x0000a2a2u, 0x00538200u, 0x00926552u, 0x000079b2u, 0x64000094u, 0x00636450u,
+   0x00630063u, 0x0062d200u, 0x00008400u, 0x00a2b2d2u, 0x00000000u, 0x00990000u, 0x00b29800u, 0xc2000000u,
+   0x00739900u, 0x00000000u, 0xc2840000u, 0x9500a9d2u, 0x00000000u, 0x00000000u, 0x0000d2d2u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00e2f200u, 0x00000000u, 0x00000000u, 0xf2000000u, 0x000000f2u, 0x000000a4u,
+   0x00000000u, 0xd8000000u, 0x000000d8u, 0x00000000u, 0x00020300u, 0x1d2d001du, 0x2d131313u, 0x141f1f1bu,
+   0x19191910u, 0x12111a1au, 0x10121214u, 0x24241111u, 0x292f2a2bu, 0x2a2a2929u, 0x2a292a2au, 0x24222221u,
+   0x22222124u, 0x20393922u, 0x3a202020u, 0x3a37203au, 0x344a4b35u, 0x4b343232u, 0x32323232u, 0x49323232u,
+   0x47304a32u, 0x30303030u, 0x42593059u, 0x42424242u, 0x42424242u, 0x42424242u, 0x69424242u, 0x40406957u,
+   0x52404040u, 0x52525252u, 0x52525252u, 0x52525252u, 0x52525252u, 0x7a7a5252u, 0x62797a7au, 0x89626262u,
+   0x62626262u, 0x62626262u, 0x62626262u, 0x62628a62u, 0x72999999u, 0x72727272u, 0x72727272u, 0x72727272u,
+   0xa9727272u, 0x72727272u, 0x95827272u, 0x828282beu, 0x82828282u, 0x8282b982u, 0xce828282u, 0xa5b8ce82u,
+   0xb8b8b892u, 0x92b8b8b8u, 0x92a5a5a5u, 0xdedede91u, 0xc8de91deu, 0xb5c8c8c8u, 0xb592d9c8u, 0xa2b5b5d9u,
+   0xa1eeb5d8u, 0xdba2d8d8u, 0xb2d8b2d8u, 0xfbc2b1e9u, 0x01020303u, 0x132d001du, 0x2d001313u, 0x00181800u,
+   0x4d1b181bu, 0x22234d00u, 0x2b130022u, 0x10002200u, 0x00293300u, 0xad380028u, 0x328d28adu, 0x422400bdu,
+   0x38230042u, 0x206222ddu, 0x0039393au, 0x203b3800u, 0x00000000u, 0x00333333u, 0x00540000u, 0x49490033u,
+   0x72304859u, 0x62000030u, 0x00590064u, 0x44596259u, 0x42434482u, 0x42430041u, 0x92684242u, 0x40835100u,
+   0x69690068u, 0x00004082u, 0x53530000u, 0x00538265u, 0x78927800u, 0x00000000u, 0x000079eau, 0x00db0064u,
+   0x6263a200u, 0x00630000u, 0x00006363u, 0x000062e3u, 0x00000000u, 0x00000000u, 0x71000000u, 0x60c20000u,
+   0x00710000u, 0x00000000u, 0xd2a80000u, 0x00000095u, 0x00000000u, 0x00000000u, 0xe2000000u, 0x00000070u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0xf2f20000u, 0x00000000u, 0x00d80000u,
+   0x00000000u, 0xd8009000u, 0x00000000u, 0x00000000u, 0x00020300u, 0x1d2d001du, 0x2d131313u, 0x1b1f1f2du,
+   0x1919191bu, 0x14111a1au, 0x10121214u, 0x242f1111u, 0x29292a2bu, 0x2a2c2c29u, 0x2a29272au, 0x24222221u,
+   0x22222124u, 0x20393922u, 0x39202020u, 0x3a37203au, 0x324a4a35u, 0x4b343432u, 0x32323232u, 0x32323232u,
+   0x49304a32u, 0x30303030u, 0x42595930u, 0x42424242u, 0x42424242u, 0x42424242u, 0x69424242u, 0x40404057u,
+   0x52404040u, 0x52525252u, 0x52525252u, 0x52525252u, 0x52525252u, 0x7a7a5252u, 0x62627a7au, 0x89626262u,
+   0x62626262u, 0x62626262u, 0x62626262u, 0x62626262u, 0x72999999u, 0x72727272u, 0x72727272u, 0x72727272u,
+   0xa9727272u, 0x72727272u, 0x82828272u, 0x82828295u, 0x82828282u, 0x828282b9u, 0x82828282u, 0xa5b8ce82u,
+   0xb8b8bab8u, 0x9292bab8u, 0xde919292u, 0xc8dec892u, 0x91c891c8u, 0xd9c8c8c8u, 0xe9b5a2c8u, 0xa1a1a2b5u,
+   0xd8eeeeeeu, 0xa2e9d8d8u, 0xd8b2e9e9u, 0xfbfbfec2u, 0x00020303u, 0x132d001du, 0x2d000013u, 0x18101312u,
+   0x1819104du, 0x23234d5du, 0x10131300u, 0x1010107du, 0x43002f8du, 0x00290028u, 0x32283600u, 0x39230000u,
+   0x00000000u, 0x003923bdu, 0x00420020u, 0x35420038u, 0xed4a2000u, 0x62340000u, 0x493300edu, 0x73008a00u,
+   0x30323059u, 0x30630045u, 0x00000030u, 0x44446244u, 0x42445858u, 0x43430000u, 0x92ba0000u, 0x69c26800u,
+   0x82695369u, 0x00000082u, 0x53530000u, 0x53000065u, 0x007992eau, 0x79790000u, 0x50000000u, 0xc2630064u,
+   0x007663a2u, 0x0000b300u, 0x00000000u, 0x00748900u, 0x00000000u, 0x00000000u, 0x0000b273u, 0x0060c200u,
+   0x00000000u, 0x00000000u, 0xa8a90000u, 0x00000095u, 0x00000000u, 0xd2000000u, 0x70e20000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x000000f2u, 0x00000000u, 0x00000000u, 0x00f2f200u, 0x00000000u, 0x00b5d800u,
+   0x00000000u, 0x00009000u, 0x00000000u, 0x00000000u, 0x30220000u, 0x8e60454au, 0xa872628fu, 0xb292c9a9u,
+   0x00000000u, 0x2d120000u, 0x2d12131du, 0x141f1f1bu, 0x1c191b1au, 0x1114191au, 0x112b5d14u, 0x2f242f2fu,
+   0x272a2922u, 0x282c2a7du, 0x2a2a228du, 0x3f3f2122u, 0x3a3a243fu, 0x38bd3022u, 0x3a3a3a39u, 0x4b373a39u,
+   0x344a3535u, 0x4b493449u, 0x49494849u, 0x48484848u, 0x4745455bu, 0x415a595au, 0x42303030u, 0x58585844u,
+   0x59586b58u, 0x41414141u, 0x6b415757u, 0x4055556bu, 0x68684040u, 0x68686868u, 0x677e517eu, 0x7b7b6767u,
+   0x65658b67u, 0x8a52788eu, 0x99788978u, 0x5061898eu, 0x75777789u, 0x88757575u, 0x88888888u, 0x89889e88u,
+   0x74858574u, 0x85858572u, 0x85858585u, 0x98989898u, 0x99719971u, 0xa9a9a972u, 0xbebe8295u, 0x82829582u,
+   0xa8be8282u, 0xc9b9c982u, 0x82b881ceu, 0x82ce8282u, 0xc28282ceu, 0xc9929292u, 0x92dea5a5u, 0x9292dedeu,
+   0xe992de92u, 0xe9929292u, 0xe992d9cbu, 0xeea2a2a2u, 0xf9a2eea2u, 0xeeeea2eeu, 0xfee9fea2u, 0xb3c5fef9u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x001b1212u, 0x00161f4du, 0x22000000u, 0x2b5d1111u, 0x00000020u,
+   0x00007d7du, 0x8d8d0000u, 0x008d2500u, 0x00000000u, 0x00220032u, 0x0067ad00u, 0x00000000u, 0x00dd0000u,
+   0x00000000u, 0x000062ddu, 0x00000052u, 0x48000000u, 0x00306b66u, 0x00000045u, 0x00000000u, 0x44000000u,
+   0x72580000u, 0x00990000u, 0x00000000u, 0x54000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00789200u, 0x00000000u, 0x00000000u, 0x00000064u, 0x00000000u, 0x00000000u, 0x00000000u, 0x0000e300u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0xd2a80000u, 0x0000d2c2u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x02040900u, 0x13120301u, 0x1b1b1b1du, 0x1b1a2d2du, 0x1a171f1au, 0x1112151bu, 0x125d5d11u, 0x2f28244du,
+   0x7d292933u, 0x2c2c2c7du, 0x252a8d8du, 0x21342732u, 0xadadad3bu, 0x39bd2239u, 0x393a3c39u, 0x393a3a49u,
+   0x32dd353au, 0x34494e49u, 0x48484849u, 0x32484848u, 0x3047454bu, 0x5b594949u, 0x58305930u, 0x58585858u,
+   0x59595858u, 0x57574141u, 0x6b414159u, 0x68695769u, 0x68526a68u, 0x54696868u, 0x6751517eu, 0x67676967u,
+   0x78656567u, 0x78788e78u, 0x64627978u, 0x62646464u, 0x75757577u, 0x75757575u, 0x88888888u, 0x9e9e8988u,
+   0x9b747262u, 0x8585aeaeu, 0x85ae8585u, 0x9885ae85u, 0x60a89998u, 0xbeaba9beu, 0x82bebebeu, 0x9595a882u,
+   0xa8bebe95u, 0xc98182ceu, 0x82ce81ceu, 0x828282b8u, 0x929282ceu, 0xa5929292u, 0xc8c99292u, 0x92929292u,
+   0xdec8de91u, 0x92d992e9u, 0xa2e9b5d9u, 0xb5a2a2eeu, 0xeea1a2a2u, 0xd8d8eea2u, 0xe8c2fea2u, 0xb3c5b2c5u,
+   0x02090200u, 0x1d000000u, 0x0000001du, 0x001b1400u, 0x00101f18u, 0x23001600u, 0x33000014u, 0x00000000u,
+   0x002a0000u, 0x008d0000u, 0x3a000000u, 0x32000000u, 0x00210024u, 0xed000000u, 0x00420020u, 0x35000000u,
+   0x00000000u, 0x00007300u, 0x00000000u, 0x736b0000u, 0x3000006bu, 0x00000000u, 0x00000000u, 0x00430000u,
+   0x00724344u, 0x00000042u, 0x67000000u, 0x00695500u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00790000u, 0x00000000u, 0x00008800u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000062u, 0x0000b200u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x02070d00u, 0x13130001u, 0x1b1c121du, 0x141a2d13u, 0x1c181f10u, 0x1112191cu, 0x125d5d11u, 0x2b28243du,
+   0x2f2f2933u, 0x2928287du, 0x252a2a2bu, 0x3f343439u, 0x393e3e21u, 0x3920224fu, 0x203a3838u, 0x4b3a3a3bu,
+   0x4a354b3au, 0x49494949u, 0x48594849u, 0x4c494848u, 0x3047454bu, 0x5b4a4959u, 0x5830305bu, 0x58585858u,
+   0x59594158u, 0x57574141u, 0x6b414159u, 0x7b555569u, 0x68526869u, 0x54696940u, 0x6767897fu, 0x67677b67u,
+   0x78786565u, 0x788e8e78u, 0x99787978u, 0x50776464u, 0x75887777u, 0x88757575u, 0x9e9e889eu, 0x729e9e9eu,
+   0x89727274u, 0x85858585u, 0x8585ae85u, 0x71989885u, 0x72be9999u, 0xbeababb9u, 0xbebebebeu, 0x9595be82u,
+   0xa9a89595u, 0xc9ce95a9u, 0xcecece81u, 0x928282ceu, 0x9292a592u, 0xa5a5c992u, 0xd992dea5u, 0x92e9dedeu,
+   0x92de9292u, 0xb5d99292u, 0xeea2eeeeu, 0xa2eeeea2u, 0xa2f9a1a2u, 0xd8d8a2a2u, 0xc2fefefeu, 0xb3b3b2feu,
+   0x02090200u, 0x1d000000u, 0x00000012u, 0x001b1017u, 0x001a1900u, 0x122b0015u, 0x00000000u, 0x00007d00u,
+   0x00003333u, 0x008d0000u, 0x00302500u, 0x00200000u, 0x00000000u, 0x0000004bu, 0x00390038u, 0x00dd0020u,
+   0x00340000u, 0x00000000u, 0x00000000u, 0x00007300u, 0x7230006bu, 0x00000032u, 0x00000000u, 0x00004400u,
+   0x41434100u, 0x00880000u, 0x00000000u, 0x40405500u, 0x00000068u, 0x00000069u, 0x51000000u, 0x00000053u,
+   0x00b27800u, 0x00000000u, 0x64000000u, 0x00000000u, 0x0000a200u, 0x00000000u, 0x00000000u, 0x00007400u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x95c20000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x33320000u, 0x6062bd34u, 0x97989f7au, 0xb191cbbau, 0x00000000u, 0x1c130000u, 0x1a1c1d1cu, 0x1c2d1812u,
+   0x1a1c1918u, 0x1615154du, 0x2f5d142fu, 0x282f2812u, 0x2a287d2fu, 0x2c282927u, 0x21252726u, 0x20202732u,
+   0x303e3e24u, 0x3a37bd3eu, 0x3b343c3cu, 0x39354949u, 0x32dd4a39u, 0x324e4e32u, 0xfd524934u, 0x4c4c4c4cu,
+   0x4a47324cu, 0x5b594949u, 0x5847415bu, 0x6b5c7f42u, 0x4159586bu, 0x6969726eu, 0x55554255u, 0x62575755u,
+   0x6a526a69u, 0x79796c40u, 0x65517e89u, 0x65525179u, 0x89676565u, 0x897c7c89u, 0x7a628e89u, 0x77898e88u,
+   0x89756277u, 0x99999977u, 0x9e9e9e9eu, 0xab99999eu, 0xaea9ab8au, 0x87aea9aeu, 0xaeaeaea9u, 0xaeaeaeaeu,
+   0xafa9a9aeu, 0xbebebebeu, 0xb9b9be99u, 0xa9bebeb9u, 0xbea895c9u, 0xcecebeceu, 0xc9c9c981u, 0xd9b870c9u,
+   0xb9ceced9u, 0x92d9ced9u, 0xded9d9d9u, 0xc8d9cb92u, 0xdee9e9e9u, 0xeeeeeedeu, 0xeee9eee9u, 0xa2eeeeeeu,
+   0xa2d8dbeeu, 0xf9c2eef9u, 0xf9c2d8ffu, 0xfdfef2feu, 0x00000000u, 0x00000000u, 0x00000000u, 0x001a1c00u,
+   0x00181814u, 0x00000000u, 0x00000012u, 0x00000000u, 0x00002c00u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x003a0000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x0000486bu, 0x00000000u, 0x00000000u, 0x00000000u, 0x42000000u, 0x00690000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x95000000u, 0x00000095u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x0a0a0d00u, 0x1c130003u, 0x1a1c1712u, 0x1a12131fu,
+   0x181a1a18u, 0x10141912u, 0x2f2f2f22u, 0x2811287du, 0x2f2a2b2fu, 0x8d282827u, 0x2925272bu, 0x3e6d212au,
+   0x39393e3eu, 0x3c37bdadu, 0x423c38edu, 0x3535493bu, 0x4a314a39u, 0x494b494au, 0x4c4c4934u, 0x59494c4cu,
+   0x4a4a325bu, 0x594a5959u, 0x305e475bu, 0x5c5a7f64u, 0x4158695cu, 0x41416e69u, 0x55555955u, 0x7b425555u,
+   0x797e527bu, 0x797e6c40u, 0x7e677e89u, 0x65797965u, 0x66896765u, 0x7c52788eu, 0x8e8e6282u, 0x778e8e8fu,
+   0x9977778bu, 0x9e999999u, 0x9e9e9e9eu, 0xa9a99e9eu, 0x85ae85a9u, 0xaea9a989u, 0xa285aeaeu, 0xaeae98aeu,
+   0xaeb99899u, 0x99a8bea2u, 0xbea8b9b9u, 0xbec9bea8u, 0xb9c9a8a8u, 0xcec9cea8u, 0xb8bbcec9u, 0xcecec9cfu,
+   0xcececed9u, 0xdededeceu, 0xd9d9ded9u, 0xe9c8d9deu, 0x92929292u, 0xeee9e9deu, 0xeeeea2eeu, 0xeeeee980u,
+   0xf9a2eeeeu, 0xa2c2a2eeu, 0xfea2d8feu, 0xfdfefec2u, 0x04070a00u, 0x00000000u, 0x00000000u, 0x00001200u,
+   0x004d0000u, 0x00000000u, 0x5d000011u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00440000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x6b000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00440000u, 0x00584100u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00650000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x0b090900u, 0x12000002u, 0x121b1d12u, 0x1f1b131fu,
+   0x1817171au, 0x10141512u, 0x2f2f2f5du, 0x2f242827u, 0x7d7d2b2fu, 0x2c2a2927u, 0x29258d8du, 0x3b392122u,
+   0xadadad3bu, 0xbdbdbd39u, 0x3a3c3c3cu, 0x39354942u, 0x3731dd4bu, 0x344b4e4eu, 0x4c9d9d34u, 0x4b4c4c4cu,
+   0x4a4a474au, 0x595e5949u, 0x7f424759u, 0x6bbd5c59u, 0x6941595cu, 0x4141726eu, 0x55695555u, 0x6c565755u,
+   0x6c685252u, 0x7e7e7e69u, 0x51517e89u, 0x65656579u, 0x8e896667u, 0x7c99788eu, 0x8e8e8e8eu, 0x7775898eu,
+   0x77777579u, 0x9e9e9999u, 0xa9889988u, 0x9ea9a989u, 0xa974a98au, 0xa9aeae87u, 0xaeae98a9u, 0xaeaeaeaeu,
+   0xbfa2b9aeu, 0x82b9b9beu, 0xa8a8b9a2u, 0xa9c9a8beu, 0xc9a9b9c9u, 0xcec9c982u, 0xc9c9a9c9u, 0xcecebab8u,
+   0xdecef3a7u, 0xd9d9dec9u, 0xb9ded9d9u, 0xde9292c8u, 0xdec9dedeu, 0xe9deeedfu, 0xa2e9e9d9u, 0xeef9f9eeu,
+   0xeea2a2f9u, 0xc2feeeeeu, 0xfef9a2a2u, 0xfdfde8d8u, 0x04040a00u, 0x00000000u, 0x0000001du, 0x0000001bu,
+   0x00100000u, 0x104d0000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00380000u, 0x00240000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000039u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00480045u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00720000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00530000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
+   0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x624d0000u, 0x88690053u, 0xa98b8a88u, 0xeaca9281u
+/* EAC_TM_LUT end */
+CEND
+
+/* Results of the helpers (no out parameters, see above). */
+GLOBAL uint g_w0;
+GLOBAL uint g_w1;
+GLOBAL int g_sub_t;
+GLOBAL uint g_sub_map;  /* ETC index of palette colour k at bits 2k */
+/* The index word of an ETC2 candidate is only packed for the winner: its
+ * index maps (as g_sub_map) for the half blocks of flip g_cflip. */
+GLOBAL uint g_cm0;
+GLOBAL uint g_cm1;
+GLOBAL int g_cflip;
+GLOBAL int g_eac_base;
+GLOBAL uint g_eac_map;  /* EAC index of palette entry k at bits 4k */
+GLOBAL uint g_out0;
+GLOBAL uint g_out1;
+GLOBAL uint g_out2;
+GLOBAL uint g_out3;
+
+int
+rnd(float x)
+{
+   return I(floor(x + 0.5));
+}
+
+int
+sq(int x)
+{
+   return x * x;
+}
+
+int
+clamp255(int x)
+{
+   return clamp(x, 0, 255);
+}
+
+uint
+bswap32(uint v)
+{
+   return (v >> 24) | ((v >> 8) & 0xff00u) | ((v << 8) & 0xff0000u) |
+          (v << 24);
+}
+
+/* ======================= BC1 palette, ETC2 RGB ======================= */
+
+/* BC1 palette colours (one int per channel) and indices (texel p = 4y + x
+ * at bits 2p). g_grp bit k: colour k is on the endpoint 1 side (H seed);
+ * g_c3t: colour 3 is the transparent black of 3-colour blocks. */
+GLOBAL int g_r0;
+GLOBAL int g_g0;
+GLOBAL int g_b0;
+GLOBAL int g_r1;
+GLOBAL int g_g1;
+GLOBAL int g_b1;
+GLOBAL int g_r2;
+GLOBAL int g_g2;
+GLOBAL int g_b2;
+GLOBAL int g_r3;
+GLOBAL int g_g3;
+GLOBAL int g_b3;
+GLOBAL uint g_ci;
+GLOBAL uint g_grp;
+GLOBAL bool g_c3t;
+
+/* Texel masks (bit 2p) of the half blocks and of the rows / columns. */
+#define HM_L 0x05050505u /* x < 2: subblock 0 of flip 0 */
+#define HM_R 0x50505050u
+#define HM_T 0x00005555u /* y < 2: subblock 0 of flip 1 */
+#define HM_B 0x55550000u
+#define HM_ALL 0x55555555u
+
+int
+pal_r(int k)
+{
+   return k == 0 ? g_r0 : (k == 1 ? g_r1 : (k == 2 ? g_r2 : g_r3));
+}
+
+int
+pal_g(int k)
+{
+   return k == 0 ? g_g0 : (k == 1 ? g_g1 : (k == 2 ? g_g2 : g_g3));
+}
+
+int
+pal_b(int k)
+{
+   return k == 0 ? g_b0 : (k == 1 ? g_b1 : (k == 2 ? g_b2 : g_b3));
+}
+
+int
+rgb_err(int r, int g, int b, int qr, int qg, int qb)
+{
+   return sq(r - qr) + sq(g - qg) + sq(b - qb);
+}
+
+/* Texels (bit 2p) that use palette colour k. */
+uint
+pal_mask(int k)
+{
+   uint lo = g_ci & HM_ALL;
+   uint hi = (g_ci >> 1) & HM_ALL;
+   uint m = ((k & 1) != 0) ? lo : (~lo & HM_ALL);
+   return m & (((k & 2) != 0) ? hi : (~hi & HM_ALL));
+}
+
+int
+pal_n(int k, uint hm)
+{
+   return bitCount(pal_mask(k) & hm);
+}
+
+/* Bit 2p -> bit p. */
+uint
+compact_even(uint x)
+{
+   x &= HM_ALL;
+   x = (x | (x >> 1)) & 0x33333333u;
+   x = (x | (x >> 2)) & 0x0f0f0f0fu;
+   x = (x | (x >> 4)) & 0x00ff00ffu;
+   x = (x | (x >> 8)) & 0x0000ffffu;
+   return x;
+}
+
+/* Bit 4y + x -> bit 4x + y. */
+uint
+transpose4(uint x)
+{
+   uint t = (x ^ (x >> 3)) & 0x0a0au;
+   x = x ^ t ^ (t << 3);
+   t = (x ^ (x >> 6)) & 0x00ccu;
+   x = x ^ t ^ (t << 6);
+   return x;
+}
+
+/* ETC1 index word from the index bit planes (texel bit 2p): the MSB plane
+ * at bit 16 + (4x + y), the LSB plane at bit 4x + y, big-endian. */
+uint
+etc_pack_planes(uint lsb, uint msb)
+{
+   return bswap32((transpose4(compact_even(msb)) << 16) |
+                  transpose4(compact_even(lsb)));
+}
+
+/* Index plane 'bit' of the texels in hm whose colour k has ETC index
+ * (map >> 2k) & 3. */
+uint
+etc_plane(uint map, uint hm, uint bit)
+{
+   uint v = 0u;
+   UNROLL for (int k = 0; k < 4; k++)
+      v |= ((map >> U(2 * k)) & bit) != 0u ? pal_mask(k) : 0u;
+   return v & hm;
+}
+
+/* Nearest of the 4 colours q0..q3 to palette colour k: (err << 2) | idx.
+ * no2: index 2 is not available (RGB8A1 transparent). */
+int
+etc_near(int k, int q0r, int q0g, int q0b, int q1r, int q1g, int q1b,
+         int q2r, int q2g, int q2b, int q3r, int q3g, int q3b, bool no2)
+{
+   int r = pal_r(k), g = pal_g(k), b = pal_b(k);
+   int be = rgb_err(r, g, b, q0r, q0g, q0b), bi = 0, e;
+   e = rgb_err(r, g, b, q1r, q1g, q1b); if (e < be) { be = e; bi = 1; }
+   e = no2 ? BIG_ERR : rgb_err(r, g, b, q2r, q2g, q2b); if (e < be) { be = e; bi = 2; }
+   e = rgb_err(r, g, b, q3r, q3g, q3b); if (e < be) { be = e; bi = 3; }
+   return (be << 2) | bi;
+}
+
+/* Luma offset (x3) of colour k from a base: what the ETC1 modifiers, which
+ * move all three channels, can follow. */
+int
+etc_u(int k, int br, int bg, int bb)
+{
+   return abs(pal_r(k) - br + pal_g(k) - bg + pal_b(k) - bb);
+}
+
+/* Exact error of ETC1 table t around (br, bg, bb) over the palette colours
+ * weighted by n0..n3; sets g_sub_map. */
+int
+etc_sub_exact(int t, int br, int bg, int bb, bool punch, int n0, int n1,
+              int n2, int n3)
+{
+   int a = punch ? 0 : ETC1_A[t], b = ETC1_B[t];
+   int q0r = clamp255(br + a), q0g = clamp255(bg + a), q0b = clamp255(bb + a);
+   int q1r = clamp255(br + b), q1g = clamp255(bg + b), q1b = clamp255(bb + b);
+   int q2r = clamp255(br - a), q2g = clamp255(bg - a), q2b = clamp255(bb - a);
+   int q3r = clamp255(br - b), q3g = clamp255(bg - b), q3b = clamp255(bb - b);
+   int r0 = etc_near(0, q0r, q0g, q0b, q1r, q1g, q1b, q2r, q2g, q2b, q3r, q3g, q3b, punch);
+   int r1 = etc_near(1, q0r, q0g, q0b, q1r, q1g, q1b, q2r, q2g, q2b, q3r, q3g, q3b, punch);
+   int r2 = etc_near(2, q0r, q0g, q0b, q1r, q1g, q1b, q2r, q2g, q2b, q3r, q3g, q3b, punch);
+   int r3 = etc_near(3, q0r, q0g, q0b, q1r, q1g, q1b, q2r, q2g, q2b, q3r, q3g, q3b, punch);
+   /* RGB8A1: colour 3 of a transparent block is index 2 (n3 is 0). */
+   uint i3 = punch ? 2u : U(r3 & 3);
+   g_sub_map = U(r0 & 3) | (U(r1 & 3) << 2) | (U(r2 & 3) << 4) | (i3 << 6);
+   return n0 * (r0 >> 2) + n1 * (r1 >> 2) + n2 * (r2 >> 2) +
+          (punch ? 0 : n3 * (r3 >> 2));
+}
+
+/* Error terms of a colour for modifier magnitudes a < b (a = 0 for
+ * punch-through) when nothing clamps: |c - base - m (1, 1, 1)|^2 =
+ * |d|^2 - 2 m u + 3 m^2 with d = c - base and u = d.r + d.g + d.b, so the
+ * best m has the sign of u and only 3 m^2 - 2 m |u| is compared. */
+int
+etc_mod_err(int au, int a, int b)
+{
+   return min(a * (3 * a - 2 * au), b * (3 * b - 2 * au));
+}
+
+/* ETC index of a colour with luma offset u for the table (a, b) without
+ * clamping: +a 0, +b 1, -a 2, -b 3 (punch-through: 0, +b, -b). */
+uint
+etc_mod_idx(int u, int a, int b, bool punch)
+{
+   int au = abs(u);
+   bool big = b * (3 * b - 2 * au) < a * (3 * a - 2 * au);
+   bool neg = u < 0 && (big || !punch);
+   return (big ? 1u : 0u) | (neg ? 2u : 0u);
+}
+
+/* Per-texel error above which a sub-block or H block also scores every
+ * clamping ETC1 table / H distance exactly (busy blocks, where clamping
+ * decides the best one), see etc_sub and etc_try_h. */
+#define ETC_BUSY_ERR 300
+
+/* Table t moves some channel of the base (lo..hi) out of 0..255. */
+bool
+etc_clamps(int t, int lo, int hi)
+{
+   return lo < ETC1_B[t] || hi > 255 - ETC1_B[t];
+}
+
+/* Best ETC1 table and indices for the texels of hm (minus tm) around base
+ * colour (br, bg, bb). punch: RGB8A1 with the opaque bit clear (index 2 is
+ * transparent, the small modifiers are 0). All 8 tables are scored in
+ * closed form from the luma offsets of the (at most 4) palette colours,
+ * which is exact while the table's colours stay in 0..255 and an upper
+ * bound when they clamp (clamping only moves them towards the palette).
+ * The best two are then scored exactly (per-colour search, etc_sub_exact)
+ * if they clamp (an unclamped runner-up cannot win), and every clamping
+ * table for busy blocks or with OPT_TAB8. */
+int
+etc_sub(uint hm, uint tm, int br, int bg, int bb, bool punch, uint opts)
+{
+   uint m = hm & ~tm;
+   int n0 = pal_n(0, m), n1 = pal_n(1, m), n2 = pal_n(2, m), n3 = pal_n(3, m);
+   int u0 = g_r0 - br + g_g0 - bg + g_b0 - bb;
+   int u1 = g_r1 - br + g_g1 - bg + g_b1 - bb;
+   int u2 = g_r2 - br + g_g2 - bg + g_b2 - bb;
+   int u3 = g_r3 - br + g_g3 - bg + g_b3 - bb;
+   int ss = n0 * rgb_err(g_r0, g_g0, g_b0, br, bg, bb) +
+            n1 * rgb_err(g_r1, g_g1, g_b1, br, bg, bb) +
+            n2 * rgb_err(g_r2, g_g2, g_b2, br, bg, bb) +
+            n3 * rgb_err(g_r3, g_g3, g_b3, br, bg, bb);
+   int au0 = abs(u0), au1 = abs(u1), au2 = abs(u2), au3 = abs(u3);
+   int lo = min(min(br, bg), bb), hi = max(max(br, bg), bb);
+
+   /* The two best tables in closed form, e1 <= e2. */
+   int e1 = BIG_ERR, t1 = 0, e2 = BIG_ERR, t2 = 0;
+   UNROLL for (int t = 0; t < 8; t++) {
+      int a = punch ? 0 : ETC1_A[t], b = ETC1_B[t];
+      int e = ss + n0 * etc_mod_err(au0, a, b) + n1 * etc_mod_err(au1, a, b) +
+              n2 * etc_mod_err(au2, a, b) + n3 * etc_mod_err(au3, a, b);
+      bool l1 = e < e1, l2 = e < e2;
+      e2 = l1 ? e1 : (l2 ? e : e2);
+      t2 = l1 ? t1 : (l2 ? t : t2);
+      e1 = l1 ? e : e1;
+      t1 = l1 ? t : t1;
+   }
+
+   /* Exact scores of the clamping ones; an exact winner keeps its map. */
+   int bt = t1, be = e1;
+   bool bx = false;
+   uint bm = 0u;
+   if (etc_clamps(t1, lo, hi)) {
+      be = etc_sub_exact(t1, br, bg, bb, punch, n0, n1, n2, n3);
+      bm = g_sub_map;
+      bx = true;
+   }
+   if (etc_clamps(t2, lo, hi)) {
+      int e = etc_sub_exact(t2, br, bg, bb, punch, n0, n1, n2, n3);
+      if (e < be) { be = e; bt = t2; bx = true; bm = g_sub_map; }
+   }
+   if ((opts & OPT_TAB8) != 0u || be > ETC_BUSY_ERR * (n0 + n1 + n2 + n3)) {
+      UNROLL for (int t = 0; t < 8; t++) {
+         if (t != t1 && t != t2 && etc_clamps(t, lo, hi)) {
+            int e = etc_sub_exact(t, br, bg, bb, punch, n0, n1, n2, n3);
+            if (e < be) { be = e; bt = t; bx = true; bm = g_sub_map; }
+         }
+      }
+   }
+
+   g_sub_t = bt;
+   if (bx) {
+      g_sub_map = bm;
+      return be;
+   }
+   int a = punch ? 0 : ETC1_A[bt], b = ETC1_B[bt];
+   /* RGB8A1: colour 3 of a transparent block is index 2 (n3 is 0). */
+   uint i3 = punch ? 2u : etc_mod_idx(u3, a, b, false);
+   g_sub_map = etc_mod_idx(u0, a, b, punch) | (etc_mod_idx(u1, a, b, punch) << 2) |
+               (etc_mod_idx(u2, a, b, punch) << 4) | (i3 << 6);
+   return be;
+}
+
+/* Colour sums of the texels of mask m. */
+int
+sum_r(uint m)
+{
+   return pal_n(0, m) * g_r0 + pal_n(1, m) * g_r1 + pal_n(2, m) * g_r2 +
+          pal_n(3, m) * g_r3;
+}
+
+int
+sum_g(uint m)
+{
+   return pal_n(0, m) * g_g0 + pal_n(1, m) * g_g1 + pal_n(2, m) * g_g2 +
+          pal_n(3, m) * g_g3;
+}
+
+int
+sum_b(uint m)
+{
+   return pal_n(0, m) * g_b0 + pal_n(1, m) * g_b1 + pal_n(2, m) * g_b2 +
+          pal_n(3, m) * g_b3;
+}
+
+/* Differential (or individual) mode with the given flip, from the colour
+ * sums and texel counts of its two halves. Writes g_w0/g_w1. */
+int
+etc_try_flip(int flip, bool punch_fmt, bool transparent, uint tm, float sr0,
+             float sg0, float sb0, float n0, float sr1, float sg1, float sb1,
+             float n1, uint opts)
+{
+   uint h0 = flip != 0 ? HM_T : HM_L;
+   uint h1 = flip != 0 ? HM_B : HM_R;
+
+   /* 5-bit endpoints and their delta. */
+   int r0 = clamp(rnd(sr0 * 31.0 / (255.0 * n0)), 0, 31);
+   int g0 = clamp(rnd(sg0 * 31.0 / (255.0 * n0)), 0, 31);
+   int b0 = clamp(rnd(sb0 * 31.0 / (255.0 * n0)), 0, 31);
+   int r1 = clamp(rnd(sr1 * 31.0 / (255.0 * n1)), 0, 31);
+   int g1 = clamp(rnd(sg1 * 31.0 / (255.0 * n1)), 0, 31);
+   int b1 = clamp(rnd(sb1 * 31.0 / (255.0 * n1)), 0, 31);
+   int dr = r1 - r0, dg = g1 - g0, db = b1 - b0;
+   bool fits = dr >= -4 && dr <= 3 && dg >= -4 && dg <= 3 && db >= -4 &&
+               db <= 3;
+   bool diff = fits || punch_fmt;
+
+   uint b0w, b1w, b2w;
+   int er0, eg0, eb0, er1, eg1, eb1;
+   if (diff) {
+      dr = clamp(dr, -4, 3);
+      dg = clamp(dg, -4, 3);
+      db = clamp(db, -4, 3);
+      r1 = r0 + dr; g1 = g0 + dg; b1 = b0 + db;
+      er0 = (r0 << 3) | (r0 >> 2); eg0 = (g0 << 3) | (g0 >> 2);
+      eb0 = (b0 << 3) | (b0 >> 2);
+      er1 = (r1 << 3) | (r1 >> 2); eg1 = (g1 << 3) | (g1 >> 2);
+      eb1 = (b1 << 3) | (b1 >> 2);
+      b0w = U((r0 << 3) | (dr & 7));
+      b1w = U((g0 << 3) | (dg & 7));
+      b2w = U((b0 << 3) | (db & 7));
+   } else {
+      int ir0 = clamp(rnd(sr0 * 15.0 / (255.0 * n0)), 0, 15);
+      int ig0 = clamp(rnd(sg0 * 15.0 / (255.0 * n0)), 0, 15);
+      int ib0 = clamp(rnd(sb0 * 15.0 / (255.0 * n0)), 0, 15);
+      int ir1 = clamp(rnd(sr1 * 15.0 / (255.0 * n1)), 0, 15);
+      int ig1 = clamp(rnd(sg1 * 15.0 / (255.0 * n1)), 0, 15);
+      int ib1 = clamp(rnd(sb1 * 15.0 / (255.0 * n1)), 0, 15);
+      er0 = ir0 * 17; eg0 = ig0 * 17; eb0 = ib0 * 17;
+      er1 = ir1 * 17; eg1 = ig1 * 17; eb1 = ib1 * 17;
+      b0w = U((ir0 << 4) | ir1);
+      b1w = U((ig0 << 4) | ig1);
+      b2w = U((ib0 << 4) | ib1);
+   }
+
+   int err = etc_sub(h0, tm, er0, eg0, eb0, transparent, opts);
+   int t0 = g_sub_t;
+   uint map0 = g_sub_map;
+   err += etc_sub(h1, tm, er1, eg1, eb1, transparent, opts);
+   int t1 = g_sub_t;
+   uint map1 = g_sub_map;
+
+   /* Bit 1 of byte 3 is the diff bit, or the opaque bit for RGB8A1. */
+   uint dbit = punch_fmt ? (transparent ? 0u : 2u) : (diff ? 2u : 0u);
+   uint b3w = (U(t0) << 5) | (U(t1) << 2) | dbit | U(flip);
+
+   g_w0 = b0w | (b1w << 8) | (b2w << 16) | (b3w << 24);
+   g_cm0 = map0;
+   g_cm1 = map1;
+   g_cflip = flip;
+   return err;
+}
+
+/* Byte whose (top5 + lut[low3]) must stay in 0..31: only an underflow is
+ * possible with bit 7 clear, and setting bit 7 fixes it. */
+uint
+etc_no_overflow(uint byte_v)
+{
+   int s = I(byte_v >> 3) + ETC_DIFF_LUT[byte_v & 7u];
+   return s < 0 ? (byte_v | 0x80u) : byte_v;
+}
+
+/* Byte with bits 7..5 and 2 free whose (top5 + lut[low3]) must leave
+ * 0..31, which selects the H (G byte) or planar (B byte) mode. */
+uint
+etc_force_overflow(uint byte_v)
+{
+   uint v1 = (byte_v >> 3) & 3u, v2 = byte_v & 3u;
+   return (v1 + v2 < 4u) ? (byte_v | 0x04u) : (byte_v | 0xe0u);
+}
+
+/* Exact H mode error of distance index i for the base colours a (group 0)
+ * and c (group 1); ge: colour a >= colour c as 444 words (the distance LSB
+ * then swaps them). Sets g_sub_map. */
+int
+etc_h_err(int i, bool ge, int ar, int ag, int ab, int cr, int cg, int cb,
+          int n0, int n1, int n2, int n3)
+{
+   bool swap = (i & 1) != (ge ? 1 : 0);
+   if (swap && ar == cr && ag == cg && ab == cb)
+      return BIG_ERR; /* equal colours: only odd distances */
+   int d = ETC_H_DIST[i];
+   int sr = swap ? cr : ar, sg = swap ? cg : ag, sb = swap ? cb : ab;
+   int tr = swap ? ar : cr, tg = swap ? ag : cg, tb = swap ? ab : cb;
+   int p0r = clamp255(sr + d), p0g = clamp255(sg + d), p0b = clamp255(sb + d);
+   int p1r = clamp255(sr - d), p1g = clamp255(sg - d), p1b = clamp255(sb - d);
+   int p2r = clamp255(tr + d), p2g = clamp255(tg + d), p2b = clamp255(tb + d);
+   int p3r = clamp255(tr - d), p3g = clamp255(tg - d), p3b = clamp255(tb - d);
+   int r0 = etc_near(0, p0r, p0g, p0b, p1r, p1g, p1b, p2r, p2g, p2b, p3r, p3g, p3b, false);
+   int r1 = etc_near(1, p0r, p0g, p0b, p1r, p1g, p1b, p2r, p2g, p2b, p3r, p3g, p3b, false);
+   int r2 = etc_near(2, p0r, p0g, p0b, p1r, p1g, p1b, p2r, p2g, p2b, p3r, p3g, p3b, false);
+   int r3 = etc_near(3, p0r, p0g, p0b, p1r, p1g, p1b, p2r, p2g, p2b, p3r, p3g, p3b, false);
+   g_sub_map = U(r0 & 3) | (U(r1 & 3) << 2) | (U(r2 & 3) << 4) | (U(r3 & 3) << 6);
+   return n0 * (r0 >> 2) + n1 * (r1 >> 2) + n2 * (r2 >> 2) + n3 * (r3 >> 2);
+}
+
+/* H mode: two 444 base colours +- a distance, seeded by the BC colour
+ * groups (endpoint 0 side, endpoint 1 side). Every distance is scored in
+ * closed form, the best (and a clamping runner-up) exactly; busy blocks
+ * and OPT_TAB8 score all 8 exactly. Equal base colours allow only the odd
+ * distances. */
+int
+etc_try_h(int n0, int n1, int n2, int n3, uint opts)
+{
+   bool g0 = (g_grp & 1u) != 0u, g1 = (g_grp & 2u) != 0u;
+   bool g2 = (g_grp & 4u) != 0u, g3 = (g_grp & 8u) != 0u;
+   int w00 = g0 ? 0 : n0, w01 = g1 ? 0 : n1, w02 = g2 ? 0 : n2, w03 = g3 ? 0 : n3;
+   int w10 = n0 - w00, w11 = n1 - w01, w12 = n2 - w02, w13 = n3 - w03;
+   int na = w00 + w01 + w02 + w03, nb = w10 + w11 + w12 + w13;
+   if (na == 0 || nb == 0)
+      return BIG_ERR;
+
+   float fa = 15.0 / (255.0 * F(na)), fb = 15.0 / (255.0 * F(nb));
+   int q0r = clamp(rnd(F(w00 * g_r0 + w01 * g_r1 + w02 * g_r2 + w03 * g_r3) * fa), 0, 15);
+   int q0g = clamp(rnd(F(w00 * g_g0 + w01 * g_g1 + w02 * g_g2 + w03 * g_g3) * fa), 0, 15);
+   int q0b = clamp(rnd(F(w00 * g_b0 + w01 * g_b1 + w02 * g_b2 + w03 * g_b3) * fa), 0, 15);
+   int q1r = clamp(rnd(F(w10 * g_r0 + w11 * g_r1 + w12 * g_r2 + w13 * g_r3) * fb), 0, 15);
+   int q1g = clamp(rnd(F(w10 * g_g0 + w11 * g_g1 + w12 * g_g2 + w13 * g_g3) * fb), 0, 15);
+   int q1b = clamp(rnd(F(w10 * g_b0 + w11 * g_b1 + w12 * g_b2 + w13 * g_b3) * fb), 0, 15);
+   int v0 = (q0r << 8) | (q0g << 4) | q0b;
+   int v1 = (q1r << 8) | (q1g << 4) | q1b;
+
+   int ar = q0r * 17, ag = q0g * 17, ab = q0b * 17;
+   int cr = q1r * 17, cg = q1g * 17, cb = q1b * 17;
+   bool ge = v0 >= v1;
+   /* Every distance in closed form (each colour takes the nearer base and
+    * the sign of its luma offset from it; exact while nothing clamps, an
+    * upper bound otherwise), then the best two exactly. */
+   int da0 = rgb_err(g_r0, g_g0, g_b0, ar, ag, ab), dc0 = rgb_err(g_r0, g_g0, g_b0, cr, cg, cb);
+   int da1 = rgb_err(g_r1, g_g1, g_b1, ar, ag, ab), dc1 = rgb_err(g_r1, g_g1, g_b1, cr, cg, cb);
+   int da2 = rgb_err(g_r2, g_g2, g_b2, ar, ag, ab), dc2 = rgb_err(g_r2, g_g2, g_b2, cr, cg, cb);
+   int da3 = rgb_err(g_r3, g_g3, g_b3, ar, ag, ab), dc3 = rgb_err(g_r3, g_g3, g_b3, cr, cg, cb);
+   int ua0 = 2 * etc_u(0, ar, ag, ab), uc0 = 2 * etc_u(0, cr, cg, cb);
+   int ua1 = 2 * etc_u(1, ar, ag, ab), uc1 = 2 * etc_u(1, cr, cg, cb);
+   int ua2 = 2 * etc_u(2, ar, ag, ab), uc2 = 2 * etc_u(2, cr, cg, cb);
+   int ua3 = 2 * etc_u(3, ar, ag, ab), uc3 = 2 * etc_u(3, cr, cg, cb);
+   int e1 = BIG_ERR, t1 = 0, e2 = BIG_ERR, t2 = 0;
+   UNROLL for (int i = 0; i < 8; i++) {
+      int d = ETC_H_DIST[i];
+      int e = (v0 == v1 && (i & 1) == 0) ? BIG_ERR :
+              48 * d * d + n0 * min(da0 - d * ua0, dc0 - d * uc0) +
+              n1 * min(da1 - d * ua1, dc1 - d * uc1) +
+              n2 * min(da2 - d * ua2, dc2 - d * uc2) +
+              n3 * min(da3 - d * ua3, dc3 - d * uc3);
+      bool l1 = e < e1, l2 = e < e2;
+      e2 = l1 ? e1 : (l2 ? e : e2);
+      t2 = l1 ? t1 : (l2 ? i : t2);
+      e1 = l1 ? e : e1;
+      t1 = l1 ? i : t1;
+   }
+   int err = etc_h_err(t1, ge, ar, ag, ab, cr, cg, cb, n0, n1, n2, n3);
+   int di = t1;
+   uint map = g_sub_map;
+   /* Without clamping the closed form is exact: the runner-up can only
+    * win if it clamps. */
+   int hlo = min(min(min(ar, ag), ab), min(min(cr, cg), cb));
+   int hhi = max(max(max(ar, ag), ab), max(max(cr, cg), cb));
+   int d2 = ETC_H_DIST[t2];
+   if (hlo < d2 || hhi > 255 - d2) {
+      int e = etc_h_err(t2, ge, ar, ag, ab, cr, cg, cb, n0, n1, n2, n3);
+      if (e < err) { err = e; di = t2; map = g_sub_map; }
+   }
+   if ((opts & OPT_TAB8) != 0u || err > ETC_BUSY_ERR * 16) {
+      for (int i = 0; i < 8; i++) {
+         int e = (i == t1 || i == t2) ? BIG_ERR : etc_h_err(i, ge, ar, ag, ab, cr, cg, cb, n0, n1, n2, n3);
+         if (e < err) { err = e; di = i; map = g_sub_map; }
+      }
+   }
+   bool swap = (di & 1) != (ge ? 1 : 0);
+   uint r1q = U(swap ? q1r : q0r), g1q = U(swap ? q1g : q0g),
+        b1q = U(swap ? q1b : q0b);
+   uint r2q = U(swap ? q0r : q1r), g2q = U(swap ? q0g : q1g),
+        b2q = U(swap ? q0b : q1b);
+   uint dib = U(di);
+
+   uint b0w = (r1q << 3) | (g1q >> 1);
+   uint b1w = ((g1q & 1u) << 4) | (b1q & 8u) | ((b1q >> 1) & 3u);
+   uint b2w = ((b1q & 1u) << 7) | (r2q << 3) | (g2q >> 1);
+   uint b3w = ((g2q & 1u) << 7) | (b2q << 3) | (((dib >> 2) & 1u) << 2) | 2u |
+              ((dib >> 1) & 1u);
+
+   b0w = etc_no_overflow(b0w);
+   b1w = etc_force_overflow(b1w);
+
+   g_w0 = b0w | (b1w << 8) | (b2w << 16) | (b3w << 24);
+   g_cm0 = map;
+   g_cm1 = map;
+   g_cflip = 0;
+   return err;
+}
+
+/* Planar mode: least-squares plane per channel, O/H/V in 676. */
+int
+etc_planar_q(float v, int maxq)
+{
+   return clamp(rnd(v * F(maxq) / 255.0), 0, maxq);
+}
+
+/* Sum of (2x - 3) (columns) or (2y - 3) (rows) over the texels of m. */
+int
+pos_x2(uint m)
+{
+   return -3 * bitCount(m & 0x01010101u) - bitCount(m & 0x04040404u) +
+          bitCount(m & 0x10101010u) + 3 * bitCount(m & 0x40404040u);
+}
+
+int
+pos_y2(uint m)
+{
+   return -3 * bitCount(m & 0x00000055u) - bitCount(m & 0x00005500u) +
+          bitCount(m & 0x00550000u) + 3 * bitCount(m & 0x55000000u);
+}
+
+/* Exact planar error of the expanded O/H/V colours over the 16 texels. */
+int
+etc_planar_err(int o_r, int o_g, int o_b, int h_r, int h_g, int h_b, int v_r,
+               int v_g, int v_b)
+{
+   int err = 0;
+   UNROLL for (int p = 0; p < 16; p++) {
+      int x = p & 3, y = p >> 2, k = I((g_ci >> U(2 * p)) & 3u);
+      int r = clamp255((x * (h_r - o_r) + y * (v_r - o_r) + 4 * o_r + 2) >> 2);
+      int g = clamp255((x * (h_g - o_g) + y * (v_g - o_g) + 4 * o_g + 2) >> 2);
+      int b = clamp255((x * (h_b - o_b) + y * (v_b - o_b) + 4 * o_b + 2) >> 2);
+      err += rgb_err(r, g, b, pal_r(k), pal_g(k), pal_b(k));
+   }
+   return err;
+}
+
+/* Planar mode for blocks whose least-squares plane residual (a lower
+ * bound of the planar error, up to rounding) is below 'limit': the plane
+ * in 676, then its exact error. */
+int
+etc_try_planar(int n0i, int n1i, int n2i, int n3i, int limit)
+{
+   uint m0 = pal_mask(0), m1 = pal_mask(1), m2 = pal_mask(2), m3 = pal_mask(3);
+   float n0 = F(n0i), n1 = F(n1i), n2 = F(n2i), n3 = F(n3i);
+   float x0 = F(pos_x2(m0)), x1 = F(pos_x2(m1)), x2 = F(pos_x2(m2)), x3 = F(pos_x2(m3));
+   float y0 = F(pos_y2(m0)), y1 = F(pos_y2(m1)), y2 = F(pos_y2(m2)), y3 = F(pos_y2(m3));
+   float r0 = F(g_r0), r1 = F(g_r1), r2 = F(g_r2), r3 = F(g_r3);
+   float gg0 = F(g_g0), gg1 = F(g_g1), gg2 = F(g_g2), gg3 = F(g_g3);
+   float bb0 = F(g_b0), bb1 = F(g_b1), bb2 = F(g_b2), bb3 = F(g_b3);
+
+   float mr = n0 * r0 + n1 * r1 + n2 * r2 + n3 * r3;
+   float mg = n0 * gg0 + n1 * gg1 + n2 * gg2 + n3 * gg3;
+   float mb = n0 * bb0 + n1 * bb1 + n2 * bb2 + n3 * bb3;
+   float xr = 0.5 * (x0 * r0 + x1 * r1 + x2 * r2 + x3 * r3);
+   float xg = 0.5 * (x0 * gg0 + x1 * gg1 + x2 * gg2 + x3 * gg3);
+   float xb = 0.5 * (x0 * bb0 + x1 * bb1 + x2 * bb2 + x3 * bb3);
+   float yr = 0.5 * (y0 * r0 + y1 * r1 + y2 * r2 + y3 * r3);
+   float yg = 0.5 * (y0 * gg0 + y1 * gg1 + y2 * gg2 + y3 * gg3);
+   float yb = 0.5 * (y0 * bb0 + y1 * bb1 + y2 * bb2 + y3 * bb3);
+   float ss = n0 * (r0 * r0 + gg0 * gg0 + bb0 * bb0) +
+              n1 * (r1 * r1 + gg1 * gg1 + bb1 * bb1) +
+              n2 * (r2 * r2 + gg2 * gg2 + bb2 * bb2) +
+              n3 * (r3 * r3 + gg3 * gg3 + bb3 * bb3);
+   float res = ss - (mr * mr + mg * mg + mb * mb) / 16.0 -
+               (xr * xr + xg * xg + xb * xb + yr * yr + yg * yg + yb * yb) / 20.0;
+   if (res >= F(limit))
+      return BIG_ERR;
+
+   /* c(x, y) = a + bx x + by y; sum (x - 1.5)^2 over the block is 20. */
+   float bxr = xr / 20.0, bxg = xg / 20.0, bxb = xb / 20.0;
+   float byr = yr / 20.0, byg = yg / 20.0, byb = yb / 20.0;
+   float ar = mr / 16.0 - 1.5 * (bxr + byr);
+   float ag = mg / 16.0 - 1.5 * (bxg + byg);
+   float ab = mb / 16.0 - 1.5 * (bxb + byb);
+
+   uint ro = U(etc_planar_q(ar, 63)), go = U(etc_planar_q(ag, 127)),
+        bo = U(etc_planar_q(ab, 63));
+   uint rh = U(etc_planar_q(ar + 4.0 * bxr, 63)),
+        gh = U(etc_planar_q(ag + 4.0 * bxg, 127)),
+        bh = U(etc_planar_q(ab + 4.0 * bxb, 63));
+   uint rv = U(etc_planar_q(ar + 4.0 * byr, 63)),
+        gv = U(etc_planar_q(ag + 4.0 * byg, 127)),
+        bv = U(etc_planar_q(ab + 4.0 * byb, 63));
+
+   uint b0w = (ro << 1) | (go >> 6);
+   uint b1w = ((go & 63u) << 1) | (bo >> 5);
+   uint b2w = (((bo >> 3) & 3u) << 3) | ((bo >> 1) & 3u);
+   uint b3w = ((bo & 1u) << 7) | ((rh >> 1) << 2) | 2u | (rh & 1u);
+   uint b4w = (gh << 1) | (bh >> 5);
+   uint b5w = ((bh & 31u) << 3) | (rv >> 3);
+   uint b6w = ((rv & 7u) << 5) | (gv >> 2);
+   uint b7w = ((gv & 3u) << 6) | bv;
+
+   b0w = etc_no_overflow(b0w);
+   b1w = etc_no_overflow(b1w);
+   b2w = etc_force_overflow(b2w);
+
+   g_w0 = b0w | (b1w << 8) | (b2w << 16) | (b3w << 24);
+   g_w1 = b4w | (b5w << 8) | (b6w << 16) | (b7w << 24);
+   return etc_planar_err(I((ro << 2) | (ro >> 4)), I((go << 1) | (go >> 6)),
+                         I((bo << 2) | (bo >> 4)), I((rh << 2) | (rh >> 4)),
+                         I((gh << 1) | (gh >> 6)), I((bh << 2) | (bh >> 4)),
+                         I((rv << 2) | (rv >> 4)), I((gv << 1) | (gv >> 6)),
+                         I((bv << 2) | (bv >> 4)));
+}
+
+/* ETC2 RGB8 / RGB8A1 block for the BC1 palette. Result in g_w0/g_w1,
+ * returns its error. Every candidate's error is exact; only the winner's
+ * index word is packed. */
+int
+etc2_encode_rgb(bool punch_fmt, uint opts)
+{
+   uint tm = (punch_fmt && g_c3t) ? pal_mask(3) : 0u;
+   bool transparent = tm != 0u;
+
+   /* Colour sums and texel counts of the four half blocks. */
+   uint ml = HM_L & ~tm, mr = HM_R & ~tm, mt = HM_T & ~tm, mb = HM_B & ~tm;
+   float lr = F(sum_r(ml)), lg = F(sum_g(ml)), lb = F(sum_b(ml));
+   float rr = F(sum_r(mr)), rg = F(sum_g(mr)), rb = F(sum_b(mr));
+   float tr = F(sum_r(mt)), tg = F(sum_g(mt)), tb = F(sum_b(mt));
+   float br = F(sum_r(mb)), bg = F(sum_g(mb)), bb = F(sum_b(mb));
+   float nl = F(max(bitCount(ml), 1)), nr = F(max(bitCount(mr), 1));
+   float nt = F(max(bitCount(mt), 1)), nb = F(max(bitCount(mb), 1));
+
+   /* The flip whose halves have the larger |sum|^2 / n has the smaller
+    * variance inside its halves: it goes first. */
+   float s0 = (lr * lr + lg * lg + lb * lb) / nl + (rr * rr + rg * rg + rb * rb) / nr;
+   float s1 = (tr * tr + tg * tg + tb * tb) / nt + (br * br + bg * bg + bb * bb) / nb;
+   int flip = s1 > s0 ? 1 : 0;
+   bool f = flip != 0;
+
+   int best = etc_try_flip(flip, punch_fmt, transparent, tm, f ? tr : lr,
+                           f ? tg : lg, f ? tb : lb, f ? nt : nl, f ? br : rr,
+                           f ? bg : rg, f ? bb : rb, f ? nb : nr, opts);
+   uint w0 = g_w0, w1 = 0u, cm0 = g_cm0, cm1 = g_cm1;
+   int cf = g_cflip, e;
+   bool planar = false;
+
+   /* H and planar have no transparent texels. */
+   int n0 = pal_n(0, HM_ALL), n1 = pal_n(1, HM_ALL);
+   int n2 = pal_n(2, HM_ALL), n3 = pal_n(3, HM_ALL);
+   if (!transparent && best > 0 && (opts & OPT_HMODE) != 0u) {
+      e = etc_try_h(n0, n1, n2, n3, opts);
+      if (e < best) { best = e; w0 = g_w0; cm0 = g_cm0; cm1 = g_cm1; cf = g_cflip; }
+   }
+   if (!transparent && best > 0 && (opts & OPT_PLANAR) != 0u) {
+      e = etc_try_planar(n0, n1, n2, n3, best);
+      if (e < best) { best = e; w0 = g_w0; w1 = g_w1; planar = true; }
+   }
+   /* The other flip unless it cannot plausibly win: its halves' variance
+    * exceeds this one's by much more than the error left (OPT_FLIPS:
+    * always). */
+   float ds = s1 > s0 ? s1 - s0 : s0 - s1;
+   if (((opts & OPT_FLIPS) != 0u && best > 0) || F(best) * 32.0 > ds) {
+      e = etc_try_flip(1 - flip, punch_fmt, transparent, tm, f ? lr : tr,
+                       f ? lg : tg, f ? lb : tb, f ? nl : nt, f ? rr : br,
+                       f ? rg : bg, f ? rb : bb, f ? nr : nb, opts);
+      if (e < best) { best = e; w0 = g_w0; cm0 = g_cm0; cm1 = g_cm1; cf = g_cflip; planar = false; }
+   }
+   g_w0 = w0;
+   if (planar) {
+      g_w1 = w1;
+   } else {
+      uint h0 = cf != 0 ? HM_T : HM_L, h1 = cf != 0 ? HM_B : HM_R;
+      g_w1 = etc_pack_planes(etc_plane(cm0, h0, 1u) | etc_plane(cm1, h1, 1u),
+                             etc_plane(cm0, h0, 2u) | etc_plane(cm1, h1, 2u));
+   }
+   return best;
+}
+
+/* ============================ EAC ============================ */
+
+/* RGTC palette in the EAC domain of the block, BC indices per texel (3
+ * bits, texels 0-7 in g_bi0, 8-15 in g_bi1), texels per palette entry (8
+ * bits each, entries 0-3 in g_n0, 4-7 in g_n1). g_six: 6-value block whose
+ * 0 / 1 entries are unused. */
+GLOBAL int g_pv0;
+GLOBAL int g_pv1;
+GLOBAL int g_pv2;
+GLOBAL int g_pv3;
+GLOBAL int g_pv4;
+GLOBAL int g_pv5;
+GLOBAL int g_pv6;
+GLOBAL int g_pv7;
+GLOBAL uint g_bi0;
+GLOBAL uint g_bi1;
+GLOBAL uint g_n0;
+GLOBAL uint g_n1;
+GLOBAL bool g_six;
+
+int
+pv(int k)
+{
+   return k < 4 ? (k < 2 ? (k == 0 ? g_pv0 : g_pv1) : (k == 2 ? g_pv2 : g_pv3))
+                : (k < 6 ? (k == 4 ? g_pv4 : g_pv5) : (k == 6 ? g_pv6 : g_pv7));
+}
+
+int
+pv_n(int k)
+{
+   return I(((k < 4 ? g_n0 : g_n1) >> U(8 * (k & 3))) & 255u);
+}
+
+uint
+texel_bi(int p)
+{
+   return ((p < 8 ? g_bi0 : g_bi1) >> U(3 * (p & 7))) & 7u;
+}
+
+/* kind 0: ETC2 alpha (0..255), 1: R11 (0..2047), 2: signed R11
+ * (-1023..1023). */
+int
+eac_off(int kind, int mult, int mod)
+{
+   int d = kind == 0 ? mod * mult : (mult == 0 ? mod : mod * mult * 8);
+   return kind == 1 ? d + 4 : d;
+}
+
+/* LUT key of a palette span (in the kind's domain): the span in BC
+ * endpoint units, per EAC domain and 6-value flag. */
+int
+eac_key(int kind, int span, bool six)
+{
+   int s = kind == 0 ? span
+                     : rnd(F(span) * (kind == 1 ? 255.0 / 2047.0 : 127.0 / 1023.0));
+   return (kind * 2 + (six ? 1 : 0)) * 256 + clamp(s, 0, 255);
+}
+
+/* Candidate c (table | mult << 4) for a key. */
+int
+eac_lut(int key, int c)
+{
+   int i = c * EAC_NKEY + key;
+   return I((EAC_TM_LUT[i >> 2] >> U(8 * (i & 3))) & 255u);
+}
+
+
+int
+eac_cands(uint opts)
+{
+   return EAC_MAX_CANDS - I((opts >> 20) & 3u);
+}
+
+/* BC2 (4-bit alpha, its own LUT keys) needs fewer: 2 by default. */
+int
+eac_cands_bc2(uint opts)
+{
+   return max(eac_cands(opts) - 2, 1);
+}
+
+int
+eac_scale(int kind)
+{
+   return kind == 0 ? 1 : 8;
+}
+
+int
+eac_bmin(int kind)
+{
+   return kind == 2 ? -127 : 0;
+}
+
+int
+eac_bmax(int kind)
+{
+   return kind == 2 ? 127 : 255;
+}
+
+/* Centred base codeword for (table, mult) over [lo, hi]. */
+int
+eac_center(int kind, int t, int mult, int lo, int hi)
+{
+   float c = 0.5 * F(lo + hi) -
+             0.5 * F(eac_off(kind, mult, EAC_MOD[t * 8 + 3]) +
+                     eac_off(kind, mult, EAC_MOD[t * 8 + 7]));
+   return clamp(rnd(c / F(eac_scale(kind))), eac_bmin(kind), eac_bmax(kind));
+}
+
+/* Level spacing of a multiplier, and the level offset of base 0. */
+int
+eac_step(int kind, int mult)
+{
+   return kind == 0 ? mult : (mult == 0 ? 1 : 8 * mult);
+}
+
+int
+eac_c0(int kind)
+{
+   return kind == 1 ? 4 : 0;
+}
+
+int
+eac_clampv(int kind, int v)
+{
+   return kind == 2 ? clamp(v, -1023, 1023) : clamp(v, 0, kind == 0 ? 255 : 2047);
+}
+
+/* The 8 EAC levels being tried, clamped, in ascending order (modifier
+ * indices 3, 2, 1, 0, 4, 5, 6, 7 in every table): the lowest one, twice
+ * the midpoints and the gaps between neighbours. */
+GLOBAL int g_s0;
+GLOBAL int g_h0;
+GLOBAL int g_h1;
+GLOBAL int g_h2;
+GLOBAL int g_h3;
+GLOBAL int g_h4;
+GLOBAL int g_h5;
+GLOBAL int g_h6;
+GLOBAL int g_d0;
+GLOBAL int g_d1;
+GLOBAL int g_d2;
+GLOBAL int g_d3;
+GLOBAL int g_d4;
+GLOBAL int g_d5;
+GLOBAL int g_d6;
+
+void
+eac_levels(int l0, int l1, int l2, int l3, int l4, int l5, int l6, int l7)
+{
+   g_s0 = l3;
+   g_h0 = l3 + l2; g_d0 = l2 - l3;
+   g_h1 = l2 + l1; g_d1 = l1 - l2;
+   g_h2 = l1 + l0; g_d2 = l0 - l1;
+   g_h3 = l0 + l4; g_d3 = l4 - l0;
+   g_h4 = l4 + l5; g_d4 = l5 - l4;
+   g_h5 = l5 + l6; g_d5 = l6 - l5;
+   g_h6 = l6 + l7; g_d6 = l7 - l6;
+}
+
+/* Nearest level to v, exactly (clamped levels included): (squared error
+ * << 3) | modifier index. 7 compares instead of 8 distances. */
+int
+eac_near(int v)
+{
+   int v2 = 2 * v;
+   bool c0 = v2 > g_h0, c1 = v2 > g_h1, c2 = v2 > g_h2, c3 = v2 > g_h3;
+   bool c4 = v2 > g_h4, c5 = v2 > g_h5, c6 = v2 > g_h6;
+   int lv = g_s0 + (c0 ? g_d0 : 0) + (c1 ? g_d1 : 0) + (c2 ? g_d2 : 0) +
+            (c3 ? g_d3 : 0) + (c4 ? g_d4 : 0) + (c5 ? g_d5 : 0) + (c6 ? g_d6 : 0);
+   int pos = (c0 ? 1 : 0) + (c1 ? 1 : 0) + (c2 ? 1 : 0) + (c3 ? 1 : 0) +
+             (c4 ? 1 : 0) + (c5 ? 1 : 0) + (c6 ? 1 : 0);
+   return (sq(v - lv) << 3) | (pos < 4 ? 3 - pos : pos);
+}
+
+/* BC2 alpha: the 4-bit alpha of texel p in the 8-bit domain (its exact
+ * decode), from the block words g_aw0 / g_aw1. g_isbc2: the EAC encoder
+ * works on the 16 texels instead of the RGTC palette. */
+GLOBAL bool g_isbc2;
+GLOBAL uint g_aw0;
+GLOBAL uint g_aw1;
+
+int
+bc2_v(uint w0, uint w1, int p)
+{
+   return I(((p < 8 ? w0 : w1) >> U(4 * (p & 7))) & 15u) * 17;
+}
+
+/* Results of eac_eval: the EAC index of RGTC palette entry k at bits 4k
+ * (g_eac_map), or of BC2 texel p at bits 3p of g_eac_bi0 / g_eac_bi1, and
+ * the numerator of the least-squares base for those indices. */
+GLOBAL int g_eac_num;
+GLOBAL uint g_eac_bi0;
+GLOBAL uint g_eac_bi1;
+
+/* Exact EAC error of (table t, mult, base) over the 16 texels: the 8
+ * clamped levels, the nearest one for each palette entry (or BC2 texel). */
+int
+eac_eval(int kind, int t, int mult, int base)
+{
+   int step = eac_step(kind, mult), c0 = eac_c0(kind);
+   int bc = base * eac_scale(kind) + c0;
+   eac_levels(eac_clampv(kind, bc + EAC_MOD[t * 8 + 0] * step),
+              eac_clampv(kind, bc + EAC_MOD[t * 8 + 1] * step),
+              eac_clampv(kind, bc + EAC_MOD[t * 8 + 2] * step),
+              eac_clampv(kind, bc + EAC_MOD[t * 8 + 3] * step),
+              eac_clampv(kind, bc + EAC_MOD[t * 8 + 4] * step),
+              eac_clampv(kind, bc + EAC_MOD[t * 8 + 5] * step),
+              eac_clampv(kind, bc + EAC_MOD[t * 8 + 6] * step),
+              eac_clampv(kind, bc + EAC_MOD[t * 8 + 7] * step));
+
+   if (g_isbc2) {
+      uint i0 = 0u, i1 = 0u;
+      int err = 0, num = 0;
+      UNROLL for (int p = 0; p < 16; p++) {
+         int v = bc2_v(g_aw0, g_aw1, p);
+         int r = eac_near(v);
+         err += r >> 3;
+         num += v - EAC_MOD[t * 8 + (r & 7)] * step;
+         if (p < 8)
+            i0 |= U(r & 7) << U(3 * p);
+         else
+            i1 |= U(r & 7) << U(3 * (p - 8));
+      }
+      g_eac_bi0 = i0;
+      g_eac_bi1 = i1;
+      g_eac_map = 0x76543210u; /* entry k -> index k */
+      g_eac_num = num;
+      return err;
+   }
+
+   int r0 = eac_near(g_pv0), r1 = eac_near(g_pv1);
+   int r2 = eac_near(g_pv2), r3 = eac_near(g_pv3);
+   int r4 = eac_near(g_pv4), r5 = eac_near(g_pv5);
+   int r6 = eac_near(g_pv6), r7 = eac_near(g_pv7);
+   int n0 = I(g_n0 & 255u), n1 = I((g_n0 >> 8) & 255u);
+   int n2 = I((g_n0 >> 16) & 255u), n3 = I(g_n0 >> 24);
+   int n4 = I(g_n1 & 255u), n5 = I((g_n1 >> 8) & 255u);
+   int n6 = I((g_n1 >> 16) & 255u), n7 = I(g_n1 >> 24);
+   g_eac_map = U(r0 & 7) | (U(r1 & 7) << 4) | (U(r2 & 7) << 8) |
+               (U(r3 & 7) << 12) | (U(r4 & 7) << 16) | (U(r5 & 7) << 20) |
+               (U(r6 & 7) << 24) | (U(r7 & 7) << 28);
+   g_eac_num = n0 * g_pv0 + n1 * g_pv1 + n2 * g_pv2 + n3 * g_pv3 +
+               n4 * g_pv4 + n5 * g_pv5 + n6 * g_pv6 + n7 * g_pv7 - 16 * c0 -
+               step * (n0 * EAC_MOD[t * 8 + (r0 & 7)] + n1 * EAC_MOD[t * 8 + (r1 & 7)] +
+                       n2 * EAC_MOD[t * 8 + (r2 & 7)] + n3 * EAC_MOD[t * 8 + (r3 & 7)] +
+                       n4 * EAC_MOD[t * 8 + (r4 & 7)] + n5 * EAC_MOD[t * 8 + (r5 & 7)] +
+                       n6 * EAC_MOD[t * 8 + (r6 & 7)] + n7 * EAC_MOD[t * 8 + (r7 & 7)]);
+   return n0 * (r0 >> 3) + n1 * (r1 >> 3) + n2 * (r2 >> 3) + n3 * (r3 >> 3) +
+          n4 * (r4 >> 3) + n5 * (r5 >> 3) + n6 * (r6 >> 3) + n7 * (r7 >> 3);
+}
+
+/* Best (table | mult << 4), base and indices so far. */
+GLOBAL int g_eb_err;
+GLOBAL int g_eb_tm;
+GLOBAL int g_eb_base;
+GLOBAL uint g_eb_map;
+GLOBAL uint g_eb_bi0;
+GLOBAL uint g_eb_bi1;
+
+void
+eac_try(int kind, int t, int mult, int base)
+{
+   int e = eac_eval(kind, t, mult, base);
+   if (e < g_eb_err) {
+      g_eb_err = e;
+      g_eb_tm = t | (mult << 4);
+      g_eb_base = base;
+      g_eb_map = g_eac_map;
+      g_eb_bi0 = g_eac_bi0;
+      g_eb_bi1 = g_eac_bi1;
+   }
+}
+
+/* (t, mult): the centred base, then the least-squares base of its
+ * indices. */
+void
+eac_try_tm(int kind, int t, int mult, int lo, int hi)
+{
+   int b = eac_center(kind, t, mult, lo, hi);
+   eac_try(kind, t, mult, b);
+   int b2 = clamp(rnd(F(g_eac_num) / F(16 * eac_scale(kind))), eac_bmin(kind),
+                  eac_bmax(kind));
+   if (b2 != b)
+      eac_try(kind, t, mult, b2);
+}
+
+/* Error of one (table | mult << 4) tm alone (tests/bc-host/gen_eac_lut). */
+int
+eac_try_pal(int kind, int tm, int lo, int hi)
+{
+   g_eb_err = BIG_ERR;
+   eac_try_tm(kind, tm & 15, tm >> 4, lo, hi);
+   return g_eb_err;
+}
+
+/* EAC search over [lo, hi] with LUT key 'key': the first 'cands'
+ * (table, mult) candidates of the LUT, each at its centred and its
+ * least-squares base, then the best one at base +- 1 (stopping at an exact
+ * fit). Leaves the result in g_eb_*, returns (table | mult << 4). */
+int
+eac_search(int kind, int key, int lo, int hi, int cands)
+{
+   g_eb_err = BIG_ERR;
+   g_eb_tm = eac_lut(key, 0);
+   g_eb_base = 0;
+   g_eb_map = 0u;
+   g_eb_bi0 = 0u;
+   g_eb_bi1 = 0u;
+   UNROLL for (int c = 0; c < EAC_MAX_CANDS; c++) {
+      if (c < cands && g_eb_err > 0) {
+         int tm = eac_lut(key, c);
+         eac_try_tm(kind, tm & 15, tm >> 4, lo, hi);
+      }
+   }
+   int t = g_eb_tm & 15, m = g_eb_tm >> 4, b = g_eb_base;
+   if (g_eb_err > 0 && b < eac_bmax(kind))
+      eac_try(kind, t, m, b + 1);
+   if (g_eb_err > 0 && b > eac_bmin(kind))
+      eac_try(kind, t, m, b - 1);
+   return g_eb_tm;
+}
+
+/* Range of the palette entries the block uses. */
+int
+pal_hi()
+{
+   int hi = -0x7fff;
+   UNROLL for (int k = 0; k < 8; k++)
+      hi = pv_n(k) != 0 ? max(hi, pv(k)) : hi;
+   return hi;
+}
+
+int
+pal_lo()
+{
+   int lo = 0x7fff;
+   UNROLL for (int k = 0; k < 8; k++)
+      lo = pv_n(k) != 0 ? min(lo, pv(k)) : lo;
+   return lo;
+}
+
+/* EAC for the RGTC palette. Sets g_eac_base / g_eac_map and the error in
+ * g_sub_t, returns (table | mult << 4). */
+int
+eac_encode_pal(int kind, bool bc2, uint opts)
+{
+   int lo = pal_lo(), hi = pal_hi();
+   g_isbc2 = false;
+   int key = bc2 ? EAC_KEY_BC2 + (hi - lo) / 17 : eac_key(kind, hi - lo, g_six);
+   int tm = eac_search(kind, key, lo, hi, bc2 ? eac_cands_bc2(opts) : eac_cands(opts));
+   g_eac_base = g_eb_base;
+   g_eac_map = g_eb_map;
+   g_sub_t = g_eb_err;
+   return tm;
+}
+
+/* Lowest set bit of m (32 when m is 0). */
+int
+lsb_pos(uint m)
+{
+   return bitCount((m & (~m + 1u)) - 1u);
+}
+
+/* BC2 alpha (16 texels of 4 bits). With at most 8 distinct values the
+ * block becomes an RGTC-like palette (entry k: the k-th smallest value,
+ * texel indices = entry ranks) and takes eac_encode_pal. Otherwise the
+ * same search runs on the 16 exact texel values, whose EAC indices go to
+ * g_bi0 / g_bi1 (g_eac_map is the identity). */
+int
+eac_encode_bc2(uint w0, uint w1, uint opts)
+{
+   uint vm = 0u;
+   UNROLL for (int p = 0; p < 16; p++)
+      vm |= 1u << U(bc2_v(w0, w1, p) / 17);
+
+   if (bitCount(vm) <= 8) {
+      uint m = vm;
+      g_pv0 = 17 * lsb_pos(m); m &= m - 1u;
+      g_pv1 = 17 * lsb_pos(m); m &= m - 1u;
+      g_pv2 = 17 * lsb_pos(m); m &= m - 1u;
+      g_pv3 = 17 * lsb_pos(m); m &= m - 1u;
+      g_pv4 = 17 * lsb_pos(m); m &= m - 1u;
+      g_pv5 = 17 * lsb_pos(m); m &= m - 1u;
+      g_pv6 = 17 * lsb_pos(m); m &= m - 1u;
+      g_pv7 = 17 * lsb_pos(m);
+      uint i0 = 0u, i1 = 0u, n0 = 0u, n1 = 0u;
+      UNROLL for (int p = 0; p < 16; p++) {
+         uint b = U(bitCount(vm & ((1u << U(bc2_v(w0, w1, p) / 17)) - 1u)));
+         if (p < 8)
+            i0 |= b << U(3 * p);
+         else
+            i1 |= b << U(3 * (p - 8));
+         uint inc = 1u << (8u * (b & 3u));
+         n0 += b < 4u ? inc : 0u;
+         n1 += b < 4u ? 0u : inc;
+      }
+      g_bi0 = i0;
+      g_bi1 = i1;
+      g_n0 = n0;
+      g_n1 = n1;
+      g_six = false;
+      return eac_encode_pal(0, true, opts);
+   }
+
+   int lo = 255, hi = 0;
+   UNROLL for (int p = 0; p < 16; p++) {
+      lo = min(lo, bc2_v(w0, w1, p));
+      hi = max(hi, bc2_v(w0, w1, p));
+   }
+   g_isbc2 = true;
+   g_aw0 = w0;
+   g_aw1 = w1;
+   int tm = eac_search(0, EAC_KEY_BC2 + (hi - lo) / 17, lo, hi, eac_cands_bc2(opts));
+   g_isbc2 = false;
+   g_bi0 = g_eb_bi0;
+   g_bi1 = g_eb_bi1;
+   g_eac_base = g_eb_base;
+   g_eac_map = 0x76543210u;
+   g_sub_t = g_eb_err;
+   return tm;
+}
+
+/* EAC block words: base, mult << 4 | table, then the 48 index bits
+ * big-endian, pixel (x, y) at bit 45 - 3 (4x + y). Texel indices are
+ * g_eac_map applied to the BC indices. */
+void
+eac_emit(int tm)
+{
+   uint ihi = 0u, ilo = 0u;
+   UNROLL for (int p = 0; p < 16; p++) {
+      uint bi = (g_eac_map >> (texel_bi(p) << 2)) & 7u;
+      int pos = 45 - 3 * ((p & 3) * 4 + (p >> 2));
+      if (pos >= 32) {
+         ihi |= bi << U(pos - 32);
+      } else {
+         ilo |= bi << U(pos);
+         if (pos + 3 > 32)
+            ihi |= bi >> U(32 - pos);
+      }
+   }
+   uint b0w = U(g_eac_base) & 0xffu;
+   uint b1w = U(tm);
+   g_w0 = b0w | (b1w << 8) | (((ihi >> 8) & 0xffu) << 16) |
+          ((ihi & 0xffu) << 24);
+   g_w1 = bswap32(ilo);
+}
+
+/* ---- BC decoders (same arithmetic as the exact decode shaders) ---- */
+
+int
+unorm8(float f)
+{
+   return clamp(rnd(f * 255.0), 0, 255);
+}
+
+/* BC1 colour block (words c0, c1): every palette entry is the expression
+ * the per-texel exact decode evaluates. */
+void
+bc_decode_color(uint c0w, uint c1w, bool four)
+{
+   uint e0 = c0w & 0xffffu, e1 = c0w >> 16;
+   bool opaque = four || e0 > e1;
+   float r0 = F((e0 >> 11) & 31u) / 31.0, g0 = F((e0 >> 5) & 63u) / 63.0,
+         b0 = F(e0 & 31u) / 31.0;
+   float r1 = F((e1 >> 11) & 31u) / 31.0, g1 = F((e1 >> 5) & 63u) / 63.0,
+         b1 = F(e1 & 31u) / 31.0;
+
+   float f2 = opaque ? (1.0 / 3.0) * F(1) : 0.5;
+   float f3 = (1.0 / 3.0) * F(2);
+   g_r0 = unorm8(r0);
+   g_g0 = unorm8(g0);
+   g_b0 = unorm8(b0);
+   g_r1 = unorm8(r0 + (r1 - r0) * 1.0);
+   g_g1 = unorm8(g0 + (g1 - g0) * 1.0);
+   g_b1 = unorm8(b0 + (b1 - b0) * 1.0);
+   g_r2 = unorm8(r0 + (r1 - r0) * f2);
+   g_g2 = unorm8(g0 + (g1 - g0) * f2);
+   g_b2 = unorm8(b0 + (b1 - b0) * f2);
+   g_r3 = opaque ? unorm8(r0 + (r1 - r0) * f3) : 0;
+   g_g3 = opaque ? unorm8(g0 + (g1 - g0) * f3) : 0;
+   g_b3 = opaque ? unorm8(b0 + (b1 - b0) * f3) : 0;
+   g_ci = c1w;
+   g_grp = opaque ? 0xau : 0xeu;
+   g_c3t = !opaque;
+}
+
+/* RGTC/BC3 alpha channel (words a0, a1) as floats in [0, 1] / [-1, 1],
+ * converted to the EAC domain of 'kind'. */
+int
+rgtc_out(float res, int kind)
+{
+   if (kind == 0)
+      return unorm8(res);
+   if (kind == 1)
+      return clamp(rnd(res * 2047.0), 0, 2047);
+   return clamp(rnd(res * 1023.0), -1023, 1023);
+}
+
+void
+bc_decode_rgtc(uint a0w, uint a1w, bool snorm, int kind)
+{
+   float ep0, ep1;
+   if (snorm) {
+      ep0 = max(F(I(a0w << 24) >> 24) / 127.0, -1.0);
+      ep1 = max(F(I(a0w << 16) >> 24) / 127.0, -1.0);
+   } else {
+      ep0 = F(a0w & 0xffu) / 255.0;
+      ep1 = F((a0w >> 8) & 0xffu) / 255.0;
+   }
+   bool range7 = ep0 > ep1;
+
+   g_pv0 = rgtc_out(ep0, kind);
+   g_pv1 = rgtc_out(ep1, kind);
+   if (range7) {
+      g_pv2 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 7.0) * F(1u)), kind);
+      g_pv3 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 7.0) * F(2u)), kind);
+      g_pv4 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 7.0) * F(3u)), kind);
+      g_pv5 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 7.0) * F(4u)), kind);
+      g_pv6 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 7.0) * F(5u)), kind);
+      g_pv7 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 7.0) * F(6u)), kind);
+   } else {
+      g_pv2 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 5.0) * F(1u)), kind);
+      g_pv3 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 5.0) * F(2u)), kind);
+      g_pv4 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 5.0) * F(3u)), kind);
+      g_pv5 = rgtc_out(ep0 + (ep1 - ep0) * ((1.0 / 5.0) * F(4u)), kind);
+      g_pv6 = rgtc_out(snorm ? -1.0 : 0.0, kind);
+      g_pv7 = rgtc_out(1.0, kind);
+   }
+
+   g_bi0 = (a0w >> 16) | ((a1w & 0xffu) << 16);
+   g_bi1 = a1w >> 8;
+   uint n0 = 0u, n1 = 0u;
+   UNROLL for (int p = 0; p < 16; p++) {
+      uint b = texel_bi(p);
+      uint inc = 1u << (8u * (b & 3u));
+      n0 += b < 4u ? inc : 0u;
+      n1 += b < 4u ? 0u : inc;
+   }
+   g_n0 = n0;
+   g_n1 = n1;
+   g_six = !range7 && (n1 & 0xffff0000u) == 0u;
+}
+
+/* One EAC channel from RGTC words: g_w0 / g_w1. */
+void
+eac_rgtc(uint a0w, uint a1w, bool snorm, int kind, uint opts)
+{
+   bc_decode_rgtc(a0w, a1w, snorm, kind);
+   eac_emit(eac_encode_pal(kind, false, opts));
+}
+
+/* Transcode one BC block (w0..w3) for 'mode'. The ETC2/EAC words go to
+ * g_out0..3. */
+void
+transcode_block(uint mode, uint w0, uint w1, uint w2, uint w3, uint opts)
+{
+   if (mode == U(XC_BC1_RGB) || mode == U(XC_BC1_RGBA)) {
+      bc_decode_color(w0, w1, false);
+      etc2_encode_rgb(mode == U(XC_BC1_RGBA), opts);
+      g_out0 = g_w0;
+      g_out1 = g_w1;
+      g_out2 = 0u;
+      g_out3 = 0u;
+   } else if (mode == U(XC_BC2) || mode == U(XC_BC3)) {
+      if (mode == U(XC_BC2)) {
+         eac_emit(eac_encode_bc2(w0, w1, opts));
+      } else {
+         eac_rgtc(w0, w1, false, 0, opts);
+      }
+      g_out0 = g_w0;
+      g_out1 = g_w1;
+      bc_decode_color(w2, w3, true);
+      etc2_encode_rgb(false, opts);
+      g_out2 = g_w0;
+      g_out3 = g_w1;
+   } else {
+      bool snorm = mode == U(XC_BC4_S) || mode == U(XC_BC5_S);
+      int kind = snorm ? 2 : 1;
+      eac_rgtc(w0, w1, snorm, kind, opts);
+      g_out0 = g_w0;
+      g_out1 = g_w1;
+      g_out2 = 0u;
+      g_out3 = 0u;
+      if (mode >= U(XC_BC5_U)) {
+         eac_rgtc(w2, w3, snorm, kind, opts);
+         g_out2 = g_w0;
+         g_out3 = g_w1;
+      }
+   }
+}
+
+#ifndef PANVK_BC_C_TEST
+/* a + m0 * m1 for a 64-bit address a (arrays above 4 GiB). */
+uvec2
+addr_mad(uvec2 a, uint m0, uint m1)
+{
+   uint hi, lo, c;
+   umulExtended(m0, m1, hi, lo);
+   a.x = uaddCarry(a.x, lo, c);
+   a.y += hi + c;
+   return a;
+}
+
+void
+main()
+{
+   uint x = gl_GlobalInvocationID.x;
+   uint y = gl_GlobalInvocationID.y;
+   uint z = gl_GlobalInvocationID.z;
+
+   if (x >= registers.bw || y >= registers.bh)
+      return;
+
+   bool wide = !(XC_MODE == U(XC_BC1_RGB) || XC_MODE == U(XC_BC1_RGBA) ||
+                 XC_MODE == U(XC_BC4_U) || XC_MODE == U(XC_BC4_S));
+
+   uvec2 sa = addr_mad(addr_mad(registers.src, z, registers.src_slice_B), y,
+                       registers.src_row_B);
+   uvec4 w;
+   if (wide)
+      w = In4(sa).data[x];
+   else
+      w = uvec4(In2(sa).data[x], 0u, 0u);
+
+   transcode_block(XC_MODE, w.x, w.y, w.z, w.w, XC_OPTS);
+
+   /* U-interleaved: 4x4-block tiles stored linearly per tile row, blocks in
+    * a tile at | y1 | x1^y1 | y0 | x0^y0 |. */
+   uint bx = registers.bx0 + x, by = registers.by0 + y;
+   uint ix = bx & 3u, iy = by & 3u;
+   uint in_tile = ((iy >> 1) << 3) | (((ix ^ iy) >> 1) << 2) |
+                  ((iy & 1u) << 1) | ((ix ^ iy) & 1u);
+   uvec2 da = addr_mad(addr_mad(registers.dst, z, registers.dst_slice_B),
+                       by >> 2, registers.dst_row_B);
+   uint ob = (bx >> 2) * 16u + in_tile;
+
+   if (wide)
+      Out4(da).data[ob] = uvec4(g_out0, g_out1, g_out2, g_out3);
+   else
+      Out2(da).data[ob] = uvec2(g_out0, g_out1);
+}
+#endif

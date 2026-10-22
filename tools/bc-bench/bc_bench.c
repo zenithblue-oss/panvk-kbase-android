@@ -1,9 +1,14 @@
-/* Throughput, peak RSS and quality of the BC1-BC5 -> ETC2/EAC transcoder
- * body of one tree ("old" = mesa-lowmem, "new" = mesa-bc) over a dim x dim
- * texture of BC blocks. Inputs are deterministic: "random" (random words)
- * and "gradient" (blocks encoded from the synthetic pictures of
- * tests/bc-host/pics.h). Output: one line per mode and input.
- * Usage: bc_bench old|new [reps=5] [dim=2048] */
+/* Throughput and quality of the BC1-BC5 -> ETC2/EAC transcoder body of
+ * three versions over a dim x dim texture of BC blocks:
+ *   lowmem = mesa-lowmem (csf-v11/200 per-texel encoder),
+ *   bc2    = mesa-bc at csf-v11/202 (palette encoder),
+ *   bc3    = mesa-bc HEAD.
+ * The versions are timed interleaved (one pass of each per rep), so their
+ * ratio holds under thermal throttling. Inputs are deterministic: "random"
+ * (random words) and "gradient" (blocks encoded from the synthetic pictures
+ * of tests/bc-host/pics.h). Quality = PSNR (8-bit scale) and max abs error
+ * of the ETC2/EAC decode vs the exact BC decode.
+ * Usage: bc_bench [reps=5] [dim=2048] [mode mask=0xff] */
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,9 +20,13 @@
 
 typedef unsigned int uint;
 void xc_old(uint mode, const uint *w, uint opts, uint *out);
+void xc_bc2(uint mode, const uint *w, uint opts, uint *out);
 void xc_new(uint mode, const uint *w, uint opts, uint *out);
 void xc_new_dec(uint mode, const uint *w, int rgb[16][3], int ch[16][2], bool tr[16]);
 
+#define NV 3
+static const char *ver_name[NV] = {"lowmem", "bc2", "bc3"};
+static void (*ver_fn[NV])(uint, const uint *, uint, uint *) = {xc_old, xc_bc2, xc_new};
 static const char *mode_name[8] = {"BC1", "BC1A", "BC2", "BC3", "BC4U", "BC4S", "BC5U", "BC5S"};
 
 static double
@@ -90,20 +99,25 @@ block_sse(uint mode, const uint *w, const uint *o, int *nch, double *maxe)
 int
 main(int argc, char **argv)
 {
-   if (argc < 2 || (strcmp(argv[1], "old") && strcmp(argv[1], "new")))
-      return fprintf(stderr, "usage: bc_bench old|new [reps] [dim]\n"), 1;
-   bool is_new = !strcmp(argv[1], "new");
-   int reps = argc > 2 ? atoi(argv[2]) : 5;
-   int dim = argc > 3 ? atoi(argv[3]) : 2048;
+   int reps = argc > 1 ? atoi(argv[1]) : 5;
+   int dim = argc > 2 ? atoi(argv[2]) : 2048;
+   int mmask = argc > 3 ? (int)strtol(argv[3], 0, 0) : 0xff;
    int bw = dim / 4, nblk = bw * bw;
-   uint opts = 0x30000;
-   void (*xc)(uint, const uint *, uint, uint *) = is_new ? xc_new : xc_old;
+   uint opts = argc > 4 ? (uint)strtoul(argv[4], 0, 0) : 0x30000;
+   if (reps < 1 || reps > 16)
+      reps = 5;
 
    uint (*in)[4] = malloc((size_t)nblk * 16);
    uint (*out)[4] = malloc((size_t)nblk * 16);
-   printf("version=%s dim=%d blocks=%d reps=%d\n", argv[1], dim, nblk, reps);
-   printf("%-5s %-9s %9s %9s %8s %7s\n", "mode", "input", "Mblk/s", "MB/s(bc)", "PSNR dB", "maxerr");
+   printf("dim=%d blocks=%d reps=%d (Mblk/s = median pass, versions interleaved)\n",
+          dim, nblk, reps);
+   printf("%-5s %-9s", "mode", "input");
+   for (int v = 0; v < NV; v++)
+      printf(" %7s-Mblk/s %6s-dB %6s-max", ver_name[v], ver_name[v], ver_name[v]);
+   printf(" bc3/lowmem bc3/bc2\n");
    for (uint mode = 0; mode < 8; mode++) {
+      if (!(mmask & (1 << mode)))
+         continue;
       for (int input = 0; input < 2; input++) {
          for (int i = 0; i < nblk; i++) {
             if (input == 0) {
@@ -141,28 +155,35 @@ main(int argc, char **argv)
                in[i][0] = a0; in[i][1] = a1; in[i][2] = b0; in[i][3] = b1;
             }
          }
-         double ts[16];
-         for (int r = 0; r < reps && r < 16; r++) {
-            double t = now();
-            for (int i = 0; i < nblk; i++)
-               xc(mode, in[i], opts, out[i]);
-            ts[r] = now() - t;
+         double ts[NV][16], rate[NV], psnr[NV], maxe[NV];
+         for (int r = 0; r < reps; r++) {
+            for (int v = 0; v < NV; v++) {
+               double t = now();
+               for (int i = 0; i < nblk; i++)
+                  ver_fn[v](mode, in[i], opts, out[i]);
+               ts[v][r] = now() - t;
+            }
          }
-         qsort(ts, reps, sizeof(double), cmpd);
-         double med = ts[reps / 2];
-         /* quality (single pass) */
-         double sse = 0, n = 0, maxe = 0;
-         for (int i = 0; i < nblk; i++) {
-            int nch;
-            double me;
-            sse += block_sse(mode, in[i], out[i], &nch, &me);
-            n += 16 * nch;
-            if (me > maxe) maxe = me;
+         for (int v = 0; v < NV; v++) {
+            qsort(ts[v], reps, sizeof(double), cmpd);
+            rate[v] = nblk / ts[v][reps / 2] / 1e6;
+            /* quality (single pass) */
+            double sse = 0, n = 0, mx = 0;
+            for (int i = 0; i < nblk; i++) {
+               int nch;
+               double me;
+               ver_fn[v](mode, in[i], opts, out[i]);
+               sse += block_sse(mode, in[i], out[i], &nch, &me);
+               n += 16 * nch;
+               if (me > mx) mx = me;
+            }
+            psnr[v] = sse > 0 ? 10 * log10(255.0 * 255.0 / (sse / n)) : 99.0;
+            maxe[v] = mx;
          }
-         double psnr = sse > 0 ? 10 * log10(255.0 * 255.0 / (sse / n)) : 99.0;
-         printf("%-5s %-9s %9.3f %9.1f %8.2f %7.1f\n", mode_name[mode],
-                input ? "gradient" : "random", nblk / med / 1e6, nblk * 16.0 / med / 1e6,
-                psnr, maxe);
+         printf("%-5s %-9s", mode_name[mode], input ? "gradient" : "random");
+         for (int v = 0; v < NV; v++)
+            printf(" %14.3f %9.3f %10.1f", rate[v], psnr[v], maxe[v]);
+         printf(" %9.2fx %6.2fx\n", rate[2] / rate[0], rate[2] / rate[1]);
          fflush(stdout);
       }
    }
