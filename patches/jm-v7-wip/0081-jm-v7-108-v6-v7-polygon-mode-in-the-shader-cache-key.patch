@@ -1,0 +1,98 @@
+From 7b3eef6766f0d63b6134481b99514489a059fa0a Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Thu, 22 Oct 2026 15:56:09 +0000
+Subject: [PATCH 81/82] jm-v7 108: v6/v7 polygon mode in the shader cache key
+
+FTL Galaxy A31 (Mali-G52 MC2, v7) RC5-universal-107: fill_mode failed
+13/17 cases; every VK_POLYGON_MODE_LINE case drew nothing. jm-v7 075
+keeps no_idvs for a vertex shader that fillModeNonSolid may draw in
+LINE/POINT mode (the polygon passthrough reads the vertex job's
+varyings), but panvk_hash_state() hashed polygon mode only on v9+. A
+FILL pipeline and a LINE pipeline with the same VS got the same shader
+key, and the LINE pipeline got the FILL pipeline's IDVS binary from the
+disk cache (or the in-memory pipeline cache while the FILL pipeline is
+alive).
+
+- panvk_v7_vs_may_draw_nonfill() is the one predicate: the compile uses
+  it to decide IDVS and panvk_hash_state() hashes it for vertex stages
+  on v6/v7 (outside the state != NULL block, same as the compile, where
+  no state means any polygon mode).
+- The v6/v7 knob-set tag goes 0x76370091 -> 0x76370108, so caches that
+  hold the bad entries are not hit.
+
+v9+ hashing unchanged. v6 binaries unchanged (IDVS off by default since
+092); only its cache keys change.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_vX_shader.c | 34 +++++++++++++++++++++++----
+ 1 file changed, 29 insertions(+), 5 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index 14990b11..ebcd655d 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -2524,6 +2524,24 @@ panvk_lower_depth_bounds(nir_shader *nir)
+    return app_mask != NULL;
+ }
+ 
++#if PAN_ARCH < 9
++/* jm-v7 108: a v6/v7 vertex shader that fillModeNonSolid may draw in
++ * LINE/POINT mode feeds the polygon passthrough and keeps no_idvs (jm-v7
++ * 075). panvk_compile_shader() decides IDVS with this predicate and
++ * panvk_hash_state() hashes it, so a FILL pipeline's IDVS binary is never
++ * reused for a LINE/POINT pipeline from the shader cache.
++ */
++static bool
++panvk_v7_vs_may_draw_nonfill(const struct vk_features *features,
++                             const struct vk_graphics_pipeline_state *state)
++{
++   return features->fillModeNonSolid &&
++          (!state || !state->rs ||
++           BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_RS_POLYGON_MODE) ||
++           state->rs->polygon_mode != VK_POLYGON_MODE_FILL);
++}
++#endif
++
+ static void
+ panvk_hash_state(struct vk_physical_device *device,
+                  const struct vk_graphics_pipeline_state *state,
+@@ -2547,13 +2565,22 @@ panvk_hash_state(struct vk_physical_device *device,
+     * setting. The tag versions the knob set.
+     */
+    const int32_t v7_knobs[] = {
+-      0x76370091, /* knob set version */
++      0x76370108, /* knob set version (108: + polygon passthrough) */
+       panvk_v7_knob_tex_waterfall(),
+       panvk_v7_knob_idvs(),
+       panvk_v7_knob_desc_reorder(),
+    };
+    _mesa_blake3_update(&blake3_ctx, v7_knobs, sizeof(v7_knobs));
+ #endif
++#if PAN_ARCH < 9
++   /* jm-v7 108: outside the state != NULL block, like the compile-side
++    * predicate (no state = may be drawn in any polygon mode).
++    */
++   const bool v7_nonfill = (stages & VK_SHADER_STAGE_VERTEX_BIT) &&
++                           panvk_v7_vs_may_draw_nonfill(enabled_features,
++                                                        state);
++   _mesa_blake3_update(&blake3_ctx, &v7_nonfill, sizeof(v7_nonfill));
++#endif
+ 
+    if (state != NULL) {
+       /* This doesn't impact the shader compile but it does go in the
+@@ -4662,10 +4689,7 @@ panvk_compile_shader(struct panvk_device *dev,
+       const bool idvs_quirk = PAN_ARCH == 6 || prod == 0x6201 /* G72 */ ||
+                               prod == 0x7201 /* G76 */;
+       const bool polygon_mode =
+-         dev->vk.enabled_features.fillModeNonSolid &&
+-         (!state || !state->rs ||
+-          BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_RS_POLYGON_MODE) ||
+-          state->rs->polygon_mode != VK_POLYGON_MODE_FILL);
++         panvk_v7_vs_may_draw_nonfill(&dev->vk.enabled_features, state);
+       nir_shader_gather_info(info->nir, nir_shader_get_entrypoint(info->nir));
+       const bool writes_memory = info->nir->info.writes_memory;
+ 
+-- 
+2.55.0
+

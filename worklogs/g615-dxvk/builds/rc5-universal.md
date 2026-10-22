@@ -67,3 +67,16 @@ d. **v9, v10:** no device.
 - .so `/home/flux/build-out/2026-10-22-rc5-universal-107/libvulkan_panfrost.so`, sha256 `9a6308c8be00f5ea58c59f9a399f329790fc7e2ee55a49a7544becc594eabbbd` (`PanVK-kbase RC5-universal-107 (Mesa 26.3.0-devel (git-28b0346c01))`), BDIR `/home/flux/build-rc5/bionic-r30-RC5-universal-107`.
 - APK `/home/flux/build-out/apks/panprobe-rc5u-107.apk`, sha256 `0c3a8f5192301c30404d5f07aa2c19b3b784f099d19994b8cc302d185e84702d`, package `dev.zenithblue.panvktest.rc5u`, rc5 9a6308c8, rc4 c395db09.
 - To rebuild the tree: `prepare-rc5-tree.sh --csf-max 219 --wip-max 0080`.
+
+## RC5-universal-108 (2026-10-22): FTL a31 (v7) fill_mode and GPU timestamps
+- RC5-universal-107 on the FTL Galaxy A31 (Mali-G52 MC2, v7) gave 38/39. fill_mode failed because a LINE pipeline reused the FILL pipeline's IDVS VS binary from the shader cache. bc_perf GPU timestamps were 2x the wall time. See `device-runs/2026-10-22-ftl-v7-a31-rc5u-107/results.md`.
+- Fixes:
+  - `patches/jm-v7-wip/0081` (jm-v7 108): the v6/v7 IDVS polygon-mode predicate is hashed into the shader key, and the knob tag is now 0x76370108.
+  - `patches/jm-v7-wip/0082` (jm-v7 109): kbase JM timestamp frequency calibration. `PANVK_KBASE_TS_CALIBRATE=0` = old.
+  - mesa-rc5g HEAD `03b39a69`. To rebuild the tree: `prepare-rc5-tree.sh --csf-max 219 --wip-max 0082`.
+- .so `/home/flux/build-out/2026-10-22-rc5-universal-108/libvulkan_panfrost.so`, 30520184 bytes, sha256 `276db559f1cf3274387e3fd614e34fb9870a07af206a26bff810a5a02d17e131` (`PanVK-kbase RC5-universal-108 (Mesa 26.3.0-devel (git-03b39a69c0))`). BDIR `/home/flux/build-rc5/bionic-r30-RC5-universal-108`, NDK r30, 4 jobs, under the build lock. The BDIR has 8 `libpanvk_v*.a`.
+- APK `/home/flux/build-out/apks/panprobe-rc5u-108.apk`, sha256 `05ca59df4ad0692f46cefdd795326d934ffa6328d8aaa93eea5022c645a1a3bd`, package `dev.zenithblue.panvktest.rc5u` (1.2.7, vc 15), rc5 276db559 (= driver), rc4 c395db09. Built with `assembleDebug -PpanvkSoRc4=/home/flux/build-out/rc4-lowmem/... -PpanvkSoRc5=<so> -PpanprobeSuffix=rc5u`.
+- Not device-tested. On a v7 device, check:
+  - fill_mode passes 17/17 with a warm cache (run it twice).
+  - bc_perf `upload_gpu_ms` is close to `upload_wall_ms`.
+  - The logcat has the `kbase: GPU timestamp counter measured` line (A31) or the `keeping cntfrq` line (A06, S9).
