@@ -45,3 +45,11 @@ c. **Firebase v7 (Mali-G52):** model `a31` (Galaxy A31, Helio P65 = Mali-G52 MC2
    (its only listed version). One run, scenario 2. Alternatives: `a06` (API 35, the RTL A06 model), `a12`, `a21`.
    The SoC can vary by region, so check the GPU line in the log.
 d. **v9, v10:** no device.
+
+## RC5-universal-105 (2026-10-22): FTL starlte fix
+- FTL starlte RC5-universal (matrix-2kxz6gv4kwzhv) was LMK-killed in tess_perf: the v6/v7 nested-tess GS emulation allocated 768 BOs (768 MiB committed). See `device-runs/2026-10-22-ftl-v6-starlte-rc5u/results.md`.
+- Fix: `patches/jm-v7-wip/0078` (jm-v7 105), mesa-rc5g HEAD `710db1f9`.
+- .so `/home/flux/build-out/2026-10-22-rc5-universal-105/libvulkan_panfrost.so`, sha256 `3d1a588cf54856002acce5a2dca8d6c79f76b8a972bf8440073c3ae33aa5d356` (`PanVK-kbase RC5-universal-105 (Mesa 26.3.0-devel (git-710db1f998))`), BDIR `/home/flux/build-rc5/bionic-r30-RC5-universal-105`.
+- APK `/home/flux/build-out/apks/panprobe-rc5u-105.apk`, sha256 `23dd2d23fcbaa48febdea8fa64bb312d94be076eccb85c6c5897049991be55e6`, package `dev.zenithblue.panvktest.rc5u` (same package as panprobe-rc5u), rc5 3d1a588c, rc4 c395db09.
+- To rebuild the tree: `prepare-rc5-tree.sh --csf-max 219 --wip-max 0078`.
+- PanPlay was not rebuilt.

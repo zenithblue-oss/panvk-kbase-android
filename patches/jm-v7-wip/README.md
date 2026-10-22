@@ -311,3 +311,9 @@ The base is now the full 203-patch `g615-v11-csf` series (csf-v11 through 208 = 
 - 0030 conflicted with csf-v11/205 (the `panvk_vX_device.c` include block). The resolution keeps `util/log.h`, `util/os_misc.h`, `util/u_debug.h`, in that order; there is no code change.
 - 0010, 0013, 0035, 0043, 0045, 0046, 0047, 0048, 0050, 0051, 0052 and 0072 applied only with offsets, caused by the 205 lazy-arena code. They were re-exported with `git format-patch`, which changes only the hunk headers and index lines.
 - Result: rc5 = v7N + exactly the csf-v11 203-208 delta (normalized diff check), and rc5-base = the bc4 build tree. These files no longer apply with zero offsets on `ab7d630`; use the git history for that base.
+
+## RC5-universal-105 (2026-10-22): 0078, FTL G72 (v6) tess_perf OOM
+
+Base: `mesa-rc5g` HEAD 3093e6a5 (csf-v11 018-219 + 0006-0077); commit 710db1f9. Run record: `worklogs/g615-dxvk/device-runs/2026-10-22-ftl-v6-starlte-rc5u/results.md`.
+
+- 0078 (jm-v7 105, v6/v7): PanProbe tess_perf (256 tessellated GS draws per command buffer) got the S9 LMK-killed. Each nested tess draw had 96+96+24 MiB GS-emulation BOs (PANVK_TESS_GS_MAX_PRIMS) with a 1 MiB Bifrost up-front commit: 768 BOs, 768 MiB. (1) A nested tess draw the CPU knows caps max_indices (and so gs_max_prims) at patches x PANVK_TESS_MAX_PRIMS_PER_PATCH (8704) x vpp; the tessellator drops whole patches past it, so it cannot overrun. `PANVK_V7_TESS_GS_TIGHT=0` = old. (2) Bifrost JM GPU-only growable BOs under 64 MiB commit/grow in 1/64-size steps (64 KiB-1 MiB) instead of 1 MiB + 2 MiB; tiler heaps, tess arena and indirect varying buffer unchanged. `PANVK_V7_GROW_STEP=0` = old. Not device-tested.

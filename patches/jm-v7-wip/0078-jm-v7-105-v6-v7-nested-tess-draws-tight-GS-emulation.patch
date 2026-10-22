@@ -1,0 +1,150 @@
+From 710db1f99885002ce56792fd36e13807e77de631 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Thu, 22 Oct 2026 13:40:24 +0000
+Subject: [PATCH] jm-v7 105: v6/v7 nested tess draws: tight GS emulation size,
+ small grow steps
+
+FTL Galaxy S9 (G72, v6) RC5-universal: PanProbe tess_perf (256
+tessellated draws x 16 quad patches in one command buffer, pass-through
+GS) was SIGKILLed by the low-memory killer with the testloop harness and
+most of the system ("A non-retryable error occurred"). Each draw of a
+tess eval shader feeding a GS (or xfb/polygon passthrough) took its own
+geometry emulation buffers sized for PANVK_TESS_GS_MAX_PRIMS (2M
+primitives): position 96 MiB + general 96 MiB + index 24 MiB, three
+dedicated GROW_ON_GPF BOs (larger than the gs_pool's 2 MiB slab), each
+with a 1 MiB up-front commit on Bifrost (jm-v7 003). 256 draws = 768 BOs,
+768 MiB committed and 55 GiB of VA in 2.3 s.
+
+1. A nested tess draw the CPU knows (vkCmdDraw/vkCmdDrawIndexed) caps
+   max_indices at its patches x PANVK_TESS_MAX_PRIMS_PER_PATCH (8704, the
+   maximum at tess level 64) x vertices per primitive. The tessellator
+   keeps only whole patches that fit max_indices and gs_max_prims is
+   max_indices / vpp, so the emulation can never be overrun. tess_perf:
+   6.4 + 6.4 + 1.6 MiB per draw instead of 216 MiB.
+   PANVK_V7_TESS_GS_TIGHT=0 = old.
+2. Bifrost JM GPU-only growable BOs under 64 MiB commit and grow in
+   steps of 1/64 of their size (64 KiB to 1 MiB) instead of a 1 MiB
+   commit and 2 MiB steps. The tiler heaps (64/128 MiB), tess arena
+   (160 MiB) and indirect varying buffer (288 MB) are unchanged.
+   PANVK_V7_GROW_STEP=0 = old.
+
+Estimated tess_perf gs=1 footprint: about 1.1 MiB per draw at L=16 and
+0.2 MiB at L=1 (was at least 3 MiB per draw). Not device-tested.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/lib/kmod/kbase_kmod.c         | 23 ++++++++++++++++++++++
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c | 22 ++++++++++++++++++++-
+ src/panfrost/vulkan/panvk_gs.h             |  7 +++++++
+ src/panfrost/vulkan/panvk_v7_knobs.h       | 11 +++++++++++
+ 4 files changed, 62 insertions(+), 1 deletion(-)
+
+diff --git a/src/panfrost/lib/kmod/kbase_kmod.c b/src/panfrost/lib/kmod/kbase_kmod.c
+index b996b302..a9e9fb53 100644
+--- a/src/panfrost/lib/kmod/kbase_kmod.c
++++ b/src/panfrost/lib/kmod/kbase_kmod.c
+@@ -2296,6 +2296,29 @@ kbase_kmod_bo_alloc(struct pan_kmod_dev *dev,
+       if (!kbase_dev->is_csf && pan_arch(dev->props.gpu_id) < 9 &&
+           (kmod_flags & PAN_KMOD_BO_FLAG_NO_MMAP)) {
+          commit_pages = MIN2((1024 * 1024) / page_size, va_pages);
++         /* jm-v7 105: a region under 64 MiB (the geometry emulation
++          * buffers and 2 MiB slabs of the v6/v7 gs_pool; the tiler heaps,
++          * tess arena and indirect varying buffer are 64 MiB or more and
++          * keep 1 MiB + 2 MiB steps) commits and grows in steps of 1/64 of
++          * its size, 64 KiB to 1 MiB. Each GS draw has its own buffers, and
++          * a 1 MiB commit + 2 MiB growth per buffer was the floor of a
++          * draw's footprint: 256 tessellated GS draws in one command
++          * buffer committed 768 MiB before the GPU ran (G72 OOM kill).
++          * PANVK_V7_GROW_STEP=0 = old.
++          */
++         static int small_step = -1;
++         if (small_step < 0) {
++            const char *e = getenv("PANVK_V7_GROW_STEP");
++            small_step = !(e && !strcmp(e, "0"));
++         }
++         const uint64_t big_pages = (64ull * 1024 * 1024) / page_size;
++         if (small_step && va_pages < big_pages) {
++            const uint64_t step =
++               CLAMP(va_pages / 64, (64 * 1024) / page_size,
++                     (1024 * 1024) / page_size);
++            extension = step;
++            commit_pages = MIN2(step, va_pages);
++         }
+          mesa_logi("kbase: v%u growable BO, GROW_ON_GPF, %" PRIu64
+                    " of %" PRIu64 " pages committed",
+                    pan_arch(dev->props.gpu_id), commit_pages, va_pages);
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index 910cab6b..99a8be5c 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -3674,8 +3674,28 @@ panvk_tess_draw(struct panvk_cmd_buffer *cmdbuf,
+    const bool nested = gfx->gs.shader || tes_v->gs.vs_clip_space ||
+                        v7_polygon_mode_draw(cmdbuf, out_prim);
+    uint32_t max_indices = PANVK_TESS_MAX_INDICES;
+-   if (nested)
++   if (nested) {
+       max_indices = MIN2(max_indices, PANVK_TESS_GS_MAX_PRIMS * vpp);
++      /* jm-v7 105: a draw the CPU knows cannot emit more than its patches
++       * at the maximum tess level. Each nested draw gets its own emulation
++       * buffers (a GS after the TES), so sizing all of them for
++       * PANVK_TESS_GS_MAX_PRIMS made every draw 3 BOs of 96 + 96 + 24 MiB
++       * VA: 256 small tessellated GS draws (PanProbe tess_perf) took 768
++       * BOs and 55 GiB of VA in one command buffer, and the S9 (G72) went
++       * OOM. The tessellator keeps only the whole patches that fit in
++       * max_indices, and the emulation is sized from the same value
++       * (gs_max_prims), so this bound is never exceeded on the GPU.
++       * PANVK_V7_TESS_GS_TIGHT=0 = old.
++       */
++      if (cpu_known && panvk_v7_tess_gs_tight()) {
++         const uint64_t patches =
++            MIN2((uint64_t)(cpu_vertices / ps) * cpu_instances,
++                 PANVK_TESS_MAX_PATCHES);
++         const uint64_t bound =
++            MAX2(patches, 1) * PANVK_TESS_MAX_PRIMS_PER_PATCH * vpp;
++         max_indices = MIN2((uint64_t)max_indices, bound);
++      }
++   }
+ 
+    /* The tess arena: tess control output, counts and coordinate offsets per
+     * patch, the domain point heap and the index buffer. Every kept patch has
+diff --git a/src/panfrost/vulkan/panvk_gs.h b/src/panfrost/vulkan/panvk_gs.h
+index 8f9afa3e..3bb01394 100644
+--- a/src/panfrost/vulkan/panvk_gs.h
++++ b/src/panfrost/vulkan/panvk_gs.h
+@@ -326,6 +326,13 @@ bool panvk_nir_lower_gs(struct nir_shader *nir,
+  * primitives (instead of PANVK_GS_INDIRECT_MAX_PRIMS).
+  */
+ #define PANVK_TESS_GS_MAX_PRIMS (1u << 21)
++/* jm-v7 105: primitives (or points) one patch emits at most, at the maximum
++ * tess level of 64: 2 * 64 * 64 triangles for a quad, 1.5 * 64 * 64 for a
++ * triangle, 64 * 64 isoline segments, (64 + 1)^2 + 4 * 64 points. Rounded
++ * up; it only bounds a nested draw the CPU knows (and the tessellator drops
++ * whole patches past it, so a low bound loses patches, never memory).
++ */
++#define PANVK_TESS_MAX_PRIMS_PER_PATCH 8704u
+ #define PANVK_TESS_UNSET 0xff
+ 
+ /* What the draw path needs from a tess control or tess eval shader. The
+diff --git a/src/panfrost/vulkan/panvk_v7_knobs.h b/src/panfrost/vulkan/panvk_v7_knobs.h
+index d5ada183..41a3aced 100644
+--- a/src/panfrost/vulkan/panvk_v7_knobs.h
++++ b/src/panfrost/vulkan/panvk_v7_knobs.h
+@@ -102,4 +102,15 @@ panvk_v7_split_heap(void)
+           panvk_v7_knob_on("PANVK_OVERLAP", &ov);
+ }
+ 
++/* jm-v7 105: the geometry emulation of a nested tess draw the CPU knows
++ * is sized for its patches at the maximum tess level, not for
++ * PANVK_TESS_GS_MAX_PRIMS.
++ */
++static inline bool
++panvk_v7_tess_gs_tight(void)
++{
++   static int v = -1;
++   return panvk_v7_knob_on("PANVK_V7_TESS_GS_TIGHT", &v);
++}
++
+ #endif /* PANVK_V7_KNOBS_H */
+-- 
+2.55.0
+
