@@ -1,0 +1,387 @@
+{
+  "app": "1.2.7",
+  "uploadId": "d50c6c0f",
+  "uploadStatus": "Uploaded (id d50c6c0f)",
+  "pass": 38,
+  "fail": 1,
+  "skip": 0,
+  "tests": [
+    {
+      "name": "gpu_prerast_slice",
+      "status": "PASS",
+      "ms": 4288,
+      "extra": null
+    },
+    {
+      "name": "clip_cull",
+      "status": "PASS",
+      "ms": 5353,
+      "extra": null
+    },
+    {
+      "name": "multi_viewport",
+      "status": "PASS",
+      "ms": 5146,
+      "extra": null
+    },
+    {
+      "name": "fill_mode",
+      "status": "FAIL",
+      "ms": 6250,
+      "extra": "Bifrost (v7): feature not implemented yet",
+      "tail": [
+        "CASE list_line_cull_front tris=3 kept=2 ref_red=182 red=0 mismatch=182 first=(21,7) got=0 0 255 want=255 0 0 FAIL",
+        "CASE list_line_cull_both tris=3 kept=0 ref_red=0 red=0 mismatch=0 PASS",
+        "CASE list_line_cull_back_flipy tris=3 kept=2 ref_red=182 red=0 mismatch=182 first=(32,4) got=0 0 255 want=255 0 0 FAIL",
+        "CASE strip_line_cull_none tris=3 kept=3 ref_red=146 red=0 mismatch=146 first=(39,36) got=0 0 255 want=255 0 0 FAIL",
+        "CASE strip_line_cull_back tris=3 kept=3 ref_red=146 red=0 mismatch=146 first=(39,36) got=0 0 255 want=255 0 0 FAIL",
+        "CASE fan_line_cull_none tris=5 kept=5 ref_red=241 red=0 mismatch=241 first=(9,22) got=0 0 255 want=255 0 0 FAIL",
+        "CASE fan_line_cull_front tris=5 kept=4 ref_red=198 red=0 mismatch=198 first=(9,22) got=0 0 255 want=255 0 0 FAIL",
+        "MESA: info: panvk: v7 batch TLS 1024 KiB (stack 304 B\/thread), half 0, shared per half",
+        "MESA: info: panvk: v7 batch WLS 4 KiB, half 0, shared per half",
+        "CASE strip_restart_line tris=4 kept=4 ref_red=204 red=0 mismatch=271 first=(4,5) got=0 0 0 want=255 0 0 FAIL",
+        "MESA: info: panvk: v7 batch TLS 1024 KiB (stack 304 B\/thread), half 0, shared per half",
+        "MESA: info: panvk: v7 batch WLS 4 KiB, half 0, shared per half",
+        "CASE fan_restart_line_cull_front tris=4 kept=4 ref_red=152 red=0 mismatch=185 first=(19,15) got=0 0 255 want=255 0 0 FAIL",
+        "MESA: info: panvk: v7 batch TLS 1024 KiB (stack 304 B\/thread), half 0, shared per half",
+        "MESA: info: panvk: v7 batch WLS 4 KiB, half 0, shared per half",
+        "CASE fan_restart_line_cull_back tris=4 kept=0 ref_red=0 red=0 mismatch=47 first=(15,16) got=0 0 0 want=0 0 255 FAIL",
+        "CASE list_point_cull_none tris=3 kept=3 ref_red=9 red=9 mismatch=0 PASS",
+        "CASE fan_point_cull_back tris=5 kept=1 ref_red=3 red=3 mismatch=0 PASS",
+        "CASE strip_point_flipy_cull_front tris=3 kept=3 ref_red=5 red=5 mismatch=0 PASS",
+        "MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 32768 pages committed",
+        "MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 16384 pages committed",
+        "MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 96 of 6144 pages committed",
+        "MESA: info: panvk: v7 batch TLS 1024 KiB (stack 296 B\/thread), half 0, shared per half",
+        "CASE indirect_list_line_cull_back tris=3 kept=1 ref_red=84 red=0 mismatch=84 first=(57,10) got=0 0 255 want=255 0 0 FAIL",
+        "MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 32768 pages committed",
+        "MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 16384 pages committed",
+        "MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 96 of 6144 pages committed",
+        "MESA: info: panvk: v7 batch WLS 4 KiB, half 0, shared per half",
+        "CASE indirect_indexed_strip_restart_line tris=4 kept=4 ref_red=204 red=0 mismatch=271 first=(4,5) got=0 0 0 want=255 0 0 FAIL",
+        "FILL_MODE_FAILS=13"
+      ]
+    },
+    {
+      "name": "bc_decode",
+      "status": "PASS",
+      "ms": 5225,
+      "extra": null
+    },
+    {
+      "name": "bc_perf",
+      "status": "PASS",
+      "ms": 67921,
+      "extra": null
+    },
+    {
+      "name": "tess_perf",
+      "status": "PASS",
+      "ms": 139298,
+      "extra": "tess_perf opt=default gs=0 L=ref draws=256 patches=4096 ms=1.87 us_draw=7.3 frames=376 hash=4807f3f5 | tess_perf opt=default gs=0 L=1 draws=256 patches=4096 ms=121.38 us_draw=474.2 frames=6 hash=a03404c5 | tess_perf opt=default gs=0 L=4 draws=256 patches=4096 ms=643.09 us_draw=2512.1 frames=3 hash=cec55885 | tess_perf opt=default gs=0 L=16 draws=256 patches=4096 ms=5119.38 us_draw=19997.6 frames=3 hash=d4463b35 | tess_perf opt=default gs=0 L=mix draws=256 patches=4096 ms=2460.39 us_draw=9610.9 frames=3 hash=b34a251c | tess_perf opt=default gs=1 L=1 draws=256 patches=4096 ms=391.78 us_draw=1530.4 frames=3 hash=a03404c5 | tess_perf opt=default gs=1 L=4 draws=256 patches=4096 ms=688.21 us_draw=2688.3 frames=3 hash=cec55885 | tess_perf opt=default gs=1 L=16 draws=256 patches=4096 ms=1693.53 us_draw=6615.4 frames=3 hash=d4463b35 | tess_perf opt=default gs=1 L=mix draws=256 patches=4096 ms=1503.95 us_draw=5874.8 frames=3 hash=b34a251c | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=ref draws=256 patches=4096 ms=2.07 us_draw=8.1 frames=338 hash=4807f3f5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=1 draws=256 patches=4096 ms=124.38 us_draw=485.9 frames=6 hash=a03404c5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=4 draws=256 patches=4096 ms=650.34 us_draw=2540.4 frames=3 hash=cec55885 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=16 draws=256 patches=4096 ms=5250.26 us_draw=20508.8 frames=3 hash=d4463b35 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=mix draws=256 patches=4096 ms=2549.32 us_draw=9958.3 frames=3 hash=b34a251c | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=1 draws=256 patches=4096 ms=389.20 us_draw=1520.3 frames=3 hash=a03404c5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=4 draws=256 patches=4096 ms=699.03 us_draw=2730.6 frames=3 hash=cec55885 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=16 draws=256 patches=4096 ms=1838.32 us_draw=7180.9 frames=3 hash=d4463b35 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=mix draws=256 patches=4096 ms=1563.00 us_draw=6105.5 frames=3 hash=b34a251c"
+    },
+    {
+      "name": "geometry",
+      "status": "PASS",
+      "ms": 6004,
+      "extra": null
+    },
+    {
+      "name": "tessellation",
+      "status": "PASS",
+      "ms": 13004,
+      "extra": null
+    },
+    {
+      "name": "xfb",
+      "status": "PASS",
+      "ms": 5295,
+      "extra": null
+    },
+    {
+      "name": "pipeline_stats",
+      "status": "PASS",
+      "ms": 5368,
+      "extra": null
+    },
+    {
+      "name": "vertex_stores",
+      "status": "PASS",
+      "ms": 4154,
+      "extra": null
+    },
+    {
+      "name": "gs_viewport_depth",
+      "status": "PASS",
+      "ms": 4198,
+      "extra": null
+    },
+    {
+      "name": "vs_viewport_index",
+      "status": "PASS",
+      "ms": 4380,
+      "extra": null
+    },
+    {
+      "name": "depth_bounds",
+      "status": "PASS",
+      "ms": 4356,
+      "extra": null
+    },
+    {
+      "name": "large_draw",
+      "status": "PASS",
+      "ms": 24970,
+      "extra": null
+    },
+    {
+      "name": "vmr_secondary",
+      "status": "PASS",
+      "ms": 4113,
+      "extra": null
+    },
+    {
+      "name": "tess_cond_state",
+      "status": "PASS",
+      "ms": 4152,
+      "extra": null
+    },
+    {
+      "name": "bachata_reqs",
+      "status": "PASS",
+      "ms": 4123,
+      "extra": null
+    },
+    {
+      "name": "bachata_exec",
+      "status": "PASS",
+      "ms": 4161,
+      "extra": null
+    },
+    {
+      "name": "robustness2",
+      "status": "PASS",
+      "ms": 4158,
+      "extra": null
+    },
+    {
+      "name": "robust_image_access2",
+      "status": "PASS",
+      "ms": 7656,
+      "extra": "4096x4096x16 rgba8 loads ria2=205.32ms ria1=204.54ms delta=+0.4% stats(ria2\/ria1): Instructions=304\/210 Tuples=233\/161 Clauses=43\/28 Preloads=0\/0 Threads=2\/2 Code size=3136\/2272 Loops=0\/0 Spills=0\/0 Fills=0\/0 Spill cost=0\/0 Registers used=17\/13 Uniforms used=6\/6"
+    },
+    {
+      "name": "blend",
+      "status": "PASS",
+      "ms": 4193,
+      "extra": null
+    },
+    {
+      "name": "occlusion_query",
+      "status": "PASS",
+      "ms": 4106,
+      "extra": null
+    },
+    {
+      "name": "descriptor_model",
+      "status": "PASS",
+      "ms": 4153,
+      "extra": null
+    },
+    {
+      "name": "shader_arith",
+      "status": "PASS",
+      "ms": 4198,
+      "extra": null
+    },
+    {
+      "name": "depth_stencil",
+      "status": "PASS",
+      "ms": 4157,
+      "extra": null
+    },
+    {
+      "name": "sampler",
+      "status": "PASS",
+      "ms": 4199,
+      "extra": null
+    },
+    {
+      "name": "draw_params",
+      "status": "PASS",
+      "ms": 4154,
+      "extra": null
+    },
+    {
+      "name": "submit_stress",
+      "status": "PASS",
+      "ms": 34097,
+      "extra": null
+    },
+    {
+      "name": "csf_event",
+      "status": "PASS",
+      "ms": 4611,
+      "extra": null
+    },
+    {
+      "name": "gs_tess_primitive_id",
+      "status": "PASS",
+      "ms": 4657,
+      "extra": null
+    },
+    {
+      "name": "bachata_storage_fmtless",
+      "status": "PASS",
+      "ms": 4139,
+      "extra": null
+    },
+    {
+      "name": "bachata_dynamic_render",
+      "status": "PASS",
+      "ms": 4103,
+      "extra": null
+    },
+    {
+      "name": "dxvk_reqs",
+      "status": "PASS",
+      "ms": 2104,
+      "extra": null
+    },
+    {
+      "name": "vkd3d_reqs",
+      "status": "PASS",
+      "ms": 2078,
+      "extra": null
+    },
+    {
+      "name": "vkd3d_heap",
+      "status": "PASS",
+      "ms": 10320,
+      "extra": null
+    },
+    {
+      "name": "vkd3d_timeline",
+      "status": "PASS",
+      "ms": 4239,
+      "extra": null
+    },
+    {
+      "name": "swapchain_lifecycle",
+      "status": "PASS",
+      "ms": 15910,
+      "extra": "resized FPS 45.7 | present_main 6272ms, resize 21ms, present_resized 2625ms, destroy 3ms, cycle 2207ms, teardown 7ms"
+    }
+  ],
+  "driverLoad": {
+    "source": "bundled-rc5",
+    "driverType": "Bundled PanVK RC5",
+    "path": "\/data\/app\/~~Ykitt5RQZB2NQFzm5rj-Tg==\/dev.zenithblue.panvktest.rc5u-K3r4l2X24Lc6x6kjS_x6jA==\/lib\/arm64\/libvulkan_panfrost_rc5.so",
+    "readable": true,
+    "soSha256": "9a6308c8be00f5ea58c59f9a399f329790fc7e2ee55a49a7544becc594eabbbd",
+    "buildId": "d43e7399dde343f61fddf2c31d5a4e5ca7c84cfc",
+    "driverName": "panvk",
+    "vendorIcdFallback": false,
+    "driverVersion": 109060195,
+    "driverInfo": "PanVK-kbase RC5-universal-107 (Mesa 26.3.0-devel (git-28b0346c01))",
+    "bundledRelease": {
+      "id": "panvk-kbase-0.1.0-rc5-dev-v7",
+      "name": "PanVK Kbase RC5 (dev v7)",
+      "packageVersion": "0.1.0-rc5",
+      "displayVersion": "RC5-dev-v7 (local build, Mesa 5a07217f)",
+      "sourceCommit": null,
+      "buildId": "d43e7399dde343f61fddf2c31d5a4e5ca7c84cfc",
+      "expectedSha256": "9a6308c8be00f5ea58c59f9a399f329790fc7e2ee55a49a7544becc594eabbbd"
+    },
+    "loadSuccess": true,
+    "deviceCount": 1,
+    "loadError": null,
+    "vkinfoLogTail": [
+      "MESA: info: kbase: JM driver, uAPI version 11.27, page_size=4096",
+      "MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56",
+      "MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region",
+      "MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)",
+      "MESA: info: kbase: no usable ION system heap",
+      "MESA: info: panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6",
+      "MESA: warning: panvk: v7 (Bifrost) support is experimental",
+      "MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe03fe)",
+      "WARNING: panvk is not a conformant Vulkan implementation, testing use only.",
+      "MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)",
+      "MESA: info: Using fallback gralloc implementation"
+    ],
+    "kbaseUapi": "JM 11.27",
+    "gpuId": "0x74021000",
+    "bcEmulation": "BC emulation on (native compressed mask 0xf7fe03fe)",
+    "pageSize": 4096,
+    "appVersion": "1.2.7"
+  },
+  "driver": {
+    "type": "Bundled PanVK RC5",
+    "bundled": true,
+    "path": "\/data\/app\/~~Ykitt5RQZB2NQFzm5rj-Tg==\/dev.zenithblue.panvktest.rc5u-K3r4l2X24Lc6x6kjS_x6jA==\/lib\/arm64\/libvulkan_panfrost_rc5.so",
+    "soSha256": "9a6308c8be00f5ea58c59f9a399f329790fc7e2ee55a49a7544becc594eabbbd",
+    "buildId": "d43e7399dde343f61fddf2c31d5a4e5ca7c84cfc",
+    "driverName": "PanVK Kbase RC5 (dev v7)",
+    "driverInfo": "PanVK-kbase RC5-universal-107 (Mesa 26.3.0-devel (git-28b0346c01))",
+    "driverVersion": "RC5-dev-v7 (local build, Mesa 5a07217f)"
+  },
+  "device": {
+    "manufacturer": "samsung",
+    "model": "SM-A315N",
+    "board": "a31",
+    "hardware": "mt6768",
+    "socManufacturer": "Mediatek",
+    "socModel": "MT6768V\/CA"
+  },
+  "gpu": {
+    "glRenderer": "Mali-G52 MC2",
+    "glVendor": "ARM",
+    "glVersion": "OpenGL ES 3.2 v1.r26p0-01eac0.455662e55e7c7fb95a4b1db7e7af49a8",
+    "deviceName": "Mali-G52 r1 MC2",
+    "deviceID": 1946292224,
+    "vendorID": 5045,
+    "apiVersion": "1.3.363",
+    "gpuinfo": null,
+    "gpuinfo_unavailable_reason": "not readable (SELinux\/permissions)",
+    "gpuId": "0x74021000",
+    "arch": "v7",
+    "gpuModel": "Mali-G52 r1 MC2"
+  },
+  "android": {
+    "release": "12",
+    "sdk": 31,
+    "kernel": "4.14.186-25685223"
+  },
+  "deviceFacts": {
+    "kbaseUapi": "JM 11.27",
+    "gpuId": "0x74021000",
+    "textureFeatures": "0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6",
+    "bcEmulation": "BC emulation on (native compressed mask 0xf7fe03fe)",
+    "pageSize": 4096,
+    "kernel": "4.14.186-25685223",
+    "procVersion": null,
+    "props": {
+      "ro.board.platform": "mt6768",
+      "ro.build.version.release": "12",
+      "ro.build.version.sdk": "31",
+      "ro.hardware": "mt6768",
+      "ro.hardware.egl": "mali",
+      "ro.product.first_api_level": "29",
+      "ro.soc.manufacturer": "Mediatek",
+      "ro.soc.model": "MT6768V\/CA",
+      "ro.vndk.version": "31"
+    },
+    "mapperLibs": [
+      "\/vendor\/lib64\/hw\/android.hardware.graphics.mapper@4.0-impl-mediatek.so"
+    ],
+    "driverLines": [
+      "kbase: JM driver, uAPI version 11.27, page_size=4096",
+      "panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6",
+      "panvk: BC emulation on (native compressed mask 0xf7fe03fe)",
+      "kbase: mem_alloc via ALLOC",
+      "FULLPLANE] mapper load failed (1 candidate names, first=mediatek); PANVK_MAPPER_NAMES=<suffix> overrides"
+    ]
+  },
+  "complete": true,
+  "driverSlot": "RC5"
+}
