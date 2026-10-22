@@ -1,0 +1,52 @@
+From e3b0582f25c995f6714f9d04ea4fa4f7c8757c42 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 22 Oct 2026 04:28:33 +0000
+Subject: [PATCH 68/68] jm-v7 095: read_invocation uses the old CLPER encoding
+ on G71/G72/G31
+
+bi_lower_subgroups and the quad ops go through bi_clper(), which knows
+that G71/G72/G31 (BIFROST_LIMITED_CLPER) only have CLPER_OLD.i32, but
+nir_intrinsic_read_invocation emitted CLPER.i32 unconditionally. The
+packer asserts against that on those GPUs; release builds packed an
+encoding the hardware does not have. read_invocation is subgroupBroadcast
+and, through nir_lower_subgroups (lower_shuffle, lower_reduce), every
+shuffle, relative shuffle, rotate, clustered and arithmetic op, plus the
+jm-v7 085 texture-index waterfall.
+
+CLPER_OLD is fixed to inactive=zero, subgroup4 and no lane op, which is
+exactly read_invocation for the 4-wide v6 subgroup. Vote and ballot are
+WMASK, which the Bifrost ISA has on every v6/v7 part, so no subgroup
+feature needs gating on v6.
+
+Known gap: G31 is arch 7 with an 8-wide pan_subgroup_size but the
+subgroup4-only CLPER_OLD; not a target here, left as is.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/compiler/bifrost/bifrost_compile.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/src/panfrost/compiler/bifrost/bifrost_compile.c b/src/panfrost/compiler/bifrost/bifrost_compile.c
+index d7adf88..710a7f1 100644
+--- a/src/panfrost/compiler/bifrost/bifrost_compile.c
++++ b/src/panfrost/compiler/bifrost/bifrost_compile.c
+@@ -1997,6 +1997,16 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
+       enum bi_lane_op lane_op = BI_LANE_OP_NONE;
+       enum bi_subgroup subgroup =
+          bi_subgroup_from_cluster_size(pan_subgroup_size(b->shader->arch));
++      /* jm-v7 095: G71/G72/G31 only have the old CLPER encoding (the
++       * packer asserts on CLPER.i32 there). It is fixed to inactive=zero,
++       * subgroup4, no lane op, which is exactly read_invocation for the
++       * 4-wide v6 subgroup.
++       */
++      if (b->shader->quirks & BIFROST_LIMITED_CLPER) {
++         bi_clper_old_i32_to(b, dst, bi_src_index(&instr->src[0]),
++                             bi_src_index(&instr->src[1]));
++         break;
++      }
+       bi_clper_i32_to(b, dst,
+                       bi_src_index(&instr->src[0]),
+                       bi_byte(bi_src_index(&instr->src[1]), 0),
+-- 
+2.55.0
+

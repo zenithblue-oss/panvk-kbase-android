@@ -1,0 +1,47 @@
+From 3a5264c7f207a74830b1f259f2b0bb8d2868a632 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 22 Oct 2026 04:26:01 +0000
+Subject: [PATCH 66/68] jm-v7 093: v6/v7 kbase atom waits use CLOCK_MONOTONIC
+ deadlines
+
+panvk_jm_kbase_wait_atoms() turned the vk_sync absolute deadline, which
+is CLOCK_MONOTONIC (os_time), into a relative timeout against
+CLOCK_MONOTONIC_RAW on every JM arch but v9. The two clocks drift apart
+with uptime, which on v9 turned timeouts into DEVICE_LOST; the fix only
+went to v9. Use CLOCK_MONOTONIC on v6/v7 too. PANVK_V7_RAW_CLOCK=1
+restores the old clock for an A/B.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c b/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
+index 27fef03..1bb51d6 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
+@@ -353,11 +353,19 @@ panvk_jm_kbase_wait_atoms(void *data, const uint64_t targets[PANVK_KBASE_SYNC_TA
+    struct pan_kmod_dev *kmod_dev = data;
+ 
+    /* vk_sync deadlines are CLOCK_MONOTONIC (os_time). MONOTONIC_RAW drifts
+-    * from it with uptime, which turned timeouts into DEVICE_LOST. */
++    * from it with uptime, which turned timeouts into DEVICE_LOST. This was
++    * fixed on v9 first; jm-v7 093 uses CLOCK_MONOTONIC on v6/v7 as well.
++    * PANVK_V7_RAW_CLOCK=1 restores MONOTONIC_RAW there (A/B only).
++    */
+ #if PAN_ARCH == 9
+    const clockid_t clk = CLOCK_MONOTONIC;
+ #else
+-   const clockid_t clk = CLOCK_MONOTONIC_RAW;
++   static int raw_clock = -1;
++   if (raw_clock < 0) {
++      const char *e = getenv("PANVK_V7_RAW_CLOCK");
++      raw_clock = e && e[0] == '1';
++   }
++   const clockid_t clk = raw_clock ? CLOCK_MONOTONIC_RAW : CLOCK_MONOTONIC;
+ #endif
+ 
+    for (unsigned i = 0; i < PANVK_KBASE_SYNC_TARGET_COUNT; i++) {
+-- 
+2.55.0
+

@@ -1,0 +1,70 @@
+From 2ff1d77b7ae27ad5e24a82e03c19ab9305e7ed39 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 22 Oct 2026 04:26:45 +0000
+Subject: [PATCH 67/68] jm-v7 094: optional dma-buf import clean on v6/v7
+ (PANVK_KBASE_IMPORT_SYNC=1)
+
+The non-coherent dma-buf import clean (host-visible dma-heap memory the
+CPU writes through a cached mapping, the v9 black-dash fix) was gated to
+arch 9. v6/v7 have the same JM host-visible path, so the BO listing now
+covers arch <= 9 and the v6/v7 submit calls kbase_kmod_jm_clean_imports()
+too (a lock and an empty list unless BOs were listed).
+
+It stays off by default below v9: the clean is a full DMA_BUF_IOCTL_SYNC
+of every listed BO on every submit, O(BO size), DXVK host-visible chunks
+are 32-256 MiB, and the A06 (v7) passes without it. PANVK_KBASE_IMPORT_SYNC=1
+enables it on v6/v7 for a device that shows the symptom; =0 still turns
+it off on v9.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/lib/kmod/kbase_kmod.c          | 13 ++++++++++---
+ src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c |  4 +++-
+ 2 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/panfrost/lib/kmod/kbase_kmod.c b/src/panfrost/lib/kmod/kbase_kmod.c
+index e5b4026..b996b30 100644
+--- a/src/panfrost/lib/kmod/kbase_kmod.c
++++ b/src/panfrost/lib/kmod/kbase_kmod.c
+@@ -2163,11 +2163,18 @@ kbase_kmod_import_dmabuf(struct pan_kmod_dev *dev,
+     * its own (cached) dma-buf mapping. When the kernel did not grant
+     * COHERENT_SYSTEM, HOST_COHERENT writes can sit in the CPU cache while
+     * the GPU reads memory (faux123: black dashes in 32-bit DXVK games).
+-    * WB_MMAP BOs are flushed by vkFlushMappedMemoryRanges instead. */
+-   if (!kbase_dev->is_csf && pan_arch(dev->props.gpu_id) == 9 &&
++    * WB_MMAP BOs are flushed by vkFlushMappedMemoryRanges instead.
++    *
++    * jm-v7 094: v6/v7 take the same path, but only with
++    * PANVK_KBASE_IMPORT_SYNC=1. The clean is a full DMA_BUF_IOCTL_SYNC of
++    * every listed BO on every submit, O(BO size), and DXVK host-visible
++    * chunks are 32-256 MiB; the A06 (v7) passes without it. Enable it when
++    * a v6/v7 device shows the black-dash symptom, then measure. */
++   const unsigned bo_arch = pan_arch(dev->props.gpu_id);
++   if (!kbase_dev->is_csf && bo_arch <= 9 &&
+        !kbase_bo->cpu_gpu_coherent && kbase_bo->cpu_ptr &&
+        !(kmod_flags & PAN_KMOD_BO_FLAG_WB_MMAP) &&
+-       debug_get_bool_option("PANVK_KBASE_IMPORT_SYNC", true)) {
++       debug_get_bool_option("PANVK_KBASE_IMPORT_SYNC", bo_arch == 9)) {
+       mesa_logw_once("kbase: dma-buf imports are not CPU-coherent; cleaning "
+                      "them before each submit (PANVK_KBASE_IMPORT_SYNC=0 "
+                      "disables)");
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c b/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
+index 1bb51d6..9d6309f 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
+@@ -408,9 +408,11 @@ panvk_per_arch(gpu_queue_submit)(struct vk_queue *vk_queue, struct vk_queue_subm
+ 
+ #if PAN_ARCH == 9
+    BITSET_ZERO(queue->submit_atoms);
++#endif
++   /* The list is empty unless imports were listed (v9 by default, v6/v7
++    * with PANVK_KBASE_IMPORT_SYNC=1, jm-v7 094): then only a lock. */
+    if (submit->command_buffer_count)
+       kbase_kmod_jm_clean_imports(dev->kmod.dev);
+-#endif
+ 
+    if (submit->wait_count) {
+       (void)0;
+-- 
+2.55.0
+

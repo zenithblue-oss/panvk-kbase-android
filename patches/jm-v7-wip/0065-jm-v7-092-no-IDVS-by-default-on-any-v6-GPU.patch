@@ -1,0 +1,44 @@
+From 4ab9b86875132c08f4eef47a0d6e81e5bb801f2d Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 22 Oct 2026 04:25:39 +0000
+Subject: [PATCH 65/68] jm-v7 092: no IDVS by default on any v6 GPU
+
+The jm-v7 075 IDVS quirk list had G72 (0x6201) and G76 (0x7201) but
+not G71 (0x6000), the same generation as G72, where INDEXED_VERTEX was
+measured completing without writing positions. G71 was the one v6 part
+that defaulted to IDVS, and no v6 device has run anything. Treat all of
+PAN_ARCH 6 as quirked; PANVK_V7_IDVS=1 still opts in (the knob is in the
+cache key since jm-v7 091).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_vX_shader.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index 366e752..cbf5242 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -4617,13 +4617,17 @@ panvk_compile_shader(struct panvk_device *dev,
+     *   vertex job's invocations;
+     * - G72/G76, where JimVulkan measured INDEXED_VERTEX jobs completing
+     *   without writing positions (the vendor driver uses VERTEX + TILER).
++    * - any v6 GPU (G71/G72), until measured on a device.
+     * PANVK_V7_IDVS=0 keeps it off everywhere (A/B), =1 also allows it on
+-    * G72/G76.
++    * v6 and G76.
+     */
+    if (info->stage == MESA_SHADER_VERTEX && !vs_clip_space) {
+       const int idvs_env = panvk_v7_knob_idvs();
+       const uint32_t prod = (inputs.gpu_id >> 16) & 0xff0f;
+-      const bool idvs_quirk = prod == 0x6201 /* G72 */ ||
++      /* jm-v7 092: every v6 part (G71 0x6000 too, same generation as G72,
++       * never measured), plus G76.
++       */
++      const bool idvs_quirk = PAN_ARCH == 6 || prod == 0x6201 /* G72 */ ||
+                               prod == 0x7201 /* G76 */;
+       const bool polygon_mode =
+          dev->vk.enabled_features.fillModeNonSolid &&
+-- 
+2.55.0
+
