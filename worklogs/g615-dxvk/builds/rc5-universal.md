@@ -80,3 +80,17 @@ d. **v9, v10:** no device.
   - fill_mode passes 17/17 with a warm cache (run it twice).
   - bc_perf `upload_gpu_ms` is close to `upload_wall_ms`.
   - The logcat has the `kbase: GPU timestamp counter measured` line (A31) or the `keeping cntfrq` line (A06, S9).
+
+## RC5-universal-109 (2026-10-22): FTL starlte timestamp period and the JM warm-up sleep
+- RC5-universal-108 on the FTL S9 gave 39/39, but `ts_period=0.000`: cntfrq_el0 reads 0 and 0082 returned without measuring. See `device-runs/2026-10-22-ftl-v6-starlte-rc5u-108/results.md`. The A31 108 run showed a 2 s sleep on every JM device open (`device-runs/2026-10-22-ftl-v7-a31-rc5u-108/results.md`).
+- Fixes:
+  - `patches/jm-v7-wip/0083` (jm-v7 110): with cntfrq 0 the GPU counter rate is measured (one retry with a 4x window), snapped to a common SoC rate within 3 % and logged. If no stable rate is found, timestamps are not advertised (no period 0). Every early return logs. `PANVK_KBASE_TS_CALIBRATE=0` = old.
+  - `patches/jm-v7-wip/0084` (jm-v7 111): the 2 s JM warm-up runs only on the first JM open per process. `PANVK_KBASE_JM_WARMUP=2` = old (every open), `=0` = never; `PANVK_KBASE_JM_WARMUP_MS` = length.
+  - mesa-rc5g HEAD `1bdf1e0c`. To rebuild the tree: `prepare-rc5-tree.sh --csf-max 219 --wip-max 0084`.
+- .so `/home/flux/build-out/2026-10-22-rc5-universal-109/libvulkan_panfrost.so`, 30522632 bytes, sha256 `e15568d0d7325a6bc49bb7536bd9eb2fb701fad3b5faf36a8e7ff5063d7f2e95` (`PanVK-kbase RC5-universal-109 (Mesa 26.3.0-devel (git-1bdf1e0c1a))`). BDIR `/home/flux/build-rc5/bionic-r30-RC5-universal-109`, NDK r30, 4 jobs, under the build lock. The BDIR has 8 `libpanvk_v*.a`, and the log has no kbase_kmod.c warnings.
+- APK `/home/flux/build-out/apks/panprobe-rc5u-109.apk`, sha256 `b4c74216fb9ff4dc56719a6294b0631569e92abfa8e06ed91b4b553c8125105f`, package `dev.zenithblue.panvktest.rc5u` (1.2.7, vc 15), rc5 e15568d0 (= driver), rc4 c395db09. Built like 108 (`assembleDebug -PpanvkSoRc4=/home/flux/build-out/rc4-lowmem/libvulkan_panfrost-android-aarch64.so -PpanvkSoRc5=<so> -PpanprobeSuffix=rc5u`, stale `app/.cxx` removed first).
+- PanPlay was not rebuilt.
+- Not device-tested. Check:
+  - S9: logcat has `kbase: cntfrq_el0 is 0; GPU timestamp counter measured at ... using 26000000 Hz` (or `timestamps not advertised`), bc_perf `ts_period=38.462`, and `upload_gpu_ms` about 0.9-1.0x `upload_wall_ms`.
+  - A31: the 0082 line is unchanged (26 MHz).
+  - All JM devices: one `kbase: JM warm-up 2000 ms (first JM open in this process)` per process, then `JM warm-up skipped`. 39/39 still pass, with no DEVICE_LOST and no job faults on the second open. The run should be about 1.5 min shorter on the A31.
