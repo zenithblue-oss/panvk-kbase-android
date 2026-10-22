@@ -1,4 +1,4 @@
-From e2365ec884f6f5dd5f686b1d256a46f39ed0b84f Mon Sep 17 00:00:00 2001
+From 6070a340daa05a8b9fee8dd2a2f2159e0640802b Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 16 Oct 2026 11:52:08 +0000
 Subject: [PATCH] jm-v7 010: Bifrost robustBufferAccess2 and nullDescriptor
@@ -42,7 +42,7 @@ Claude-Session: https://claude.ai/code/session_0153VvtSm6m7BrM4NCBq8MMc
  7 files changed, 309 insertions(+), 18 deletions(-)
 
 diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
-index 5761db1b..89755d67 100644
+index e23595cc..fa1e57cf 100644
 --- a/src/panfrost/vulkan/panvk_device.h
 +++ b/src/panfrost/vulkan/panvk_device.h
 @@ -114,6 +114,26 @@ struct panvk_device {
@@ -243,7 +243,7 @@ index 4df10030..0d7251f5 100644
     }
  
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index 3e9f926d..599e0fc9 100644
+index e25566eb..739320df 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
 @@ -30,6 +30,7 @@
@@ -264,7 +264,7 @@ index 3e9f926d..599e0fc9 100644
  
  static void *
  panvk_kmod_zalloc(const struct pan_kmod_allocator *allocator, size_t size,
-@@ -482,6 +486,131 @@ panvk_queue_destroy(struct vk_queue *queue)
+@@ -505,6 +509,131 @@ panvk_queue_destroy(struct vk_queue *queue)
     }
  }
  
@@ -396,7 +396,7 @@ index 3e9f926d..599e0fc9 100644
  VkResult
  panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
                                const VkDeviceCreateInfo *pCreateInfo,
-@@ -801,6 +930,15 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+@@ -834,6 +963,15 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
     if (result != VK_SUCCESS)
        goto err_finish_queues;
  
@@ -412,7 +412,7 @@ index 3e9f926d..599e0fc9 100644
     for (unsigned i = 0; i < pCreateInfo->queueCreateInfoCount; i++) {
        const VkDeviceQueueCreateInfo *queue_create =
           &pCreateInfo->pQueueCreateInfos[i];
-@@ -834,6 +972,10 @@ err_finish_queues:
+@@ -867,6 +1005,10 @@ err_finish_queues:
     vk_foreach_queue_safe(queue, &device->vk)
        panvk_queue_destroy(queue);
  
@@ -423,7 +423,7 @@ index 3e9f926d..599e0fc9 100644
     if (device->depth_bounds_fs)
        vk_shader_destroy(&device->vk, &device->depth_bounds_fs->vk, NULL);
     panvk_meta_cleanup(device);
-@@ -902,6 +1044,9 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
+@@ -936,6 +1078,9 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
     panvk_precomp_cleanup(device);
  #if PAN_ARCH >= 10 && PAN_ARCH < 14
     panvk_per_arch(device_draw_context_cleanup)(device);

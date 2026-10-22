@@ -1,4 +1,4 @@
-From 89ea653e98e009c4284a961bfeef879f95cb7d9b Mon Sep 17 00:00:00 2001
+From 3e033b514cf3a5a8dd4180864044968c022ee49a Mon Sep 17 00:00:00 2001
 From: abhay-byte <abhay02delhi@gmail.com>
 Date: Wed, 21 Oct 2026 16:50:50 +0000
 Subject: [PATCH] jm-v7 050: bindless update-after-bind and mutable bindings on
@@ -135,7 +135,7 @@ index 603a4c63..35b796f2 100644
  panvk_get_iub_desc_count(uint32_t size)
  {
 diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
-index b9453203..19ec7628 100644
+index 71db36db..c4da0d33 100644
 --- a/src/panfrost/vulkan/panvk_device.h
 +++ b/src/panfrost/vulkan/panvk_device.h
 @@ -131,6 +131,9 @@ struct panvk_device {
@@ -148,7 +148,7 @@ index b9453203..19ec7628 100644
        VkImage image;
        VkDeviceMemory image_mem;
        VkImageView view;
-@@ -219,6 +222,19 @@ to_panvk_device(struct vk_device *dev)
+@@ -238,6 +241,19 @@ to_panvk_device(struct vk_device *dev)
     return container_of(dev, struct panvk_device, vk);
  }
  
@@ -331,10 +331,10 @@ index ecd1b3cf..ad0c44de 100644
           return false;
     }
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index 88cd56ee..a1e79a2f 100644
+index 74517677..745879cc 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
-@@ -490,6 +490,8 @@ panvk_queue_destroy(struct vk_queue *queue)
+@@ -513,6 +513,8 @@ panvk_queue_destroy(struct vk_queue *queue)
  #if PAN_ARCH < 9
  #define PANVK_NULL_ZERO_SIZE (PANVK_NULL_UBO_ENTRIES * 16)
  #define PANVK_NULL_SCRATCH_SIZE 256
@@ -343,7 +343,7 @@ index 88cd56ee..a1e79a2f 100644
  
  /* See panvk_device::null_descs. The texture and storage image descriptors
   * come from the device's own entry points, so they are exactly what an
-@@ -509,16 +511,25 @@ panvk_init_null_descs(struct panvk_device *dev)
+@@ -532,16 +534,25 @@ panvk_init_null_descs(struct panvk_device *dev)
     /* The zero page, then PANVK_NULL_SCRATCH_SIZE bytes for the
      * PANVK_NULLIMG_INBOUNDS null storage image (see below). */
     result = panvk_priv_bo_create(

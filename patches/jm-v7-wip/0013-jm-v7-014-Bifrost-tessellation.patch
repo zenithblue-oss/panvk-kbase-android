@@ -1,4 +1,4 @@
-From 7aafadc24a7c4cc637142b7f9b088ae7f5708036 Mon Sep 17 00:00:00 2001
+From 30e9f2269adb12829ab2a313e0ac63c2c95eac8f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 16 Oct 2026 12:56:06 +0000
 Subject: [PATCH] jm-v7 014: Bifrost tessellation
@@ -988,7 +988,7 @@ index 2eed362b..e468a38e 100644
  
     struct panvk_occlusion_query_state occlusion_query;
 diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
-index 89755d67..708e56ea 100644
+index fa1e57cf..8d5e2baa 100644
 --- a/src/panfrost/vulkan/panvk_device.h
 +++ b/src/panfrost/vulkan/panvk_device.h
 @@ -76,6 +76,8 @@ struct panvk_device {
@@ -1198,7 +1198,7 @@ index 4d850dd1..4da02b90 100644
  #endif
  
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_meta.c b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
-index df3be1d5..23d19242 100644
+index 9abfe988..c50332e4 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 +++ b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 @@ -195,7 +195,11 @@ meta_gfx_start(struct panvk_cmd_buffer *cmdbuf,
@@ -1223,10 +1223,10 @@ index df3be1d5..23d19242 100644
  #endif
  
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index 599e0fc9..bd3b6030 100644
+index 739320df..cf3f0816 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
-@@ -871,6 +871,20 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+@@ -904,6 +904,20 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
        VK_SYSTEM_ALLOCATION_SCOPE_DEVICE, &device->indirect_varying_buffer);
     if (result != VK_SUCCESS)
        goto err_free_priv_bos;
@@ -1247,7 +1247,7 @@ index 599e0fc9..bd3b6030 100644
  #endif
  
     result = panvk_priv_bo_create(
-@@ -999,6 +1013,7 @@ err_free_priv_bos:
+@@ -1033,6 +1047,7 @@ err_free_priv_bos:
     panvk_priv_bo_unref(device->tiler_oom.handlers_bo);
     panvk_priv_bo_unref(device->sample_positions);
     panvk_priv_bo_unref(device->indirect_varying_buffer);
@@ -1255,7 +1255,7 @@ index 599e0fc9..bd3b6030 100644
     panvk_priv_bo_unref(device->tiler_heap);
     panvk_priv_bo_unref(device->tiler_heap2);
     panvk_device_cleanup_mempools(device);
-@@ -1057,6 +1072,7 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
+@@ -1091,6 +1106,7 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
     panvk_priv_bo_unref(device->printf.bo);
     panvk_priv_bo_unref(device->tiler_oom.handlers_bo);
      panvk_priv_bo_unref(device->indirect_varying_buffer);
