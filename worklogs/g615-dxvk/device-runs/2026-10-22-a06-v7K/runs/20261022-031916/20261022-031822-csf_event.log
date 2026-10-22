@@ -1,0 +1,61 @@
+PID 25997
+Tgid:	25997
+Pid:	25997
+PPid:	23649
+READY
+T 25180.418650731 go
+MESA: info: kbase: JM driver, uAPI version 11.38, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+MESA: info: kbase: using ION system heap, mask 0x1
+MESA: info: panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: warning: panvk: v7 (Bifrost) support is experimental
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe03fe)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+Failed to create /data/.cache for shader cache (Permission denied)---disabling.
+PHYS 0 Mali-G52 r1 MC2 vendor=0x13b5 device=0x74021000
+FEATURE synchronization2=1
+QFAM 0 flags=0x7 count=1
+MESA: info: kbase: JM driver, uAPI version 11.38, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+MESA: info: kbase: using ION system heap, mask 0x1
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 32768 pages committed
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 70313 pages committed
+SYNC2 enabled
+T 25184.435103423 host-set
+T 25184.435599039 host-submit
+FENCE host r=0 dt=0.001
+CASE host got=0x085000a1 expect=0x085000a1
+T 25184.436272039 host-set-replay
+T 25184.436620962 host-submit-replay
+FENCE host-replay r=0 dt=0.000
+CASE host-replay got=0x085000a2 expect=0x085000a2
+T 25184.437191423 gpu-write
+T 25184.437937500 gpu-submit-set
+FENCE gpu-set r=0 dt=0.000
+GPU_EVENT_STATUS 3
+T 25184.438293193 gpu-submit-wait
+FENCE gpu r=0 dt=0.001
+CASE gpu got=0x085000b1 expect=0x085000b1
+T 25184.438614193 gpu-write-replay
+T 25184.439498500 gpu-submit-set-replay
+FENCE gpu-set-replay r=0 dt=0.001
+GPU_EVENT_STATUS 3
+T 25184.440251962 gpu-submit-wait-replay
+FENCE gpu-replay r=0 dt=0.001
+CASE gpu-replay got=0x085000b2 expect=0x085000b2
+T 25184.483784270 ring-begin
+FENCE ring r=0 dt=0.174
+FENCE ring-copy r=0 dt=0.000
+CASE ring submit=0 red=64/64 passes=1700
+FENCE ring r=0 dt=0.378
+FENCE ring-copy r=0 dt=0.000
+CASE ring submit=1 red=64/64 passes=1700
+T 25185.046261193 ring-end
+RESULT PASS
