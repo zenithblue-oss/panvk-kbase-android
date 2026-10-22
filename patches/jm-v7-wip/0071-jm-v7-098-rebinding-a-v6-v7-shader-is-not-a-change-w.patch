@@ -1,0 +1,82 @@
+From 98755dc7d386d52559c52809f269f8d709f3d26e Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 22 Oct 2026 04:50:24 +0000
+Subject: [PATCH 71/72] jm-v7 098: rebinding a v6/v7 shader is not a change
+ while its alternate is in use
+
+jm-v7 076/077 keep whichever compile the last draw used (the unlowered
+FS while depth bounds is off, the screen-space VS while xfb is
+inactive) in the state, so rebinding the same pipeline compared the
+main shader against its alternate, marked VS/FS dirty, and the next
+draw flipped back to the alternate and marked them dirty again: a
+relink, new tables, copy jobs and an RSD rebuild per stage per rebind
+(perf review item 9; DXVK rebinds pipelines very often).
+
+Bind now skips a shader whose alternate is the bound one;
+panvk_v7_select_alt_shaders() picks the compile per draw as before.
+PANVK_V7_ALT_REBIND_DIRTY=1 = old.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_vX_shader.c | 31 +++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)
+
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index cbf5242..e385efb 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -6500,6 +6500,24 @@ panvk_per_arch(create_depth_bounds_fs)(struct panvk_device *dev)
+    return VK_SUCCESS;
+ }
+ 
++#if PAN_ARCH < 9
++/* Whether binding @shader over @cur only re-selects the shader @cur already
++ * is an alternate compile of. PANVK_V7_ALT_REBIND_DIRTY=1 restores the old
++ * behaviour (every such rebind marks the stage dirty).
++ */
++static bool
++panvk_v7_same_shader_rebind(const struct panvk_shader *cur,
++                            const struct panvk_shader *shader)
++{
++   static int old = -1;
++   if (old < 0) {
++      const char *e = getenv("PANVK_V7_ALT_REBIND_DIRTY");
++      old = e && e[0] == '1';
++   }
++   return !old && cur && shader && cur != shader && cur->alt_parent == shader;
++}
++#endif
++
+ static void
+ panvk_cmd_bind_shader(struct panvk_cmd_buffer *cmd, const mesa_shader_stage stage,
+                       struct panvk_shader *shader)
+@@ -6513,6 +6531,14 @@ panvk_cmd_bind_shader(struct panvk_cmd_buffer *cmd, const mesa_shader_stage stag
+       }
+       break;
+    case MESA_SHADER_VERTEX:
++#if PAN_ARCH < 9
++      /* jm-v7 098: the state may hold the alternate compile of this very
++       * shader (jm-v7 077), picked by the last draw; rebinding the main one
++       * is not a change, panvk_v7_select_alt_shaders() decides per draw.
++       */
++      if (panvk_v7_same_shader_rebind(cmd->state.gfx.vs.shader, shader))
++         break;
++#endif
+       if (cmd->state.gfx.vs.shader != shader) {
+          cmd->state.gfx.vs.shader = shader;
+          gfx_state_set_dirty(cmd, VS);
+@@ -6522,6 +6548,11 @@ panvk_cmd_bind_shader(struct panvk_cmd_buffer *cmd, const mesa_shader_stage stag
+    case MESA_SHADER_FRAGMENT:
+       if (!shader)
+          shader = to_panvk_device(cmd->vk.base.device)->depth_bounds_fs;
++#if PAN_ARCH < 9
++      /* jm-v7 098: same for the jm-v7 076 unlowered FS. */
++      if (panvk_v7_same_shader_rebind(cmd->state.gfx.fs.shader, shader))
++         break;
++#endif
+       if (cmd->state.gfx.fs.shader != shader) {
+          cmd->state.gfx.fs.shader = shader;
+          gfx_state_set_dirty(cmd, FS);
+-- 
+2.55.0
+

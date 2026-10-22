@@ -1,0 +1,150 @@
+From 83a303c99f58776d78db1f20d28a087968707fd2 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 22 Oct 2026 04:50:34 +0000
+Subject: [PATCH 72/72] jm-v7 099: one tiler heap BO per PANVK_OVERLAP half on
+ v6/v7
+
+Both PANVK_OVERLAP tiler heap halves lived in one 128 MiB GROW_ON_GPF
+BO. kbase grows such a region contiguously up to the faulting page, so
+the first fault of half 1 (at +64 MiB) committed at least 64 MiB, kept
+for the life of the device (perf review K2; worst on the low-RAM
+G71/G72/G52 phones).
+
+With the overlap on, v6/v7 now create two 64 MiB heap BOs, as v9 does
+with tiler_heap2; each batch's heap descriptor covers its half's BO and
+the hierarchy mask is chosen for 64 MiB, the heap the batch really has
+(it was given 128 MiB while using half). Top stays at the end of the BO
+on v6/v7: whether the Bifrost tiler takes chunks from Top is
+unverified, so the v9 2 MiB Top is not copied. The batch BO list names
+the half's BO.
+
+PANVK_V7_SPLIT_HEAP=0 = one 128 MiB BO split in halves (old);
+PANVK_OVERLAP=0 = one 128 MiB heap, no halves (unchanged).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c | 16 +++++++++++++-
+ src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c  |  2 +-
+ src/panfrost/vulkan/panvk_v7_knobs.h         | 11 ++++++++++
+ src/panfrost/vulkan/panvk_vX_device.c        | 23 +++++++++++++++++++-
+ 4 files changed, 49 insertions(+), 3 deletions(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
+index 82bdce6..0de4efb 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
+@@ -353,7 +353,18 @@ panvk_per_arch(cmd_prepare_tiler_context)(struct panvk_cmd_buffer *cmdbuf,
+       cfg.base = dev->tiler_heap->addr.dev;
+       cfg.bottom = dev->tiler_heap->addr.dev;
+       cfg.top = cfg.base + cfg.size;
+-      if (panvk_overlap_enabled()) { /* v67b */
++      if (dev->tiler_heap2) {
++         /* jm-v7 099: one BO per overlap half (panvk_v7_split_heap()). */
++         static unsigned next_half;
++         batch->heap_half =
++            __atomic_fetch_add(&next_half, 1, __ATOMIC_RELAXED) & 1;
++         const struct panvk_priv_bo *heap =
++            batch->heap_half ? dev->tiler_heap2 : dev->tiler_heap;
++         cfg.size = pan_kmod_bo_size(heap->bo);
++         cfg.base = heap->addr.dev;
++         cfg.bottom = cfg.base;
++         cfg.top = cfg.base + cfg.size;
++      } else if (panvk_overlap_enabled()) { /* v67b */
+          static unsigned next_half;
+          batch->heap_half = __atomic_fetch_add(&next_half, 1, __ATOMIC_RELAXED) & 1;
+          const uint64_t half = (uint64_t)cfg.size / 2;
+@@ -366,6 +377,9 @@ panvk_per_arch(cmd_prepare_tiler_context)(struct panvk_cmd_buffer *cmdbuf,
+    }
+ 
+    pan_pack(&batch->tiler.ctx_templ, TILER_CONTEXT, cfg) {
++      /* jm-v7 099: with a split heap on v6/v7 this is the size of one
++       * half's BO, the heap the batch really has.
++       */
+       cfg.hierarchy_mask = panvk_select_tiler_hierarchy_mask(
+          phys_dev, &cmdbuf->state.gfx, pan_kmod_bo_size(dev->tiler_heap->bo));
+       cfg.fb_width = fb->width_px;
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c b/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
+index 9d6309f..f4b7b96 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_gpu_queue.c
+@@ -498,7 +498,7 @@ panvk_per_arch(gpu_queue_submit)(struct vk_queue *vk_queue, struct vk_queue_subm
+             bos[bo_idx++] = batch->blit.dst;
+ 
+          if (batch->vtc_jc.first_tiler)
+-            bos[bo_idx++] = (PAN_ARCH == 9 && batch->heap_half)
++            bos[bo_idx++] = (batch->heap_half && dev->tiler_heap2)
+                                ? dev->tiler_heap2->bo
+                                : dev->tiler_heap->bo;
+ 
+diff --git a/src/panfrost/vulkan/panvk_v7_knobs.h b/src/panfrost/vulkan/panvk_v7_knobs.h
+index 1e4e94a..d5ada18 100644
+--- a/src/panfrost/vulkan/panvk_v7_knobs.h
++++ b/src/panfrost/vulkan/panvk_v7_knobs.h
+@@ -91,4 +91,15 @@ panvk_v7_knob_attr_cache(void)
+    return panvk_v7_knob_on("PANVK_V7_ATTR_CACHE", &v);
+ }
+ 
++/* jm-v7 099: one tiler heap BO per PANVK_OVERLAP half. Only with the
++ * overlap on (PANVK_OVERLAP, default on), else there is one half.
++ */
++static inline bool
++panvk_v7_split_heap(void)
++{
++   static int v = -1, ov = -1;
++   return panvk_v7_knob_on("PANVK_V7_SPLIT_HEAP", &v) &&
++          panvk_v7_knob_on("PANVK_OVERLAP", &ov);
++}
++
+ #endif /* PANVK_V7_KNOBS_H */
+diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
+index 44becb6..354ab99 100644
+--- a/src/panfrost/vulkan/panvk_vX_device.c
++++ b/src/panfrost/vulkan/panvk_vX_device.c
+@@ -30,6 +30,7 @@
+ #include "panvk_physical_device.h"
+ #include "panvk_precomp_cache.h"
+ #include "panvk_priv_bo.h"
++#include "panvk_v7_knobs.h"
+ #include "panvk_image_view.h"
+ #include "panvk_queue.h"
+ #include "panvk_utrace.h"
+@@ -849,8 +850,19 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+ #endif
+ 
+ #if PAN_ARCH <= 9
++#if PAN_ARCH < 9
++   /* jm-v7 099: with PANVK_OVERLAP each overlap half gets its own 64 MiB
++    * GROW_ON_GPF heap, as v9 does. Both halves in one 128 MiB BO meant the
++    * first fault of half 1 (at +64 MiB) committed every page below it, for
++    * the life of the device. PANVK_V7_SPLIT_HEAP=0 = one BO (old).
++    */
++   const bool split_heap = panvk_v7_split_heap();
++   const size_t heap_size = (split_heap ? 64 : 128) * 1024 * 1024;
++#else
++   const size_t heap_size = 128 * 1024 * 1024;
++#endif
+    result = panvk_priv_bo_create(
+-      device, 128 * 1024 * 1024,
++      device, heap_size,
+       PAN_KMOD_BO_FLAG_NO_MMAP | PAN_KMOD_BO_FLAG_ALLOC_ON_FAULT,
+       VK_SYSTEM_ALLOCATION_SCOPE_DEVICE, &device->tiler_heap);
+    if (result != VK_SUCCESS)
+@@ -863,6 +875,15 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+       VK_SYSTEM_ALLOCATION_SCOPE_DEVICE, &device->tiler_heap2);
+    if (result != VK_SUCCESS)
+       goto err_free_priv_bos;
++#else
++   if (split_heap) {
++      result = panvk_priv_bo_create(
++         device, heap_size,
++         PAN_KMOD_BO_FLAG_NO_MMAP | PAN_KMOD_BO_FLAG_ALLOC_ON_FAULT,
++         VK_SYSTEM_ALLOCATION_SCOPE_DEVICE, &device->tiler_heap2);
++      if (result != VK_SUCCESS)
++         goto err_free_priv_bos;
++   }
+ #endif
+ 
+    result = panvk_priv_bo_create(
+-- 
+2.55.0
+

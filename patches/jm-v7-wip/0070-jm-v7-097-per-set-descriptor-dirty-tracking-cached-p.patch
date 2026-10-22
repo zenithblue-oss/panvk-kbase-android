@@ -1,0 +1,428 @@
+From 1f88c995c3230906119a59c87f25fbdcac797519 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 22 Oct 2026 04:50:22 +0000
+Subject: [PATCH 70/72] jm-v7 097: per-set descriptor dirty tracking, cached
+ push uniforms and attribute tables on v6/v7
+
+Perf review items 4 and 6. Every v6/v7 draw re-did work that only some
+state changes need:
+
+- Any descriptor set bind set DESC_STATE, which rebuilt both stages'
+  tables and dynamic buffers and emitted both copy-desc jobs (the
+  upstream TODO), even for an identical rebind. Binds now return the
+  sets whose handle or dynamic offsets changed and skip DESC_STATE when
+  none did. While every DESC_STATE dirtying since the last draw came
+  from a bind or a push, the draw knows the exact changed sets and
+  rebuilds a stage's tables, dynamic SSBOs and copy job only when one of
+  its used sets changed (or the stage did). Any other DESC_STATE source
+  (meta restore) means every set; it also dirties VS and FS. Push
+  descriptors are still handled as before. PANVK_V7_DESC_DIRTY=0 = old.
+- Push uniforms were uploaded for both stages on every draw and layer.
+  They are now uploaded when VS/FS_PUSH_UNIFORMS or the stage is dirty,
+  as on CSF. The layer id is now set for every layer, 0 included (it was
+  only set for layers > 0, so layer 0 of a later draw could keep the
+  previous draw's last layer), and a change dirties both stages (a
+  multiview VS reads it). An indirect draw leaves VS_PUSH_UNIFORMS dirty,
+  since its helper patches the block on the GPU (as v9 does).
+  PANVK_V7_PUSH_CACHE=0 = old.
+- A direct draw's attribute and attribute-buffer tables are reused while
+  the vertex input state, vertex buffers, VS, padded vertex count,
+  instancing and raw vertex offset are unchanged. Indirect draws (GPU
+  patched) and VS storage images (jm-v7 090) keep per-draw tables.
+  PANVK_V7_ATTR_CACHE=0 = old.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c    | 103 ++++++++++++++++--
+ src/panfrost/vulkan/panvk_cmd_draw.h          |  19 ++++
+ src/panfrost/vulkan/panvk_v7_knobs.h          |  37 +++++++
+ src/panfrost/vulkan/panvk_vX_cmd_desc_state.c |  63 ++++++++++-
+ 4 files changed, 205 insertions(+), 17 deletions(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index d400e9a..6eb2626 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -30,6 +30,7 @@
+ #include "panvk_meta.h"
+ #include "panvk_priv_bo.h"
+ #include "panvk_shader.h"
++#include "panvk_v7_knobs.h"
+ 
+ #include "draw_helper.h"
+ #include "libpan/draw_helper_vp.h"
+@@ -1047,6 +1048,33 @@ panvk_draw_prepare_vs_attribs(struct panvk_cmd_buffer *cmdbuf,
+                       vs_variant->info.attribute_count);
+    unsigned attrib_count = num_vs_attribs + num_imgs;
+ 
++   /* jm-v7 097: a direct draw's tables depend only on the vertex input
++    * state, the vertex buffers, the VS and the draw's padded vertex count,
++    * instancing and raw vertex offset: reuse the previous ones while all of
++    * these are unchanged. Indirect draws are patched on the GPU and VS
++    * storage images (jm-v7 090) need a fresh table for their copy job, so
++    * both keep per-draw tables. PANVK_V7_ATTR_CACHE=0 = always rebuild.
++    */
++   const bool attr_cacheable =
++      panvk_v7_knob_attr_cache() && !is_indirect_draw(draw) && !num_imgs;
++   if (attr_cacheable && cmdbuf->state.gfx.vs.attr_key.valid &&
++       cmdbuf->state.gfx.vs.attribs && cmdbuf->state.gfx.vs.attrib_bufs &&
++       !gfx_state_dirty(cmdbuf, VB) && !gfx_state_dirty(cmdbuf, VS) &&
++       !dyn_gfx_state_dirty(cmdbuf, VI) &&
++       !dyn_gfx_state_dirty(cmdbuf, VI_BINDINGS_VALID) &&
++       !dyn_gfx_state_dirty(cmdbuf, VI_BINDING_STRIDES) &&
++       cmdbuf->state.gfx.vs.attr_key.padded_vertex_count ==
++          draw->padded_vertex_count &&
++       cmdbuf->state.gfx.vs.attr_key.instance_base ==
++          draw->info.instance.base &&
++       cmdbuf->state.gfx.vs.attr_key.instance_count ==
++          draw->info.instance.count &&
++       cmdbuf->state.gfx.vs.attr_key.raw_offset ==
++          draw->info.vertex.raw_offset &&
++       cmdbuf->state.gfx.vs.attr_key.attrib_count == attrib_count)
++      return VK_SUCCESS;
++   cmdbuf->state.gfx.vs.attr_key.valid = false;
++
+    unsigned attrib_buf_count = (num_vbs + num_imgs) * 2;
+    struct pan_ptr bufs = panvk_cmd_alloc_desc_array(
+       cmdbuf, attrib_buf_count + 1, ATTRIBUTE_BUFFER);
+@@ -1115,6 +1143,16 @@ panvk_draw_prepare_vs_attribs(struct panvk_cmd_buffer *cmdbuf,
+    cmdbuf->state.gfx.vs.attrib_bufs = bufs.gpu;
+    cmdbuf->state.gfx.vs.attribs = attribs.gpu;
+ 
++   if (attr_cacheable) {
++      cmdbuf->state.gfx.vs.attr_key.padded_vertex_count =
++         draw->padded_vertex_count;
++      cmdbuf->state.gfx.vs.attr_key.instance_base = draw->info.instance.base;
++      cmdbuf->state.gfx.vs.attr_key.instance_count = draw->info.instance.count;
++      cmdbuf->state.gfx.vs.attr_key.raw_offset = draw->info.vertex.raw_offset;
++      cmdbuf->state.gfx.vs.attr_key.attrib_count = attrib_count;
++      cmdbuf->state.gfx.vs.attr_key.valid = true;
++   }
++
+    if (num_imgs) {
+       cmdbuf->state.gfx.vs.desc.img_attrib_table =
+          attribs.gpu + (MAX_VS_ATTRIBS * pan_size(ATTRIBUTE));
+@@ -2062,6 +2100,23 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+    uint32_t used_set_mask =
+       vs_desc_info->used_set_mask | (fs ? fs_desc_info->used_set_mask : 0);
+ 
++   /* jm-v7 097: with an exact changed-set mask, a stage's tables, dynamic
++    * buffers and copy job are only rebuilt when one of its sets changed (or
++    * the stage itself did).
++    */
++   const bool desc_dirty = gfx_state_dirty(cmdbuf, DESC_STATE);
++   const uint32_t dirty_sets =
++      !desc_dirty                              ? 0
++      : cmdbuf->state.gfx.v7_dirty_sets_valid ? cmdbuf->state.gfx.v7_dirty_sets
++                                               : ~0u;
++   cmdbuf->state.gfx.v7_dirty_sets = 0;
++   cmdbuf->state.gfx.v7_dirty_sets_valid = false;
++   const bool vs_desc_dirty = (dirty_sets & vs_desc_info->used_set_mask) ||
++                              gfx_state_dirty(cmdbuf, VS);
++   const bool fs_desc_dirty =
++      (fs ? (dirty_sets & fs_desc_info->used_set_mask) != 0 : desc_dirty) ||
++      gfx_state_dirty(cmdbuf, FS);
++
+    if (gfx_state_dirty(cmdbuf, DESC_STATE) || gfx_state_dirty(cmdbuf, VS) ||
+        gfx_state_dirty(cmdbuf, FS)) {
+       result = panvk_per_arch(cmd_prepare_push_descs)(cmdbuf, desc_state,
+@@ -2070,7 +2125,7 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+          return result;
+    }
+ 
+-   if (gfx_state_dirty(cmdbuf, DESC_STATE) || gfx_state_dirty(cmdbuf, VS)) {
++   if (vs_desc_dirty) {
+       result = panvk_per_arch(cmd_prepare_shader_desc_tables)(
+          cmdbuf, desc_state, vs_desc_info, false, vs_desc_state);
+       if (result != VK_SUCCESS)
+@@ -2096,14 +2151,13 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+    const bool vs_has_imgs =
+       vs_desc_info->others.count[PANVK_BIFROST_DESC_TABLE_IMG] != 0;
+ 
+-   if (gfx_state_dirty(cmdbuf, DESC_STATE) || gfx_state_dirty(cmdbuf, VS) ||
+-       vs_has_imgs) {
++   if (vs_desc_dirty || vs_has_imgs) {
+       result = panvk_draw_prepare_vs_copy_desc_job(cmdbuf, draw);
+       if (result != VK_SUCCESS)
+          return result;
+    }
+ 
+-   if (gfx_state_dirty(cmdbuf, DESC_STATE) || gfx_state_dirty(cmdbuf, FS)) {
++   if (fs_desc_dirty) {
+       if (fs == NULL) {
+          /* No need to setup the FS desc tables if the FS is not executed. */
+          memset(fs_desc_state, 0, sizeof(*fs_desc_state));
+@@ -2163,19 +2217,40 @@ prepare_draw_layer(struct panvk_cmd_buffer *cmdbuf,
+    if (result != VK_SUCCESS)
+       return result;
+ 
+-   if (draw->info.layer_id > 0) {
++   /* jm-v7 097: push uniforms are uploaded only when dirty (sysvals,
++    * push constants, a shader change, a layer change), as on CSF. The layer
++    * id is set for every layer, 0 included: it is read by the FS and by a
++    * multiview VS (gl_ViewIndex). Indirect draws keep a fresh VS block per
++    * layer (the helper patches it on the GPU) and leave VS_PUSH_UNIFORMS
++    * dirty for the next draw. PANVK_V7_PUSH_CACHE=0 = upload both every
++    * layer (old).
++    */
++   const bool push_cache = panvk_v7_knob_push_cache();
++   if (!push_cache) {
++      if (draw->info.layer_id > 0) {
++         cmdbuf->state.gfx.sysvals.layer_id = draw->info.layer_id;
++         gfx_state_set_dirty(cmdbuf, FS_PUSH_UNIFORMS);
++      }
++   } else if (cmdbuf->state.gfx.sysvals.layer_id != draw->info.layer_id) {
+       cmdbuf->state.gfx.sysvals.layer_id = draw->info.layer_id;
+       gfx_state_set_dirty(cmdbuf, FS_PUSH_UNIFORMS);
++      gfx_state_set_dirty(cmdbuf, VS_PUSH_UNIFORMS);
+    }
+ 
+-   struct pan_ptr vs_push_uniforms;
+-   result = panvk_per_arch(cmd_prepare_gfx_push_uniforms)(
+-      cmdbuf, vs, &vs_push_uniforms, 1);
+-   if (result != VK_SUCCESS)
+-      return result;
+-   cmdbuf->state.gfx.vs.push_uniforms = vs_push_uniforms.gpu;
++   if (!push_cache || !cmdbuf->state.gfx.vs.push_uniforms ||
++       gfx_state_dirty(cmdbuf, VS_PUSH_UNIFORMS) ||
++       gfx_state_dirty(cmdbuf, VS)) {
++      struct pan_ptr vs_push_uniforms;
++      result = panvk_per_arch(cmd_prepare_gfx_push_uniforms)(
++         cmdbuf, vs, &vs_push_uniforms, 1);
++      if (result != VK_SUCCESS)
++         return result;
++      cmdbuf->state.gfx.vs.push_uniforms = vs_push_uniforms.gpu;
++   }
+ 
+-   if (fs) {
++   if (fs && (!push_cache || !cmdbuf->state.gfx.fs.push_uniforms ||
++              gfx_state_dirty(cmdbuf, FS_PUSH_UNIFORMS) ||
++              gfx_state_dirty(cmdbuf, FS))) {
+       struct pan_ptr fs_push_uniforms;
+       result = panvk_per_arch(cmd_prepare_gfx_push_uniforms)(
+          cmdbuf, fs, &fs_push_uniforms, 1);
+@@ -3498,6 +3573,10 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+    }
+ 
+    clear_dirty_after_draw(cmdbuf);
++   /* jm-v7 097: the helper patched this VS push uniform block on the GPU,
++    * so the next draw must not reuse it (as v9 does).
++    */
++   gfx_state_set_dirty(cmdbuf, VS_PUSH_UNIFORMS);
+ }
+ 
+ /* Job slots a tessellated draw may take in the batch, see panvk_tess_draw():
+diff --git a/src/panfrost/vulkan/panvk_cmd_draw.h b/src/panfrost/vulkan/panvk_cmd_draw.h
+index 32454f5..8d4104c 100644
+--- a/src/panfrost/vulkan/panvk_cmd_draw.h
++++ b/src/panfrost/vulkan/panvk_cmd_draw.h
+@@ -165,6 +165,14 @@ enum panvk_cmd_graphics_dirty_state {
+ 
+ struct panvk_cmd_graphics_state {
+    struct panvk_descriptor_state desc_state;
++#if PAN_ARCH < 9
++   /* jm-v7 097: the sets changed since the last draw, valid only while
++    * every DESC_STATE dirtying since then came through a set bind or push
++    * (otherwise DESC_STATE means every set).
++    */
++   uint32_t v7_dirty_sets;
++   bool v7_dirty_sets_valid;
++#endif
+ 
+    struct {
+       struct vk_vertex_input_state vi;
+@@ -237,6 +245,17 @@ struct panvk_cmd_graphics_state {
+       uint64_t indirect_attribs_infos;
+       uint64_t indirect_attrib_bufs_infos;
+       uint64_t indirect_varying_bufs_infos;
++      /* jm-v7 097: what the direct draw's attribute tables (attribs,
++       * attrib_bufs) were built for, so an identical draw reuses them.
++       */
++      struct {
++         uint32_t padded_vertex_count;
++         uint32_t instance_base;
++         uint32_t instance_count;
++         int32_t raw_offset;
++         uint32_t attrib_count;
++         bool valid;
++      } attr_key;
+ #else
+       /* The number of times desc is repeated.  Zero means that it is not
+        * repeated but also that it's re-usable across draws and we're not
+diff --git a/src/panfrost/vulkan/panvk_v7_knobs.h b/src/panfrost/vulkan/panvk_v7_knobs.h
+index dbd1d1b..1e4e94a 100644
+--- a/src/panfrost/vulkan/panvk_v7_knobs.h
++++ b/src/panfrost/vulkan/panvk_v7_knobs.h
+@@ -54,4 +54,41 @@ panvk_v7_knob_desc_reorder(void)
+    return v;
+ }
+ 
++/* Runtime-only knobs (no effect on a compile, so not hashed). */
++
++/* Read "<name>=0" as off; default on. */
++static inline bool
++panvk_v7_knob_on(const char *name, int *cache)
++{
++   if (*cache < 0) {
++      const char *e = getenv(name);
++      *cache = !(e && e[0] == '0');
++   }
++   return *cache;
++}
++
++/* jm-v7 097: per-set descriptor dirty tracking, identical rebinds skipped. */
++static inline bool
++panvk_v7_knob_desc_dirty(void)
++{
++   static int v = -1;
++   return panvk_v7_knob_on("PANVK_V7_DESC_DIRTY", &v);
++}
++
++/* jm-v7 097: push uniforms uploaded only when dirty. */
++static inline bool
++panvk_v7_knob_push_cache(void)
++{
++   static int v = -1;
++   return panvk_v7_knob_on("PANVK_V7_PUSH_CACHE", &v);
++}
++
++/* jm-v7 097: direct-draw attribute tables reused while unchanged. */
++static inline bool
++panvk_v7_knob_attr_cache(void)
++{
++   static int v = -1;
++   return panvk_v7_knob_on("PANVK_V7_ATTR_CACHE", &v);
++}
++
+ #endif /* PANVK_V7_KNOBS_H */
+diff --git a/src/panfrost/vulkan/panvk_vX_cmd_desc_state.c b/src/panfrost/vulkan/panvk_vX_cmd_desc_state.c
+index 3c6cbfd..d371343 100644
+--- a/src/panfrost/vulkan/panvk_vX_cmd_desc_state.c
++++ b/src/panfrost/vulkan/panvk_vX_cmd_desc_state.c
+@@ -17,6 +17,7 @@
+ #include "panvk_cmd_desc_state.h"
+ #include "panvk_device.h"
+ #include "panvk_entrypoints.h"
++#include "panvk_v7_knobs.h"
+ 
+ #include "pan_pool.h"
+ 
+@@ -26,15 +27,21 @@
+ #include "vk_command_buffer.h"
+ #include "vk_command_pool.h"
+ 
+-static void
++/* Returns the mask of the sets whose binding (handle or dynamic offsets)
++ * changed.
++ */
++static uint32_t
+ cmd_desc_state_bind_sets(struct panvk_descriptor_state *desc_state,
+                          const VkBindDescriptorSetsInfoKHR *info)
+ {
++   uint32_t changed = 0;
+    unsigned dynoffset_idx = 0;
+    for (unsigned i = 0; i < info->descriptorSetCount; ++i) {
+       unsigned set_idx = i + info->firstSet;
+       VK_FROM_HANDLE(panvk_descriptor_set, set, info->pDescriptorSets[i]);
+ 
++      bool same = desc_state->sets[set_idx] == set;
++
+       /* Invalidate the push set. */
+       if (desc_state->sets[set_idx] &&
+           desc_state->sets[set_idx] == desc_state->push_sets[set_idx])
+@@ -44,15 +51,47 @@ cmd_desc_state_bind_sets(struct panvk_descriptor_state *desc_state,
+ 
+       if (set) {
+          for (unsigned b = 0; b < set->layout->dyn_buf_count; b++) {
+-            desc_state->dyn_buf_offsets[set_idx][b] =
+-               info->pDynamicOffsets[dynoffset_idx++];
++            const uint32_t off = info->pDynamicOffsets[dynoffset_idx++];
++            if (desc_state->dyn_buf_offsets[set_idx][b] != off)
++               same = false;
++            desc_state->dyn_buf_offsets[set_idx][b] = off;
+          }
+          desc_state->dyn_ssbos[set_idx] = set->layout->dyn_ssbos;
+       }
++
++      if (!same)
++         changed |= BITFIELD_BIT(set_idx);
+    }
+ 
+    assert(dynoffset_idx == info->dynamicOffsetCount);
++   return changed;
++}
++
++#if PAN_ARCH < 9
++/* jm-v7 097: DESC_STATE for the graphics sets in @sets only. The mask stays
++ * exact while every DESC_STATE dirtying since the last draw came through
++ * here; any other one (meta restore, ...) makes DESC_STATE mean every set,
++ * and those also dirty VS and FS, which rebuild both sides anyway.
++ */
++static void
++v7_gfx_desc_dirty_sets(struct panvk_cmd_buffer *cmdbuf, uint32_t sets)
++{
++   if (!panvk_v7_knob_desc_dirty()) {
++      gfx_state_set_dirty(cmdbuf, DESC_STATE);
++      return;
++   }
++
++   if (!sets)
++      return;
++
++   if (!gfx_state_dirty(cmdbuf, DESC_STATE)) {
++      cmdbuf->state.gfx.v7_dirty_sets = 0;
++      cmdbuf->state.gfx.v7_dirty_sets_valid = true;
++   }
++   cmdbuf->state.gfx.v7_dirty_sets |= sets;
++   gfx_state_set_dirty(cmdbuf, DESC_STATE);
+ }
++#endif
+ 
+ static struct panvk_descriptor_set *
+ cmd_get_push_desc_set(struct vk_command_buffer *vk_cmdbuf,
+@@ -366,10 +405,15 @@ panvk_per_arch(CmdBindDescriptorSets2KHR)(
+ 
+    /* TODO: Invalidate only if the shader tables are disturbed */
+    if (pBindDescriptorSetsInfo->stageFlags & VK_SHADER_STAGE_ALL_GRAPHICS) {
+-      cmd_desc_state_bind_sets(&cmdbuf->state.gfx.desc_state,
+-                               pBindDescriptorSetsInfo);
++      const uint32_t changed = cmd_desc_state_bind_sets(
++         &cmdbuf->state.gfx.desc_state, pBindDescriptorSetsInfo);
+ 
++#if PAN_ARCH < 9
++      v7_gfx_desc_dirty_sets(cmdbuf, changed);
++#else
++      (void)changed;
+       gfx_state_set_dirty(cmdbuf, DESC_STATE);
++#endif
+    }
+ 
+    if (pBindDescriptorSetsInfo->stageFlags & VK_SHADER_STAGE_COMPUTE_BIT) {
+@@ -417,7 +461,12 @@ panvk_per_arch(CmdPushDescriptorSet2KHR)(
+       push_desc_set_write(cmdbuf, &cmdbuf->state.gfx.desc_state,
+                           pPushDescriptorSetInfo);
+ 
++#if PAN_ARCH < 9
++      v7_gfx_desc_dirty_sets(cmdbuf,
++                             BITFIELD_BIT(pPushDescriptorSetInfo->set));
++#else
+       gfx_state_set_dirty(cmdbuf, DESC_STATE);
++#endif
+    }
+ 
+    if (pPushDescriptorSetInfo->stageFlags & VK_SHADER_STAGE_COMPUTE_BIT) {
+@@ -458,7 +507,11 @@ panvk_per_arch(CmdPushDescriptorSetWithTemplate2KHR)(
+    push_set->layout = NULL;
+ 
+    if (template->bind_point == VK_PIPELINE_BIND_POINT_GRAPHICS)
++#if PAN_ARCH < 9
++      v7_gfx_desc_dirty_sets(cmdbuf, BITFIELD_BIT(set));
++#else
+       gfx_state_set_dirty(cmdbuf, DESC_STATE);
++#endif
+    else
+       compute_state_set_dirty(cmdbuf, DESC_STATE);
+ }
+-- 
+2.55.0
+
