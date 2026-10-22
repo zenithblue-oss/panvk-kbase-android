@@ -1,0 +1,318 @@
+From 5aee1e9f2433204e4acb6ecf30300124d5629365 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Thu, 22 Oct 2026 08:59:59 +0000
+Subject: [PATCH 1/4] panvk/csf: count, prefix sum and draw a tess chunk in one
+ workgroup
+
+Each tessellation chunk ran three dependent dispatches after the TCS,
+each followed by a full compute drain: panlib_tessellate(COUNT),
+panlib_tess_draw() (a serial prefix sum on a single invocation, one
+dependent load/store per patch, up to ~507 patches a chunk) and
+panlib_tessellate(WITH_COUNTS) (tess perf review #2, #3).
+
+panlib_tess_count_draw() does COUNT, a 64-wide workgroup scan of the
+per-patch index counts and the draw/range bookkeeping of
+panlib_tess_draw() in one workgroup. For a direct draw with at most
+PANVK_TESS_FUSE_GEN_MAX patches (default 64), the same workgroup also
+runs the WITH_COUNTS pass after a global barrier: the separate pass
+would have been a single 64-wide workgroup too, so nothing is lost,
+and the chunk takes one dispatch instead of three. Larger and
+indirect draws keep the many-workgroup WITH_COUNTS pass.
+
+Statistics, prims-generated, range and "more" are written exactly as
+panlib_tess_draw() writes them. The kernels live in a new
+libpan/tess_fast.cl (with panlib_tess_gen(), the WITH_COUNTS pass), so
+draw_helper.cl and the v9 JM tess path that later series patch stay as
+they are.
+
+PANVK_TESS_FUSE=0 restores the three passes. Both knobs are read at
+VkDevice creation.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/libpan/meson.build             |   1 +
+ src/panfrost/libpan/tess_fast.cl            | 164 ++++++++++++++++++++
+ src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c |  41 +++--
+ src/panfrost/vulkan/panvk_device.h          |   9 ++
+ src/panfrost/vulkan/panvk_vX_device.c       |   3 +
+ 5 files changed, 209 insertions(+), 9 deletions(-)
+ create mode 100644 src/panfrost/libpan/tess_fast.cl
+
+diff --git a/src/panfrost/libpan/meson.build b/src/panfrost/libpan/meson.build
+index e266a478..ff65775a 100644
+--- a/src/panfrost/libpan/meson.build
++++ b/src/panfrost/libpan/meson.build
+@@ -8,6 +8,7 @@ libpan_shader_files = files(
+   'draw_helper.cl',
+   'fan_chunks.cl',
+   'indirect_dispatch.cl',
++  'tess_fast.cl',
+ )
+ 
+ idep_libpan_per_arch = {}
+diff --git a/src/panfrost/libpan/tess_fast.cl b/src/panfrost/libpan/tess_fast.cl
+new file mode 100644
+index 00000000..349f3ef7
+--- /dev/null
++++ b/src/panfrost/libpan/tess_fast.cl
+@@ -0,0 +1,164 @@
++/*
++ * Copyright 2026 Abhay Byte
++ * SPDX-License-Identifier: MIT
++ */
++
++/* CSF tessellation fast paths (csf-v11 tess perf). The kernels here replace
++ * passes of the draw_helper.cl tessellation loop, which stays as it is for
++ * the v9 JM path and for the PANVK_TESS_* knobs that turn these off.
++ */
++
++#include "compiler/libcl/libcl.h"
++#include "compiler/libcl/libcl_vk.h"
++#include "compiler/shader_enums.h"
++#include "poly/cl/tessellator.h"
++#include "tess_draw.h"
++
++#if PAN_ARCH >= 10
++
++/* pstats_add() of draw_helper.cl: a 64-bit add from 32-bit atomics. */
++static inline void
++tess_pstats_add(global uint32_t *counter, uint64_t value)
++{
++   uint32_t lo = value, hi = value >> 32;
++
++   if (!value)
++      return;
++
++   uint32_t old = atomic_fetch_add((global atomic_uint *)counter, lo);
++   hi += (uint32_t)(old + lo) < old;
++   if (hi)
++      atomic_fetch_add((global atomic_uint *)(counter + 1), hi);
++}
++
++/* One patch, as panlib_tessellate() does it. domain: 0 triangles, 1 quads,
++ * 2 isolines.
++ */
++static inline void
++tess_fast_patch(constant struct poly_tess_params *p, uint32_t domain,
++                uint32_t patch, enum poly_tess_mode mode)
++{
++   if (domain == 0)
++      poly_tess_tri_process(p, patch, mode);
++   else if (domain == 1)
++      poly_tess_quad_process(p, patch, mode);
++   else
++      poly_tess_isoline_process(p, patch, mode);
++
++   /* The tessellator emits clockwise triangles, swap two vertices of each
++    * one for the other winding.
++    */
++   if (mode == POLY_TESS_MODE_WITH_COUNTS && p->ccw && domain != 2 &&
++       !p->points_mode) {
++      global uint32_t *idx = p->index_buffer;
++      uint32_t end = p->counts[patch];
++
++      for (uint32_t i = patch ? p->counts[patch - 1] : 0; i + 2 < end;
++           i += 3) {
++         uint32_t tmp = idx[i + 1];
++         idx[i + 1] = idx[i + 2];
++         idx[i + 2] = tmp;
++      }
++   }
++}
++
++/* panlib_tessellate(WITH_COUNTS): one invocation per patch of the chunk. */
++KERNEL(64)
++panlib_tess_gen(constant struct poly_tess_params *p, uint32_t domain__3)
++{
++   uint32_t patch = cl_global_id.x;
++
++   if (patch < p->nr_patches)
++      tess_fast_patch(p, domain__3, patch, POLY_TESS_MODE_WITH_COUNTS);
++}
++
++/* csf-v11 tess-fused: panlib_tessellate(COUNT) and panlib_tess_draw() in one
++ * workgroup, with a parallel prefix sum instead of the serial loop. Each
++ * invocation counts a run of patches and sums it, a workgroup scan gives each
++ * run its start, then invocation 0 writes the draw as panlib_tess_draw()
++ * does. With gen set, the same workgroup also runs the WITH_COUNTS pass, so
++ * a small chunk takes one dispatch instead of three. p is &t->p.
++ */
++#define TESS_FUSE_WG 64
++
++KERNEL(TESS_FUSE_WG)
++panlib_tess_count_draw(global struct panlib_tess_draw *t,
++                       constant struct poly_tess_params *p,
++                       global uint32_t *c_invs, global uint32_t *c_prims,
++                       global uint32_t *prims_generated, uint32_t gen,
++                       uint32_t domain__3)
++{
++   local uint32_t scan[TESS_FUSE_WG];
++   const uint32_t tid = cl_local_id.x;
++   /* Read by every invocation before invocation 0 updates t below. */
++   const uint32_t new_chunk = t->new_chunk;
++   uint32_t total = 0;
++
++   if (new_chunk) {
++      const uint32_t n = p->nr_patches;
++      const uint32_t seg = (n + TESS_FUSE_WG - 1) / TESS_FUSE_WG;
++      const uint32_t b = min(tid * seg, n), e = min(b + seg, n);
++      uint32_t own = 0;
++
++      for (uint32_t i = b; i < e; i++) {
++         tess_fast_patch(p, domain__3, i, POLY_TESS_MODE_COUNT);
++         own += p->counts[i];
++         p->counts[i] = own;
++      }
++
++      /* Inclusive scan of the run sums. */
++      scan[tid] = own;
++      barrier(CLK_LOCAL_MEM_FENCE);
++      for (uint32_t o = 1; o < TESS_FUSE_WG; o <<= 1) {
++         uint32_t v = tid >= o ? scan[tid - o] : 0;
++         barrier(CLK_LOCAL_MEM_FENCE);
++         scan[tid] += v;
++         barrier(CLK_LOCAL_MEM_FENCE);
++      }
++
++      const uint32_t base = scan[tid] - own;
++      for (uint32_t i = b; i < e; i++)
++         p->counts[i] += base;
++      total = scan[TESS_FUSE_WG - 1];
++
++      /* WITH_COUNTS reads the prefix of the patch before its own. */
++      barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
++      if (gen) {
++         for (uint32_t i = tid; i < n; i += TESS_FUSE_WG)
++            tess_fast_patch(p, domain__3, i, POLY_TESS_MODE_WITH_COUNTS);
++      }
++   }
++
++   if (tid != 0)
++      return;
++
++   const uint32_t vpp = max(t->verts_per_prim, 1u);
++
++   if (new_chunk) {
++      t->idx_total = total;
++      t->idx_cursor = 0;
++      if (c_invs)
++         tess_pstats_add(c_invs, total / vpp);
++      if (c_prims)
++         tess_pstats_add(c_prims, total / vpp);
++   }
++
++   uint32_t left = t->idx_total - t->idx_cursor;
++   uint32_t count = t->range ? min(t->range, left) : left;
++
++   t->draw[0] = count;
++   t->draw[1] = 1;
++   t->draw[2] = t->idx_cursor;
++   t->draw[3] = 0;
++   t->draw[4] = 0;
++
++   t->idx_cursor += count;
++   t->gs_prim_base = t->prims_done;
++   t->prims_done += count / vpp;
++   t->more = t->idx_cursor < t->idx_total || t->next_patch < t->total_patches;
++
++   if (prims_generated)
++      atomic_fetch_add((global atomic_uint *)prims_generated, count / vpp);
++}
++
++#endif
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+index f3aad27a..02db20db 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+@@ -5134,6 +5134,17 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
+    };
+    const struct panlib_precomp_grid tess_grid =
+       panlib_1d(DIV_ROUND_UP(max_patches, 64));
++   /* csf-v11 tess-fused: one workgroup counts, prefix sums and publishes the
++    * draw of a chunk (PANVK_TESS_FUSE=0 runs the COUNT pass and the serial
++    * panlib_tess_draw() instead). A direct draw the CPU knows to have at
++    * most PANVK_TESS_FUSE_GEN_MAX patches is also tessellated by that
++    * workgroup: the separate WITH_COUNTS pass would be one workgroup too.
++    */
++   const bool fuse = dev->tess_opt.fuse;
++   const uint64_t direct_patches =
++      indirect ? UINT64_MAX
++               : (uint64_t)(draw->vertex.count / ps) * draw->instance.count;
++   const bool fuse_gen = fuse && direct_patches <= dev->tess_opt.fuse_gen_max;
+    const uint64_t prims_generated =
+       gs ? 0 : cmdbuf->state.gfx.prims_generated_query.ptr;
+    const uint32_t view_count =
+@@ -5261,15 +5272,27 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
+                                  push.gpu, tsd, &tcs_dispatch);
+       cs_wait_slots(b, dev->csf.sb.all_iters_mask);
+ 
+-      panlib_tessellate(&ctx, tess_grid, PANLIB_BARRIER_NONE, TD(p), domain,
+-                        POLY_TESS_MODE_COUNT);
+-      cs_wait_slots(b, dev->csf.sb.all_iters_mask);
+-      panlib_tess_draw(&ctx, panlib_1d(1), PANLIB_BARRIER_NONE, td.gpu,
+-                       c_invs, c_prims, prims_generated);
+-      cs_wait_slots(b, dev->csf.sb.all_iters_mask);
+-      panlib_tessellate(&ctx, tess_grid, PANLIB_BARRIER_NONE, TD(p), domain,
+-                        POLY_TESS_MODE_WITH_COUNTS);
+-      cs_wait_slots(b, dev->csf.sb.all_iters_mask);
++      if (fuse) {
++         panlib_tess_count_draw(&ctx, panlib_1d(1), PANLIB_BARRIER_NONE,
++                                td.gpu, TD(p), c_invs, c_prims,
++                                prims_generated, fuse_gen, domain);
++         cs_wait_slots(b, dev->csf.sb.all_iters_mask);
++         if (!fuse_gen) {
++            panlib_tess_gen(&ctx, tess_grid, PANLIB_BARRIER_NONE, TD(p),
++                            domain);
++            cs_wait_slots(b, dev->csf.sb.all_iters_mask);
++         }
++      } else {
++         panlib_tessellate(&ctx, tess_grid, PANLIB_BARRIER_NONE, TD(p),
++                           domain, POLY_TESS_MODE_COUNT);
++         cs_wait_slots(b, dev->csf.sb.all_iters_mask);
++         panlib_tess_draw(&ctx, panlib_1d(1), PANLIB_BARRIER_NONE, td.gpu,
++                          c_invs, c_prims, prims_generated);
++         cs_wait_slots(b, dev->csf.sb.all_iters_mask);
++         panlib_tessellate(&ctx, tess_grid, PANLIB_BARRIER_NONE, TD(p),
++                           domain, POLY_TESS_MODE_WITH_COUNTS);
++         cs_wait_slots(b, dev->csf.sb.all_iters_mask);
++      }
+ 
+       if (nested) {
+          /* TES as the gpu_prerast VS over this iteration's index range. */
+diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
+index dd01c0e9..5d2df03b 100644
+--- a/src/panfrost/vulkan/panvk_device.h
++++ b/src/panfrost/vulkan/panvk_device.h
+@@ -154,6 +154,15 @@ struct panvk_device {
+    simple_mtx_t gpu_prerast_lock;
+    /* struct panvk_gpu_prerast_syncs */
+    struct panvk_priv_bo *gpu_prerast_syncs;
++   /* CSF tessellation fast paths, read once at device creation so that a
++    * process can A/B them per VkDevice. */
++   struct {
++      /* PANVK_TESS_FUSE (default 1): panlib_tess_count_draw(). */
++      bool fuse;
++      /* PANVK_TESS_FUSE_GEN_MAX (default 64): patches of a direct draw the
++       * fused workgroup also tessellates. */
++      uint32_t fuse_gen_max;
++   } tess_opt;
+ 
+    /* Device-wide thread local storage shared by all command buffers. The
+     * last BO is the current one; outgrown ones stay alive for command
+diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
+index 51e669c2..1e9fa338 100644
+--- a/src/panfrost/vulkan/panvk_vX_device.c
++++ b/src/panfrost/vulkan/panvk_vX_device.c
+@@ -674,6 +674,9 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+    device->gpu_prerast_tess_wanted =
+       device->vk.enabled_features.tessellationShader;
+    simple_mtx_init(&device->gpu_prerast_lock, mtx_plain);
++   device->tess_opt.fuse = debug_get_num_option("PANVK_TESS_FUSE", 1) != 0;
++   device->tess_opt.fuse_gen_max =
++      debug_get_num_option("PANVK_TESS_FUSE_GEN_MAX", 64);
+ 
+    /* v9, or PANVK_GPU_PRERAST_ARENA=eager: commit both arenas here, as
+     * before csf-v11/205 (64 + 96 MiB per VkDevice with the features). */
+-- 
+2.55.0
+

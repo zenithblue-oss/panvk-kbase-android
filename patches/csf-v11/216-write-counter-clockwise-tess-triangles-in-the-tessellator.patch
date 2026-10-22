@@ -1,0 +1,176 @@
+From b4d3f89925206142200485bf77af2067f066a74b Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Thu, 22 Oct 2026 09:01:01 +0000
+Subject: [PATCH 4/4] panvk/csf: write counter-clockwise tess triangles in the
+ tessellator
+
+The libpoly tessellator writes clockwise triangles. For the other
+winding, panlib_tessellate() made a second pass over each patch's
+indices, on the same single invocation that tessellated the patch:
+one load and two stores per triangle, 512 dependent round trips for a
+quad at level 16 and 8192 at level 64 (tess perf review #5). With the
+default upper-left domain origin, every TES that asks for ccw (most
+D3D content through DXVK) paid it.
+
+Add POLY_TESS_CCW_INLINE, a poly_tess_params::ccw bit that makes
+DefineTriangle() swap the second and third index as it writes the
+triangle. The order and the provoking (first) vertex are the same as
+after the old pass. The tess_fast.cl kernels only run the pass for the
+old value 1, and the PANVK_TESS_FUSE=0 path now generates through
+panlib_tess_gen() too, so no CSF draw swaps twice. panlib_tessellate()
+(COUNT on CSF, and the v9 JM path, which keeps ccw = 0/1) is unchanged.
+The asahi users set 0 or 1 and are unaffected; points and isolines
+never go through DefineTriangle().
+
+PANVK_TESS_WINDING_INLINE=0 restores the second pass. Read at VkDevice
+creation.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/libpan/tess_fast.cl            |  5 +++--
+ src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c | 12 +++++++++---
+ src/panfrost/vulkan/panvk_device.h          |  2 ++
+ src/panfrost/vulkan/panvk_vX_device.c       |  2 ++
+ src/poly/cl/tessellator.h                   | 10 ++++++++++
+ src/poly/tessellator.h                      |  8 +++++++-
+ 6 files changed, 33 insertions(+), 6 deletions(-)
+
+diff --git a/src/panfrost/libpan/tess_fast.cl b/src/panfrost/libpan/tess_fast.cl
+index 21dd1fcb..a321d032 100644
+--- a/src/panfrost/libpan/tess_fast.cl
++++ b/src/panfrost/libpan/tess_fast.cl
+@@ -46,9 +46,10 @@ tess_fast_patch(constant struct poly_tess_params *p, uint32_t domain,
+       poly_tess_isoline_process(p, patch, mode);
+ 
+    /* The tessellator emits clockwise triangles, swap two vertices of each
+-    * one for the other winding.
++    * one for the other winding. With POLY_TESS_CCW_INLINE (csf-v11
++    * tess-winding) the tessellator already wrote them swapped.
+     */
+-   if (mode == POLY_TESS_MODE_WITH_COUNTS && p->ccw && domain != 2 &&
++   if (mode == POLY_TESS_MODE_WITH_COUNTS && (p->ccw & 1) && domain != 2 &&
+        !p->points_mode) {
+       global uint32_t *idx = p->index_buffer;
+       uint32_t end = p->counts[patch];
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+index a6fe3208..e414ca91 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+@@ -5076,7 +5076,12 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
+       .partitioning = spacing,
+       .points_mode = points,
+       .isolines = domain == 2,
+-      .ccw = ccw,
++      /* csf-v11 tess-winding: swap in DefineTriangle() rather than in a
++       * second pass over the patch's indices (PANVK_TESS_WINDING_INLINE=0).
++       */
++      .ccw = !ccw                          ? 0
++             : dev->tess_opt.winding_inline ? POLY_TESS_CCW_INLINE
++                                           : 1,
+    };
+    t->heap.base = l.heap;
+    t->heap.size = l.heap_size;
+@@ -5332,8 +5337,9 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
+          panlib_tess_draw(&ctx, panlib_1d(1), PANLIB_BARRIER_NONE, td.gpu,
+                           c_invs, c_prims, prims_generated);
+          cs_wait_slots(b, dev->csf.sb.all_iters_mask);
+-         panlib_tessellate(&ctx, tess_grid, PANLIB_BARRIER_NONE, TD(p),
+-                           domain, POLY_TESS_MODE_WITH_COUNTS);
++         /* panlib_tessellate(WITH_COUNTS) would swap a POLY_TESS_CCW_INLINE
++          * patch a second time, panlib_tess_gen() knows the bit. */
++         panlib_tess_gen(&ctx, tess_grid, PANLIB_BARRIER_NONE, TD(p), domain);
+          cs_wait_slots(b, dev->csf.sb.all_iters_mask);
+       }
+ 
+diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
+index 531b4194..2360575e 100644
+--- a/src/panfrost/vulkan/panvk_device.h
++++ b/src/panfrost/vulkan/panvk_device.h
+@@ -170,6 +170,8 @@ struct panvk_device {
+       /* PANVK_TESS_ARENAS (default 2): tessellation arenas a command
+        * buffer alternates its tess draws over. */
+       uint8_t arenas;
++      /* PANVK_TESS_WINDING_INLINE (default 1): POLY_TESS_CCW_INLINE. */
++      bool winding_inline;
+    } tess_opt;
+ 
+    /* Device-wide thread local storage shared by all command buffers. The
+diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
+index 0fc93ad3..c82bf4f7 100644
+--- a/src/panfrost/vulkan/panvk_vX_device.c
++++ b/src/panfrost/vulkan/panvk_vX_device.c
+@@ -704,6 +704,8 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+       debug_get_num_option("PANVK_TESS_SETUP_STEP", 1) != 0;
+    device->tess_opt.arenas =
+       debug_get_num_option("PANVK_TESS_ARENAS", 2) >= 2 ? 2 : 1;
++   device->tess_opt.winding_inline =
++      debug_get_num_option("PANVK_TESS_WINDING_INLINE", 1) != 0;
+ 
+    /* v9, or PANVK_GPU_PRERAST_ARENA=eager: commit both arenas here, as
+     * before csf-v11/205 (64 + 96 MiB per VkDevice with the features). */
+diff --git a/src/poly/cl/tessellator.h b/src/poly/cl/tessellator.h
+index 798ca252..3864dde5 100644
+--- a/src/poly/cl/tessellator.h
++++ b/src/poly/cl/tessellator.h
+@@ -90,6 +90,8 @@ struct INDEX_PATCH_CONTEXT2 {
+ struct CHWTessellator {
+    enum poly_tess_mode mode;
+    uint index_bias;
++   /* POLY_TESS_CCW_INLINE: write triangles counter-clockwise. */
++   bool swap_winding;
+ 
+    // array where we will store u/v's for the points we generate
+    global struct poly_tess_point *Point;
+@@ -319,6 +321,12 @@ DefineTriangle(private struct CHWTessellator *ctx, int index0, int index1,
+    index1 = PatchIndexValue(ctx, index1);
+    index2 = PatchIndexValue(ctx, index2);
+ 
++   if (ctx->swap_winding) {
++      int tmp = index1;
++      index1 = index2;
++      index2 = tmp;
++   }
++
+    vstore3(ctx->index_bias + (uint3)(index0, index1, index2), 0,
+            (global uint *)ctx->Index + indexStorageBaseOffset);
+ }
+@@ -834,6 +842,7 @@ poly_tess_tri_process(constant struct poly_tess_params *p, uint32_t patch,
+    struct CHWTessellator ctx = {
+       .mode = mode,
+       .index_bias = patch * POLY_TES_PATCH_ID_STRIDE,
++      .swap_winding = (p->ccw & POLY_TESS_CCW_INLINE) != 0,
+    };
+ 
+    // Is the patch culled? NaN will pass.
+@@ -1163,6 +1172,7 @@ poly_tess_quad_process(constant struct poly_tess_params *p, uint32_t patch,
+    struct CHWTessellator ctx = {
+       .mode = mode,
+       .index_bias = patch * POLY_TES_PATCH_ID_STRIDE,
++      .swap_winding = (p->ccw & POLY_TESS_CCW_INLINE) != 0,
+    };
+ 
+    // Is the patch culled?
+diff --git a/src/poly/tessellator.h b/src/poly/tessellator.h
+index 6087d97d..1e6d5c24 100644
+--- a/src/poly/tessellator.h
++++ b/src/poly/tessellator.h
+@@ -97,9 +97,15 @@ struct poly_tess_params {
+ 
+    /* When fed into a geometry shader, triangles should be counter-clockwise.
+     * The tessellator always produces clockwise triangles, but we can swap
+-    * dynamically in the TES.
++    * dynamically in the TES. POLY_TESS_CCW_INLINE instead makes the
++    * tessellator write them counter-clockwise.
+     */
+    uint32_t ccw;
+ } PACKED;
+ static_assert(sizeof(struct poly_tess_params) == 34 * 4,
+               "struct poly_tess_params must be 34 words");
++
++/* poly_tess_params::ccw bit: DefineTriangle() swaps the second and third
++ * index of every triangle as it writes it. Unset by the asahi users, which
++ * keep the 0/1 TES-side swap. */
++#define POLY_TESS_CCW_INLINE 2u
+-- 
+2.55.0
+

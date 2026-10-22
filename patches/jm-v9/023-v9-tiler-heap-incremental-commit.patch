@@ -153,7 +153,7 @@ diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_v
 index bfba7b310d5207490b86671cba9f35ad65ba7d4a..3e9f926df460126711d85a1ae28f98fcab927501 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
-@@ -726,6 +726,15 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+@@ -759,6 +759,15 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
     if (result != VK_SUCCESS)
        goto err_free_priv_bos;
  
@@ -169,7 +169,7 @@ index bfba7b310d5207490b86671cba9f35ad65ba7d4a..3e9f926df460126711d85a1ae28f98fc
     result = panvk_priv_bo_create(
        device,
        PANVK_JM_MAX_VERTICES_INDIRECT * PANVK_JM_MAX_PER_VTX_ATTRIBUTES_INDIRECT_SIZE,
-@@ -849,6 +858,7 @@ err_free_priv_bos:
+@@ -883,6 +892,7 @@ err_free_priv_bos:
     panvk_priv_bo_unref(device->sample_positions);
     panvk_priv_bo_unref(device->indirect_varying_buffer);
     panvk_priv_bo_unref(device->tiler_heap);
@@ -177,7 +177,7 @@ index bfba7b310d5207490b86671cba9f35ad65ba7d4a..3e9f926df460126711d85a1ae28f98fc
     panvk_device_cleanup_mempools(device);
     vk_free(&device->vk.alloc, device->dump_region_size);
  err_free_heaps:
-@@ -903,6 +913,7 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
+@@ -937,6 +947,7 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
     panvk_priv_bo_unref(device->tiler_oom.handlers_bo);
      panvk_priv_bo_unref(device->indirect_varying_buffer);
      panvk_priv_bo_unref(device->tiler_heap);

@@ -1263,7 +1263,7 @@ index 51e669c2c1486639be0952406b4cfc342a3fa68d..bfba7b310d5207490b86671cba9f35ad
  /* Commit the gpu_prerast arenas at creation.  On MediaTek kbase (CSF 1.21),
   * GPU-fault growth loses the first gpu_prerast draw's output: PanProbe
   * gs_viewport_depth case A drew nothing on every run; without alloc-on-fault,
-@@ -664,7 +664,7 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+@@ -687,7 +687,7 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
     simple_mtx_init(&device->tls.lock, mtx_plain);
     util_dynarray_init(&device->tls.bos, NULL);
  

@@ -1,0 +1,303 @@
+From 15fa4ee402094676d056672965965e485d590b8e Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Thu, 22 Oct 2026 09:00:28 +0000
+Subject: [PATCH 3/4] panvk/csf: alternate tess draws over two tessellation
+ arenas
+
+A tessellated draw owns the device's single 96 MiB tessellation arena
+from its compute pre-pass until its vertex/tiler loop has drawn the
+last range and released it. The next tess draw's compute side waits
+on that release, so on a frame of many small tess draws the compute
+and vertex/tiler queues take strict turns: compute idles while the
+draw is tiled, the tiler idles while the next draw's VS, TCS and
+tessellator run, and every draw pays both cross-queue hand-offs in
+series (tess perf review #1).
+
+Give the device a second tessellation arena, with its own ownership
+sync and its own ready/free pair in the queue syncobjs BO (same
+64-byte slots, +16 bytes, initialized like the first pair). Odd tess
+draws of a command buffer use it. The compute side of draw N+1 then
+runs while draw N is drawn, and the queues overlap.
+
+Deadlock freedom is the same argument as before: every loop takes and
+gives one pair, each pair's loops are recorded in the same order on
+the compute and vertex/tiler queues, and each arena's ownership sync
+is taken on compute and given on vertex/tiler in that same order. The
+non-tessellated chunk loop keeps sharing the first pair. Nested
+(GS / polygon-mode / XFB) tess draws still serialize on the gpu_prerast
+arena, as before.
+
+The second arena is allocated, fully committed, at the first draw that
+picks it (as csf-v11/205 does for the first), so a device that never
+records two tess draws in a command buffer pays nothing. If that
+allocation fails, the device falls back to one arena for good.
+
+PANVK_TESS_ARENAS=1 keeps the single arena. Read at VkDevice creation.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/csf/panvk_cmd_buffer.h   | 10 ++++++
+ src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c  | 35 +++++++++++++++++---
+ src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c | 17 ++++++++++
+ src/panfrost/vulkan/panvk_device.h           | 12 +++++++
+ src/panfrost/vulkan/panvk_gpu_prerast.h      |  2 ++
+ src/panfrost/vulkan/panvk_vX_device.c        | 28 ++++++++++++++++
+ 6 files changed, 99 insertions(+), 5 deletions(-)
+
+diff --git a/src/panfrost/vulkan/csf/panvk_cmd_buffer.h b/src/panfrost/vulkan/csf/panvk_cmd_buffer.h
+index 741c4fc9..c1c24d60 100644
+--- a/src/panfrost/vulkan/csf/panvk_cmd_buffer.h
++++ b/src/panfrost/vulkan/csf/panvk_cmd_buffer.h
+@@ -65,6 +65,13 @@ struct panvk_cs_sync64 {
+  */
+ #define PANVK_QUEUE_TESS_READY_SYNC_OFFSET 64
+ #define PANVK_QUEUE_TESS_FREE_SYNC_OFFSET  128
++/* Ready/free pair of the second tessellation arena (csf-v11 tess-arenas),
++ * in the same 64-byte slots. */
++#define PANVK_QUEUE_TESS2_SYNC_DELTA       16
++#define PANVK_QUEUE_TESS_READY2_SYNC_OFFSET \
++   (PANVK_QUEUE_TESS_READY_SYNC_OFFSET + PANVK_QUEUE_TESS2_SYNC_DELTA)
++#define PANVK_QUEUE_TESS_FREE2_SYNC_OFFSET \
++   (PANVK_QUEUE_TESS_FREE_SYNC_OFFSET + PANVK_QUEUE_TESS2_SYNC_DELTA)
+ #define PANVK_QUEUE_DESC_RINGBUF_SYNC_OFFSET 192
+ #define PANVK_QUEUE_SYNCOBJS_SIZE          256
+ 
+@@ -614,6 +621,9 @@ struct panvk_cmd_buffer {
+        * so gl_InstanceIndex and attribute divisors see the API instance.
+        */
+       uint32_t gpu_prerast_inst_base;
++      /* Tessellated draws recorded so far; with PANVK_TESS_ARENAS=2 the odd
++       * ones use the second tessellation arena (csf-v11 tess-arenas). */
++      uint32_t tess_draws;
+ 
+       struct panvk_cond_render_state cond_render;
+    } state;
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+index d57a6e7c..a6fe3208 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+@@ -3711,6 +3711,11 @@ gpu_prerast_arena_sync(const struct panvk_device *dev, uint64_t arena)
+    const bool tess =
+       arena == panvk_priv_mem_dev_addr(dev->gpu_prerast_tess_arena);
+ 
++   if (panvk_priv_mem_check_alloc(dev->gpu_prerast_tess_arena2) &&
++       arena == panvk_priv_mem_dev_addr(dev->gpu_prerast_tess_arena2))
++      return dev->gpu_prerast_syncs->addr.dev +
++             offsetof(struct panvk_gpu_prerast_syncs, tess_arena2);
++
+    assert(tess || arena == panvk_priv_mem_dev_addr(dev->gpu_prerast_arena));
+    return dev->gpu_prerast_syncs->addr.dev +
+           (tess ? offsetof(struct panvk_gpu_prerast_syncs, tess_arena)
+@@ -4999,7 +5004,27 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
+       }
+    }
+ 
+-   const uint64_t arena = panvk_priv_mem_dev_addr(dev->gpu_prerast_tess_arena);
++   /* csf-v11 tess-arenas: with one arena, the compute pre-pass of a tess
++    * draw cannot start before the vertex/tiler side of the previous one has
++    * drawn and released it, so the two queues take turns and never overlap.
++    * Odd tess draws of a command buffer use a second arena and ready/free
++    * pair: the compute side of draw N+1 then runs while draw N is drawn.
++    * Each pair is still taken and given in recording order on both queues,
++    * as is each arena's ownership sync, so the loops cannot deadlock.
++    * PANVK_TESS_ARENAS=1 keeps the single arena.
++    */
++   bool slot2 = false;
++   if (dev->tess_opt.arenas > 1 && (cmdbuf->state.tess_draws++ & 1)) {
++      slot2 = panvk_priv_mem_check_alloc(
++         panvk_per_arch(device_gpu_prerast_tess_arena2)(dev));
++   }
++   const uint64_t arena =
++      panvk_priv_mem_dev_addr(slot2 ? dev->gpu_prerast_tess_arena2
++                                    : dev->gpu_prerast_tess_arena);
++   const uint32_t ready_sync = slot2 ? PANVK_QUEUE_TESS_READY2_SYNC_OFFSET
++                                     : PANVK_QUEUE_TESS_READY_SYNC_OFFSET;
++   const uint32_t free_sync = slot2 ? PANVK_QUEUE_TESS_FREE2_SYNC_OFFSET
++                                    : PANVK_QUEUE_TESS_FREE_SYNC_OFFSET;
+    const uint64_t prerast_arena =
+       nested ? panvk_priv_mem_dev_addr(dev->gpu_prerast_arena) : 0;
+    struct panvk_gpu_prerast_tess_layout l;
+@@ -5217,7 +5242,7 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
+    bool ok = true;
+    cs_while(b, MALI_CS_CONDITION_ALWAYS, cs_undef()) {
+       gpu_prerast_sync32_take(cmdbuf, PANVK_SUBQUEUE_COMPUTE,
+-                              PANVK_QUEUE_TESS_FREE_SYNC_OFFSET);
++                              free_sync);
+ 
+       /* First iteration only: setup has copied the API draw. Drop it when
+        * the predicate says not to render. Later iterations already see
+@@ -5373,7 +5398,7 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
+       }
+ 
+       gpu_prerast_sync32_give(cmdbuf, PANVK_SUBQUEUE_COMPUTE,
+-                              PANVK_QUEUE_TESS_READY_SYNC_OFFSET);
++                              ready_sync);
+       cs_loop_conditional_break(b, __loop, MALI_CS_CONDITION_EQUAL,
+                                 gpu_prerast_load_flag(b, TD(more)));
+    }
+@@ -5388,7 +5413,7 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
+    struct panvk_draw_info raster = out;
+    cs_while(vt, MALI_CS_CONDITION_ALWAYS, cs_undef()) {
+       gpu_prerast_sync32_take(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER,
+-                              PANVK_QUEUE_TESS_READY_SYNC_OFFSET);
++                              ready_sync);
+ 
+       cmdbuf->state.gfx.vs.shader = tes;
+       gfx_state_set_dirty(cmdbuf, VS);
+@@ -5414,7 +5439,7 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
+       struct cs_index more_keep = cs_scratch_reg32(vt, 4);
+       cs_add_imm32(vt, more_keep, more, 0);
+       gpu_prerast_sync32_give(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER,
+-                              PANVK_QUEUE_TESS_FREE_SYNC_OFFSET);
++                              free_sync);
+       cs_loop_conditional_break(vt, __loop, MALI_CS_CONDITION_EQUAL,
+                                 more_keep);
+    }
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+index de520006..44af595e 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+@@ -1941,6 +1941,23 @@ init_queue(struct panvk_gpu_queue *queue)
+                         struct panvk_cs_sync32, sync) {
+       *sync = (struct panvk_cs_sync32){.seqno = 1};
+    }
++   /* Same for the second tessellation arena's pair. */
++   static_assert(PANVK_QUEUE_TESS_READY2_SYNC_OFFSET +
++                    sizeof(struct panvk_cs_sync32) <=
++                    PANVK_QUEUE_TESS_FREE_SYNC_OFFSET,
++                 "second tess ready sync overlaps the free sync");
++   static_assert(PANVK_QUEUE_TESS_FREE2_SYNC_OFFSET +
++                    sizeof(struct panvk_cs_sync32) <=
++                    PANVK_QUEUE_DESC_RINGBUF_SYNC_OFFSET,
++                 "second tess free sync overlaps the ringbuf sync");
++   panvk_priv_mem_write(queue->syncobjs, PANVK_QUEUE_TESS_READY2_SYNC_OFFSET,
++                        struct panvk_cs_sync32, sync) {
++      *sync = (struct panvk_cs_sync32){0};
++   }
++   panvk_priv_mem_write(queue->syncobjs, PANVK_QUEUE_TESS_FREE2_SYNC_OFFSET,
++                        struct panvk_cs_sync32, sync) {
++      *sync = (struct panvk_cs_sync32){.seqno = 1};
++   }
+    /* The fragment subqueue releases RENDER_DESC_RINGBUF_SIZE back into this
+     * counter; a reserve waits until it covers the request. */
+    panvk_priv_mem_write(queue->syncobjs, PANVK_QUEUE_DESC_RINGBUF_SYNC_OFFSET,
+diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
+index 0ff74cb2..531b4194 100644
+--- a/src/panfrost/vulkan/panvk_device.h
++++ b/src/panfrost/vulkan/panvk_device.h
+@@ -149,6 +149,9 @@ struct panvk_device {
+     * gpu_prerast_tess_wanted say whether the device may use them. */
+    struct panvk_priv_mem gpu_prerast_arena;
+    struct panvk_priv_mem gpu_prerast_tess_arena;
++   /* Second tessellation arena, CSF only, at the first draw that picks it
++    * (csf-v11 tess-arenas, see device_gpu_prerast_tess_arena2()). */
++   struct panvk_priv_mem gpu_prerast_tess_arena2;
+    bool gpu_prerast_wanted;
+    bool gpu_prerast_tess_wanted;
+    simple_mtx_t gpu_prerast_lock;
+@@ -164,6 +167,9 @@ struct panvk_device {
+       uint32_t fuse_gen_max;
+       /* PANVK_TESS_SETUP_STEP (default 1): panlib_tess_setup_step(). */
+       bool setup_in_step;
++      /* PANVK_TESS_ARENAS (default 2): tessellation arenas a command
++       * buffer alternates its tess draws over. */
++      uint8_t arenas;
+    } tess_opt;
+ 
+    /* Device-wide thread local storage shared by all command buffers. The
+@@ -358,6 +364,12 @@ void panvk_per_arch(device_bc_finish)(struct panvk_device *dev);
+ struct panvk_priv_mem
+ panvk_per_arch(device_gpu_prerast_arena)(struct panvk_device *dev, bool tess);
+ 
++/* The second tessellation arena (csf-v11 tess-arenas), allocated on first
++ * use like the first one. Zero when tessellation is off, PANVK_TESS_ARENAS
++ * is 1 or the allocation failed: the draw then uses the first arena. */
++struct panvk_priv_mem
++panvk_per_arch(device_gpu_prerast_tess_arena2)(struct panvk_device *dev);
++
+ static inline VkResult
+ panvk_common_check_status(struct panvk_device *dev)
+ {
+diff --git a/src/panfrost/vulkan/panvk_gpu_prerast.h b/src/panfrost/vulkan/panvk_gpu_prerast.h
+index d7ac2f27..28943efb 100644
+--- a/src/panfrost/vulkan/panvk_gpu_prerast.h
++++ b/src/panfrost/vulkan/panvk_gpu_prerast.h
+@@ -399,6 +399,8 @@ struct panvk_gpu_prerast_arena {
+ struct panvk_gpu_prerast_syncs {
+    uint32_t arena[2];
+    uint32_t tess_arena[2];
++   /* panvk_device::gpu_prerast_tess_arena2 (csf-v11 tess-arenas). */
++   uint32_t tess_arena2[2];
+ };
+ 
+ struct panvk_gpu_prerast_sync_contract {
+diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
+index 8cd0894f..0fc93ad3 100644
+--- a/src/panfrost/vulkan/panvk_vX_device.c
++++ b/src/panfrost/vulkan/panvk_vX_device.c
+@@ -197,6 +197,29 @@ panvk_per_arch(device_gpu_prerast_arena)(struct panvk_device *dev, bool tess)
+    simple_mtx_unlock(&dev->gpu_prerast_lock);
+    return ret;
+ }
++
++struct panvk_priv_mem
++panvk_per_arch(device_gpu_prerast_tess_arena2)(struct panvk_device *dev)
++{
++   struct panvk_priv_mem *mem = &dev->gpu_prerast_tess_arena2;
++
++   if (!dev->gpu_prerast_tess_wanted || dev->tess_opt.arenas < 2)
++      return (struct panvk_priv_mem){0};
++
++   simple_mtx_lock(&dev->gpu_prerast_lock);
++   if (!panvk_priv_mem_check_alloc(*mem)) {
++      *mem = alloc_gpu_prerast_arena(dev, PANVK_GPU_PRERAST_TESS_ARENA_SIZE);
++      if (panvk_priv_mem_check_alloc(*mem))
++         mesa_logi("panvk: gpu_prerast second tessellation arena committed "
++                   "(%llu MiB)",
++                   (unsigned long long)(PANVK_GPU_PRERAST_TESS_ARENA_SIZE >> 20));
++      else
++         dev->tess_opt.arenas = 1; /* Do not retry on every draw. */
++   }
++   struct panvk_priv_mem ret = *mem;
++   simple_mtx_unlock(&dev->gpu_prerast_lock);
++   return ret;
++}
+ #endif
+ 
+ static VkResult
+@@ -679,6 +702,8 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+       debug_get_num_option("PANVK_TESS_FUSE_GEN_MAX", 64);
+    device->tess_opt.setup_in_step =
+       debug_get_num_option("PANVK_TESS_SETUP_STEP", 1) != 0;
++   device->tess_opt.arenas =
++      debug_get_num_option("PANVK_TESS_ARENAS", 2) >= 2 ? 2 : 1;
+ 
+    /* v9, or PANVK_GPU_PRERAST_ARENA=eager: commit both arenas here, as
+     * before csf-v11/205 (64 + 96 MiB per VkDevice with the features). */
+@@ -707,6 +732,7 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+       *syncs = (struct panvk_gpu_prerast_syncs){
+          .arena = {1},
+          .tess_arena = {1},
++         .tess_arena2 = {1},
+       };
+    }
+ #endif
+@@ -845,6 +871,7 @@ err_free_precomp:
+ err_free_priv_bos:
+    panvk_device_cleanup_tls(device);
+    panvk_priv_bo_unref(device->gpu_prerast_syncs);
++   panvk_pool_free_mem(&device->gpu_prerast_tess_arena2);
+    panvk_pool_free_mem(&device->gpu_prerast_tess_arena);
+    panvk_pool_free_mem(&device->gpu_prerast_arena);
+    if (device->printf.bo)
+@@ -911,6 +938,7 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
+     panvk_priv_bo_unref(device->sample_positions);
+     panvk_device_cleanup_tls(device);
+     panvk_priv_bo_unref(device->gpu_prerast_syncs);
++    panvk_pool_free_mem(&device->gpu_prerast_tess_arena2);
+     panvk_pool_free_mem(&device->gpu_prerast_tess_arena);
+     panvk_pool_free_mem(&device->gpu_prerast_arena);
+ #if PAN_ARCH >= 10
+-- 
+2.55.0
+

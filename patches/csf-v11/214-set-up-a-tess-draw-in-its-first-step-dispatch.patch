@@ -1,0 +1,221 @@
+From 9584f8595a9d0942df0d0f67414362b00940710b Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Thu, 22 Oct 2026 09:00:21 +0000
+Subject: [PATCH 2/4] panvk/csf: set up a tess draw in its first step dispatch
+
+Every tessellated draw ran panlib_tess_setup() as its own dispatch and
+drain before the loop, then on the first iteration a CS once-block
+(three CS loads, each waited on, and up to eight stores) that drops
+the draw when conditional rendering says so, then panlib_tess_step()
+(tess perf review #4).
+
+panlib_tess_setup_step() does all three in one single-invocation
+dispatch: on its first execution (pass_mem[1] == 0) it copies the API
+draw exactly as panlib_tess_setup() does, zeroes the same fields the
+CS once-block zeroed when the predicate (pass_mem[0]) is 0, sets the
+once flag, then runs the step. The CS still writes the predicate and
+clears the once flag at execution time before the loop, so
+resubmission and simultaneous use behave as before, and a dropped draw
+still runs both loops as empty handshakes and releases the arenas.
+
+PANVK_TESS_SETUP_STEP=0 restores the separate setup dispatch and the
+CS once-block. Read at VkDevice creation.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/libpan/tess_fast.cl            | 95 +++++++++++++++++++++
+ src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c | 32 +++++--
+ src/panfrost/vulkan/panvk_device.h          |  2 +
+ src/panfrost/vulkan/panvk_vX_device.c       |  2 +
+ 4 files changed, 124 insertions(+), 7 deletions(-)
+
+diff --git a/src/panfrost/libpan/tess_fast.cl b/src/panfrost/libpan/tess_fast.cl
+index 349f3ef7..21dd1fcb 100644
+--- a/src/panfrost/libpan/tess_fast.cl
++++ b/src/panfrost/libpan/tess_fast.cl
+@@ -161,4 +161,99 @@ panlib_tess_count_draw(global struct panlib_tess_draw *t,
+       atomic_fetch_add((global atomic_uint *)prims_generated, count / vpp);
+ }
+ 
++/* csf-v11 tess-setup-step: panlib_tess_setup(), the conditional rendering
++ * drop of the first iteration (recorded as CS loads and stores before) and
++ * panlib_tess_step() in one dispatch. pass[0] is the predicate (0 drops the
++ * draw), pass[1] the once-only flag; the CS writes both at execution time.
++ * The setup and step bodies are those of the draw_helper.cl kernels.
++ */
++KERNEL(1)
++panlib_tess_setup_step(global struct panlib_tess_draw *t,
++                       global uint32_t *tcs_stat, constant uint32_t *src_draw,
++                       constant uint32_t *count_buffer, uint32_t draw_index,
++                       global uint32_t *pass)
++{
++   global struct poly_tess_params *p = &t->p;
++   uint32_t ps = max(t->input_patch_size, 1u);
++
++   if (!pass[1]) {
++      bool live = !count_buffer || draw_index < count_buffer[0];
++
++      /* VkDrawIndirectCommand is 4 words. */
++      for (uint32_t i = 0; i < 5; i++)
++         t->in_draw[i] = live && (i < 4 || t->indexed) ? src_draw[i] : 0;
++
++      t->patches_per_instance = t->in_draw[0] / ps;
++      t->instances = t->in_draw[1];
++      t->total_patches = (uint64_t)t->patches_per_instance * t->instances;
++      t->next_patch = 0;
++      t->idx_total = 0;
++      t->idx_cursor = 0;
++      t->prims_done = 0;
++      t->new_chunk = 0;
++      t->more = 0;
++
++      /* What the CS once-block zeroed: every iteration is then an empty
++       * handshake. */
++      if (!pass[0]) {
++         t->in_draw[0] = 0;
++         t->in_draw[1] = 0;
++         t->patches_per_instance = 0;
++         t->instances = 0;
++         t->total_patches = 0;
++      }
++      pass[1] = 1;
++   }
++
++   t->new_chunk = t->idx_cursor >= t->idx_total && t->next_patch < t->total_patches;
++   if (!t->new_chunk) {
++      t->vs_draw[0] = 0;
++      t->vs_draw[1] = 0;
++      t->tcs_grid[0] = 0;
++      t->tcs_grid[1] = 0;
++      t->tcs_grid[2] = 0;
++      p->nr_patches = 0;
++      return;
++   }
++
++   uint32_t ppi = t->patches_per_instance;
++   uint32_t inst = t->next_patch / ppi;
++   uint32_t first = t->next_patch % ppi;
++   uint32_t per_inst, k;
++
++   if (first == 0 && ppi <= t->max_patches) {
++      per_inst = ppi;
++      k = min(t->max_patches / ppi, t->instances - inst);
++      k = min(k, PANLIB_CHUNK_MAX_INSTANCES);
++   } else {
++      per_inst = min(t->max_patches, ppi - first);
++      k = 1;
++   }
++
++   uint32_t n = per_inst * k;
++   p->patches_per_instance = per_inst;
++   p->nr_patches = n;
++   p->heap->bottom = 0;
++   t->chunk_patches = n;
++   t->prim_base = first;
++   t->next_patch += n;
++
++   /* Base vertex/instance stay the API ones, the chunk start is added to the
++    * VS invocation IDs.
++    */
++   t->vs_draw[0] = per_inst * ps;
++   t->vs_draw[1] = k;
++   for (uint32_t i = 2; i < 5; i++)
++      t->vs_draw[i] = t->in_draw[i];
++   t->chunk_vertex = first * ps;
++   t->chunk_instance = inst;
++
++   t->tcs_grid[0] = per_inst;
++   t->tcs_grid[1] = k;
++   t->tcs_grid[2] = 1;
++
++   if (tcs_stat)
++      tess_pstats_add(tcs_stat, n);
++}
++
+ #endif
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+index 02db20db..d57a6e7c 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+@@ -5195,10 +5195,21 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
+     cs_store32(b, once_reset, pass_addr, 4);
+     cs_flush_stores(b);
+ 
+-   panlib_tess_setup(&ctx, panlib_1d(1), PANLIB_BARRIER_NONE, td.gpu, src,
+-                     draw->indirect.count_buffer_dev_addr,
+-                     draw->indirect.buffer_dev_addr ? draw->indirect.draw_index : 0);
+-   cs_wait_slots(b, dev->csf.sb.all_iters_mask);
++   /* csf-v11 tess-setup-step: the first panlib_tess_setup_step() of the
++    * loop does the setup and the predicate drop below, one dispatch and
++    * three CS load waits fewer per draw. PANVK_TESS_SETUP_STEP=0 keeps the
++    * separate setup dispatch and the CS once-block.
++    */
++   const bool setup_in_step = dev->tess_opt.setup_in_step;
++   const uint64_t count_buf = draw->indirect.count_buffer_dev_addr;
++   const uint32_t draw_index =
++      draw->indirect.buffer_dev_addr ? draw->indirect.draw_index : 0;
++
++   if (!setup_in_step) {
++      panlib_tess_setup(&ctx, panlib_1d(1), PANLIB_BARRIER_NONE, td.gpu, src,
++                        count_buf, draw_index);
++      cs_wait_slots(b, dev->csf.sb.all_iters_mask);
++   }
+ 
+    /* No C-level exit from a cs_while body, it would leave the block open.
+     * Allocation failures are recorded on the command buffer instead.
+@@ -5212,7 +5223,7 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
+        * the predicate says not to render. Later iterations already see
+        * total_patches == 0. pass_mem[1] is the once-only flag.
+        */
+-      {
++      if (!setup_in_step) {
+          struct cs_index once = gpu_prerast_load_flag(b, pass_mem.gpu + 4);
+          struct cs_index zero = cs_scratch_reg32(b, 2);
+          struct cs_index dst = cs_scratch_reg64(b, 4);
+@@ -5247,8 +5258,15 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
+          }
+       }
+ 
+-      panlib_tess_step(&ctx, panlib_1d(1), PANLIB_BARRIER_NONE, td.gpu,
+-                       tcs_stat);
++      /* panlib_* launchers are brace-block macros: no bare if/else. */
++      if (setup_in_step) {
++         panlib_tess_setup_step(&ctx, panlib_1d(1), PANLIB_BARRIER_NONE,
++                                td.gpu, tcs_stat, src, count_buf, draw_index,
++                                pass_mem.gpu);
++      } else {
++         panlib_tess_step(&ctx, panlib_1d(1), PANLIB_BARRIER_NONE, td.gpu,
++                          tcs_stat);
++      }
+       cs_wait_slots(b, dev->csf.sb.all_iters_mask);
+ 
+       ok &= gpu_prerast_vs(cmdbuf, &vs_src, vs, arena,
+diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
+index 5d2df03b..0ff74cb2 100644
+--- a/src/panfrost/vulkan/panvk_device.h
++++ b/src/panfrost/vulkan/panvk_device.h
+@@ -162,6 +162,8 @@ struct panvk_device {
+       /* PANVK_TESS_FUSE_GEN_MAX (default 64): patches of a direct draw the
+        * fused workgroup also tessellates. */
+       uint32_t fuse_gen_max;
++      /* PANVK_TESS_SETUP_STEP (default 1): panlib_tess_setup_step(). */
++      bool setup_in_step;
+    } tess_opt;
+ 
+    /* Device-wide thread local storage shared by all command buffers. The
+diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
+index 1e9fa338..8cd0894f 100644
+--- a/src/panfrost/vulkan/panvk_vX_device.c
++++ b/src/panfrost/vulkan/panvk_vX_device.c
+@@ -677,6 +677,8 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+    device->tess_opt.fuse = debug_get_num_option("PANVK_TESS_FUSE", 1) != 0;
+    device->tess_opt.fuse_gen_max =
+       debug_get_num_option("PANVK_TESS_FUSE_GEN_MAX", 64);
++   device->tess_opt.setup_in_step =
++      debug_get_num_option("PANVK_TESS_SETUP_STEP", 1) != 0;
+ 
+    /* v9, or PANVK_GPU_PRERAST_ARENA=eager: commit both arenas here, as
+     * before csf-v11/205 (64 + 96 MiB per VkDevice with the features). */
+-- 
+2.55.0
+
