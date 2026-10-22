@@ -21,7 +21,7 @@ function(add_vk_test test_name test_rel_path)
     if(test_name STREQUAL "bc_decode")
         target_include_directories(${target_name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/compat")
     endif()
-    target_link_libraries(${target_name} PRIVATE dl m)
+    target_link_libraries(${target_name} PRIVATE dl m log)
 endfunction()
 
 # 10 standalone Vulkan test programs

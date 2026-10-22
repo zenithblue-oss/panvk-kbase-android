@@ -53,3 +53,10 @@ d. **v9, v10:** no device.
 - APK `/home/flux/build-out/apks/panprobe-rc5u-105.apk`, sha256 `23dd2d23fcbaa48febdea8fa64bb312d94be076eccb85c6c5897049991be55e6`, package `dev.zenithblue.panvktest.rc5u` (same package as panprobe-rc5u), rc5 3d1a588c, rc4 c395db09.
 - To rebuild the tree: `prepare-rc5-tree.sh --csf-max 219 --wip-max 0078`.
 - PanPlay was not rebuilt.
+
+## RC5-universal-106 (2026-10-22): second FTL starlte fix
+- RC5-universal-105 (matrix 5002760495733809791) was still LMK-killed in tess_perf, with 0078 in effect. See `device-runs/2026-10-22-ftl-v6-starlte-rc5u-105/results.md`.
+- Fix: `patches/jm-v7-wip/0079` (jm-v7 106), mesa-rc5g HEAD `f68abd4b`.
+- .so `/home/flux/build-out/2026-10-22-rc5-universal-106/libvulkan_panfrost.so`, sha256 `1cb2c074bb1f234ca4fc3a5f1eb12eb048ba7ca74d93710a45351ffbea51c7e5`. The version string is `PanVK-kbase RC5-universal-106 (Mesa 26.3.0-devel (git-710db1f998))`; the build was made before the commit. BDIR `/home/flux/build-rc5/bionic-r30-RC5-universal-106`.
+- APK `/home/flux/build-out/apks/panprobe-rc5u-106.apk`, sha256 `7356674b2481f39b9297a7c45e4b6f41e448e7a85f723339bdd84c6614b88010`, package `dev.zenithblue.panvktest.rc5u`, rc5 1cb2c074, rc4 c395db09. tess_perf now logs memory (`PanProbeTess`) and tears down each variant's device.
+- To rebuild the tree: `prepare-rc5-tree.sh --csf-max 219 --wip-max 0079`.

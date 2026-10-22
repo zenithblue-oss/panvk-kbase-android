@@ -28,6 +28,70 @@
  */
 #include "../tests/dxvk/vulkan/dx7_harness.h"
 #include "tess-perf-spv.h"
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
+
+/* Memory trace (FTL G72 OOM, 2026-10-22): MemAvailable and this process's
+ * RSS, to stdout and logcat (tag PanProbeTess), since the per-test log is
+ * lost when the low-memory killer takes the app. */
+static long
+meminfo_kb(const char *path, const char *key)
+{
+   FILE *f = fopen(path, "r");
+   if (!f)
+      return -1;
+   char line[256];
+   long v = -1;
+   const size_t kl = strlen(key);
+   while (fgets(line, sizeof(line), f)) {
+      if (!strncmp(line, key, kl)) {
+         v = atol(line + kl);
+         break;
+      }
+   }
+   fclose(f);
+   return v;
+}
+
+static void
+memlog(const char *what)
+{
+   const long avail = meminfo_kb("/proc/meminfo", "MemAvailable:");
+   const long rss = meminfo_kb("/proc/self/status", "VmRSS:");
+   printf("MEM %s avail_kb=%ld rss_kb=%ld\n", what, avail, rss);
+#ifdef __ANDROID__
+   __android_log_print(ANDROID_LOG_INFO, "PanProbeTess",
+                       "MEM %s avail_kb=%ld rss_kb=%ld", what, avail, rss);
+#endif
+}
+
+/* The harness has no teardown: destroy the device and instance of a
+ * variant before the next one is created, so two devices' tessellation
+ * memory is never resident at once. */
+static void
+teardown(struct dx7 *t, const char *icd)
+{
+   void *h = dlopen(icd, RTLD_NOW | RTLD_LOCAL);
+   if (!h)
+      return;
+   PFN_vkGetInstanceProcAddr gipa =
+      (PFN_vkGetInstanceProcAddr)dlsym(h, "vk_icdGetInstanceProcAddr");
+   if (!gipa)
+      return;
+   PFN_vkDeviceWaitIdle wait_idle =
+      (PFN_vkDeviceWaitIdle)gipa(t->inst, "vkDeviceWaitIdle");
+   PFN_vkDestroyDevice destroy_dev =
+      (PFN_vkDestroyDevice)gipa(t->inst, "vkDestroyDevice");
+   PFN_vkDestroyInstance destroy_inst =
+      (PFN_vkDestroyInstance)gipa(t->inst, "vkDestroyInstance");
+   if (wait_idle)
+      wait_idle(t->dev);
+   if (destroy_dev)
+      destroy_dev(t->dev, NULL);
+   if (destroy_inst)
+      destroy_inst(t->inst, NULL);
+}
 
 #define DRAWS 256
 #define PATCHES 16
@@ -239,6 +303,7 @@ main(int argc, char **argv)
       }
       printf("variant %d opt=%s device=%s gs=%d\n", v, variants[v],
              t.props.deviceName, t.feats.geometryShader);
+      memlog("device");
 
       VkPushConstantRange pcr = {VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16};
       VkPipelineLayoutCreateInfo plci = {
@@ -275,8 +340,13 @@ main(int argc, char **argv)
                continue;
             VkPipeline pipe = make_pipe(&t, layout, c->ref, gs);
             record(&t, t.cmd, pipe, layout, vb, c);
+            char tag[96];
+            snprintf(tag, sizeof(tag), "recorded opt=%s gs=%d L=%s",
+                     variants[v], gs, c->name);
+            memlog(tag);
 
             submit_wait(&t, t.cmd); /* warm-up, and the checked image */
+            memlog("first frame");
             hashes[v][gs][ci] = hash_px(t.px);
             submit_wait(&t, t.cmd);
 
@@ -293,6 +363,12 @@ main(int argc, char **argv)
                    "ms=%.2f us_draw=%.1f frames=%ld hash=%08x\n",
                    variants[v], gs, c->name, DRAWS, DRAWS * PATCHES, ms,
                    ms * 1000.0 / DRAWS, frames, hashes[v][gs][ci]);
+            {
+               char what[96];
+               snprintf(what, sizeof(what), "opt=%s gs=%d L=%s", variants[v],
+                        gs, c->name);
+               memlog(what);
+            }
             if (v == 0 && !gs && c->mix)
                headline = 1000.0 / ms;
             if (v == 0)
@@ -318,8 +394,8 @@ main(int argc, char **argv)
             }
          }
       }
-      /* The device is left alive: the harness has no teardown, and a new
-       * one is created for the next variant. */
+      teardown(&t, argv[1]);
+      memlog("teardown");
    }
 
    if (headline > 0)
