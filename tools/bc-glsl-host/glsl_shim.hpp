@@ -137,6 +137,14 @@ template <typename T, int N> vec_t<T, N> abs(const vec_t<T, N> &a)
    return r;
 }
 
+template <int N> vec_t<float, N> floor(const vec_t<float, N> &a)
+{
+   vec_t<float, N> r;
+   for (int i = 0; i < N; i++)
+      r.v[i] = std::floor(a.v[i]);
+   return r;
+}
+
 static inline int min(int a, int b) { return a < b ? a : b; }
 static inline uint min(uint a, uint b) { return a < b ? a : b; }
 static inline int max(int a, int b) { return a > b ? a : b; }
