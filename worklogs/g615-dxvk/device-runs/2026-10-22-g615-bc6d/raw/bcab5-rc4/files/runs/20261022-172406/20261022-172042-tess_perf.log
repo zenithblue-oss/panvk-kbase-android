@@ -1,0 +1,48 @@
+MESA: info: kbase: CSF driver, uAPI version 1.21, page_size=4096
+MESA: info: panvk: gpu_id 0xb8a31030 variant 0x4 arch v11 model Mali-G615 texture_features 0xc7fe001e 0 0 0
+MESA: info: panvk: BC emulation on, lowmem (native compressed mask 0xc7fe001e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+ICD device=Mali-G615 MC6 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+MESA: info: kbase: CSF driver, uAPI version 1.21, page_size=4096
+MESA: info: kbase: mem_alloc via ALLOC_EX
+MESA: info: kbase: queue_group_create layout=32 bytes
+MESA: info: kbase: tiler_heap_init layout=16 bytes
+variant 0 opt=default device=Mali-G615 MC6 gs=1
+BENCH tess_perf opt=default gs=0 L=ref draws=256 patches=4096 ms=0.59 us_draw=2.3 frames=1184 hash=4807f3f5
+MESA: info: panvk: gpu_prerast tessellation arena committed (96 MiB)
+MESA: info: panvk: gpu_prerast second tessellation arena committed (96 MiB)
+BENCH tess_perf opt=default gs=0 L=1 draws=256 patches=4096 ms=129.73 us_draw=506.7 frames=6 hash=a03404c5
+BENCH tess_perf opt=default gs=0 L=4 draws=256 patches=4096 ms=131.36 us_draw=513.1 frames=6 hash=cec55885
+BENCH tess_perf opt=default gs=0 L=16 draws=256 patches=4096 ms=669.12 us_draw=2613.7 frames=3 hash=d4463b35
+BENCH tess_perf opt=default gs=0 L=mix draws=256 patches=4096 ms=649.46 us_draw=2537.0 frames=3 hash=b34a251c
+MESA: info: panvk: gpu_prerast draw arena committed (64 MiB)
+BENCH tess_perf opt=default gs=1 L=1 draws=256 patches=4096 ms=189.78 us_draw=741.3 frames=4 hash=a03404c5
+BENCH tess_perf opt=default gs=1 L=4 draws=256 patches=4096 ms=217.84 us_draw=850.9 frames=4 hash=cec55885
+BENCH tess_perf opt=default gs=1 L=16 draws=256 patches=4096 ms=1140.05 us_draw=4453.3 frames=3 hash=d4463b35
+BENCH tess_perf opt=default gs=1 L=mix draws=256 patches=4096 ms=929.10 us_draw=3629.3 frames=3 hash=b34a251c
+MESA: info: kbase: CSF driver, uAPI version 1.21, page_size=4096
+MESA: info: panvk: gpu_id 0xb8a31030 variant 0x4 arch v11 model Mali-G615 texture_features 0xc7fe001e 0 0 0
+MESA: info: panvk: BC emulation on, lowmem (native compressed mask 0xc7fe001e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+ICD device=Mali-G615 MC6 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+MESA: info: kbase: CSF driver, uAPI version 1.21, page_size=4096
+MESA: info: kbase: mem_alloc via ALLOC_EX
+MESA: info: kbase: queue_group_create layout=32 bytes
+MESA: info: kbase: tiler_heap_init layout=16 bytes
+variant 1 opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 device=Mali-G615 MC6 gs=1
+BENCH tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=ref draws=256 patches=4096 ms=0.61 us_draw=2.4 frames=1149 hash=4807f3f5
+MESA: info: panvk: gpu_prerast tessellation arena committed (96 MiB)
+BENCH tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=1 draws=256 patches=4096 ms=149.33 us_draw=583.3 frames=5 hash=a03404c5
+BENCH tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=4 draws=256 patches=4096 ms=158.20 us_draw=618.0 frames=5 hash=cec55885
+BENCH tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=16 draws=256 patches=4096 ms=797.39 us_draw=3114.8 frames=3 hash=d4463b35
+BENCH tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=mix draws=256 patches=4096 ms=764.24 us_draw=2985.3 frames=3 hash=b34a251c
+MESA: info: panvk: gpu_prerast draw arena committed (64 MiB)
+BENCH tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=1 draws=256 patches=4096 ms=207.47 us_draw=810.4 frames=4 hash=a03404c5
+BENCH tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=4 draws=256 patches=4096 ms=236.46 us_draw=923.7 frames=4 hash=cec55885
+BENCH tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=16 draws=256 patches=4096 ms=1336.63 us_draw=5221.2 frames=3 hash=d4463b35
+BENCH tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=mix draws=256 patches=4096 ms=1023.22 us_draw=3997.0 frames=3 hash=b34a251c
+FPS 1.5 (opt=default gs=0 L=mix frame)
+TESS_PERF_FAILS=0
+PASS tess_perf

@@ -1,0 +1,47 @@
+INFO devices=1 exts=188 formats=196
+DRIVER slot=RC5 driverInfo=PanVK-kbase RC5-dev-bc6d (Mesa 26.3.0-devel (git-5a07217f03))
+COMPLIANCE DXVK compliance PASS items=94 missingHard=[] missingSoft=["tiled resources tier 2 (FL12_0)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","VK_EXT_sample_locations"]
+COMPLIANCE Bachata S4 compliance PASS items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","subgroup_wave64"]
+COMPLIANCE vkd3d compliance PASS items=100 missingHard=[] missingSoft=["viewportSubPixelBits >= 8","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","shaderFloat64","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: ROVs (pixel+sample interlock)","proton: VK_EXT_descriptor_buffer path","proton: VK_KHR_fragment_shading_rate","proton: VK_EXT_mesh_shader","proton: VK_KHR_ray_query + acceleration_structure"]
+RESULT gpu_prerast_slice PASS mismatch=0 fps=0 ms=104
+RESULT clip_cull PASS mismatch=0 fps=2624.3 ms=1211
+RESULT multi_viewport PASS mismatch=0 fps=2592.6 ms=1171
+RESULT fill_mode PASS mismatch=0 fps=2452.6 ms=1673
+RESULT bc_decode PASS mismatch=0 fps=0 ms=15607
+RESULT bc_perf PASS mismatch=0 fps=0 ms=353330
+RESULT tess_perf PASS mismatch=0 fps=1.5 ms=49257 extra=tess_perf opt=default gs=0 L=ref draws=256 patches=4096 ms=0.59 us_draw=2.3 frames=1184 hash=4807f3f5 | tess_perf opt=default gs=0 L=1 draws=256 patches=4096 ms=129.73 us_draw=506.7 frames=6 hash=a03404c5 | tess_perf opt=default gs=0 L=4 draws=256 patches=4096 ms=131.36 us_draw=513.1 frames=6 hash=cec55885 | tess_perf opt=default gs=0 L=16 draws=256 patches=4096 ms=669.12 us_draw=2613.7 frames=3 hash=d4463b35 | tess_perf opt=default gs=0 L=mix draws=256 patches=4096 ms=649.46 us_draw=2537.0 frames=3 hash=b34a251c | tess_perf opt=default gs=1 L=1 draws=256 patches=4096 ms=189.78 us_draw=741.3 frames=4 hash=a03404c5 | tess_perf opt=default gs=1 L=4 draws=256 patches=4096 ms=217.84 us_draw=850.9 frames=4 hash=cec55885 | tess_perf opt=default gs=1 L=16 draws=256 patches=4096 ms=1140.05 us_draw=4453.3 frames=3 hash=d4463b35 | tess_perf opt=default gs=1 L=mix draws=256 patches=4096 ms=929.10 us_draw=3629.3 frames=3 hash=b34a251c | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=ref draws=256 patches=4096 ms=0.61 us_draw=2.4 frames=1149 hash=4807f3f5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=1 draws=256 patches=4096 ms=149.33 us_draw=583.3 frames=5 hash=a03404c5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=4 draws=256 patches=4096 ms=158.20 us_draw=618.0 frames=5 hash=cec55885 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=16 draws=256 patches=4096 ms=797.39 us_draw=3114.8 frames=3 hash=d4463b35 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=mix draws=256 patches=4096 ms=764.24 us_draw=2985.3 frames=3 hash=b34a251c | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=1 draws=256 patches=4096 ms=207.47 us_draw=810.4 frames=4 hash=a03404c5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=4 draws=256 patches=4096 ms=236.46 us_draw=923.7 frames=4 hash=cec55885 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=16 draws=256 patches=4096 ms=1336.63 us_draw=5221.2 frames=3 hash=d4463b35 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=mix draws=256 patches=4096 ms=1023.22 us_draw=3997.0 frames=3 hash=b34a251c
+RESULT geometry PASS mismatch=0 fps=3048.7 ms=1788
+RESULT tessellation PASS mismatch=0 fps=2877.3 ms=2919
+RESULT xfb PASS mismatch=0 fps=0 ms=757
+RESULT pipeline_stats PASS mismatch=0 fps=2328.7 ms=1270
+RESULT vertex_stores PASS mismatch=0 fps=0 ms=301
+RESULT gs_viewport_depth PASS mismatch=0 fps=0 ms=430
+RESULT vs_viewport_index PASS mismatch=0 fps=0 ms=613
+RESULT depth_bounds PASS mismatch=0 fps=0 ms=244
+RESULT large_draw PASS mismatch=0 fps=0 ms=89489
+RESULT vmr_secondary PASS mismatch=0 fps=0 ms=119
+RESULT tess_cond_state PASS mismatch=0 fps=0 ms=338
+RESULT bachata_reqs PASS mismatch=0 fps=0 ms=112
+RESULT bachata_exec PASS mismatch=0 fps=0 ms=117
+RESULT robustness2 PASS mismatch=0 fps=0 ms=136
+RESULT robust_image_access2 PASS mismatch=0 fps=0 ms=724 extra=4096x4096x16 rgba8 loads ria2=30.79ms ria1=30.87ms delta=-0.2% stats(ria2/ria1): Instructions=185/185 Code size=1536/1536 Constant data size=0/0 Threads=2/2 Loops=0/0 Spills=0/0 Fills=0/0 Spill cost=0/0 Registers used=12/12 Uniforms used=4/4
+RESULT blend PASS mismatch=0 fps=0 ms=167
+RESULT occlusion_query PASS mismatch=0 fps=0 ms=141
+RESULT descriptor_model PASS mismatch=0 fps=0 ms=129
+RESULT shader_arith PASS mismatch=0 fps=0 ms=182
+RESULT depth_stencil PASS mismatch=0 fps=0 ms=99
+RESULT sampler PASS mismatch=0 fps=0 ms=95
+RESULT draw_params PASS mismatch=0 fps=0 ms=121
+RESULT submit_stress PASS mismatch=0 fps=0 ms=30093
+RESULT csf_event PASS mismatch=0 fps=0 ms=530
+RESULT gs_tess_primitive_id PASS mismatch=0 fps=0 ms=501
+RESULT bachata_storage_fmtless PASS mismatch=0 fps=0 ms=140
+RESULT bachata_dynamic_render PASS mismatch=0 fps=0 ms=138
+RESULT dxvk_reqs PASS mismatch=0 fps=0 ms=105
+RESULT vkd3d_reqs PASS mismatch=0 fps=0 ms=118
+RESULT vkd3d_heap PASS mismatch=0 fps=0 ms=470
+RESULT vkd3d_timeline PASS mismatch=0 fps=0 ms=290
+RESULT swapchain_lifecycle SKIP mismatch=0 fps=0 ms=20029
+AUTORUN DONE pass=38 fail=0 skip=1 total=39 (38 pass / 0 fail / 1 skip)
+EXTERNAL READY run=20261022-172406
+AUTOUPLOAD offline fromQueue=false
