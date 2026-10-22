@@ -713,3 +713,34 @@ Nothing below is verified beyond the device run named in the first bullet.
   - G615 bc2 full suite and BC timing/memory vs RC4-lowmem.
   - v6 and v9 device runs.
   - Deferred review items H5, M8, M12, M13, M15, M16 (reasons in `builds/v7K.md`).
+
+## RC5 BC = bc4 (permanent) (2026-10-22)
+
+Decision: the RC5 G615 BC configuration is bc4 and is the default series. `scripts/apply-patches.sh` applies every file in `patches/csf-v11/` in order, so 197-208 (and later additions such as 209) are part of RC5 with no list to maintain; build.yml and source-drift.yml call it with `--profile g615-v11-csf`, release.yml packages what build-android.sh produces. Nothing pins an older BC config.
+
+bc4 = csf-v11 197-203 plus: 204 Android shader cache dir, 205 lazy prerast arenas, 206 cheap BC3 alpha/BC4/BC5 endpoint-pair-table encoders (ported from GunaCharanTeja/panvk-kbase-android, MIT), 207 lazy raw store, 208 opt-in signed BC6H to ASTC HDR. Record: `builds/bc4.md`; device data: `device-runs/2026-10-22-g615-bc4/results.md`.
+
+Poco X6 Pro (G615), bc4 vs RC4-lowmem, upload_gpu_ms (bc4 = mean of 5 runs, RC4 = mean of 2):
+
+| format | RC4-lowmem | bc4 | verdict |
+|---|---|---|---|
+| BC1 RGB / RGBA | 2.63 / 2.91 | 2.63 / 2.80 | tie |
+| BC2 | 4.64 | 3.70 | -20% |
+| BC3 UNORM / SRGB | 4.20 / 4.01 | 3.40 / 3.12 | -19% / -22% |
+| BC4 UNORM / SNORM | 1.81 / 2.38 | 1.24 / 1.22 | -31% / -49% |
+| BC5 UNORM / SNORM | 2.40 / 2.71 | 1.92 / 2.13 | -20% / -21% |
+| BC6H UF / SF | 8.34 / 9.98 | 8.57 / 9.77 | tie |
+| BC7 UNORM / SRGB | 6.12 / 5.88 | 6.37 / 6.32 | tie to +4-7% (inside spread) |
+
+| | RC4-lowmem | bc4 |
+|---|---|---|
+| bc_perf wall | 28.4-28.8 s | 28.0-28.7 s (bc3: 57.5 s) |
+| bc_decode | FAIL (raw/copy) | PASS |
+| process RSS (end) | 188 MiB | 90-93 MiB (-52%) |
+| hwm | 277 MB | 179-181 MB (-35%) |
+| /dev/mali mapping | 114 MB | 28 MB (-75%) |
+
+Known issue: patch 204 makes the Mesa disk shader cache actually work on Android, and vkd3d_heap then hangs (ICD watchdog 12 s, 37/38). With `MESA_SHADER_CACHE_DISABLE=true` it passes (266 ms, 38/38). The cache gave no measured speedup (bc_perf 28354 vs 28693 ms). BC and prerast toggles are irrelevant.
+Workaround outside Mesa: PanProbe (`apps/panvk-test` `buildEnv`) now sets `MESA_SHADER_CACHE_DISABLE=true` by default for the driver processes (`--es env` can override). The launcher zip README (`scripts/package-launcher-zips.sh`) tells PanPlay users to add it to the container env on a hang. PanPlay itself still sets `MESA_SHADER_CACHE_DISABLE=false` (Containers.kt) and was not changed; revisit if a vkd3d title hangs.
+
+bc5 pending: csf-v11 209 (restart util_queue workers in a fork() child) is the Mesa-side fix for the vkd3d_heap hang, in progress by another agent. Once device-verified with the cache enabled, drop the PanProbe default and the README note.

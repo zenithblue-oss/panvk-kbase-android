@@ -905,6 +905,10 @@ class MainActivity : ComponentActivity() {
         // Driver lines to the test log (stderr) and to logcat for the upload zip.
         envList.add("MESA_LOG=file,android")
         envList.add("TMPDIR=${cacheDir.absolutePath}")
+        // RC5 bc4 known issue: csf-v11/204 makes the disk shader cache work and vkd3d_heap then hangs (37/38;
+        // 38/38 with the cache off, no measured speedup). Default off until the bc5 fix; --es env can override
+        // (extraEnv is added last).
+        envList.add("MESA_SHADER_CACHE_DISABLE=true")
         if (mesaDebugEnabledState.value) {
             mesaDebugStrState.value.trim().split(Regex("\\s+"))
                 .filter { it.isNotEmpty() && it.contains("=") }

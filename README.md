@@ -576,6 +576,7 @@ This project builds on the work of many people. Thank you.
 - [m8l8th814n-eng/mesa-gs101](https://github.com/m8l8th814n-eng/mesa-gs101): G77/G78 model rows and the G78 transaction elimination finding (facts only, no code; `jm-v9` 021).
 - faux123: release notes reporting that cleaning the cache of imported memory before submit fixes black dashes in 32-bit DXVK games (fact only; `jm-v9` 024).
 - [nangitagamer777-art/PanVK-kbase](https://github.com/nangitagamer777-art/PanVK-kbase) and [Panvk_Kmod](https://github.com/nangitagamer777-art/Panvk_Kmod): implementation history and secondary reference.
+- [GunaCharanTeja/panvk-kbase-android](https://github.com/GunaCharanTeja/panvk-kbase-android) (MIT): the cheap BC3 alpha / BC4 / BC5 endpoint-pair-table encoders and the BC1-to-ETC2 encoder ideas ported (adapted, not copied wholesale) into `csf-v11` 206 for the RC5 bc4 BC mode.
 - [leegao/bcn_layer](https://github.com/leegao/bcn_layer) (MIT) with libGPUCounters, and [leegao/mesa-funnymdzz](https://github.com/leegao/mesa-funnymdzz): BCn compatibility and secondary references.
 - [Khronos](https://www.khronos.org/) Vulkan headers, registry and [VK-GL-CTS](https://github.com/KhronosGroup/VK-GL-CTS): API definitions and conformance testing.
 
