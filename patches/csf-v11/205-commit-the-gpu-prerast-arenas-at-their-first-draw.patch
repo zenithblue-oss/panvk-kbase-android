@@ -29,7 +29,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  4 files changed, 101 insertions(+), 31 deletions(-)
 
 diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c
-index 9ed3f6f..7ec296c 100644
+index 9ed3f6f7..7ec296c2 100644
 --- a/src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c
 +++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c
 @@ -512,8 +512,7 @@ collect_cs_deps(struct panvk_cmd_buffer *cmdbuf, const VkDependencyInfo *info,
@@ -43,7 +43,7 @@ index 9ed3f6f..7ec296c 100644
     if (cmdbuf->state.gfx.render.tiler || inherits_render_ctx(cmdbuf)) {
        if (info->dependencyFlags & VK_DEPENDENCY_BY_REGION_BIT) {
 diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
-index 1e32e82..f3aad27 100644
+index 1e32e82c..f3aad27a 100644
 --- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
 @@ -4378,7 +4378,12 @@ gpu_prerast_draw(struct panvk_cmd_buffer *cmdbuf,
@@ -96,7 +96,7 @@ index 1e32e82..f3aad27 100644
     struct pan_ptr cd =
        panvk_cmd_alloc_dev_mem(cmdbuf, desc, sizeof(struct panlib_chunk_draw), 16);
 diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
-index 30527f5..5bde9dd 100644
+index 30527f56..5bde9dd2 100644
 --- a/src/panfrost/vulkan/panvk_device.h
 +++ b/src/panfrost/vulkan/panvk_device.h
 @@ -135,8 +135,16 @@ struct panvk_device {
@@ -130,7 +130,7 @@ index 30527f5..5bde9dd 100644
  panvk_common_check_status(struct panvk_device *dev)
  {
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index 1e3521b..51e669c 100644
+index 1e3521b5..51e669c2 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
 @@ -43,6 +43,8 @@

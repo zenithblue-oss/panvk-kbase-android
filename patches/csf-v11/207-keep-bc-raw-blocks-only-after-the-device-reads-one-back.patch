@@ -42,7 +42,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  create mode 100644 src/panfrost/vulkan/bc/panvk_bc_scopy_spv.h
 
 diff --git a/src/panfrost/vulkan/bc/gen_spv.sh b/src/panfrost/vulkan/bc/gen_spv.sh
-index bedb2ab..99a05ce 100644
+index bedb2ab5..99a05cee 100644
 --- a/src/panfrost/vulkan/bc/gen_spv.sh
 +++ b/src/panfrost/vulkan/bc/gen_spv.sh
 @@ -15,3 +15,7 @@ glslangValidator -V --target-env vulkan1.1 --vn panvk_bc_etc2_spv \
@@ -55,7 +55,7 @@ index bedb2ab..99a05ce 100644
 +sed -i 's/^const uint32_t/static const uint32_t/' panvk_bc_scopy_spv.h
 diff --git a/src/panfrost/vulkan/bc/panvk_bc_scopy.comp b/src/panfrost/vulkan/bc/panvk_bc_scopy.comp
 new file mode 100644
-index 0000000..6f5b878
+index 00000000..6f5b8782
 --- /dev/null
 +++ b/src/panfrost/vulkan/bc/panvk_bc_scopy.comp
 @@ -0,0 +1,85 @@
@@ -146,7 +146,7 @@ index 0000000..6f5b878
 +}
 diff --git a/src/panfrost/vulkan/bc/panvk_bc_scopy_spv.h b/src/panfrost/vulkan/bc/panvk_bc_scopy_spv.h
 new file mode 100644
-index 0000000..de4d786
+index 00000000..de4d786e
 --- /dev/null
 +++ b/src/panfrost/vulkan/bc/panvk_bc_scopy_spv.h
 @@ -0,0 +1,201 @@
@@ -352,7 +352,7 @@ index 0000000..de4d786
 +	0x00000054,0x00000052,0x00000053,0x000200fe,0x00000054,0x00010038
 +};
 diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
-index 1ff7d5a..dd01c0e 100644
+index 1ff7d5a4..dd01c0e9 100644
 --- a/src/panfrost/vulkan/panvk_device.h
 +++ b/src/panfrost/vulkan/panvk_device.h
 @@ -102,6 +102,10 @@ struct panvk_device {
@@ -367,7 +367,7 @@ index 1ff7d5a..dd01c0e 100644
  
     /* Bound in place of a missing FS so the depth bounds test still runs. */
 diff --git a/src/panfrost/vulkan/panvk_image.c b/src/panfrost/vulkan/panvk_image.c
-index 7ebed15..af6bd0d 100644
+index 7ebed15d..af6bd0da 100644
 --- a/src/panfrost/vulkan/panvk_image.c
 +++ b/src/panfrost/vulkan/panvk_image.c
 @@ -859,8 +859,25 @@ panvk_bc_lowmem_astc(const struct panvk_physical_device *phys_dev)
@@ -440,7 +440,7 @@ index 7ebed15..af6bd0d 100644
           image->bc_lowmem = 2;
           image->bc_no_raw = no_raw;
 diff --git a/src/panfrost/vulkan/panvk_image.h b/src/panfrost/vulkan/panvk_image.h
-index a52770c..992232b 100644
+index a52770cf..992232b5 100644
 --- a/src/panfrost/vulkan/panvk_image.h
 +++ b/src/panfrost/vulkan/panvk_image.h
 @@ -87,6 +87,13 @@ struct panvk_image {
@@ -458,7 +458,7 @@ index a52770c..992232b 100644
  
  VK_DEFINE_NONDISP_HANDLE_CASTS(panvk_image, vk.base, VkImage,
 diff --git a/src/panfrost/vulkan/panvk_meta.h b/src/panfrost/vulkan/panvk_meta.h
-index 3d13c58..6e1cc45 100644
+index 3d13c58a..6e1cc455 100644
 --- a/src/panfrost/vulkan/panvk_meta.h
 +++ b/src/panfrost/vulkan/panvk_meta.h
 @@ -28,6 +28,8 @@ enum panvk_meta_object_key_type {
@@ -471,7 +471,7 @@ index 3d13c58..6e1cc45 100644
  
  static inline VkFormat
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_meta.c b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
-index 1f40dba..cf49ccb 100644
+index 1f40dba8..cf49ccb4 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 +++ b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 @@ -867,6 +867,7 @@ bc_decode_region(struct panvk_cmd_buffer *cmdbuf, struct panvk_image *img,

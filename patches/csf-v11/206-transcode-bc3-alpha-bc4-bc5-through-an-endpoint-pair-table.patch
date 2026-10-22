@@ -58,7 +58,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 
 diff --git a/src/panfrost/vulkan/bc/panvk_bc_eac_lut.h b/src/panfrost/vulkan/bc/panvk_bc_eac_lut.h
 new file mode 100644
-index 0000000..608dd22
+index 00000000..608dd225
 --- /dev/null
 +++ b/src/panfrost/vulkan/bc/panvk_bc_eac_lut.h
 @@ -0,0 +1,160 @@
@@ -224,7 +224,7 @@ index 0000000..608dd22
 +#endif
 diff --git a/src/panfrost/vulkan/bc/panvk_bc_eac_lut_data.h b/src/panfrost/vulkan/bc/panvk_bc_eac_lut_data.h
 new file mode 100644
-index 0000000..0a5009e
+index 00000000..0a5009eb
 --- /dev/null
 +++ b/src/panfrost/vulkan/bc/panvk_bc_eac_lut_data.h
 @@ -0,0 +1,12299 @@
@@ -12529,7 +12529,7 @@ index 0000000..0a5009e
 +};
 diff --git a/src/panfrost/vulkan/bc/panvk_bc_eac_lutgen.c b/src/panfrost/vulkan/bc/panvk_bc_eac_lutgen.c
 new file mode 100644
-index 0000000..f23b962
+index 00000000..f23b9621
 --- /dev/null
 +++ b/src/panfrost/vulkan/bc/panvk_bc_eac_lutgen.c
 @@ -0,0 +1,105 @@
@@ -12639,7 +12639,7 @@ index 0000000..f23b962
 +   return 0;
 +}
 diff --git a/src/panfrost/vulkan/bc/panvk_bc_etc2.comp b/src/panfrost/vulkan/bc/panvk_bc_etc2.comp
-index 5071403..f9a1d87 100644
+index 50714034..f9a1d872 100644
 --- a/src/panfrost/vulkan/bc/panvk_bc_etc2.comp
 +++ b/src/panfrost/vulkan/bc/panvk_bc_etc2.comp
 @@ -93,6 +93,7 @@ layout(push_constant) uniform Registers
@@ -12758,7 +12758,7 @@ index 5071403..f9a1d87 100644
           g_out3 = g_w1;
        }
 diff --git a/src/panfrost/vulkan/bc/panvk_bc_etc2_spv.h b/src/panfrost/vulkan/bc/panvk_bc_etc2_spv.h
-index 1795671..8bc2dea 100644
+index 17956710..8bc2deab 100644
 --- a/src/panfrost/vulkan/bc/panvk_bc_etc2_spv.h
 +++ b/src/panfrost/vulkan/bc/panvk_bc_etc2_spv.h
 @@ -1,11 +1,11 @@
@@ -22399,7 +22399,7 @@ index 1795671..8bc2dea 100644
 +	0x0000015a,0x000200fe,0x000018a0,0x00010038
  };
 diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
-index 5bde9dd..1ff7d5a 100644
+index 5bde9dd2..1ff7d5a4 100644
 --- a/src/panfrost/vulkan/panvk_device.h
 +++ b/src/panfrost/vulkan/panvk_device.h
 @@ -89,6 +89,9 @@ struct panvk_device {
@@ -22413,7 +22413,7 @@ index 5bde9dd..1ff7d5a 100644
  
     /* BC raw store (csf-v11/201), under the lock in panvk_image.c: the
 diff --git a/src/panfrost/vulkan/panvk_image.c b/src/panfrost/vulkan/panvk_image.c
-index af89690..7ebed15 100644
+index af89690e..7ebed15d 100644
 --- a/src/panfrost/vulkan/panvk_image.c
 +++ b/src/panfrost/vulkan/panvk_image.c
 @@ -1812,6 +1812,15 @@ panvk_BindImageMemory2(VkDevice device, uint32_t bindInfoCount,
@@ -22433,7 +22433,7 @@ index af89690..7ebed15 100644
  #include "panvk_priv_bo.h"
  
 diff --git a/src/panfrost/vulkan/panvk_image.h b/src/panfrost/vulkan/panvk_image.h
-index 057996c..a52770c 100644
+index 057996c3..a52770cf 100644
 --- a/src/panfrost/vulkan/panvk_image.h
 +++ b/src/panfrost/vulkan/panvk_image.h
 @@ -119,6 +119,10 @@ void panvk_bc_raw_release(struct util_dynarray *refs);
@@ -22448,7 +22448,7 @@ index 057996c..a52770c 100644
  static inline void
  panvk_image_set_compression_props(VkImageCompressionPropertiesEXT *props,
 diff --git a/src/panfrost/vulkan/panvk_physical_device.c b/src/panfrost/vulkan/panvk_physical_device.c
-index 8ae7843..9716d8f 100644
+index 8ae78430..9716d8f0 100644
 --- a/src/panfrost/vulkan/panvk_physical_device.c
 +++ b/src/panfrost/vulkan/panvk_physical_device.c
 @@ -1892,12 +1892,16 @@ panvk_bc_lowmem_enabled(const struct panvk_physical_device *device)
@@ -22486,7 +22486,7 @@ index 8ae7843..9716d8f 100644
     return opts;
  }
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_meta.c b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
-index f78a373..1f40dba 100644
+index f78a3733..1f40dba8 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 +++ b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 @@ -867,6 +867,9 @@ bc_decode_region(struct panvk_cmd_buffer *cmdbuf, struct panvk_image *img,
