@@ -700,3 +700,16 @@ Earlier r29 stages v7A-v7D and the r29 bc/fixes builds are superseded by their r
 
 Device-needed: everything in the queue above, plus A, B, D, F, items 21, 29, 36-only retests, 16 KiB pages, `depth_bias_patch_list_tri_line`, GTA IV issue #2 (reporter log), CTS reruns for csf-v11 187-196, jm-v7-wip performance and DXVK titles.
 Not device-needed (handled 2026-10-21): this PROGRESS update; strict apply check of the default series and jm-v7-wip; stale statements in the RC4 package record (see below); host/CI checks recorded in `builds/2026-10-21-open-items-pass.md`.
+
+## State 2026-10-22 (RC5-dev-v7K device pass, v7K patches, open items)
+
+Nothing below is verified beyond the device run named in the first bullet.
+
+- **A06 (G52, v7), RC5-dev-v7K (git-d160802965, .so sha badc28eb31786c33...):** PanProbe 38 pass / 0 fail / 0 skip (v7J 37/0/1, v7I 35/2, RC4 14/19/5). See `device-runs/2026-10-22-a06-v7K/results.md`.
+- **v7K patches:** jm-v7-wip 0059 (descriptor-read reorder: the RIA2 penalty went from +35-38% to +0.3%, ria2 169.49 ms vs ria1 169.02 ms), 0060 (waterfall only on NonUniform divergent indices), 0061 (BeginQuery keeps overlap), 0062 (AFBC kept with customBorderColorWithoutFormat on non-sampled images). Also the PanProbe swapchain harness fix (swapchain_lifecycle now PASS, 45.6 fps).
+- **pipeline_stats:** 1343 fps. The v7J 618 was noise.
+- **Pending:**
+  - The A06 A/B with PANVK_V7_DESC_REORDER=0 (the device dropped).
+  - G615 bc2 full suite and BC timing/memory vs RC4-lowmem.
+  - v6 and v9 device runs.
+  - Deferred review items H5, M8, M12, M13, M15, M16 (reasons in `builds/v7K.md`).
