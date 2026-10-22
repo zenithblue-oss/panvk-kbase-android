@@ -69,8 +69,6 @@ Direct load (no wrapper ICD): container > Environment, add
   VK_ICD_FILENAMES={root}/panvk_icd_abs.aarch64.json
 (container env vars are applied after the app sets the wrapper ICD, so this replaces it).
 If the X11 present path fails, also add MESA_VK_WSI_DEBUG=sw.
-RC5 known issue (csf-v11/204 working disk shader cache): vkd3d-proton titles can hang. If so, add
-MESA_SHADER_CACHE_DISABLE=true to the container env (PanProbe sets it by default; fix pending in bc5).
 Fallback (wrapper in path): leave VK_ICD_FILENAMES unset and pick "{name}" as Graphics Driver Version.
 Check: wine log / logcat shows driverInfo "PanVK-kbase {label}"; .so sha256 {sha}
 """).encode()
