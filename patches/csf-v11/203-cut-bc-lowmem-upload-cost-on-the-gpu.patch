@@ -22,17 +22,17 @@ mip chain), BC6H/BC7 ~1 ms slower. Three causes, three fixes:
 - Android app processes have no writable $HOME/.cache, so the disk
   shader cache stayed off and every process compiled the per-mode
   transcode pipelines again (0.7-5.8 s each on the host for the
-  unrolled shaders), which doubled bc_perf wall time. Without an
-  explicit cache directory, use the app cache directory
-  /data/user/<user>/<package>/cache.
+  unrolled shaders), which doubled bc_perf wall time. util/disk_cache:
+  without MESA_SHADER_CACHE_DIR or XDG_CACHE_HOME, Android uses the app
+  cache directory /data/user/<user>/<package>/cache before $HOME.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
- src/panfrost/vulkan/bc/panvk_bc_etc2.comp   |  226 +-
- src/panfrost/vulkan/bc/panvk_bc_etc2_spv.h  | 9595 ++++++++++---------
- src/panfrost/vulkan/panvk_physical_device.c |   35 +
- src/panfrost/vulkan/panvk_vX_cmd_meta.c     |   62 +-
- 4 files changed, 5111 insertions(+), 4807 deletions(-)
+ src/panfrost/vulkan/bc/panvk_bc_etc2.comp  |  226 +-
+ src/panfrost/vulkan/bc/panvk_bc_etc2_spv.h | 9595 ++++++++++----------
+ src/panfrost/vulkan/panvk_vX_cmd_meta.c    |   62 +-
+ src/util/disk_cache_os.c                   |   25 +
+ 4 files changed, 5101 insertions(+), 4807 deletions(-)
 
 diff --git a/src/panfrost/vulkan/bc/panvk_bc_etc2.comp b/src/panfrost/vulkan/bc/panvk_bc_etc2.comp
 index 1afb88f..5071403 100644
@@ -9996,66 +9996,6 @@ index 07e8f09..1795671 100644
 +	0x000017f8,0x00000155,0x00000764,0x0003003e,0x000017f8,0x000017f7,0x0004003d,0x00000152,
 +	0x000017f9,0x00000155,0x000200fe,0x000017f9,0x00010038
  };
-diff --git a/src/panfrost/vulkan/panvk_physical_device.c b/src/panfrost/vulkan/panvk_physical_device.c
-index 8ae7843..a59eb10 100644
---- a/src/panfrost/vulkan/panvk_physical_device.c
-+++ b/src/panfrost/vulkan/panvk_physical_device.c
-@@ -23,6 +23,7 @@
- #include "util/timespec.h"
- #endif
- 
-+#include "util/detect_os.h"
- #include "util/disk_cache.h"
- #include "util/os_misc.h"
- #include "util/os_time.h"
-@@ -421,6 +422,37 @@ get_drm_device_ids(struct panvk_physical_device *device,
-    return VK_SUCCESS;
- }
- 
-+#if defined(ENABLE_SHADER_CACHE) && DETECT_OS_ANDROID
-+/* csf-v11/203: Android app processes have no writable $HOME/.cache, so the
-+ * disk cache stayed off and every process compiled its meta pipelines
-+ * again (the BC transcoders cost seconds each). Without an explicit cache
-+ * directory, use the app's cache directory /data/user/<user>/<package>/cache
-+ * (from the process name, up to a ':' service suffix). */
-+static void
-+panvk_android_cache_dir(void)
-+{
-+   if (os_get_option("MESA_SHADER_CACHE_DIR") ||
-+       os_get_option("MESA_GLSL_CACHE_DIR") || getenv("XDG_CACHE_HOME"))
-+      return;
-+
-+   char name[256] = {0}, dir[320];
-+   int fd = open("/proc/self/cmdline", O_RDONLY | O_CLOEXEC);
-+   if (fd < 0)
-+      return;
-+   const ssize_t n = read(fd, name, sizeof(name) - 1);
-+   close(fd);
-+   if (n <= 0 || !name[0] || name[0] == '/')
-+      return;
-+   name[strcspn(name, ":")] = 0;
-+   snprintf(dir, sizeof(dir), "/data/user/%u/%s/cache",
-+            (unsigned)(getuid() / 100000), name);
-+   if (access(dir, W_OK) == 0) {
-+      setenv("MESA_SHADER_CACHE_DIR", dir, 0);
-+      mesa_logi("panvk: shader cache in %s", dir);
-+   }
-+}
-+#endif
-+
- static void
- init_shader_caches(struct panvk_physical_device *device,
-                    const struct panvk_instance *instance)
-@@ -452,6 +484,9 @@ init_shader_caches(struct panvk_physical_device *device,
-    _mesa_blake3_format(timestamp, instance->driver_build_sha);
- 
-    const uint64_t driver_flags = pan_get_compiler_flags(pan_arch(gpu_id));
-+#if DETECT_OS_ANDROID
-+   panvk_android_cache_dir();
-+#endif
-    device->vk.disk_cache = disk_cache_create(renderer, timestamp, driver_flags);
- #endif
- }
 diff --git a/src/panfrost/vulkan/panvk_vX_cmd_meta.c b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
 index 60ac82a..f78a373 100644
 --- a/src/panfrost/vulkan/panvk_vX_cmd_meta.c
@@ -10167,6 +10107,42 @@ index 60ac82a..f78a373 100644
        }
        if (xcode)
           meta_compute_end(cmdbuf, &csave);
+diff --git a/src/util/disk_cache_os.c b/src/util/disk_cache_os.c
+index 08165bb..5890433 100644
+--- a/src/util/disk_cache_os.c
++++ b/src/util/disk_cache_os.c
+@@ -937,6 +937,31 @@ disk_cache_generate_cache_dir(void *mem_ctx, const char *gpu_name,
+       }
+    }
+ 
++#if DETECT_OS_ANDROID
++   /* Android app processes have no writable $HOME/.cache, so without this
++    * the cache stayed off and every process compiled its pipelines again
++    * (panvk's BC transcoders cost seconds each). Use the app's cache
++    * directory /data/user/<user>/<package>/cache, from the process name
++    * (up to a ':' service suffix). Falls through to $HOME if it fails. */
++   if (!path) {
++      char name[256] = {0}, dir[320];
++      int fd = open("/proc/self/cmdline", O_RDONLY | O_CLOEXEC);
++
++      if (fd >= 0) {
++         const ssize_t n = read(fd, name, sizeof(name) - 1);
++         close(fd);
++         if (n > 0 && name[0] && name[0] != '/') {
++            name[strcspn(name, ":")] = 0;
++            snprintf(dir, sizeof(dir), "/data/user/%u/%s/cache",
++                     (unsigned)(getuid() / 100000), name);
++            if (access(dir, W_OK) == 0)
++               path = concatenate_and_mkdir(mem_ctx, dir, cache_dir_name,
++                                            mkdir);
++         }
++      }
++   }
++#endif
++
+    if (!path) {
+       const char *home = os_get_option("HOME");
+ 
 -- 
 2.55.0
 
