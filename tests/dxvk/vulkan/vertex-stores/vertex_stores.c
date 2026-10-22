@@ -686,6 +686,271 @@ check_firstvertex(const struct ssbo_data *res, const uint8_t *guard,
    return 0;
 }
 
+/* Case 6: vs_img_redraw. A VS storage image written by IMG_DRAWS draws of one
+ * pipeline and one descriptor set, bound once. PanVK v6/v7 allocated a new
+ * VS image attribute table per draw but filled it only while the descriptors
+ * were dirty, so draws after the first stored nowhere (jm-v7 090). Runs on
+ * its own command pool so the stale table reads fresh (zeroed) memory. */
+#define IMG_W 64
+#define IMG_DRAWS 4
+#define IMG_VERTS_PER_DRAW 16
+
+static int
+run_img_redraw(struct dx7 *t, struct rt4 *rt, uint32_t qfam)
+{
+   VkShaderModule vsm = dx7_module(t, vs_img_stores, sizeof(vs_img_stores));
+   VkShaderModule fsm = dx7_module(t, fs_stores, sizeof(fs_stores));
+
+   VkDescriptorSetLayoutBinding bind = {
+      .binding = 0,
+      .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+      .descriptorCount = 1,
+      .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+   };
+   VkDescriptorSetLayoutCreateInfo dslci = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+      .bindingCount = 1,
+      .pBindings = &bind,
+   };
+   VkDescriptorSetLayout dsl;
+   CK(vkCreateDescriptorSetLayout(t->dev, &dslci, NULL, &dsl), "ImgDSL");
+   VkPipelineLayoutCreateInfo plci = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+      .setLayoutCount = 1,
+      .pSetLayouts = &dsl,
+   };
+   VkPipelineLayout playout;
+   CK(vkCreatePipelineLayout(t->dev, &plci, NULL, &playout), "ImgPL");
+
+   VkPipelineShaderStageCreateInfo stages[2] = {
+      {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+       .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = vsm, .pName = "main"},
+      {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+       .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = fsm, .pName = "main"},
+   };
+   VkPipelineVertexInputStateCreateInfo vi = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+   };
+   VkPipelineInputAssemblyStateCreateInfo ia = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+      .topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST,
+   };
+   VkViewport vp = {0.0f, 0.0f, 4.0f, 4.0f, 0.0f, 1.0f};
+   VkRect2D sc = {{0, 0}, {4, 4}};
+   VkPipelineViewportStateCreateInfo vps = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+      .viewportCount = 1, .pViewports = &vp,
+      .scissorCount = 1, .pScissors = &sc,
+   };
+   VkPipelineRasterizationStateCreateInfo rs = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+      .polygonMode = VK_POLYGON_MODE_FILL,
+      .cullMode = VK_CULL_MODE_NONE,
+      .lineWidth = 1.0f,
+   };
+   VkPipelineMultisampleStateCreateInfo ms = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+      .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+   };
+   VkPipelineColorBlendAttachmentState ba = {.colorWriteMask = 0xf};
+   VkPipelineColorBlendStateCreateInfo cb = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+      .attachmentCount = 1, .pAttachments = &ba,
+   };
+   VkGraphicsPipelineCreateInfo gpci = {
+      .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+      .stageCount = 2, .pStages = stages,
+      .pVertexInputState = &vi, .pInputAssemblyState = &ia,
+      .pViewportState = &vps, .pRasterizationState = &rs,
+      .pMultisampleState = &ms, .pColorBlendState = &cb,
+      .layout = playout, .renderPass = rt->rp, .subpass = 0,
+   };
+   VkPipeline pipe;
+   CK(vkCreateGraphicsPipelines(t->dev, VK_NULL_HANDLE, 1, &gpci, NULL, &pipe),
+      "ImgPipeline");
+   vkDestroyShaderModule(t->dev, vsm, NULL);
+   vkDestroyShaderModule(t->dev, fsm, NULL);
+
+   /* IMG_W x 1 R32_UINT storage image */
+   VkImageCreateInfo imgci = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+      .imageType = VK_IMAGE_TYPE_2D,
+      .format = VK_FORMAT_R32_UINT,
+      .extent = {IMG_W, 1, 1},
+      .mipLevels = 1, .arrayLayers = 1,
+      .samples = VK_SAMPLE_COUNT_1_BIT,
+      .tiling = VK_IMAGE_TILING_OPTIMAL,
+      .usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+      .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+      .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+   };
+   VkImage img;
+   CK(vkCreateImage(t->dev, &imgci, NULL, &img), "ImgCreate");
+   VkMemoryRequirements imr;
+   vkGetImageMemoryRequirements(t->dev, img, &imr);
+   uint32_t imi = 0;
+   while (!(imr.memoryTypeBits & (1u << imi)))
+      imi++;
+   VkMemoryAllocateInfo imai = {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+      .allocationSize = imr.size, .memoryTypeIndex = imi,
+   };
+   VkDeviceMemory imem;
+   CK(vkAllocateMemory(t->dev, &imai, NULL, &imem), "ImgMem");
+   CK(vkBindImageMemory(t->dev, img, imem, 0), "ImgBind");
+   VkImageViewCreateInfo ivci = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+      .image = img,
+      .viewType = VK_IMAGE_VIEW_TYPE_2D,
+      .format = VK_FORMAT_R32_UINT,
+      .subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1},
+   };
+   VkImageView view;
+   CK(vkCreateImageView(t->dev, &ivci, NULL, &view), "ImgView");
+
+   VkBuffer rbuf;
+   VkDeviceMemory rmem;
+   dx7_buffer(t, IMG_W * sizeof(uint32_t), VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+              NULL, &rbuf, &rmem);
+
+   VkDescriptorPoolSize psz = {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1};
+   VkDescriptorPoolCreateInfo dpci = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+      .maxSets = 1, .poolSizeCount = 1, .pPoolSizes = &psz,
+   };
+   VkDescriptorPool dpool;
+   CK(vkCreateDescriptorPool(t->dev, &dpci, NULL, &dpool), "ImgDP");
+   VkDescriptorSetAllocateInfo dsai = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+      .descriptorPool = dpool, .descriptorSetCount = 1, .pSetLayouts = &dsl,
+   };
+   VkDescriptorSet ds;
+   CK(vkAllocateDescriptorSets(t->dev, &dsai, &ds), "ImgDS");
+   VkDescriptorImageInfo dii = {
+      .imageView = view, .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+   };
+   VkWriteDescriptorSet wds = {
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet = ds, .dstBinding = 0, .descriptorCount = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+      .pImageInfo = &dii,
+   };
+   vkUpdateDescriptorSets(t->dev, 1, &wds, 0, NULL);
+
+   VkCommandPoolCreateInfo cpci = {
+      .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+      .queueFamilyIndex = qfam,
+   };
+   VkCommandPool cpool;
+   CK(vkCreateCommandPool(t->dev, &cpci, NULL, &cpool), "ImgCP");
+   VkCommandBufferAllocateInfo cbai = {
+      .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+      .commandPool = cpool, .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+      .commandBufferCount = 1,
+   };
+   VkCommandBuffer cmd;
+   CK(vkAllocateCommandBuffers(t->dev, &cbai, &cmd), "ImgCmd");
+   VkCommandBufferBeginInfo bbi = {
+      .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+      .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+   };
+   CK(vkBeginCommandBuffer(cmd, &bbi), "ImgBegin");
+
+   VkImageMemoryBarrier to_general = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+      .srcAccessMask = 0,
+      .dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+      .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+      .newLayout = VK_IMAGE_LAYOUT_GENERAL,
+      .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+      .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+      .image = img,
+      .subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1},
+   };
+   vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                        VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 0, NULL, 0,
+                        NULL, 1, &to_general);
+
+   VkClearValue clear = {.color = {{0.0f, 0.0f, 0.0f, 1.0f}}};
+   VkRenderPassBeginInfo rpbi = {
+      .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+      .renderPass = rt->rp, .framebuffer = rt->fb,
+      .renderArea = {{0, 0}, {4, 4}},
+      .clearValueCount = 1, .pClearValues = &clear,
+   };
+   vkCmdBeginRenderPass(cmd, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
+   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe);
+   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, playout, 0, 1,
+                           &ds, 0, NULL);
+   /* Several draws, no rebind in between. */
+   for (uint32_t d = 0; d < IMG_DRAWS; d++)
+      vkCmdDraw(cmd, IMG_VERTS_PER_DRAW, 1, d * IMG_VERTS_PER_DRAW, 0);
+   vkCmdEndRenderPass(cmd);
+
+   VkImageMemoryBarrier to_src = to_general;
+   to_src.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+   to_src.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+   to_src.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+   to_src.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+   vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+                        VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1,
+                        &to_src);
+   VkBufferImageCopy region = {
+      .imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
+      .imageExtent = {IMG_W, 1, 1},
+   };
+   vkCmdCopyImageToBuffer(cmd, img, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, rbuf,
+                          1, &region);
+   CK(vkEndCommandBuffer(cmd), "ImgEnd");
+
+   VkSubmitInfo si = {
+      .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+      .commandBufferCount = 1, .pCommandBuffers = &cmd,
+   };
+   CK(vkQueueSubmit(t->queue, 1, &si, VK_NULL_HANDLE), "ImgSubmit");
+   CK(vkQueueWaitIdle(t->queue), "ImgWait");
+
+   void *mapped = NULL;
+   CK(vkMapMemory(t->dev, rmem, 0, IMG_W * sizeof(uint32_t), 0, &mapped),
+      "ImgMap");
+   const uint32_t *texels = mapped;
+   int fail = 0;
+   char msg[256] = {0};
+   int missing = 0, first_bad = -1;
+   for (int x = 0; x < IMG_W; x++) {
+      if (texels[x] != (uint32_t)x + 1u) {
+         missing++;
+         if (first_bad < 0)
+            first_bad = x;
+      }
+   }
+   if (missing) {
+      fail = 1;
+      snprintf(msg, sizeof(msg),
+               "%d/%d texels wrong, first x=%d (draw %d) got %u want %d",
+               missing, IMG_W, first_bad, first_bad / IMG_VERTS_PER_DRAW,
+               texels[first_bad], first_bad + 1);
+   }
+   vkUnmapMemory(t->dev, rmem);
+
+   if (fail)
+      printf("CASE vs_img_redraw FAIL %s\n", msg);
+   else
+      printf("CASE vs_img_redraw PASS\n");
+
+   vkDestroyCommandPool(t->dev, cpool, NULL);
+   vkDestroyDescriptorPool(t->dev, dpool, NULL);
+   vkDestroyBuffer(t->dev, rbuf, NULL);
+   vkFreeMemory(t->dev, rmem, NULL);
+   vkDestroyImageView(t->dev, view, NULL);
+   vkDestroyImage(t->dev, img, NULL);
+   vkFreeMemory(t->dev, imem, NULL);
+   vkDestroyPipeline(t->dev, pipe, NULL);
+   vkDestroyPipelineLayout(t->dev, playout, NULL);
+   vkDestroyDescriptorSetLayout(t->dev, dsl, NULL);
+   return fail;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -858,6 +1123,9 @@ main(int argc, char **argv)
       .check_fn = check_firstvertex,
    };
    fails += run_test_case(&t, &rt, playout, dpool, dsl, cmd_pool, &tc_firstvertex);
+
+   /* 6. vs_img_redraw: VS storage image, several draws, no rebind */
+   fails += run_img_redraw(&t, &rt, qi);
 
    /* Cleanup */
    vkDestroyPipeline(t.dev, pipe_iter0_2, NULL);

@@ -274,3 +274,9 @@ Base: `mesa-v7J` HEAD f69289a (after 0058); same worktree `/home/flux/src/mesa-v
 - 0060 (jm-v7 087): the 085 waterfall only takes texture/sampler indices that are divergent AND NonUniform-qualified (non-qualified indices must be dynamically uniform; before 085 they were not lowered at all). copy_prop/algebraic/constant folding/DCE after the loops. `PANVK_TEX_WATERFALL=all` = 085 selection, `=0` = off.
 - 0061 (jm-v7 088, review M9): BeginQuery no longer marks its batch after_frag, so render passes with an occlusion/statistics query keep PANVK_OVERLAP. End/timestamp/copy/reset unchanged; v9 unchanged. `PANVK_V7_QUERY_BEGIN_SERIAL=1` = old.
 - 0062 (jm-v7 089, review M11): with customBorderColorWithoutFormat, R/B-swapped v7 images without SAMPLED/INPUT_ATTACHMENT usage keep AFBC. `PANVK_V7_CBC_AFBC=0` = old.
+
+## v7L (2026-10-22): 0063+, perf review 2026-10-22
+
+Base: `mesa-v7J` HEAD d160802 (after 0062); same worktree, new branch `v7L`. Apply in file order after 0062. Review: `worklogs/g615-dxvk/perf-review-2026-10-22.md`. Build record: `worklogs/g615-dxvk/builds/v7L.md`.
+
+- 0063 (jm-v7 090, review item 5): the VS copy-desc job runs on every draw of a VS with storage images; the attribute table that holds the image entries is new per draw, so the second draw without a rebind read an unwritten table. Correctness fix, no toggle. PanProbe vertex_stores case `vs_img_redraw`.

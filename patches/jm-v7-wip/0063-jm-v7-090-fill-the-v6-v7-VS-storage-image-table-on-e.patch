@@ -1,0 +1,50 @@
+From 37b260e83dd772597d9a3579c85f07187d0df7b9 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 22 Oct 2026 04:23:00 +0000
+Subject: [PATCH] jm-v7 090: fill the v6/v7 VS storage-image table on every
+ draw
+
+panvk_draw_prepare_vs_attribs() allocates a new attribute table for
+every draw, and with VS storage images (vertexPipelineStoresAndAtomics,
+jm-v7 045) the image attributes and their attribute buffers live in it
+(img_attrib_table at MAX_VS_ATTRIBS, tables[IMG] after the vertex
+buffers). Only the VS copy-desc job writes those entries, and it ran
+only when DESC_STATE or VS was dirty. So the second draw of the same
+pipeline and descriptors without a rebind read an unwritten table: its
+image stores and loads went nowhere or to garbage (perf review item 5).
+
+Emit the VS copy-desc job for every draw of a VS that has storage
+images. Bindless images (jm-v7 050) do not use the table and are not
+affected. PanProbe vertex_stores case vs_img_redraw.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index 0743ca5..17529a5 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -2087,7 +2087,17 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+     */
+    panvk_draw_prepare_attributes(cmdbuf, draw);
+ 
+-   if (gfx_state_dirty(cmdbuf, DESC_STATE) || gfx_state_dirty(cmdbuf, VS)) {
++   /* jm-v7 090: the VS storage-image attributes live in the attribute
++    * table, which panvk_draw_prepare_vs_attribs() allocates anew for every
++    * draw. The copy job is what fills them, so it must run for every draw
++    * of a VS with storage images, not only when the descriptors are dirty;
++    * otherwise the second draw reads an unwritten table.
++    */
++   const bool vs_has_imgs =
++      vs_desc_info->others.count[PANVK_BIFROST_DESC_TABLE_IMG] != 0;
++
++   if (gfx_state_dirty(cmdbuf, DESC_STATE) || gfx_state_dirty(cmdbuf, VS) ||
++       vs_has_imgs) {
+       result = panvk_draw_prepare_vs_copy_desc_job(cmdbuf, draw);
+       if (result != VK_SUCCESS)
+          return result;
+-- 
+2.55.0
+
