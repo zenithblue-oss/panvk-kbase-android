@@ -94,3 +94,22 @@ d. **v9, v10:** no device.
   - S9: logcat has `kbase: cntfrq_el0 is 0; GPU timestamp counter measured at ... using 26000000 Hz` (or `timestamps not advertised`), bc_perf `ts_period=38.462`, and `upload_gpu_ms` about 0.9-1.0x `upload_wall_ms`.
   - A31: the 0082 line is unchanged (26 MHz).
   - All JM devices: one `kbase: JM warm-up 2000 ms (first JM open in this process)` per process, then `JM warm-up skipped`. 39/39 still pass, with no DEVICE_LOST and no job faults on the second open. The run should be about 1.5 min shorter on the A31.
+
+## RC5-universal-110 (2026-10-23): low-risk perf round from perf-review-2026-10-22
+- Changes (none device-tested; details in `patches/jm-v7-wip/README.md` and the review's status list):
+
+  | patch | item | expected gain | knob (old behaviour) |
+  |---|---|---|---|
+  | csf-v11 220 + jm-v7-wip 0085 | K6: command pool BOs freed on reset(RELEASE_RESOURCES) and vkTrimCommandPool | memory after loading screens / big frames | `PANVK_CMD_POOL_TRIM=0` |
+  | csf-v11 221 | flush the transient pool BO only up to transient_offset | up to ~60 KiB less cache clean per pool per EndCommandBuffer/re-submit | `PANVK_POOL_FLUSH_FULL=1` |
+  | csf-v11 222 + jm-v7-wip 0088 | hot-path log lines at debug (dma-buf import, CSF queue wait, v6/v7 growable BO after 8) | fewer logd writes per import / wait / GS buffer | `MESA_LOG_LEVEL=debug` |
+  | jm-v7-wip 0086 | K7: no per-batch BO list on JM submit | CPU per submit, O(n^2) in pool BOs | none (list had no reader) |
+  | jm-v7-wip 0087 | K8 (events): up to 16 job events per read() | about 2 syscalls per atom saved | `PANVK_KBASE_EVENT_BATCH=0` |
+  | jm-v7-wip 0089 | item 14 (divide): texel-buffer width in the descriptor pad word | ~20-40 instructions per v6/v7 bindless texel-buffer access | `PANVK_V7_TEXEL_WIDTH=0` (hashed, tag 0x76370116) |
+
+- Skipped: item 8, K4, the multi-atom half of K8, the index-clamp half of item 14 (reasons in the review).
+- Tree: mesa-rc5g (branch `rc5g`) reset to the new series: HEAD `6cae57f8` (tag `rc5g-110`), base tag `rc5g-base` = `3916f976` (217 series commits). `prepare-rc5-tree.sh --csf-max 222 --wip-max 0089` on a fresh 5a07217f worktree (`/home/flux/src/mesa-rc5-110v`) printed `BASE-OK applied=217` and `OK base=217 jm-v7-wip=84 head=199d42af`, with no PATCH-DRIFT, WIP-DRIFT or offset lines; its tree `e24adbd0` equals mesa-rc5g HEAD's tree. Refreshed for it: `jm-v9/024` (two context lines) and `jm-v7-wip/0022` (hunk headers).
+- .so `/home/flux/build-out/2026-10-22-rc5-universal-110/libvulkan_panfrost.so`, 30522256 bytes, sha256 `5f217f70aa28f47a1eda50200428c92dd8e7af5c717f07d638e8ea9c6357289f` (`PanVK-kbase RC5-universal-110 (Mesa 26.3.0-devel (git-6cae57f893))`; the new knob strings are present). Fresh BDIR `/home/flux/build-rc5/bionic-r30-RC5-universal-110`, NDK r30, `--api 29`, 4 jobs (thermal NONE), under the build lock; 8 `libpanvk_v*.a`. No new warnings in the touched files.
+- PanProbe `/home/flux/build-out/apks/panprobe-rc5u-110.apk`, sha256 `73bbebec1f6cae26e3a0ba978b3e1b9680e36df2c3c1e37de3a5e9e622c65b88`, `dev.zenithblue.panvktest.rc5u` (1.2.7, vc 15), rc5 `5f217f70` (= driver), rc4 `c395db09`. Built like 109 (`--offline`, stale `app/.cxx` removed).
+- PanPlay `/home/flux/build-out/apks/panplay-rc5u-110.apk`, sha256 `ccbf9109300631b3efd72e578d39519f77fa2781870944ff77761b0ad9d05352`, `dev.zenithblue.panvklauncher` **1.2.9-rc5, vc 35**, debug-signed (cert `bc517d8c...`, so it still cannot update the 1.2.8 install signed `8b10fde8...`; that needs an uninstall). `-PpanvkSo=<110 .so>`, all components bundled (stored) from /var/tmp/panvk/components: imagefs_bionic, Proton 11.0-2, FEXCore 2609.1, DXVK 3.1.1-4, VKD3D 3.0.1-452, Box64 0.4.5, PulseAudio 17.0-2, ALSA 1.2.16.1-2, Mesa-Zink 26.2.4-1. The Zink pin in `app/bundled-components.json` is now the local build `1f1eb714...` (was 46707d28). `bundled-driver.json` now labels the bundled driver "PanVK Kbase — RC5-universal-110" with the .so sha and size (`published: false`, tag `panvk-kbase-v0.1.0-rc5-universal-110`, not a release), so the driver card and session logs match the .so.
+- Not device-tested. Check on JM devices: 39/39, no DEVICE_LOST, `kbase: v7 growable BO` lines stop after 8; on v6/v7 the bindless texel-buffer tests (vkd3d_heap, robustness) still pass; PSS drops after vkTrimCommandPool. On G615: 39/39 and the cubes.

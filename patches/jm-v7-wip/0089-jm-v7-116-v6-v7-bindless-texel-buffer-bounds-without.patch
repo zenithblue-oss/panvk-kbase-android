@@ -1,0 +1,134 @@
+From 6cae57f893bf0daea9dc9a2029a25a2de1a32f8f Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Fri, 23 Oct 2026 08:52:19 +0000
+Subject: [PATCH 89/89] jm-v7 116: v6/v7 bindless texel buffer bounds without a
+ divide
+
+Rationale: build_bindless_buf_texel() (jm-v7 050) emitted
+nir_udiv(size - offset, stride) on every bindless texel-buffer access,
+and Bifrost has no integer divide, so it is a software sequence of
+about 20-40 instructions per access (perf review 2026-10-22 item 14).
+Expected gain: shader size and ALU for vkd3d-style bindless texel
+buffers on v6/v7 (each imageLoad/Store/atomic or texelFetch on a
+bindless texel buffer loses the divide sequence); no CPU cost beyond one
+32-bit divide per vkUpdateDescriptorSets texel-buffer write.
+
+write_buffer_view_desc() stores the element count in the first pad word
+of the 32-byte v6/v7 texel buffer descriptor ({ATTRIBUTE_BUFFER,
+ATTRIBUTE, pad[2]}), computed from the same packed words the shader read:
+(size - offset) / max(stride, 1), 0 if size < offset. The shader reads
+it as channel 2 of the ATTRIBUTE load it already does. Null descriptors
+(null_descs.texel, zero padded) and zeroed slots give 0, so they stay
+out of bounds. Descriptor copies copy the whole 32 bytes.
+
+Not done: clamping dynamic descriptor indices so their loads can be
+reordered (the item's second half). With variable descriptor counts a
+hoisted load could leave the set's memory; it needs a device check.
+
+Knob: PANVK_V7_TEXEL_WIDTH=0 restores the divide. It is a compile knob,
+so it is hashed (panvk_v7_knobs.h) and the knob-set tag goes
+0x76370108 -> 0x76370116 (v6/v7 cache entries miss once).
+Arch: v6/v7 only (PAN_ARCH < 9). Not device-tested.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_v7_knobs.h              | 15 +++++++++++++++
+ src/panfrost/vulkan/panvk_vX_descriptor_set.c     | 11 +++++++++++
+ .../vulkan/panvk_vX_nir_lower_descriptors.c       | 15 ++++++++++++---
+ src/panfrost/vulkan/panvk_vX_shader.c             |  3 ++-
+ 4 files changed, 40 insertions(+), 4 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_v7_knobs.h b/src/panfrost/vulkan/panvk_v7_knobs.h
+index 28172a7e..15bdb7a3 100644
+--- a/src/panfrost/vulkan/panvk_v7_knobs.h
++++ b/src/panfrost/vulkan/panvk_v7_knobs.h
+@@ -55,6 +55,21 @@ panvk_v7_knob_desc_reorder(void)
+    return v;
+ }
+ 
++/* PANVK_V7_TEXEL_WIDTH: jm-v7 116, on unless "0". Bindless texel buffer
++ * bounds come from the element count the CPU stores in the descriptor's
++ * pad word instead of a per-access integer divide.
++ */
++static inline bool
++panvk_v7_knob_texel_width(void)
++{
++   static int v = -1;
++   if (v < 0) {
++      const char *e = getenv("PANVK_V7_TEXEL_WIDTH");
++      v = !(e && e[0] == '0');
++   }
++   return v;
++}
++
+ /* Runtime-only knobs (no effect on a compile, so not hashed). */
+ 
+ /* Read "<name>=0" as off; default on. */
+diff --git a/src/panfrost/vulkan/panvk_vX_descriptor_set.c b/src/panfrost/vulkan/panvk_vX_descriptor_set.c
+index 0d7251f5..9798c1a3 100644
+--- a/src/panfrost/vulkan/panvk_vX_descriptor_set.c
++++ b/src/panfrost/vulkan/panvk_vX_descriptor_set.c
+@@ -353,6 +353,17 @@ write_buffer_view_desc(struct panvk_descriptor_set *set,
+       .attr_desc = view->descs.attrib,
+    };
+ 
++   /* jm-v7 116: the element count for the bindless texel buffer bounds
++    * check (build_bindless_buf_texel()), computed from the packed words the
++    * shader read before: (size - offset) / stride, size and stride in
++    * ATTRIBUTE_BUFFER words 3 and 2, offset in ATTRIBUTE word 1.
++    */
++   const uint32_t *buf_w = (const uint32_t *)&padded_desc.attr_buf_desc;
++   const uint32_t *attr_w = (const uint32_t *)&padded_desc.attr_desc;
++   const uint32_t stride = MAX2(buf_w[2], 1), size = buf_w[3];
++   const uint32_t offset = attr_w[1];
++   padded_desc.pad[0] = size >= offset ? (size - offset) / stride : 0;
++
+    write_desc(set, binding, elem, &padded_desc, NO_SUBDESC);
+ #else
+    write_desc(set, binding, elem, &view->descs.buf, NO_SUBDESC);
+diff --git a/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c b/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c
+index 1734a1aa..64b71697 100644
+--- a/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c
++++ b/src/panfrost/vulkan/panvk_vX_nir_lower_descriptors.c
+@@ -849,9 +849,18 @@ build_bindless_buf_texel(nir_builder *b, nir_deref_instr *deref, nir_def *x,
+    nir_def *size = nir_channel(b, buf, 3);
+    nir_def *offset = nir_channel(b, attr, 1);
+ 
+-   nir_def *avail = nir_bcsel(b, nir_uge(b, size, offset),
+-                              nir_isub(b, size, offset), nir_imm_int(b, 0));
+-   nir_def *width = nir_udiv(b, avail, nir_umax(b, stride, nir_imm_int(b, 1)));
++   nir_def *width;
++   if (panvk_v7_knob_texel_width()) {
++      /* jm-v7 116: the element count, written by write_buffer_view_desc()
++       * into the descriptor's first pad word (0 for null and unwritten
++       * descriptors). Saves the Bifrost software udiv on every access.
++       */
++      width = nir_channel(b, attr, 2);
++   } else {
++      nir_def *avail = nir_bcsel(b, nir_uge(b, size, offset),
++                                 nir_isub(b, size, offset), nir_imm_int(b, 0));
++      width = nir_udiv(b, avail, nir_umax(b, stride, nir_imm_int(b, 1)));
++   }
+ 
+    t->fmt = nir_ushr_imm(b, nir_channel(b, attr, 0), 10);
+    t->in_bounds = nir_ult(b, x, width);
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index ebcd655d..f6fece69 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -2565,10 +2565,11 @@ panvk_hash_state(struct vk_physical_device *device,
+     * setting. The tag versions the knob set.
+     */
+    const int32_t v7_knobs[] = {
+-      0x76370108, /* knob set version (108: + polygon passthrough) */
++      0x76370116, /* knob set version (116: + texel width) */
+       panvk_v7_knob_tex_waterfall(),
+       panvk_v7_knob_idvs(),
+       panvk_v7_knob_desc_reorder(),
++      panvk_v7_knob_texel_width(),
+    };
+    _mesa_blake3_update(&blake3_ctx, v7_knobs, sizeof(v7_knobs));
+ #endif
+-- 
+2.55.0
+

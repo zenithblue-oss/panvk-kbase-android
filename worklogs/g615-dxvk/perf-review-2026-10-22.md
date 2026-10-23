@@ -11,6 +11,21 @@ This is a read-only review: no device, no builds, no code edits.
 - **Tags:** **[now]** means the fix is safe without a device. **[dev]** means it needs a device A/B.
 - **Upstream items:** some items are upstream PanVK JM design rather than series code. They are marked *(upstream)*. They are listed because the v6/v7 series now carries DXVK-class workloads through them.
 
+## Status after RC5-universal-110 (2026-10-23)
+Done in RC5-universal-110 (low-risk round; none device-tested yet). Each has a knob for the old behaviour unless trivially safe:
+- **K6** command-pool BOs: csf-v11 220 frees the desc/varying/TLS/CS free lists and cached push sets after `vk_common_ResetCommandPool(RELEASE_RESOURCES)` and in a new `panvk_TrimCommandPool`; jm-v7-wip 0085 adds the v6/v7 gs_bo_pool. `PANVK_CMD_POOL_TRIM=0` = old.
+- **Flush to transient_offset**: csf-v11 221. `PANVK_POOL_FLUSH_FULL=1` = old.
+- **Log levels**: csf-v11 222 (dma-buf import lines at debug via `mesa_log(MESA_LOG_DEBUG)`, CSF queue-wait line `mesa_logd`), jm-v7-wip 0088 (growable BO line: first 8 per process at info, then debug). `MESA_LOG_LEVEL=debug` shows them.
+- **K7**: jm-v7-wip 0086, the JM submit passes no BO list (it had no reader). No knob (trivially safe).
+- **K8, event half**: jm-v7-wip 0087, up to 16 `base_jd_event_v2` per `read()`, no trailing poll after a short read. `PANVK_KBASE_EVENT_BATCH=0` = old.
+- **Item 14, divide half**: jm-v7-wip 0089, the element count goes in the v6/v7 texel-buffer descriptor's pad word, the shader reads it instead of `udiv`. `PANVK_V7_TEXEL_WIDTH=0` = old (hashed compile knob, tag 0x76370116).
+
+Skipped in that round:
+- **Item 8**: neither fix is cheap here. The lazy compile needs the pre-lowering NIR, a deep copy of the pipeline state and the previous stage's varying layout kept per shader, plus a cache format for a shader whose second variant may not exist yet. The late clone needs `panvk_lower_depth_bounds` to run after `panvk_lower_nir`/IO lowering (it uses sysval loads and `shader_out` variables), which changes the lowering order without a device to check it.
+- **K4**: not provably redundant. csf-v11 041 added the memset for `dEQP-VK.memory.zero_initialize_device_memory` (VK_EXT_zero_initialize_device_memory is exposed), and kbase only zeroes pages that come fresh from the kernel or from the device pool; pages a context frees go back into that context's own pool unzeroed (`kbase_mem_pool_free_pages()` adds them with zero=false, from the r-series mali_kbase_mem_pool.c; no kbase source is on this machine to quote) and are handed out again by the next allocation in the same context. No allocation class could be shown to always get fresh pages, so the memset stays.
+- **K8, multi-atom JOB_SUBMIT**: on a mid-array failure kbase has already queued the earlier atoms; the atom-slot bookkeeping for that needs a device.
+- **Item 14, dynamic-index clamp**: with variable descriptor counts a hoisted load could read past the set's memory.
+
 ## Overall top 15
 1. Item 1: one kbase atom per dispatch.
 2. Item 3: three extra jobs per indexed draw.
@@ -123,7 +138,7 @@ The rest follow: K4, item 13/K5, K6, item 14, item 15, K7, K8.
 - **Risk:** Medium, because of query ordering against CopyQueryPoolResults within the same pass. Copies already close the batch.
 - **Measure:** PanProbe occlusion_query bench with 100 queries in one pass: fragment jobs per frame and ms per frame.
 
-### 8. Most fragment shaders compile twice for the 0047 depth-bounds alternate [now]
+### 8. Most fragment shaders compile twice for the 0047 depth-bounds alternate [now] — **open (skipped in RC5-universal-110, see the status list)**
 - **Where:** `panvk_vX_shader.c:5429` (`panvk_v7_wants_alt`) and `:5548-5586`.
 - **Issue:** DXVK enables depthBounds and makes it dynamic, so nearly every FS gets a second full compile: NIR lowering, the backend and RA. Both are serialized into the cache (`:5986`). An xfb VS compiles three times (main, passthrough GS, 0048 alt).
 - **Impact:** Medium-High for pipeline-compile stutter and cache size (2×). No per-draw cost.
@@ -189,7 +204,7 @@ The rest follow: K4, item 13/K5, K6, item 14, item 15, K7, K8.
 - **Risk:** Medium. Correctness depends on JM chain ordering between batches that are not adjacent; with ping-pong, batch N+2 runs after N has finished.
 - **Measure:** desc/tls pool bytes per frame (a pool counter), and `/proc/<pid>/smaps` GPU mappings during a DXVK frame loop.
 
-### 14. Bindless texel-buffer and image accesses: a software divide and non-hoistable descriptor loads (0052/0059) [now]
+### 14. Bindless texel-buffer and image accesses: a software divide and non-hoistable descriptor loads (0052/0059) [now] — **divide DONE (jm-v7-wip 0089, RC5-universal-110); index clamp open**
 - **Where:**
   - `panvk_vX_nir_lower_descriptors.c:858`: `nir_udiv(avail, stride)` is emitted on every bindless texel-buffer access. Bifrost has no integer divide, so it is about 20-40 instructions.
   - `:597-606`: the 0059 reorder flags apply only to constant indices. `load_bindless_desc` (`:826`) and `build_bindless_img_texel` (`:885`) reload the descriptor on each access.
@@ -242,7 +257,7 @@ The rest follow: K4, item 13/K5, K6, item 14, item 15, K7, K8.
 - **Risk:** Medium.
 - **Measure:** vkCreateDevice ms and PSS for a device with DXVK's features enabled.
 
-### K4. `kbase_kmod_bo_alloc` memsets every committed page on the CPU, plus a MEM_SYNC [dev]
+### K4. `kbase_kmod_bo_alloc` memsets every committed page on the CPU, plus a MEM_SYNC [dev] — **kept (not provably redundant, see the status list)**
 - **Where:** `kbase_kmod.c:2400-2412`.
 - **Issue:** this runs for every vkAllocateMemory and every pool slab. kbase already hands out zeroed pages, so the memset most likely duplicates work, and it stutters DXVK's 32-256 MB chunk allocations.
 - **Impact:** Medium.
@@ -255,7 +270,7 @@ This is the same finding as item 13. The kbase-slice review reached it independe
 - TLS BOs are NO_MMAP and not growable, so the memory is fully committed.
 - The memory then stays in `tls_big_bo_pool`.
 
-### K6. Command-pool BOs are never released [now]
+### K6. Command-pool BOs are never released [now] — **DONE (csf-v11 220 + jm-v7-wip 0085, RC5-universal-110)**
 - **Where:** `panvk_cmd_pool.c:86-92`.
 - **Issue:**
   - With RELEASE_RESOURCES, `tls_big_bo_pool` is cleaned *before* `vk_common_ResetCommandPool`. That call then splices the command buffers' BOs back into the free lists, so nothing is released.
@@ -265,7 +280,7 @@ This is the same finding as item 13. The kbase-slice review reached it independe
 - **Risk:** low.
 - **Measure:** PSS after vkResetCommandPool(RELEASE_RESOURCES) or vkTrimCommandPool.
 
-### K7. Dead per-batch BO-list gathering with an O(n²) dedup [now]
+### K7. Dead per-batch BO-list gathering with an O(n²) dedup [now] — **DONE (jm-v7-wip 0086, RC5-universal-110)**
 - **Where:** `jm/panvk_vX_gpu_queue.c:463-506`.
 - **Issue:** every batch builds a VLA of all the command buffer's pool BOs and dedups it in O(n²). kbase never uses the list: `kbase_atom_alloc_try` copies 8 entries into `s->bos` (`kbase_kmod.c:2792-2794`), and nothing reads `s->bos`.
 - **Impact:** Low to Medium on CPU per submit, growing with command buffer size.
@@ -273,7 +288,7 @@ This is the same finding as item 13. The kbase-slice review reached it independe
 - **Risk:** low.
 - **Measure:** simpleperf on vkQueueSubmit for a command buffer with 30 batches.
 
-### K8. One JOB_SUBMIT per atom, and poll plus read per event [dev]
+### K8. One JOB_SUBMIT per atom, and poll plus read per event [dev] — **event batching DONE (jm-v7-wip 0087, RC5-universal-110); multi-atom submit open**
 - **Where:** `kbase_kmod.c:3052-3057` (`nr_atoms = 1`) and `2846-2866`.
 - **Issue:** each batch costs 2 submit ioctls, and each completion costs 2 syscalls.
 - **Impact:** Low to Medium alone. It multiplies with items 1, 2 and 7.
@@ -284,8 +299,8 @@ This is the same finding as item 13. The kbase-slice review reached it independe
 - **Measure:** `strace -c` syscalls per frame.
 
 ### Smaller submit notes
-- **Logging:** `mesa_logi` fires on every growable v6/v7 BO (`kbase_kmod.c:2292`), which includes each gs_pool slab, and on every dma-buf import (`:2179`). Downgrade both to debug.
-- **Flushing:** `panvk_pool_flush_maps` (`panvk_mempool.c:277-288`) flushes whole 64 KB slabs, including the unused tail of the transient slab. Flush only up to `transient_offset`.
+- **Logging (DONE, csf-v11 222 + jm-v7-wip 0088, RC5-universal-110):** `mesa_logi` fires on every growable v6/v7 BO (`kbase_kmod.c:2292`), which includes each gs_pool slab, and on every dma-buf import (`:2179`). Downgrade both to debug.
+- **Flushing (DONE, csf-v11 221, RC5-universal-110):** `panvk_pool_flush_maps` (`panvk_mempool.c:277-288`) flushes whole 64 KB slabs, including the unused tail of the transient slab. Flush only up to `transient_offset`.
 - **v9 only:** `kbase_kmod_jm_clean_imports` cleans every non-coherent dma-buf in full on every submit.
 
 ## Lower-priority notes

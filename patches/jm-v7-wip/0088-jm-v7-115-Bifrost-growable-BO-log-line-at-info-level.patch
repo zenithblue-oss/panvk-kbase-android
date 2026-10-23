@@ -1,0 +1,50 @@
+From cd07d9c81973f510b029b0c7a7d600ddf28fa3b2 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Fri, 23 Oct 2026 08:51:40 +0000
+Subject: [PATCH 88/89] jm-v7 115: Bifrost growable BO log line at info level
+ only 8 times
+
+Rationale: mesa_logi fired on every growable v6/v7 BO, which includes
+each gs_pool slab and every GS emulation buffer of a nested tess draw
+(768 lines in one tess_perf command buffer on the S9) (perf review
+2026-10-22, "Logging" in the submit notes).
+Expected gain: one logd write per GS/tess draw buffer on v6/v7 saved;
+the first 8 per process stay at info level for device-run diagnostics.
+
+Knob: MESA_LOG_LEVEL=debug shows every line again.
+Arch: v6/v7 kbase JM. Not device-tested.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/lib/kmod/kbase_kmod.c | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/panfrost/lib/kmod/kbase_kmod.c b/src/panfrost/lib/kmod/kbase_kmod.c
+index b255ae21..5ad5caf0 100644
+--- a/src/panfrost/lib/kmod/kbase_kmod.c
++++ b/src/panfrost/lib/kmod/kbase_kmod.c
+@@ -2577,9 +2577,18 @@ kbase_kmod_bo_alloc(struct pan_kmod_dev *dev,
+             extension = step;
+             commit_pages = MIN2(step, va_pages);
+          }
+-         mesa_logi("kbase: v%u growable BO, GROW_ON_GPF, %" PRIu64
+-                   " of %" PRIu64 " pages committed",
+-                   pan_arch(dev->props.gpu_id), commit_pages, va_pages);
++         /* jm-v7 115: info level for the first 8 per process, then debug
++          * (every gs_pool slab and GS emulation buffer comes here).
++          * MESA_LOG_LEVEL=debug shows them all.
++          */
++         static unsigned grow_logged;
++         const unsigned grow_n = p_atomic_inc_return(&grow_logged);
++         const bool grow_info = grow_n <= 8;
++         mesa_log(grow_info ? MESA_LOG_INFO : MESA_LOG_DEBUG, MESA_LOG_TAG,
++                  "kbase: v%u growable BO, GROW_ON_GPF, %" PRIu64
++                  " of %" PRIu64 " pages committed%s",
++                  pan_arch(dev->props.gpu_id), commit_pages, va_pages,
++                  grow_n == 8 ? " (later ones at debug level)" : "");
+       }
+    }
+ 
+-- 
+2.55.0
+

@@ -1,0 +1,125 @@
+From edb014e7ce9f554d9f5723a560043b3e3aeff4d4 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Fri, 23 Oct 2026 06:03:58 +0000
+Subject: [PATCH 220/222] panvk: release command pool BOs on reset with
+ RELEASE_RESOURCES and on trim
+
+Rationale: vkResetCommandPool(RELEASE_RESOURCES) cleaned only
+tls_big_bo_pool, and did it before the command buffer resets put their
+BOs back on the free lists, so nothing was released; there was no
+vkTrimCommandPool, so the desc/varying/TLS/CS free lists only grew
+(perf review 2026-10-22 K6).
+Expected gain: memory. After a loading screen or a large frame, PSS
+drops by the pool's free-list slabs once the app resets with
+RELEASE_RESOURCES or trims (DXVK trims command pools); no per-frame cost.
+
+The free lists are freed after vk_common_ResetCommandPool(), and
+panvk_TrimCommandPool() frees them and the cached push sets. Free-list
+BOs belong to reset command buffers, which are not pending, and the
+pool is externally synchronized.
+
+Knob: PANVK_CMD_POOL_TRIM=0 restores the old behaviour.
+Arch: all (common code). Not device-tested.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_cmd_pool.c | 69 ++++++++++++++++++++++++++--
+ 1 file changed, 66 insertions(+), 3 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_cmd_pool.c b/src/panfrost/vulkan/panvk_cmd_pool.c
+index 358b5bfc..25499266 100644
+--- a/src/panfrost/vulkan/panvk_cmd_pool.c
++++ b/src/panfrost/vulkan/panvk_cmd_pool.c
+@@ -9,6 +9,8 @@
+  * SPDX-License-Identifier: MIT
+  */
+ 
++#include <stdlib.h>
++
+ #include "panvk_cmd_pool.h"
+ #include "panvk_device.h"
+ #include "panvk_entrypoints.h"
+@@ -75,6 +77,37 @@ panvk_DestroyCommandPool(VkDevice _device, VkCommandPool commandPool,
+    vk_free2(&device->vk.alloc, pAllocator, pool);
+ }
+ 
++/* csf-v11 220: vkResetCommandPool(RELEASE_RESOURCES) and
++ * vkTrimCommandPool free the pool's BO free lists (desc, varying, TLS, CS,
++ * GS slabs) and the cached push sets. Before, the free lists only grew.
++ */
++static bool
++panvk_cmd_pool_trim_enabled(void)
++{
++   static int v = -1;
++   if (v < 0) {
++      const char *e = getenv("PANVK_CMD_POOL_TRIM");
++      v = !(e && e[0] == '0');
++   }
++   return v;
++}
++
++static void
++panvk_cmd_pool_release_free_bos(struct panvk_cmd_pool *pool)
++{
++   panvk_bo_pool_cleanup(&pool->cs_bo_pool);
++   panvk_bo_pool_cleanup(&pool->desc_bo_pool);
++   panvk_bo_pool_cleanup(&pool->varying_bo_pool);
++   panvk_bo_pool_cleanup(&pool->tls_bo_pool);
++   panvk_bo_pool_cleanup(&pool->tls_big_bo_pool);
++
++   list_for_each_entry_safe(struct panvk_cmd_pool_obj, obj, &pool->push_sets,
++                            node) {
++      list_del(&obj->node);
++      vk_free(&pool->vk.alloc, obj);
++   }
++}
++
+ VKAPI_ATTR VkResult VKAPI_CALL
+ panvk_ResetCommandPool(VkDevice _device, VkCommandPool commandPool,
+                        VkCommandPoolResetFlags flags)
+@@ -83,9 +116,39 @@ panvk_ResetCommandPool(VkDevice _device, VkCommandPool commandPool,
+ 
+    const bool release_resources =
+       (flags & VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT) != 0;
+-   if (release_resources) {
+-      panvk_bo_pool_cleanup(&pool->tls_big_bo_pool);
++
++   /* csf-v11 220: PANVK_CMD_POOL_TRIM=0 restores the old order (only
++    * tls_big_bo_pool cleaned, before the command buffers give their BOs
++    * back, so nothing was released).
++    */
++   if (!panvk_cmd_pool_trim_enabled()) {
++      if (release_resources)
++         panvk_bo_pool_cleanup(&pool->tls_big_bo_pool);
++      return vk_common_ResetCommandPool(_device, commandPool, flags);
+    }
+ 
+-   return vk_common_ResetCommandPool(_device, commandPool, flags);
++   VkResult result = vk_common_ResetCommandPool(_device, commandPool, flags);
++
++   /* The command buffer resets above splice their BOs into the pool free
++    * lists, so free those only now.
++    */
++   if (result == VK_SUCCESS && release_resources)
++      panvk_cmd_pool_release_free_bos(pool);
++
++   return result;
++}
++
++VKAPI_ATTR void VKAPI_CALL
++panvk_TrimCommandPool(VkDevice _device, VkCommandPool commandPool,
++                      VkCommandPoolTrimFlags flags)
++{
++   VK_FROM_HANDLE(panvk_cmd_pool, pool, commandPool);
++
++   vk_common_TrimCommandPool(_device, commandPool, flags);
++
++   /* Only free-list BOs: they belong to reset command buffers, which are
++    * not pending, and the pool is externally synchronized.
++    */
++   if (panvk_cmd_pool_trim_enabled())
++      panvk_cmd_pool_release_free_bos(pool);
+ }
+-- 
+2.55.0
+

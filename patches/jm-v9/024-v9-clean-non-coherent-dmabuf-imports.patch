@@ -114,8 +114,8 @@ index 1b7035b..bb7eaee 100644
 +      kbase_bo->nc_listed = true;
 +      simple_mtx_unlock(&kbase_dev->nc_lock);
 +   }
-    mesa_logi("kbase_kmod_bo_alloc_dmabuf: succeeded for %d, bo_size=%lu, handle=%u", kbase_bo->dmabuf_fd, bo_size, handle);
-    mesa_logi("kbase: import flags=0x%llx -> va=0x%llx pages=%llu outflags=0x%llx",
+    mesa_log(MESA_LOG_DEBUG, MESA_LOG_TAG, "kbase_kmod_bo_alloc_dmabuf: succeeded for %d, bo_size=%lu, handle=%u", kbase_bo->dmabuf_fd, bo_size, handle);
+    mesa_log(MESA_LOG_DEBUG, MESA_LOG_TAG, "kbase: import flags=0x%llx -> va=0x%llx pages=%llu outflags=0x%llx",
               (unsigned long long)import_flags,
 @@ -2231,6 +2264,14 @@ kbase_kmod_bo_free(struct pan_kmod_bo *bo)
  {

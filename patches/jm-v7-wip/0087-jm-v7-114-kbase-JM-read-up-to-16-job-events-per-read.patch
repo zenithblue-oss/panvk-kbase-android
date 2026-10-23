@@ -1,0 +1,89 @@
+From 813c247d7cc11336e91207554354920bfbccec2a Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Fri, 23 Oct 2026 08:51:19 +0000
+Subject: [PATCH 87/89] jm-v7 114: kbase JM: read up to 16 job events per
+ read()
+
+Rationale: kbase_drain_events() did a poll() plus a read() of one
+base_jd_event_v2 for every completed atom, and a final poll() to see the
+queue empty (perf review 2026-10-22 K8, second half).
+Expected gain: syscalls per frame on JM: each batch completes two atoms
+(vertex/tiler and fragment), so a 20-batch frame went from about 80+
+event syscalls to a few. Small CPU and wake-up latency win, larger with
+many batches (items 1/2/7 not done yet).
+
+kbase_read() (mali_kbase_core_linux.c) copies queued events while the
+user buffer has room and returns once the queue is empty after at least
+one copy, so a short read means drained and the loop stops without the
+extra poll(). A kernel that returns one event per read() still works
+(a short read stops this drain; the next drain's poll() is ready at once).
+
+Not done here: submitting all atoms of a vkQueueSubmit in one
+JOB_SUBMIT (K8 first half). On a mid-array failure kbase has already
+queued the earlier atoms, and the slot bookkeeping for that needs a
+device to test.
+
+Knob: PANVK_KBASE_EVENT_BATCH=0 restores one event per read().
+Arch: kbase JM (v6/v7/v9). Not device-tested.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/lib/kmod/kbase_kmod.c | 25 +++++++++++++++++++++----
+ 1 file changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/src/panfrost/lib/kmod/kbase_kmod.c b/src/panfrost/lib/kmod/kbase_kmod.c
+index 746e42f1..b255ae21 100644
+--- a/src/panfrost/lib/kmod/kbase_kmod.c
++++ b/src/panfrost/lib/kmod/kbase_kmod.c
+@@ -3130,6 +3130,19 @@ kbase_drain_events(struct kbase_kmod_dev *kd, int timeout_ms)
+    if (!(pfd.revents & POLLIN))
+       return -1;
+ 
++   /* jm-v7 114: up to 16 events per read(). kbase_read() copies queued
++    * events while the buffer has room and returns as soon as the queue is
++    * empty once it has copied one, so a short read means the queue was
++    * drained and no further poll() is needed. Before, every event cost a
++    * poll() plus a read(). PANVK_KBASE_EVENT_BATCH=0 = one per read (old).
++    */
++   static int ev_batch = -1;
++   if (ev_batch < 0) {
++      const char *e = getenv("PANVK_KBASE_EVENT_BATCH");
++      ev_batch = !(e && e[0] == '0');
++   }
++   const unsigned max_ev = ev_batch ? 16 : 1;
++
+    simple_mtx_lock(&kd->atoms_read_lock);
+    for (unsigned i = 0; i < KBASE_MAX_ATOMS; i++) {
+       struct pollfd rfd = { .fd = kd->base.fd, .events = POLLIN };
+@@ -3143,20 +3156,24 @@ kbase_drain_events(struct kbase_kmod_dev *kd, int timeout_ms)
+          break;
+       }
+ 
+-      struct base_jd_event_v2 ev;
++      struct base_jd_event_v2 ev[16];
+       ssize_t n;
+       do {
+-         n = read(kd->base.fd, &ev, sizeof(ev));
++         n = read(kd->base.fd, ev, max_ev * sizeof(ev[0]));
+       } while (n < 0 && errno == EINTR);
+-      if (n != (ssize_t)sizeof(ev)) {
++      if (n <= 0 || n % (ssize_t)sizeof(ev[0])) {
+          ret = -1;
+          break;
+       }
+ 
++      const unsigned got = n / sizeof(ev[0]);
+       simple_mtx_lock(&kd->atoms_lock);
+-      kbase_atom_process_event_locked(kd, &ev);
++      for (unsigned j = 0; j < got; j++)
++         kbase_atom_process_event_locked(kd, &ev[j]);
+       simple_mtx_unlock(&kd->atoms_lock);
+       ret = 0;
++      if (got < max_ev)
++         break;
+    }
+    simple_mtx_unlock(&kd->atoms_read_lock);
+    return ret;
+-- 
+2.55.0
+

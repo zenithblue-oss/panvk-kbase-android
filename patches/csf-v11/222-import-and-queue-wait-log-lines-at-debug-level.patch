@@ -1,0 +1,57 @@
+From 0cc973adedc8ec0d8cebb66238967c3438d9ef12 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Fri, 23 Oct 2026 06:04:36 +0000
+Subject: [PATCH 222/222] panvk/kbase: per-import and per-queue-wait log lines
+ at debug level
+
+Rationale: every dma-buf import logged two info lines and every CSF
+kbase_queue_wait_current() logged "wait completed successfully" at info
+level; on Android each is a logd write (perf review 2026-10-22, "Logging"
+in the submit notes).
+Expected gain: CPU and logcat noise: two log writes per import (DXVK
+host-visible chunks, swapchain/AHB images) and one per CSF queue wait.
+
+The import lines go through mesa_log(MESA_LOG_DEBUG), which release
+builds filter at run time, so MESA_LOG_LEVEL=debug shows them again (the
+knob). The queue-wait line is mesa_logd (compiled out in release). Same
+line count, so later series hunks keep their offsets.
+
+Knob: MESA_LOG_LEVEL=debug restores the import lines. Arch: all.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/lib/kmod/kbase_kmod.c           | 4 ++--
+ src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/panfrost/lib/kmod/kbase_kmod.c b/src/panfrost/lib/kmod/kbase_kmod.c
+index 8c38eafa..0c507432 100644
+--- a/src/panfrost/lib/kmod/kbase_kmod.c
++++ b/src/panfrost/lib/kmod/kbase_kmod.c
+@@ -1770,8 +1770,8 @@ kbase_kmod_import_dmabuf(struct pan_kmod_dev *dev,
+ 
+    pan_kmod_bo_init(&kbase_bo->base, dev, exclusive_vm, bo_size, flags,
+                     handle);
+-   mesa_logi("kbase_kmod_bo_alloc_dmabuf: succeeded for %d, bo_size=%lu, handle=%u", kbase_bo->dmabuf_fd, bo_size, handle);
+-   mesa_logi("kbase: import flags=0x%llx -> va=0x%llx pages=%llu outflags=0x%llx",
++   mesa_log(MESA_LOG_DEBUG, MESA_LOG_TAG, "kbase_kmod_bo_alloc_dmabuf: succeeded for %d, bo_size=%lu, handle=%u", kbase_bo->dmabuf_fd, bo_size, handle);
++   mesa_log(MESA_LOG_DEBUG, MESA_LOG_TAG, "kbase: import flags=0x%llx -> va=0x%llx pages=%llu outflags=0x%llx",
+              (unsigned long long)import_flags,
+              (unsigned long long)req.out.gpu_va,
+              (unsigned long long)req.out.va_pages,
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+index 44af595e..a4b74719 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+@@ -1034,7 +1034,7 @@ kbase_queue_wait_current(struct panvk_gpu_queue *queue,
+       }
+    }
+ 
+-   mesa_logi("%s: wait completed successfully", __func__);
++   mesa_logd("%s: wait completed successfully", __func__);
+    return VK_SUCCESS;
+ }
+ 
+-- 
+2.55.0
+

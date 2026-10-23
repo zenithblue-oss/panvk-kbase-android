@@ -1,0 +1,69 @@
+From 0a90b6750b839b109b6723675831240fc03678d5 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Fri, 23 Oct 2026 06:04:16 +0000
+Subject: [PATCH 221/222] panvk: flush the transient pool BO only up to
+ transient_offset
+
+Rationale: panvk_pool_flush_maps() cleaned every WB-mapped pool BO in
+full, including the unused tail of the current transient slab (perf
+review 2026-10-22, "Flushing" in the submit notes).
+Expected gain: CPU at vkEndCommandBuffer and JM re-submit. A command
+buffer that uses a few KiB of a 64 KiB desc/cs slab now cleans only
+those lines: up to about 60 KiB less cache maintenance per pool per
+flush, more for small command buffers.
+
+The transient BO is used only below transient_offset (rounded up to a
+64-byte line). The other BOs have no used-size record and are still
+cleaned whole. Pools without WB_MMAP return early, as before.
+
+Knob: PANVK_POOL_FLUSH_FULL=1 restores the full flush.
+Arch: all (common code). Not device-tested.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_mempool.c | 28 ++++++++++++++++++++++++----
+ 1 file changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_mempool.c b/src/panfrost/vulkan/panvk_mempool.c
+index 75b243a1..b5a18bf9 100644
+--- a/src/panfrost/vulkan/panvk_mempool.c
++++ b/src/panfrost/vulkan/panvk_mempool.c
+@@ -268,11 +268,31 @@ panvk_pool_flush_maps(struct panvk_pool *pool)
+    if (!(pool->props.create_flags & PAN_KMOD_BO_FLAG_WB_MMAP))
+       return;
+ 
+-   list_for_each_entry(struct panvk_priv_bo, bo, &pool->bos, node)
+-      panvk_priv_bo_flush(bo, 0, bo->bo->size);
++   /* csf-v11 221: the transient BO is used only up to transient_offset,
++    * so its unused tail is not flushed. Other BOs have no used-size record
++    * and are flushed whole. PANVK_POOL_FLUSH_FULL=1 flushes everything.
++    */
++   static int full = -1;
++   if (full < 0) {
++      const char *e = getenv("PANVK_POOL_FLUSH_FULL");
++      full = e && e[0] == '1';
++   }
+ 
+-   list_for_each_entry(struct panvk_priv_bo, bo, &pool->big_bos, node)
+-      panvk_priv_bo_flush(bo, 0, bo->bo->size);
++   list_for_each_entry(struct panvk_priv_bo, bo, &pool->bos, node) {
++      size_t size = bo->bo->size;
++      if (!full && bo == pool->transient_bo)
++         size = MIN2(ALIGN_POT((size_t)pool->transient_offset, 64), size);
++      if (size)
++         panvk_priv_bo_flush(bo, 0, size);
++   }
++
++   list_for_each_entry(struct panvk_priv_bo, bo, &pool->big_bos, node) {
++      size_t size = bo->bo->size;
++      if (!full && bo == pool->transient_bo)
++         size = MIN2(ALIGN_POT((size_t)pool->transient_offset, 64), size);
++      if (size)
++         panvk_priv_bo_flush(bo, 0, size);
++   }
+ }
+ 
+ void
+-- 
+2.55.0
+
