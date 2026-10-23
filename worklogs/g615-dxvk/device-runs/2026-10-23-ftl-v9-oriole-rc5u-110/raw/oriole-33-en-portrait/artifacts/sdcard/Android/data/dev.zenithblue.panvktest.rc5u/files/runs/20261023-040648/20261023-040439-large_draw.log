@@ -1,0 +1,83 @@
+MESA: info: kbase: JM driver, uAPI version 11.35, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up 2000 ms (first JM open in this process)
+MESA: info: kbase: timestamp calibration: 24575178 Hz, keeping cntfrq 24576000 Hz
+MESA: info: panvk: gpu_id 0x92020010 variant 0 arch v9 model Mali-G78 texture_features 0xf7fe007e 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe007e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+ICD device=Mali-G78 MC20 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+MESA: info: kbase: JM driver, uAPI version 11.35, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up skipped (done once in this process; PANVK_KBASE_JM_WARMUP=2 = every open)
+MESA: info: kbase: timestamp calibration: 24576099 Hz, keeping cntfrq 24576000 Hz
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: panvk: gpu_prerast draw arena committed (64 MiB)
+MESA: info: panvk: gpu_prerast tessellation arena committed (96 MiB)
+FEATURES gs=1 tess=1 multiDrawIndirect=1 drawIndirectCount=1 primGenQuery=1
+MESA: info: panvk: v9 batch TLS 47104 KiB (stack 1136 B/thread), half 0, shared per half
+MESA: info: panvk: v9 batch WLS 92 KiB, half 0, shared per half
+PASS case points_direct bad=0 bytes=3200000 written=200000 generated=200000
+MESA: warning: panvk: v9 indirect gpu_prerast draws (GS, transform feedback, polygon mode, viewport select, VS stores) are drawn in at most 8 chunks of 65536 vertices; the rest of a larger draw is dropped
+MESA: info: panvk: v9 batch TLS 47104 KiB (stack 1136 B/thread), half 0, shared per half
+MESA: info: panvk: v9 batch WLS 368 KiB, half 0, shared per half
+PASS case points_indirect bad=0 bytes=3200000 written=200000 generated=200000
+MESA: info: panvk: v9 batch TLS 47104 KiB (stack 1136 B/thread), half 0, shared per half
+MESA: info: panvk: v9 batch WLS 92 KiB, half 0, shared per half
+PASS case instanced_direct bad=0 bytes=3840000 written=240000 generated=240000
+MESA: info: panvk: v9 batch TLS 47104 KiB (stack 1136 B/thread), half 0, shared per half
+MESA: info: panvk: v9 batch WLS 368 KiB, half 0, shared per half
+PASS case instanced_indirect bad=0 bytes=3840000 written=240000 generated=240000
+PASS case strip_direct bad=0 bytes=7199952 written=149999 generated=149999
+PASS case strip_indirect bad=0 bytes=7199952 written=149999 generated=149999
+PASS case restart_direct bad=0 bytes=6684624 written=139263 generated=139263
+PASS case restart_indirect bad=0 bytes=6684624 written=139263 generated=139263
+PASS case gs_restart_direct bad=0 bytes=2228208 written=139263 generated=139263
+PASS case gs_restart_indirect bad=0 bytes=2228208 written=139263 generated=139263
+PASS case fan_direct bad=0 bytes=7199952 written=149999 generated=149999
+  0 of 149999 triangles captured (clamped to the arena)
+  primitives generated 149999, want 0
+FAIL case fan_indirect bad=1 bytes=0 written=0 generated=149999
+PASS case fan_indexed bad=0 bytes=6719952 written=139999 generated=139999
+  0 of 139999 triangles captured (clamped to the arena)
+  primitives generated 139999, want 0
+FAIL case fan_indexed_indirect bad=1 bytes=0 written=0 generated=139999
+PASS case fan_instanced bad=0 bytes=480000 written=10000 generated=10000
+SKIP fan chunk loop cases: PANVK_FAN_CHUNKS unset
+PASS case small_inst_direct bad=0 bytes=432000 written=27000 generated=27000
+PASS case small_inst_indirect bad=0 bytes=432000 written=27000 generated=27000
+base_inst divisor=3
+  rec 65536: vtx 7 inst 16387 attr 16387 base+1 16388, want attr 5464 base+1 4
+  rec 65537: vtx 8 inst 16387 attr 16387 base+1 16388, want attr 5464 base+1 4
+  rec 65538: vtx 9 inst 16387 attr 16387 base+1 16388, want attr 5464 base+1 4
+  rec 65539: vtx 10 inst 16387 attr 16387 base+1 16388, want attr 5464 base+1 4
+FAIL case base_inst_direct bad=174464 bytes=3840000 written=240000 generated=240000
+PASS case base_inst_indirect bad=0 bytes=3840000 written=240000 generated=240000
+  rec 70001: vtx 7 inst 4 attr 4 base+1 5, want attr 3 base+1 4
+  rec 70002: vtx 8 inst 4 attr 4 base+1 5, want attr 3 base+1 4
+  rec 70003: vtx 9 inst 4 attr 4 base+1 5, want attr 3 base+1 4
+  rec 70004: vtx 10 inst 4 attr 4 base+1 5, want attr 3 base+1 4
+FAIL case base_inst_windows bad=140002 bytes=3360048 written=210003 generated=210003
+PASS case base_inst_fan bad=0 bytes=480000 written=10000 generated=10000
+  rec 449997: vtx 8 inst 4 attr 4 base+1 5, want attr 3 base+1 4
+  rec 449998: vtx 9 inst 4 attr 4 base+1 5, want attr 3 base+1 4
+  rec 449999: vtx 7 inst 4 attr 4 base+1 5, want attr 3 base+1 4
+  rec 450000: vtx 9 inst 4 attr 4 base+1 5, want attr 3 base+1 4
+FAIL case base_inst_fan_windows bad=449997 bytes=14399904 written=299998 generated=299998
+PASS case cond_skip_indirect bad=0 bytes=0 written=0 generated=0
+PASS case cond_pass_indirect bad=0 bytes=3200000 written=200000 generated=200000
+MESA: warning: panvk: v9 tessellated draws get at most 1024 iterations of up to 4096 patches; the output past them is dropped
+PASS case cond_skip_tess bad=0 bytes=0 written=0 generated=0
+PASS case gs_direct bad=0 bytes=3200000 written=200000 generated=200000
+PASS case gs_indirect bad=0 bytes=3200000 written=200000 generated=200000
+PASS case tess_direct bad=0 bytes=2240000 written=140000 generated=140000
+MESA: warning: panvk: v9 indirect tessellated draws get at most 32 iterations of up to 4096 patches; the output past them is dropped
+PASS case tess_indirect bad=0 bytes=2240000 written=140000 generated=140000
+PASS case tess_instanced bad=0 bytes=288000 written=18000 generated=18000
+PASS case tess_tri_direct bad=0 bytes=3360000 written=70000 generated=70000
+PASS case tess_tri_indirect bad=0 bytes=3360000 written=70000 generated=70000
+PASS case indirect_count bad=0 bytes=2400000 written=150000 generated=150000
+PASS case multi_indirect bad=0 bytes=3840000 written=240000 generated=240000
+XFB_FAILS=5
+RESULT FAIL

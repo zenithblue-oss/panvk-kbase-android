@@ -1,0 +1,48 @@
+GAMELOOP scenario=2
+INFO devices=1 exts=175 formats=195
+DRIVER slot=RC5 driverInfo=PanVK-kbase RC5-universal-110 (Mesa 26.3.0-devel (git-6cae57f893))
+COMPLIANCE DXVK compliance PASS items=94 missingHard=[] missingSoft=["tiled resources tier 2 (FL12_0)","VK_EXT_conservative_rasterization (FL12_1)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","shaderFloat16","shaderOutputLayer","samplerFilterMinmax","VK_EXT_memory_priority","VK_EXT_multi_draw","VK_EXT_sample_locations"]
+COMPLIANCE Bachata S4 compliance PASS items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","shaderFloat16","shaderOutputLayer","subgroup_wave64"]
+COMPLIANCE vkd3d compliance PASS items=100 missingHard=[] missingSoft=["viewportSubPixelBits >= 8","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","shaderFloat64","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: VK_EXT_conservative_rasterization","proton: ROVs (pixel+sample interlock)","proton: VK_EXT_descriptor_buffer path","proton: shaderOutputViewportIndex+Layer","proton: VK_KHR_fragment_shading_rate","proton: VK_EXT_mesh_shader","proton: VK_KHR_ray_query + acceleration_structure"]
+RESULT gpu_prerast_slice PASS mismatch=0 fps=0 ms=2107
+RESULT clip_cull PASS mismatch=0 fps=3558.6 ms=3148
+RESULT multi_viewport PASS mismatch=0 fps=3425.2 ms=3084
+RESULT fill_mode PASS mismatch=0 fps=3599.6 ms=3232
+RESULT bc_decode PASS mismatch=0 fps=0 ms=2420
+RESULT bc_perf PASS mismatch=0 fps=0 ms=38886
+RESULT tess_perf FAIL mismatch=0 fps=0 ms=20479 extra=tess_perf opt=default gs=0 L=ref draws=256 patches=4096 ms=1.79 us_draw=7.0 frames=392 hash=4807f3f5 | tess_perf opt=default gs=0 L=1 draws=256 patches=4096 ms=70.41 us_draw=275.0 frames=10 hash=a03404c5 | tess_perf opt=default gs=0 L=4 draws=256 patches=4096 ms=192.55 us_draw=752.2 frames=4 hash=cec55885 | tess_perf opt=default gs=0 L=16 draws=256 patches=4096 ms=895.79 us_draw=3499.2 frames=3 hash=d4463b35 | tess_perf opt=default gs=0 L=mix draws=256 patches=4096 ms=902.53 us_draw=3525.5 frames=3 hash=b34a251c | tess_perf opt=default gs=1 L=1 draws=256 patches=4096 ms=178.66 us_draw=697.9 frames=4 hash=a03404c5 | tess_perf opt=default gs=1 L=4 draws=256 patches=4096 ms=545.22 us_draw=2129.8 frames=3 hash=cec55885
+RESULT geometry PASS mismatch=0 fps=3024.8 ms=3484
+RESULT tessellation PASS mismatch=0 fps=2984.7 ms=6296
+RESULT xfb PASS mismatch=0 fps=0 ms=2390
+RESULT pipeline_stats PASS mismatch=0 fps=2041.3 ms=3279
+RESULT vertex_stores PASS mismatch=0 fps=0 ms=2177
+RESULT gs_viewport_depth PASS mismatch=0 fps=0 ms=2263
+RESULT vs_viewport_index PASS mismatch=0 fps=0 ms=2329
+RESULT depth_bounds PASS mismatch=0 fps=0 ms=2364
+RESULT large_draw FAIL mismatch=0 fps=0 ms=33879
+RESULT vmr_secondary PASS mismatch=0 fps=0 ms=2111
+RESULT tess_cond_state PASS mismatch=0 fps=0 ms=2220
+RESULT bachata_reqs PASS mismatch=0 fps=0 ms=2215
+RESULT bachata_exec PASS mismatch=0 fps=0 ms=2117
+RESULT robustness2 PASS mismatch=0 fps=0 ms=2158
+RESULT robust_image_access2 PASS mismatch=0 fps=0 ms=10120 extra=4096x4096x16 rgba8 loads ria2=491.60ms ria1=484.73ms delta=+1.4% stats(ria2/ria1): Instructions=229/187 Code size=1920/1536 Constant data size=0/0 Threads=2/2 Loops=0/0 Spills=0/0 Fills=0/0 Spill cost=0/0 Registers used=16/12 Uniforms used=3/3
+RESULT blend PASS mismatch=0 fps=0 ms=2169
+RESULT occlusion_query PASS mismatch=0 fps=0 ms=2124
+RESULT descriptor_model PASS mismatch=0 fps=0 ms=2128
+RESULT shader_arith PASS mismatch=0 fps=0 ms=2200
+RESULT depth_stencil PASS mismatch=0 fps=0 ms=2144
+RESULT sampler PASS mismatch=0 fps=0 ms=2150
+RESULT draw_params PASS mismatch=0 fps=0 ms=2224
+RESULT submit_stress PASS mismatch=0 fps=0 ms=32091
+RESULT csf_event PASS mismatch=0 fps=0 ms=2774
+RESULT gs_tess_primitive_id PASS mismatch=0 fps=0 ms=2371
+RESULT bachata_storage_fmtless PASS mismatch=0 fps=0 ms=2137
+RESULT bachata_dynamic_render PASS mismatch=0 fps=0 ms=2126
+RESULT dxvk_reqs PASS mismatch=0 fps=0 ms=2098
+RESULT vkd3d_reqs PASS mismatch=0 fps=0 ms=2100
+RESULT vkd3d_heap PASS mismatch=0 fps=0 ms=2341
+RESULT vkd3d_timeline PASS mismatch=0 fps=0 ms=2241
+RESULT swapchain_lifecycle PASS mismatch=0 fps=90.7 ms=8450 extra=resized FPS 90.7 | present_main 3309ms, resize 6ms, present_resized 1324ms, destroy 2ms, cycle 1107ms, teardown 15ms
+AUTORUN DONE pass=37 fail=2 skip=0 total=39 (37 pass / 2 fail / 0 skip)
+EXTERNAL READY run=20261023-040648
+AUTOUPLOAD OK id=255fc964 size=170324 sha256=255fc964c88e3e35b8543a37e3bf88e91a22153f8cf79bf161036c4f24ab1c42

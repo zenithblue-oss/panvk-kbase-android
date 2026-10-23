@@ -1,0 +1,422 @@
+{
+  "app": "1.2.7",
+  "uploadId": "255fc964",
+  "uploadStatus": "Uploaded (id 255fc964)",
+  "pass": 37,
+  "fail": 2,
+  "skip": 0,
+  "tests": [
+    {
+      "name": "gpu_prerast_slice",
+      "status": "PASS",
+      "ms": 2107,
+      "extra": null
+    },
+    {
+      "name": "clip_cull",
+      "status": "PASS",
+      "ms": 3148,
+      "extra": null
+    },
+    {
+      "name": "multi_viewport",
+      "status": "PASS",
+      "ms": 3084,
+      "extra": null
+    },
+    {
+      "name": "fill_mode",
+      "status": "PASS",
+      "ms": 3232,
+      "extra": null
+    },
+    {
+      "name": "bc_decode",
+      "status": "PASS",
+      "ms": 2420,
+      "extra": null
+    },
+    {
+      "name": "bc_perf",
+      "status": "PASS",
+      "ms": 38886,
+      "extra": null
+    },
+    {
+      "name": "tess_perf",
+      "status": "FAIL",
+      "ms": 20479,
+      "extra": "tess_perf opt=default gs=0 L=ref draws=256 patches=4096 ms=1.79 us_draw=7.0 frames=392 hash=4807f3f5 | tess_perf opt=default gs=0 L=1 draws=256 patches=4096 ms=70.41 us_draw=275.0 frames=10 hash=a03404c5 | tess_perf opt=default gs=0 L=4 draws=256 patches=4096 ms=192.55 us_draw=752.2 frames=4 hash=cec55885 | tess_perf opt=default gs=0 L=16 draws=256 patches=4096 ms=895.79 us_draw=3499.2 frames=3 hash=d4463b35 | tess_perf opt=default gs=0 L=mix draws=256 patches=4096 ms=902.53 us_draw=3525.5 frames=3 hash=b34a251c | tess_perf opt=default gs=1 L=1 draws=256 patches=4096 ms=178.66 us_draw=697.9 frames=4 hash=a03404c5 | tess_perf opt=default gs=1 L=4 draws=256 patches=4096 ms=545.22 us_draw=2129.8 frames=3 hash=cec55885",
+      "tail": [
+        "BENCH tess_perf opt=default gs=0 L=1 draws=256 patches=4096 ms=70.41 us_draw=275.0 frames=10 hash=a03404c5",
+        "MEM opt=default gs=0 L=1 avail_kb=3837884 rss_kb=288736",
+        "MESA: info: panvk: v9 batch TLS 94208 KiB (stack 2336 B\/thread), half 0, shared per half",
+        "MEM recorded opt=default gs=0 L=4 avail_kb=3837884 rss_kb=288752",
+        "MEM first frame avail_kb=3829376 rss_kb=296960",
+        "BENCH tess_perf opt=default gs=0 L=4 draws=256 patches=4096 ms=192.55 us_draw=752.2 frames=4 hash=cec55885",
+        "MEM opt=default gs=0 L=4 avail_kb=3828656 rss_kb=296960",
+        "MESA: info: panvk: v9 batch TLS 94208 KiB (stack 2336 B\/thread), half 1, shared per half",
+        "MEM recorded opt=default gs=0 L=16 avail_kb=3828928 rss_kb=296960",
+        "MEM first frame avail_kb=3741528 rss_kb=383144",
+        "BENCH tess_perf opt=default gs=0 L=16 draws=256 patches=4096 ms=895.79 us_draw=3499.2 frames=3 hash=d4463b35",
+        "MEM opt=default gs=0 L=16 avail_kb=3736492 rss_kb=383144",
+        "MESA: info: panvk: v9 batch TLS 94208 KiB (stack 2336 B\/thread), half 0, shared per half",
+        "MEM recorded opt=default gs=0 L=mix avail_kb=3736412 rss_kb=383144",
+        "MEM first frame avail_kb=3711888 rss_kb=407768",
+        "BENCH tess_perf opt=default gs=0 L=mix draws=256 patches=4096 ms=902.53 us_draw=3525.5 frames=3 hash=b34a251c",
+        "MEM opt=default gs=0 L=mix avail_kb=3709584 rss_kb=407768",
+        "MEM recorded opt=default gs=1 L=1 avail_kb=3695156 rss_kb=424288",
+        "MEM first frame avail_kb=3693924 rss_kb=424288",
+        "BENCH tess_perf opt=default gs=1 L=1 draws=256 patches=4096 ms=178.66 us_draw=697.9 frames=4 hash=a03404c5",
+        "MEM opt=default gs=1 L=1 avail_kb=3695004 rss_kb=424288",
+        "MEM recorded opt=default gs=1 L=4 avail_kb=3695028 rss_kb=424240",
+        "MEM first frame avail_kb=3672880 rss_kb=448864",
+        "BENCH tess_perf opt=default gs=1 L=4 draws=256 patches=4096 ms=545.22 us_draw=2129.8 frames=3 hash=cec55885",
+        "MEM opt=default gs=1 L=4 avail_kb=3673604 rss_kb=448864",
+        "MEM recorded opt=default gs=1 L=16 avail_kb=3674124 rss_kb=448884",
+        "MESA: error: kbase: JM atom 25 failed: event=0x60 core_req=0x16",
+        "MESA: error: kbase: JM atom 26 failed: event=0x60 core_req=0x1",
+        "MESA: error: kbase: JM atom 27 failed: event=0x60 core_req=0x16",
+        "FAIL Wait r=-4 line=253"
+      ]
+    },
+    {
+      "name": "geometry",
+      "status": "PASS",
+      "ms": 3484,
+      "extra": null
+    },
+    {
+      "name": "tessellation",
+      "status": "PASS",
+      "ms": 6296,
+      "extra": null
+    },
+    {
+      "name": "xfb",
+      "status": "PASS",
+      "ms": 2390,
+      "extra": null
+    },
+    {
+      "name": "pipeline_stats",
+      "status": "PASS",
+      "ms": 3279,
+      "extra": null
+    },
+    {
+      "name": "vertex_stores",
+      "status": "PASS",
+      "ms": 2177,
+      "extra": null
+    },
+    {
+      "name": "gs_viewport_depth",
+      "status": "PASS",
+      "ms": 2263,
+      "extra": null
+    },
+    {
+      "name": "vs_viewport_index",
+      "status": "PASS",
+      "ms": 2329,
+      "extra": null
+    },
+    {
+      "name": "depth_bounds",
+      "status": "PASS",
+      "ms": 2364,
+      "extra": null
+    },
+    {
+      "name": "large_draw",
+      "status": "FAIL",
+      "ms": 33879,
+      "extra": null,
+      "tail": [
+        "  rec 65539: vtx 10 inst 16387 attr 16387 base+1 16388, want attr 5464 base+1 4",
+        "FAIL case base_inst_direct bad=174464 bytes=3840000 written=240000 generated=240000",
+        "PASS case base_inst_indirect bad=0 bytes=3840000 written=240000 generated=240000",
+        "  rec 70001: vtx 7 inst 4 attr 4 base+1 5, want attr 3 base+1 4",
+        "  rec 70002: vtx 8 inst 4 attr 4 base+1 5, want attr 3 base+1 4",
+        "  rec 70003: vtx 9 inst 4 attr 4 base+1 5, want attr 3 base+1 4",
+        "  rec 70004: vtx 10 inst 4 attr 4 base+1 5, want attr 3 base+1 4",
+        "FAIL case base_inst_windows bad=140002 bytes=3360048 written=210003 generated=210003",
+        "PASS case base_inst_fan bad=0 bytes=480000 written=10000 generated=10000",
+        "  rec 449997: vtx 8 inst 4 attr 4 base+1 5, want attr 3 base+1 4",
+        "  rec 449998: vtx 9 inst 4 attr 4 base+1 5, want attr 3 base+1 4",
+        "  rec 449999: vtx 7 inst 4 attr 4 base+1 5, want attr 3 base+1 4",
+        "  rec 450000: vtx 9 inst 4 attr 4 base+1 5, want attr 3 base+1 4",
+        "FAIL case base_inst_fan_windows bad=449997 bytes=14399904 written=299998 generated=299998",
+        "PASS case cond_skip_indirect bad=0 bytes=0 written=0 generated=0",
+        "PASS case cond_pass_indirect bad=0 bytes=3200000 written=200000 generated=200000",
+        "MESA: warning: panvk: v9 tessellated draws get at most 1024 iterations of up to 4096 patches; the output past them is dropped",
+        "PASS case cond_skip_tess bad=0 bytes=0 written=0 generated=0",
+        "PASS case gs_direct bad=0 bytes=3200000 written=200000 generated=200000",
+        "PASS case gs_indirect bad=0 bytes=3200000 written=200000 generated=200000",
+        "PASS case tess_direct bad=0 bytes=2240000 written=140000 generated=140000",
+        "MESA: warning: panvk: v9 indirect tessellated draws get at most 32 iterations of up to 4096 patches; the output past them is dropped",
+        "PASS case tess_indirect bad=0 bytes=2240000 written=140000 generated=140000",
+        "PASS case tess_instanced bad=0 bytes=288000 written=18000 generated=18000",
+        "PASS case tess_tri_direct bad=0 bytes=3360000 written=70000 generated=70000",
+        "PASS case tess_tri_indirect bad=0 bytes=3360000 written=70000 generated=70000",
+        "PASS case indirect_count bad=0 bytes=2400000 written=150000 generated=150000",
+        "PASS case multi_indirect bad=0 bytes=3840000 written=240000 generated=240000",
+        "XFB_FAILS=5",
+        "RESULT FAIL"
+      ]
+    },
+    {
+      "name": "vmr_secondary",
+      "status": "PASS",
+      "ms": 2111,
+      "extra": null
+    },
+    {
+      "name": "tess_cond_state",
+      "status": "PASS",
+      "ms": 2220,
+      "extra": null
+    },
+    {
+      "name": "bachata_reqs",
+      "status": "PASS",
+      "ms": 2215,
+      "extra": null
+    },
+    {
+      "name": "bachata_exec",
+      "status": "PASS",
+      "ms": 2117,
+      "extra": null
+    },
+    {
+      "name": "robustness2",
+      "status": "PASS",
+      "ms": 2158,
+      "extra": null
+    },
+    {
+      "name": "robust_image_access2",
+      "status": "PASS",
+      "ms": 10120,
+      "extra": "4096x4096x16 rgba8 loads ria2=491.60ms ria1=484.73ms delta=+1.4% stats(ria2\/ria1): Instructions=229\/187 Code size=1920\/1536 Constant data size=0\/0 Threads=2\/2 Loops=0\/0 Spills=0\/0 Fills=0\/0 Spill cost=0\/0 Registers used=16\/12 Uniforms used=3\/3"
+    },
+    {
+      "name": "blend",
+      "status": "PASS",
+      "ms": 2169,
+      "extra": null
+    },
+    {
+      "name": "occlusion_query",
+      "status": "PASS",
+      "ms": 2124,
+      "extra": null
+    },
+    {
+      "name": "descriptor_model",
+      "status": "PASS",
+      "ms": 2128,
+      "extra": null
+    },
+    {
+      "name": "shader_arith",
+      "status": "PASS",
+      "ms": 2200,
+      "extra": null
+    },
+    {
+      "name": "depth_stencil",
+      "status": "PASS",
+      "ms": 2144,
+      "extra": null
+    },
+    {
+      "name": "sampler",
+      "status": "PASS",
+      "ms": 2150,
+      "extra": null
+    },
+    {
+      "name": "draw_params",
+      "status": "PASS",
+      "ms": 2224,
+      "extra": null
+    },
+    {
+      "name": "submit_stress",
+      "status": "PASS",
+      "ms": 32091,
+      "extra": null
+    },
+    {
+      "name": "csf_event",
+      "status": "PASS",
+      "ms": 2774,
+      "extra": null
+    },
+    {
+      "name": "gs_tess_primitive_id",
+      "status": "PASS",
+      "ms": 2371,
+      "extra": null
+    },
+    {
+      "name": "bachata_storage_fmtless",
+      "status": "PASS",
+      "ms": 2137,
+      "extra": null
+    },
+    {
+      "name": "bachata_dynamic_render",
+      "status": "PASS",
+      "ms": 2126,
+      "extra": null
+    },
+    {
+      "name": "dxvk_reqs",
+      "status": "PASS",
+      "ms": 2098,
+      "extra": null
+    },
+    {
+      "name": "vkd3d_reqs",
+      "status": "PASS",
+      "ms": 2100,
+      "extra": null
+    },
+    {
+      "name": "vkd3d_heap",
+      "status": "PASS",
+      "ms": 2341,
+      "extra": null
+    },
+    {
+      "name": "vkd3d_timeline",
+      "status": "PASS",
+      "ms": 2241,
+      "extra": null
+    },
+    {
+      "name": "swapchain_lifecycle",
+      "status": "PASS",
+      "ms": 8450,
+      "extra": "resized FPS 90.7 | present_main 3309ms, resize 6ms, present_resized 1324ms, destroy 2ms, cycle 1107ms, teardown 15ms"
+    }
+  ],
+  "driverLoad": {
+    "source": "bundled-rc5",
+    "driverType": "Bundled PanVK RC5",
+    "path": "\/data\/app\/~~0fTxB3MqfI0coBCpGr3BRw==\/dev.zenithblue.panvktest.rc5u-e5W_HU5Qluaoz82DLFCnvw==\/lib\/arm64\/libvulkan_panfrost_rc5.so",
+    "readable": true,
+    "soSha256": "5f217f70aa28f47a1eda50200428c92dd8e7af5c717f07d638e8ea9c6357289f",
+    "buildId": "41b72af6d94a789cc5b3fa520a243392a11eb22b",
+    "driverName": "panvk",
+    "vendorIcdFallback": false,
+    "driverVersion": 109060195,
+    "driverInfo": "PanVK-kbase RC5-universal-110 (Mesa 26.3.0-devel (git-6cae57f893))",
+    "bundledRelease": {
+      "id": "panvk-kbase-0.1.0-rc5-dev-v7",
+      "name": "PanVK Kbase RC5 (dev v7)",
+      "packageVersion": "0.1.0-rc5",
+      "displayVersion": "RC5-dev-v7 (local build, Mesa 5a07217f)",
+      "sourceCommit": null,
+      "buildId": "41b72af6d94a789cc5b3fa520a243392a11eb22b",
+      "expectedSha256": "5f217f70aa28f47a1eda50200428c92dd8e7af5c717f07d638e8ea9c6357289f"
+    },
+    "loadSuccess": true,
+    "deviceCount": 1,
+    "loadError": null,
+    "vkinfoLogTail": [
+      "MESA: info: kbase: JM driver, uAPI version 11.35, page_size=4096",
+      "MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56",
+      "MESA: info: kbase: JM warm-up 2000 ms (first JM open in this process)",
+      "MESA: info: kbase: timestamp calibration: 24575802 Hz, keeping cntfrq 24576000 Hz",
+      "MESA: info: panvk: gpu_id 0x92020010 variant 0 arch v9 model Mali-G78 texture_features 0xf7fe007e 0xc3fff7ff 0xbfe1ff9f 0x10c6",
+      "MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe007e)",
+      "WARNING: panvk is not a conformant Vulkan implementation, testing use only.",
+      "MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)",
+      "MESA: info: Using fallback gralloc implementation"
+    ],
+    "kbaseUapi": "JM 11.35",
+    "gpuId": "0x92020010",
+    "bcEmulation": "BC emulation on (native compressed mask 0xf7fe007e)",
+    "pageSize": 4096,
+    "appVersion": "1.2.7"
+  },
+  "driver": {
+    "type": "Bundled PanVK RC5",
+    "bundled": true,
+    "path": "\/data\/app\/~~0fTxB3MqfI0coBCpGr3BRw==\/dev.zenithblue.panvktest.rc5u-e5W_HU5Qluaoz82DLFCnvw==\/lib\/arm64\/libvulkan_panfrost_rc5.so",
+    "soSha256": "5f217f70aa28f47a1eda50200428c92dd8e7af5c717f07d638e8ea9c6357289f",
+    "buildId": "41b72af6d94a789cc5b3fa520a243392a11eb22b",
+    "driverName": "PanVK Kbase RC5 (dev v7)",
+    "driverInfo": "PanVK-kbase RC5-universal-110 (Mesa 26.3.0-devel (git-6cae57f893))",
+    "driverVersion": "RC5-dev-v7 (local build, Mesa 5a07217f)"
+  },
+  "device": {
+    "manufacturer": "Google",
+    "model": "Pixel 6",
+    "board": "oriole",
+    "hardware": "oriole",
+    "socManufacturer": "Google",
+    "socModel": "Tensor"
+  },
+  "gpu": {
+    "glRenderer": "Mali-G78",
+    "glVendor": "ARM",
+    "glVersion": "OpenGL ES 3.2 v1.r38p1-01eac0.1a610aadd6bd0e3c95c856461c1c5ef1",
+    "deviceName": "Mali-G78 MC20",
+    "deviceID": 2449604624,
+    "vendorID": 5045,
+    "apiVersion": "1.3.363",
+    "gpuinfo": null,
+    "gpuinfo_unavailable_reason": "not readable (SELinux\/permissions)",
+    "gpuId": "0x92020010",
+    "arch": "v9",
+    "gpuModel": "Mali-G78 MC20"
+  },
+  "android": {
+    "release": "13",
+    "sdk": 33,
+    "kernel": "5.10.157-android13-4-00001-g914e947b041d-ab10144456"
+  },
+  "deviceFacts": {
+    "kbaseUapi": "JM 11.35",
+    "gpuId": "0x92020010",
+    "textureFeatures": "0xf7fe007e 0xc3fff7ff 0xbfe1ff9f 0x10c6",
+    "bcEmulation": "BC emulation on (native compressed mask 0xf7fe007e)",
+    "pageSize": 4096,
+    "kernel": "5.10.157-android13-4-00001-g914e947b041d-ab10144456",
+    "procVersion": null,
+    "props": {
+      "ro.board.platform": "gs101",
+      "ro.build.version.release": "13",
+      "ro.build.version.sdk": "33",
+      "ro.hardware": "oriole",
+      "ro.hardware.egl": "mali",
+      "ro.hardware.vulkan": "mali",
+      "ro.product.first_api_level": "31",
+      "ro.soc.manufacturer": "Google",
+      "ro.soc.model": "Tensor",
+      "ro.vendor.api_level": "31",
+      "ro.vndk.version": "33"
+    },
+    "mapperLibs": [
+      "\/vendor\/lib64\/hw\/android.hardware.graphics.mapper@4.0-impl.so"
+    ],
+    "driverLines": [
+      "kbase: JM driver, uAPI version 11.35, page_size=4096",
+      "panvk: gpu_id 0x92020010 variant 0 arch v9 model Mali-G78 texture_features 0xf7fe007e 0xc3fff7ff 0xbfe1ff9f 0x10c6",
+      "panvk: BC emulation on (native compressed mask 0xf7fe007e)",
+      "kbase: mem_alloc via ALLOC",
+      "kbase: JM atom 25 failed: event=0x60 core_req=0x16",
+      "kbase: JM atom 26 failed: event=0x60 core_req=0x1",
+      "kbase: JM atom 27 failed: event=0x60 core_req=0x16",
+      "FULLPLANE] mapper load failed (1 candidate names, first=mediatek); PANVK_MAPPER_NAMES=<suffix> overrides"
+    ]
+  },
+  "complete": true,
+  "driverSlot": "RC5"
+}

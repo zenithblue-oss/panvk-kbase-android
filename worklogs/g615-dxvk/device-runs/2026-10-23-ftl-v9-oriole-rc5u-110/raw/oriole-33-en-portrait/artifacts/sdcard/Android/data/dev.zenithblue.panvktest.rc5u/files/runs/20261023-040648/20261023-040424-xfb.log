@@ -1,0 +1,46 @@
+MESA: info: kbase: JM driver, uAPI version 11.35, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up 2000 ms (first JM open in this process)
+MESA: info: kbase: timestamp calibration: 24575530 Hz, keeping cntfrq 24576000 Hz
+MESA: info: panvk: gpu_id 0x92020010 variant 0 arch v9 model Mali-G78 texture_features 0xf7fe007e 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe007e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+ICD device=Mali-G78 MC20 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+MESA: info: kbase: JM driver, uAPI version 11.35, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up skipped (done once in this process; PANVK_KBASE_JM_WARMUP=2 = every open)
+MESA: info: kbase: timestamp calibration: 24575609 Hz, keeping cntfrq 24576000 Hz
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: panvk: gpu_prerast draw arena committed (64 MiB)
+MESA: info: panvk: gpu_prerast tessellation arena committed (96 MiB)
+XFB features: transformFeedback=1 geometryStreams=1
+XFB props: maxStreams=4 maxBuffers=4 maxBufferSize=4294967295 queries=1 draw=1
+MESA: info: panvk: v9 batch TLS 47104 KiB (stack 1136 B/thread), half 0, shared per half
+MESA: info: panvk: v9 batch WLS 92 KiB, half 0, shared per half
+CASE vs_capture_tri_list mismatch=0 PASS
+MESA: info: panvk: v9 batch TLS 47104 KiB (stack 1136 B/thread), half 0, shared per half
+MESA: info: panvk: v9 batch WLS 92 KiB, half 0, shared per half
+CASE vs_capture_tri_strip mismatch=0 PASS
+MESA: info: panvk: v9 batch TLS 47104 KiB (stack 1136 B/thread), half 0, shared per half
+MESA: info: panvk: v9 batch WLS 92 KiB, half 0, shared per half
+CASE gs_streams s0_cnt=64 s1_cnt=32 mismatch=0 PASS
+MESA: info: panvk: v9 batch TLS 47104 KiB (stack 2032 B/thread), half 0, shared per half
+MESA: info: panvk: v9 batch WLS 92 KiB, half 0, shared per half
+CASE tes_capture counter=96 mismatch=0 PASS
+CASE pause_resume counter=96 mismatch=0 PASS
+CASE overflow written=2 needed=4 counter=96 mismatch=0 PASS
+MESA: warning: panvk: v9 indirect gpu_prerast draws (GS, transform feedback, polygon mode, viewport select, VS stores) are drawn in at most 8 chunks of 65536 vertices; the rest of a larger draw is dropped
+CASE draw_indirect_byte_count count=5 mismatch=0 PASS
+CASE queries host_written=3 copy_written=3 avail=1 mismatch=0 PASS
+CASE vs_nopos mismatch=0 PASS
+CASE gs_nopos mismatch=0 PASS
+CASE vs_adj_line_list mismatch=0 PASS
+CASE vs_adj_line_strip mismatch=0 PASS
+CASE vs_adj_tri_list mismatch=0 PASS
+CASE vs_adj_tri_strip mismatch=0 PASS
+CASE vs_clip_cull_capture mismatch=0 PASS
+CASE cond_render_p0 counter=32 mismatch=0 PASS
+CASE cond_render_p1 counter=80 mismatch=0 PASS
+XFB_FAILS=0

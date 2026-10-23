@@ -1,0 +1,55 @@
+PID 26332
+Tgid:	26332
+Pid:	26332
+PPid:	23413
+READY
+T 4524.007097667 go
+MESA: info: kbase: JM driver, uAPI version 11.35, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up 2000 ms (first JM open in this process)
+MESA: info: kbase: timestamp calibration: 24575208 Hz, keeping cntfrq 24576000 Hz
+MESA: info: panvk: gpu_id 0x92020010 variant 0 arch v9 model Mali-G78 texture_features 0xf7fe007e 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe007e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+PHYS 0 Mali-G78 MC20 vendor=0x13b5 device=0x92020010
+FEATURE synchronization2=1
+QFAM 0 flags=0x7 count=1
+MESA: info: kbase: JM driver, uAPI version 11.35, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up skipped (done once in this process; PANVK_KBASE_JM_WARMUP=2 = every open)
+MESA: info: kbase: timestamp calibration: 24576480 Hz, keeping cntfrq 24576000 Hz
+MESA: info: kbase: mem_alloc via ALLOC
+SYNC2 enabled
+T 4526.048868908 host-set
+T 4526.049225638 host-submit
+FENCE host r=0 dt=0.001
+CASE host got=0x085000a1 expect=0x085000a1
+T 4526.050616792 host-set-replay
+T 4526.050917289 host-submit-replay
+FENCE host-replay r=0 dt=0.000
+CASE host-replay got=0x085000a2 expect=0x085000a2
+T 4526.051335909 gpu-write
+T 4526.052110648 gpu-submit-set
+FENCE gpu-set r=0 dt=0.001
+GPU_EVENT_STATUS 3
+T 4526.053312471 gpu-submit-wait
+FENCE gpu r=0 dt=0.001
+CASE gpu got=0x085000b1 expect=0x085000b1
+T 4526.053514538 gpu-write-replay
+T 4526.053925061 gpu-submit-set-replay
+FENCE gpu-set-replay r=0 dt=0.000
+GPU_EVENT_STATUS 3
+T 4526.054255261 gpu-submit-wait-replay
+FENCE gpu-replay r=0 dt=0.001
+CASE gpu-replay got=0x085000b2 expect=0x085000b2
+T 4526.071147554 ring-begin
+FENCE ring r=0 dt=0.349
+FENCE ring-copy r=0 dt=0.001
+CASE ring submit=0 red=64/64 passes=1700
+FENCE ring r=0 dt=0.276
+FENCE ring-copy r=0 dt=0.000
+CASE ring submit=1 red=64/64 passes=1700
+T 4526.698227836 ring-end
+RESULT PASS
