@@ -1,0 +1,26 @@
+MESA: info: kbase: JM driver, uAPI version 11.35, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up 2000 ms (first JM open in this process)
+MESA: info: kbase: timestamp calibration: 24576094 Hz, keeping cntfrq 24576000 Hz
+MESA: info: panvk: gpu_id 0x92020010 variant 0 arch v9 model Mali-G78 texture_features 0xf7fe007e 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe007e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+ICD device=Mali-G78 MC20 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+INFO ext=VK_EXT_robustness2 robustBufferAccess2=1 robustImageAccess2=1 nullDescriptor=1 robustStorageBufferAccessSizeAlignment=4 robustUniformBufferAccessSizeAlignment=16
+MESA: info: kbase: JM driver, uAPI version 11.35, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up skipped (done once in this process; PANVK_KBASE_JM_WARMUP=2 = every open)
+MESA: info: kbase: timestamp calibration: 24576297 Hz, keeping cntfrq 24576000 Hz
+MESA: info: panvk: v9 tiler heaps 2 x 512 MiB (GROW_ON_GPF)
+MESA: info: kbase: mem_alloc via ALLOC
+INFO null_descriptors alpha: sampler=0.0 image=0.0 texel_buf=0.0
+PASS case null_descriptors
+PASS case oob_ssbo_load
+PASS case oob_ubo_load
+INFO oob atomicAdd ret=0x00000000
+PASS case oob_ssbo_store
+INFO null_vertex_buffer w=1
+PASS case null_vertex_buffer
+RESULT PASS
