@@ -1,0 +1,84 @@
+From bc83c08a4e729420824c4b29bac0e1b520669026 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Fri, 23 Oct 2026 19:48:08 +0000
+Subject: [PATCH 90/92] jm-v7 117: v9 JM tiler heaps 512 MiB each (tess_perf
+ gs=1 OUT_OF_MEMORY)
+
+FTL Pixel 6 (Mali-G78, v9 JM) RC5-universal-110: PanProbe tess_perf hit
+DEVICE_LOST on the first frame of gs=1 L=16 (256 tessellated draws x 16
+quad patches, fractional_odd level 16, pass-through GS):
+
+  kbase: JM atom 25 failed: event=0x60 core_req=0x16
+  kbase: JM atom 26 failed: event=0x60 core_req=0x1
+  kbase: JM atom 27 failed: event=0x60 core_req=0x16
+
+0x60 is BASE_JD_EVENT_OUT_OF_MEMORY (the tiler heap is exhausted);
+core_req 0x16 = CS|T|V (a batch's vertex/tiler chain), 0x1 = FS (its
+fragment job). Atom 25 faulted, 26 (DATA dependency on 25) and 27 (the
+next vertex/tiler chain, ordered after 25) failed with it.
+
+On Valhall JM the MALLOC_VERTEX jobs allocate every vertex packet
+(position + varyings) from the tiler heap, next to the polygon lists, and
+JM has no incremental rendering. The pass-through GS emits three unshared
+vertices per triangle: about 2.4M triangles and 7M vertex packets per
+frame at L=16, several hundred MiB, while the same frame without the GS
+(shared tessellator vertices) fits in 128 MiB. v6/v7 keep varyings in
+their own buffers and v10+ have the CSF chunked heap with OOM handling,
+so only v9 is affected.
+
+Each v9 heap (one per PANVK_OVERLAP half) is now 512 MiB. They are
+GROW_ON_GPF regions committed in 2 MiB steps (jm-v9 023), so this is a
+VA reservation and a ceiling, not memory: pages are committed only as a
+batch uses them. The tiler hierarchy mask budget grows with the size,
+but the bin pointers of any framebuffer are far below 128 MiB, so the
+mask is unchanged. PANVK_V9_TILER_HEAP_MB sets the size of each heap
+(64-1024, default 512; 128 = old). One info line logs the size.
+
+v9 only (PAN_ARCH == 9 branch of create_device). Not device-tested.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_vX_device.c | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
+index 1dc25e88..8f67ec8b 100644
+--- a/src/panfrost/vulkan/panvk_vX_device.c
++++ b/src/panfrost/vulkan/panvk_vX_device.c
+@@ -933,7 +933,23 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+    const bool split_heap = panvk_v7_split_heap();
+    const size_t heap_size = (split_heap ? 64 : 128) * 1024 * 1024;
+ #else
+-   const size_t heap_size = 128 * 1024 * 1024;
++   /* jm-v7 117: on Valhall JM the MALLOC_VERTEX jobs take every vertex
++    * packet (position + varyings) of a batch from the tiler heap, next to
++    * the polygon lists, and JM has no incremental rendering: a batch that
++    * needs more than the heap fails with OUT_OF_MEMORY (kbase event 0x60).
++    * 128 MiB was too small for the GS-expanded geometry of PanProbe
++    * tess_perf gs=1 L=16 (Pixel 6, Mali-G78: about 7M unshared GS output
++    * vertices per frame). The heaps are GROW_ON_GPF and grow in 2 MiB steps
++    * (jm-v9 023), so the size is a VA reservation and a ceiling; pages are
++    * committed only as a batch uses them. PANVK_V9_TILER_HEAP_MB = size of
++    * each heap (64-1024, default 512; 128 = old).
++    */
++   size_t heap_size = 512ull * 1024 * 1024;
++   const char *heap_mb = getenv("PANVK_V9_TILER_HEAP_MB");
++   if (heap_mb && atoi(heap_mb) > 0)
++      heap_size = (size_t)CLAMP(atoi(heap_mb), 64, 1024) * 1024 * 1024;
++   mesa_logi("panvk: v9 tiler heaps 2 x %u MiB (GROW_ON_GPF)",
++             (unsigned)(heap_size >> 20));
+ #endif
+    result = panvk_priv_bo_create(
+       device, heap_size,
+@@ -944,7 +960,7 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+ 
+ #if PAN_ARCH == 9
+    result = panvk_priv_bo_create(
+-      device, 128 * 1024 * 1024,
++      device, heap_size,
+       PAN_KMOD_BO_FLAG_NO_MMAP | PAN_KMOD_BO_FLAG_ALLOC_ON_FAULT,
+       VK_SYSTEM_ALLOCATION_SCOPE_DEVICE, &device->tiler_heap2);
+    if (result != VK_SUCCESS)
+-- 
+2.55.0
+
