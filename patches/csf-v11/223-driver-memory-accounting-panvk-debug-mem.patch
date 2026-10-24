@@ -1,0 +1,715 @@
+From 7fe12afc41a8557fc6c0196b97612d4d161c2b20 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Sat, 24 Oct 2026 00:24:25 +0000
+Subject: [PATCH 223/229] panvk: PANVK_DEBUG=mem driver memory accounting and
+ report
+
+Rationale: Fallout 4 on the G615 (build 110) held 2.6 GiB of kbase memory
+while DXVK accounted for 1.6 GiB; the other ~1 GiB could not be split
+between tiler heaps, BC raw stores and pools without a counter
+(worklogs/g615-dxvk/fo4-memory-analysis-2026-10-23.md, fix 1).
+
+Every private BO is counted under a kind (device pools, shaders, command
+buffer CS / descriptor / TLS slabs, device TLS, descriptor pools, BC raw
+stores, u_trace, other pools, misc), with current bytes, peak and count.
+Pool slabs are classified by the pool label (panvk_priv_bo_create_pool),
+other callers pass the kind (panvk_priv_bo_create_kind); both are
+line-neutral edits so later series hunks keep their offsets. The kbase
+tiler heap contexts (alive, peak, bytes committed at HEAP_INIT, renewals,
+synchronous TERMs, TERM backlog peak), BC raw store events (spills,
+read-backs, pins, skipped lazy reads) and VkDeviceMemory are reported too,
+with VmRSS / RssAnon / RssFile / VmSwap and MemAvailable.
+
+logd is stopped on some phones, so the line goes to PANVK_MEM_LOG=<path>
+(appended, "%p" = pid) when set, else to mesa_logi (MESA_LOG_FILE works).
+At most one line per PANVK_MEM_LOG_MS (default 10000) from the CSF submit
+path, plus a "panvk-mem-final" line at queue destroy.
+
+Knob: PANVK_DEBUG=mem or PANVK_MEM_LOG=<path> (off by default; the
+counters are a few atomics per BO create/destroy). Arch: counters in shared
+code (all), report from the CSF queue (v10+).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c |   5 +-
+ src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c  |  61 ++++-
+ src/panfrost/vulkan/csf/panvk_vX_utrace.c     |   6 +-
+ src/panfrost/vulkan/panvk_image.c             |  16 +-
+ src/panfrost/vulkan/panvk_mempool.c           |   4 +-
+ src/panfrost/vulkan/panvk_priv_bo.c           | 251 ++++++++++++++++++
+ src/panfrost/vulkan/panvk_priv_bo.h           |  66 +++++
+ src/panfrost/vulkan/panvk_vX_cmd_meta.c       |   1 +
+ src/panfrost/vulkan/panvk_vX_descriptor_set.c |   4 +-
+ 9 files changed, 391 insertions(+), 23 deletions(-)
+
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c
+index 7ec296c2..157a1ed2 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c
+@@ -101,10 +101,11 @@ get_device_tls(struct panvk_cmd_buffer *cmdbuf, uint64_t size)
+ 
+    if (!cur || pan_kmod_bo_size(cur->bo) < size) {
+       struct panvk_priv_bo *bo;
+-      if (panvk_priv_bo_create(
++      if (panvk_priv_bo_create_kind(
+              dev, size,
+              panvk_device_adjust_bo_flags(dev, PAN_KMOD_BO_FLAG_NO_MMAP),
+-             VK_SYSTEM_ALLOCATION_SCOPE_DEVICE, &bo) == VK_SUCCESS) {
++             VK_SYSTEM_ALLOCATION_SCOPE_DEVICE, &bo,
++             PANVK_MEM_DEV_TLS) == VK_SUCCESS) {
+          util_dynarray_append(&dev->tls.bos, bo);
+          cur = bo;
+       } else {
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+index a4b74719..a5ee0bf6 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+@@ -2078,6 +2078,36 @@ destroy_group(struct panvk_gpu_queue *queue)
+ }
+ 
+ #ifdef HAVE_PAN_KMOD_KBASE
++/* csf-v11 223: kbase tiler heap contexts, counted for PANVK_DEBUG=mem. The
++ * bytes are what HEAP_INIT commits (initial chunks); growth by the kernel
++ * on tiler OOM is not visible from user space. */
++static int
++kbase_heap_create_counted(struct pan_kmod_dev *kdev, uint32_t chunk_size,
++                          uint32_t initial_chunks, uint32_t max_chunks,
++                          uint32_t target_in_flight, uint32_t mem_group_id,
++                          uint64_t *heap_ctx_va, uint64_t *first_chunk_va)
++{
++   int ret = kbase_kmod_csf_tiler_heap_create(
++      kdev, chunk_size, initial_chunks, max_chunks, target_in_flight,
++      mem_group_id, heap_ctx_va, first_chunk_va);
++
++   if (!ret) {
++      uint64_t live = p_atomic_add_return(&panvk_mem_stats.heap_ctx_live, 1);
++      if (live > p_atomic_read_relaxed(&panvk_mem_stats.heap_ctx_peak))
++         p_atomic_set(&panvk_mem_stats.heap_ctx_peak, live);
++      p_atomic_add(&panvk_mem_stats.heap_init_B,
++                   (uint64_t)chunk_size * initial_chunks);
++   }
++   return ret;
++}
++
++static void
++kbase_heap_destroy_counted(struct pan_kmod_dev *kdev, uint64_t heap_ctx_va)
++{
++   kbase_kmod_csf_tiler_heap_destroy(kdev, heap_ctx_va);
++   p_atomic_dec(&panvk_mem_stats.heap_ctx_live);
++}
++
+ static void
+ kbase_spare_heap_job(void *job, void *gdata, int thread_index)
+ {
+@@ -2087,7 +2117,7 @@ kbase_spare_heap_job(void *job, void *gdata, int thread_index)
+       to_panvk_physical_device(dev->vk.physical);
+ 
+    /* On failure ctx stays 0 and the renewal creates the heap itself. */
+-   if (kbase_kmod_csf_tiler_heap_create(
++   if (kbase_heap_create_counted(
+           dev->kmod.dev, queue->tiler_heap.chunk_size,
+           phys_dev->csf.tiler.initial_chunks,
+           MAX2(phys_dev->csf.tiler.max_chunks, 200), 65535, 0,
+@@ -2148,7 +2178,7 @@ kbase_heap_term_job(void *job, void *gdata, int thread_index)
+       mtx_unlock(&queue->kbase_heap_term.lock);
+ 
+       for (uint32_t i = 0; i < count; i++)
+-         kbase_kmod_csf_tiler_heap_destroy(dev->kmod.dev, ctxs[i]);
++         kbase_heap_destroy_counted(dev->kmod.dev, ctxs[i]);
+    }
+ }
+ 
+@@ -2169,6 +2199,10 @@ kbase_heap_term_push(struct panvk_gpu_queue *queue, const uint64_t *ctxs,
+              queue->kbase_heap_term.count < PANVK_KBASE_HEAP_TERM_MAX)
+          queue->kbase_heap_term.ctxs[queue->kbase_heap_term.count++] =
+             ctxs[pushed++];
++      if (queue->kbase_heap_term.count >
++          p_atomic_read_relaxed(&panvk_mem_stats.heap_term_queued_max))
++         p_atomic_set(&panvk_mem_stats.heap_term_queued_max,
++                      queue->kbase_heap_term.count);
+       if (pushed && !queue->kbase_heap_term.queued) {
+          queue->kbase_heap_term.queued = true;
+          add_job = true;
+@@ -2186,8 +2220,10 @@ kbase_heap_term_push(struct panvk_gpu_queue *queue, const uint64_t *ctxs,
+    }
+ 
+    /* Disabled, or the thread is PANVK_KBASE_HEAP_TERM_MAX contexts behind. */
+-   for (uint32_t i = pushed; i < count; i++)
+-      kbase_kmod_csf_tiler_heap_destroy(dev->kmod.dev, ctxs[i]);
++   for (uint32_t i = pushed; i < count; i++) {
++      kbase_heap_destroy_counted(dev->kmod.dev, ctxs[i]);
++      p_atomic_inc(&panvk_mem_stats.heap_term_sync);
++   }
+ }
+ 
+ static void
+@@ -2228,11 +2264,11 @@ kbase_spare_heap_finish(struct panvk_gpu_queue *queue)
+    queue->kbase_spare_heap.enabled = false;
+    util_queue_fence_destroy(&queue->kbase_spare_heap.fence);
+    if (ctx)
+-      kbase_kmod_csf_tiler_heap_destroy(dev->kmod.dev, ctx);
++      kbase_heap_destroy_counted(dev->kmod.dev, ctx);
+ 
+    if (queue->kbase_heap_term.enabled) {
+       for (uint32_t i = 0; i < queue->kbase_heap_term.count; i++)
+-         kbase_kmod_csf_tiler_heap_destroy(dev->kmod.dev,
++         kbase_heap_destroy_counted(dev->kmod.dev,
+                                            queue->kbase_heap_term.ctxs[i]);
+       queue->kbase_heap_term.count = 0;
+       mtx_destroy(&queue->kbase_heap_term.lock);
+@@ -2296,7 +2332,7 @@ init_tiler(struct panvk_gpu_queue *queue)
+       const uint32_t tiler_heap_max_chunks =
+          MAX2(phys_dev->csf.tiler.max_chunks, 200);
+ 
+-      if (kbase_kmod_csf_tiler_heap_create(
++      if (kbase_heap_create_counted(
+              dev->kmod.dev, tiler_heap->chunk_size,
+              phys_dev->csf.tiler.initial_chunks, tiler_heap_max_chunks,
+              65535, tiler_heap_mem_group, &heap_ctx_va, &first_chunk_va)) {
+@@ -2376,10 +2412,10 @@ cleanup_tiler(struct panvk_gpu_queue *queue)
+        * current one. */
+       kbase_spare_heap_finish(queue);
+       for (uint32_t i = 0; i < queue->kbase_retired_heap_count; i++)
+-         kbase_kmod_csf_tiler_heap_destroy(dev->kmod.dev,
++         kbase_heap_destroy_counted(dev->kmod.dev,
+                                            queue->kbase_retired_heaps[i].ctx);
+       queue->kbase_retired_heap_count = 0;
+-      kbase_kmod_csf_tiler_heap_destroy(dev->kmod.dev,
++      kbase_heap_destroy_counted(dev->kmod.dev,
+                                         tiler_heap->context.dev_addr);
+    } else
+ #endif
+@@ -2467,7 +2503,7 @@ kbase_renew_tiler_heap(struct panvk_gpu_queue *queue)
+ 
+    new_ctx = kbase_spare_heap_take(queue, &first_chunk);
+    if (!new_ctx &&
+-       kbase_kmod_csf_tiler_heap_create(
++       kbase_heap_create_counted(
+           dev->kmod.dev, tiler_heap->chunk_size,
+           phys_dev->csf.tiler.initial_chunks, max_chunks, 65535, 0,
+           &new_ctx, &first_chunk)) {
+@@ -2496,6 +2532,7 @@ kbase_renew_tiler_heap(struct panvk_gpu_queue *queue)
+       queue->subqueues[PANVK_SUBQUEUE_VERTEX_TILER].kbase.emitted_jobs;
+    queue->kbase_retired_heaps[r].frag_jobs =
+       queue->subqueues[PANVK_SUBQUEUE_FRAGMENT].kbase.emitted_jobs;
++   p_atomic_inc(&panvk_mem_stats.heap_renewals);
+    return VK_SUCCESS;
+ }
+ #endif
+@@ -3365,6 +3402,8 @@ panvk_per_arch(gpu_queue_submit)(struct vk_queue *vk_queue, struct vk_queue_subm
+ 
+ out:
+    panvk_queue_submit_cleanup_storage(&submit, &stack_storage);
++   /* csf-v11 223: PANVK_DEBUG=mem, rate-limited. */
++   panvk_mem_report(submit.dev, false);
+    return result;
+ }
+ 
+@@ -3504,6 +3543,8 @@ panvk_per_arch(destroy_gpu_queue)(struct vk_queue *vk_queue)
+       kbase_queue_wait_current(queue, UINT64_MAX);
+ #endif
+ 
++   /* csf-v11 223: last PANVK_DEBUG=mem line, before the heaps go. */
++   panvk_mem_report(dev, true);
+    cleanup_queue(queue);
+ #ifdef HAVE_PAN_KMOD_KBASE
+    if (gpu_queue_uses_kbase(dev)) {
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_utrace.c b/src/panfrost/vulkan/csf/panvk_vX_utrace.c
+index cec767e4..0a17bf3a 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_utrace.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_utrace.c
+@@ -187,9 +187,9 @@ panvk_per_arch(utrace_context_init)(struct panvk_device *dev)
+                         panvk_utrace_capture_data, panvk_utrace_get_data,
+                         panvk_utrace_delete_flush_data);
+ 
+-   VkResult result = panvk_priv_bo_create(dev, get_utrace_clone_mem_size(), 0,
+-                                          VK_SYSTEM_ALLOCATION_SCOPE_OBJECT,
+-                                          &dev->utrace.copy_buf_heap_bo);
++   VkResult result = panvk_priv_bo_create_kind(
++      dev, get_utrace_clone_mem_size(), 0, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT,
++      &dev->utrace.copy_buf_heap_bo, PANVK_MEM_UTRACE);
+    if (result != VK_SUCCESS) {
+       u_trace_context_fini(&dev->utrace.utctx);
+       return result;
+diff --git a/src/panfrost/vulkan/panvk_image.c b/src/panfrost/vulkan/panvk_image.c
+index 5abd6ba2..efa3faa6 100644
+--- a/src/panfrost/vulkan/panvk_image.c
++++ b/src/panfrost/vulkan/panvk_image.c
+@@ -2053,6 +2053,7 @@ bc_raw_spill_job(void *data, void *gdata, int thread_index)
+       fd = bc_raw_file(dev);
+       if (fd < 0) {
+          raw->pinned = true;
++         p_atomic_inc(&panvk_mem_stats.bc_pins);
+          goto out;
+       }
+       if (raw->file_off < 0) {
+@@ -2089,6 +2090,7 @@ bc_raw_spill_job(void *data, void *gdata, int thread_index)
+       mesa_logw("panvk: BC raw store spill failed (%s), keeping it resident",
+                 strerror(errno));
+       raw->pinned = true;
++      p_atomic_inc(&panvk_mem_stats.bc_pins);
+    } else if (raw->gen == gen && !raw->cmd_refs && raw->image &&
+               raw->bo == bo) {
+       raw->bo = NULL;
+@@ -2100,6 +2102,7 @@ bc_raw_spill_job(void *data, void *gdata, int thread_index)
+          dev->bc_raw.spilled_B -= raw->size;
+       raw->on_disk = written;
+       panvk_priv_bo_unref(bo);
++      p_atomic_inc(&panvk_mem_stats.bc_spills);
+    }
+ out:
+    if (!--raw->refs)
+@@ -2114,9 +2117,9 @@ bc_raw_materialize(struct panvk_bc_raw *raw, bool full)
+ {
+    struct panvk_device *dev = raw->dev;
+    struct panvk_priv_bo *bo;
+-   VkResult result = panvk_priv_bo_create(
++   VkResult result = panvk_priv_bo_create_kind(
+       dev, raw->size, panvk_device_adjust_bo_flags(dev, PAN_KMOD_BO_FLAG_WB_MMAP),
+-      VK_SYSTEM_ALLOCATION_SCOPE_DEVICE, &bo);
++      VK_SYSTEM_ALLOCATION_SCOPE_DEVICE, &bo, PANVK_MEM_BC_RAW);
+ 
+    if (result != VK_SUCCESS)
+       return result;
+@@ -2134,8 +2137,12 @@ bc_raw_materialize(struct panvk_bc_raw *raw, bool full)
+       if (!from_file) {
+          mesa_loge("panvk: BC raw store read-back failed (%s)",
+                    strerror(errno));
+-      } else if (++raw->remat >= 2) {
+-         raw->pinned = true;
++      } else {
++         p_atomic_inc(&panvk_mem_stats.bc_remats);
++         if (++raw->remat >= 2) {
++            raw->pinned = true;
++            p_atomic_inc(&panvk_mem_stats.bc_pins);
++         }
+       }
+    }
+    if (!from_file)
+@@ -2210,6 +2217,7 @@ panvk_bc_raw_release(struct util_dynarray *refs)
+                                     NULL)) {
+             vk_free(&dev->vk.alloc, q);
+             raw->pinned = true;
++            p_atomic_inc(&panvk_mem_stats.bc_pins);
+             continue;
+          }
+          dev->bc_raw.queue = q;
+diff --git a/src/panfrost/vulkan/panvk_mempool.c b/src/panfrost/vulkan/panvk_mempool.c
+index b5a18bf9..37117919 100644
+--- a/src/panfrost/vulkan/panvk_mempool.c
++++ b/src/panfrost/vulkan/panvk_mempool.c
+@@ -69,8 +69,8 @@ panvk_pool_alloc_backing(struct panvk_pool *pool, size_t sz)
+           * fragment/vertex+tiler pools separate.
+           */
+          VkResult result =
+-            panvk_priv_bo_create(pool->dev, bo_sz, pool->props.create_flags,
+-                                 VK_SYSTEM_ALLOCATION_SCOPE_DEVICE, &bo);
++            panvk_priv_bo_create_pool(pool, bo_sz, pool->props.create_flags,
++                                      VK_SYSTEM_ALLOCATION_SCOPE_DEVICE, &bo);
+ 
+          /* Pool allocations are indirect, meaning there's no VkResult returned
+           * and no way for the caller to know why the device memory allocation
+diff --git a/src/panfrost/vulkan/panvk_priv_bo.c b/src/panfrost/vulkan/panvk_priv_bo.c
+index 9434efca..02e40ca5 100644
+--- a/src/panfrost/vulkan/panvk_priv_bo.c
++++ b/src/panfrost/vulkan/panvk_priv_bo.c
+@@ -16,9 +16,70 @@
+ 
+ #include "genxml/decode.h"
+ 
++#include <inttypes.h>
++#include <stdio.h>
++#include <string.h>
++#include <unistd.h>
++
++#include "util/os_misc.h"
++#include "util/os_time.h"
++#include "util/u_debug.h"
++#include "util/u_math.h"
++
+ VkResult
+ panvk_priv_bo_create(struct panvk_device *dev, uint64_t size, uint32_t flags,
+                      VkSystemAllocationScope scope, struct panvk_priv_bo **out)
++{
++   return panvk_priv_bo_create_kind(dev, size, flags, scope, out,
++                                    PANVK_MEM_MISC);
++}
++
++struct panvk_mem_stats panvk_mem_stats;
++
++static void
++panvk_mem_account(enum panvk_mem_kind kind, int64_t delta)
++{
++   uint64_t v = p_atomic_add_return(&panvk_mem_stats.bytes[kind], delta);
++
++   if (delta > 0) {
++      p_atomic_inc(&panvk_mem_stats.count[kind]);
++      uint64_t peak = p_atomic_read_relaxed(&panvk_mem_stats.peak[kind]);
++      while (v > peak &&
++             !__atomic_compare_exchange_n(&panvk_mem_stats.peak[kind], &peak,
++                                          v, true, __ATOMIC_RELAXED,
++                                          __ATOMIC_RELAXED))
++         ;
++   } else {
++      p_atomic_dec(&panvk_mem_stats.count[kind]);
++   }
++}
++
++VkResult
++panvk_priv_bo_create_pool(struct panvk_pool *pool, uint64_t size,
++                          uint32_t flags, VkSystemAllocationScope scope,
++                          struct panvk_priv_bo **out)
++{
++   const char *l = pool->props.label ? pool->props.label : "";
++   enum panvk_mem_kind kind = PANVK_MEM_OTHER_POOL;
++
++   if (!strcmp(l, "Command buffer CS pool"))
++      kind = PANVK_MEM_CMD_CS;
++   else if (!strcmp(l, "Command buffer descriptor pool"))
++      kind = PANVK_MEM_CMD_DESC;
++   else if (!strcmp(l, "TLS pool"))
++      kind = PANVK_MEM_CMD_TLS;
++   else if (!strncmp(l, "Device RW", 9))
++      kind = PANVK_MEM_DEV_POOL;
++   else if (!strncmp(l, "Device executable", 17))
++      kind = PANVK_MEM_SHADER;
++
++   return panvk_priv_bo_create_kind(pool->dev, size, flags, scope, out, kind);
++}
++
++VkResult
++panvk_priv_bo_create_kind(struct panvk_device *dev, uint64_t size,
++                          uint32_t flags, VkSystemAllocationScope scope,
++                          struct panvk_priv_bo **out, enum panvk_mem_kind kind)
+ {
+    VkResult result;
+    int ret;
+@@ -88,6 +149,8 @@ panvk_priv_bo_create(struct panvk_device *dev, uint64_t size, uint32_t flags,
+    }
+ 
+    p_atomic_set(&priv_bo->refcnt, 1);
++   priv_bo->mem_kind = kind;
++   panvk_mem_account(kind, pan_kmod_bo_size(bo));
+ 
+    *out = priv_bo;
+    return VK_SUCCESS;
+@@ -134,6 +197,7 @@ panvk_priv_bo_destroy(struct panvk_priv_bo *priv_bo)
+ {
+    struct panvk_device *dev = priv_bo->dev;
+ 
++   panvk_mem_account(priv_bo->mem_kind, -(int64_t)pan_kmod_bo_size(priv_bo->bo));
+    panvk_address_binding_report(dev, NULL, priv_bo->addr.dev,
+                                 pan_kmod_bo_size(priv_bo->bo),
+                                 VK_DEVICE_ADDRESS_BINDING_TYPE_UNBIND_EXT);
+@@ -176,3 +240,190 @@ panvk_priv_bo_unref(struct panvk_priv_bo *priv_bo)
+ 
+    panvk_priv_bo_destroy(priv_bo);
+ }
++
++/* ---- csf-v11 223: PANVK_DEBUG=mem memory report ----
++ *
++ * logd is stopped on some phones and games run in a Wine prefix, so the
++ * report goes to a file: PANVK_MEM_LOG=<path> (appended; a "%p" in the path
++ * becomes the pid), else MESA_LOG (mesa_logi, so MESA_LOG_FILE also works).
++ * PANVK_DEBUG=mem without PANVK_MEM_LOG logs through mesa_logi. One line at
++ * most every PANVK_MEM_LOG_MS (default 10000) ms, from the queue submit
++ * path, and one at queue destroy. Fields are MiB unless noted.
++ */
++static const struct debug_control panvk_mem_debug_options[] = {
++   {"mem", 1},
++   {NULL, 0},
++};
++
++static int panvk_mem_report_on = -1;
++static uint64_t panvk_mem_report_last_ns, panvk_mem_report_start_ns;
++static simple_mtx_t panvk_mem_report_lock = SIMPLE_MTX_INITIALIZER;
++static FILE *panvk_mem_report_fp;
++
++bool
++panvk_mem_report_enabled(void)
++{
++   int on = p_atomic_read_relaxed(&panvk_mem_report_on);
++
++   if (on < 0) {
++      on = (parse_debug_string(os_get_option("PANVK_DEBUG"),
++                               panvk_mem_debug_options) & 1) ||
++           os_get_option("PANVK_MEM_LOG");
++      p_atomic_set(&panvk_mem_report_on, on);
++   }
++   return on;
++}
++
++static FILE *
++panvk_mem_report_file(void)
++{
++   static bool tried;
++   const char *path = os_get_option("PANVK_MEM_LOG");
++
++   if (tried || !path || !path[0])
++      return panvk_mem_report_fp;
++   tried = true;
++
++   char buf[1024];
++   const char *p = strstr(path, "%p");
++   if (p) {
++      snprintf(buf, sizeof(buf), "%.*s%d%s", (int)(p - path), path,
++               (int)getpid(), p + 2);
++      path = buf;
++   }
++   panvk_mem_report_fp = fopen(path, "a");
++   if (!panvk_mem_report_fp)
++      mesa_logw("panvk: PANVK_MEM_LOG=%s: cannot open, using mesa_log", path);
++   else
++      setvbuf(panvk_mem_report_fp, NULL, _IOLBF, 0);
++   return panvk_mem_report_fp;
++}
++
++/* VmRSS, RssAnon, RssFile, VmSwap in kB from /proc/self/status. */
++static void
++panvk_mem_proc_status(uint64_t kb[4])
++{
++   static const char *keys[4] = {"VmRSS:", "RssAnon:", "RssFile:", "VmSwap:"};
++   char line[256];
++   FILE *f = fopen("/proc/self/status", "r");
++
++   kb[0] = kb[1] = kb[2] = kb[3] = 0;
++   if (!f)
++      return;
++   while (fgets(line, sizeof(line), f)) {
++      for (unsigned i = 0; i < 4; i++) {
++         size_t n = strlen(keys[i]);
++         if (!strncmp(line, keys[i], n))
++            kb[i] = strtoull(line + n, NULL, 10);
++      }
++   }
++   fclose(f);
++}
++
++static uint64_t
++panvk_priv_mem_size(struct panvk_priv_mem mem)
++{
++   struct panvk_priv_bo *bo = panvk_priv_mem_bo(mem);
++   return bo ? pan_kmod_bo_size(bo->bo) : 0;
++}
++
++#define MIB(x) ((double)(x) / (1024.0 * 1024.0))
++
++void
++panvk_mem_report(struct panvk_device *dev, bool final)
++{
++   if (!panvk_mem_report_enabled())
++      return;
++
++   const uint64_t now = os_time_get_nano();
++   static int64_t interval_ms = -1;
++   if (interval_ms < 0)
++      interval_ms = MAX2(debug_get_num_option("PANVK_MEM_LOG_MS", 10000), 100);
++
++   if (!final) {
++      uint64_t last = p_atomic_read_relaxed(&panvk_mem_report_last_ns);
++      if (last && now - last < (uint64_t)interval_ms * 1000000ull)
++         return;
++   }
++   simple_mtx_lock(&panvk_mem_report_lock);
++   if (!panvk_mem_report_start_ns)
++      panvk_mem_report_start_ns = now;
++   p_atomic_set(&panvk_mem_report_last_ns, now);
++
++   const struct panvk_mem_stats *s = &panvk_mem_stats;
++   const struct panvk_physical_device *pdev =
++      to_panvk_physical_device(dev->vk.physical);
++   uint64_t b[PANVK_MEM_KIND_COUNT], priv = 0;
++   for (unsigned i = 0; i < PANVK_MEM_KIND_COUNT; i++) {
++      b[i] = p_atomic_read_relaxed(&s->bytes[i]);
++      priv += b[i];
++   }
++   /* gpu_prerast arenas (csf-v11 205) are counted as misc BOs. */
++   const uint64_t prerast = panvk_priv_mem_size(dev->gpu_prerast_arena) +
++                            panvk_priv_mem_size(dev->gpu_prerast_tess_arena) +
++                            panvk_priv_mem_size(dev->gpu_prerast_tess_arena2);
++   const uint64_t devmem = p_atomic_read_relaxed(&pdev->memory.heap_used);
++   const uint64_t heap_live = p_atomic_read_relaxed(&s->heap_ctx_live);
++   const uint64_t heap_init = p_atomic_read_relaxed(&s->heap_init_B);
++   uint64_t avail = 0, kb[4];
++   os_get_available_system_memory(&avail);
++   panvk_mem_proc_status(kb);
++
++   char line[1536];
++   snprintf(
++      line, sizeof(line),
++      "panvk-mem%s t=%.1fs devmem=%.1f priv=%.1f "
++      "dev_pool=%.1f shader=%.1f cmd_cs=%.1f/%" PRIu64 " cmd_desc=%.1f/%" PRIu64
++      " cmd_tls=%.1f dev_tls=%.1f desc_pool=%.1f/%" PRIu64
++      " bc_raw=%.1f/%" PRIu64 " utrace=%.1f other_pool=%.1f misc=%.1f"
++      " prerast=%.1f | peaks cmd=%.1f desc_pool=%.1f bc_raw=%.1f dev_tls=%.1f"
++      " | heap live=%" PRIu64 " peak=%" PRIu64 " init=%.1f renew=%" PRIu64
++      " term_sync=%" PRIu64 " termq_max=%" PRIu64
++      " | bc resident=%.1f spilled=%.1f needed=%d spills=%" PRIu64
++      " remats=%" PRIu64 " pins=%" PRIu64 " lazy_skips=%" PRIu64
++      " stale=%" PRIu64 "/%" PRIu64
++      " | trim bos=%" PRIu64 " %.1f tls_freed=%.1f"
++      " | rss=%.1f anon=%.1f file=%.1f swap=%.1f avail=%.1f",
++      final ? "-final" : "", (now - panvk_mem_report_start_ns) / 1e9,
++      MIB(devmem), MIB(priv), MIB(b[PANVK_MEM_DEV_POOL]),
++      MIB(b[PANVK_MEM_SHADER]), MIB(b[PANVK_MEM_CMD_CS]),
++      p_atomic_read_relaxed(&s->count[PANVK_MEM_CMD_CS]),
++      MIB(b[PANVK_MEM_CMD_DESC]),
++      p_atomic_read_relaxed(&s->count[PANVK_MEM_CMD_DESC]),
++      MIB(b[PANVK_MEM_CMD_TLS]), MIB(b[PANVK_MEM_DEV_TLS]),
++      MIB(b[PANVK_MEM_DESC_POOL]),
++      p_atomic_read_relaxed(&s->count[PANVK_MEM_DESC_POOL]),
++      MIB(b[PANVK_MEM_BC_RAW]),
++      p_atomic_read_relaxed(&s->count[PANVK_MEM_BC_RAW]),
++      MIB(b[PANVK_MEM_UTRACE]), MIB(b[PANVK_MEM_OTHER_POOL]),
++      MIB(b[PANVK_MEM_MISC] > prerast ? b[PANVK_MEM_MISC] - prerast : 0),
++      MIB(prerast),
++      MIB(p_atomic_read_relaxed(&s->peak[PANVK_MEM_CMD_CS]) +
++          p_atomic_read_relaxed(&s->peak[PANVK_MEM_CMD_DESC]) +
++          p_atomic_read_relaxed(&s->peak[PANVK_MEM_CMD_TLS])),
++      MIB(p_atomic_read_relaxed(&s->peak[PANVK_MEM_DESC_POOL])),
++      MIB(p_atomic_read_relaxed(&s->peak[PANVK_MEM_BC_RAW])),
++      MIB(p_atomic_read_relaxed(&s->peak[PANVK_MEM_DEV_TLS])), heap_live,
++      p_atomic_read_relaxed(&s->heap_ctx_peak), MIB(heap_init),
++      p_atomic_read_relaxed(&s->heap_renewals),
++      p_atomic_read_relaxed(&s->heap_term_sync),
++      p_atomic_read_relaxed(&s->heap_term_queued_max),
++      MIB(dev->bc_raw.resident_B), MIB(dev->bc_raw.spilled_B),
++      p_atomic_read_relaxed(&dev->bc_raw.needed),
++      p_atomic_read_relaxed(&s->bc_spills), p_atomic_read_relaxed(&s->bc_remats),
++      p_atomic_read_relaxed(&s->bc_pins),
++      p_atomic_read_relaxed(&s->bc_lazy_skips),
++      p_atomic_read_relaxed(&s->bc_stale_marks),
++      p_atomic_read_relaxed(&s->bc_stale_reads),
++      p_atomic_read_relaxed(&s->cmdpool_trim_bos),
++      MIB(p_atomic_read_relaxed(&s->cmdpool_trim_B)),
++      MIB(p_atomic_read_relaxed(&s->dev_tls_freed_B)), kb[0] / 1024.0,
++      kb[1] / 1024.0, kb[2] / 1024.0, kb[3] / 1024.0, MIB(avail));
++
++   FILE *fp = panvk_mem_report_file();
++   if (fp)
++      fprintf(fp, "%s\n", line);
++   else
++      mesa_logi("%s", line);
++   simple_mtx_unlock(&panvk_mem_report_lock);
++}
+diff --git a/src/panfrost/vulkan/panvk_priv_bo.h b/src/panfrost/vulkan/panvk_priv_bo.h
+index 3f570a4d..e2860aa9 100644
+--- a/src/panfrost/vulkan/panvk_priv_bo.h
++++ b/src/panfrost/vulkan/panvk_priv_bo.h
+@@ -12,6 +12,52 @@
+ #include "util/u_atomic.h"
+ 
+ struct panvk_kmod_bo;
++struct panvk_pool;
++
++/* csf-v11 223: driver memory accounting (PANVK_DEBUG=mem). Each private BO
++ * is counted under one kind; the counters are process-wide (one VkDevice per
++ * game process in practice) and always kept, the report is opt-in. */
++enum panvk_mem_kind {
++   PANVK_MEM_MISC = 0,
++   PANVK_MEM_DEV_POOL,  /* device rw / rw_nc pools */
++   PANVK_MEM_SHADER,    /* device exec pool */
++   PANVK_MEM_CMD_CS,
++   PANVK_MEM_CMD_DESC,
++   PANVK_MEM_CMD_TLS,   /* per-command-buffer TLS pool */
++   PANVK_MEM_DEV_TLS,   /* device-wide TLS (csf-v11 097) */
++   PANVK_MEM_DESC_POOL,
++   PANVK_MEM_BC_RAW,    /* BC raw stores (csf-v11 201) */
++   PANVK_MEM_UTRACE,
++   PANVK_MEM_OTHER_POOL, /* other panvk_pool slabs (JM varying, GS) */
++   PANVK_MEM_KIND_COUNT,
++};
++
++struct panvk_mem_stats {
++   uint64_t bytes[PANVK_MEM_KIND_COUNT];
++   uint64_t peak[PANVK_MEM_KIND_COUNT];
++   uint64_t count[PANVK_MEM_KIND_COUNT];
++   /* kbase tiler heaps (csf/panvk_vX_gpu_queue.c): contexts alive (each
++    * commits its initial chunks; growth is not visible to user space),
++    * bytes committed at HEAP_INIT, renewals, TERMs done on the submitting
++    * thread because the heap thread was behind. */
++   uint64_t heap_ctx_live, heap_ctx_peak, heap_init_B, heap_renewals,
++      heap_term_sync, heap_term_queued_max;
++   /* BC raw store events (panvk_image.c, panvk_vX_cmd_meta.c). */
++   uint64_t bc_spills, bc_remats, bc_pins, bc_lazy_skips, bc_stale_marks,
++      bc_stale_reads;
++   /* Command pool auto-trim (panvk_cmd_pool.c): BOs and bytes freed. */
++   uint64_t cmdpool_trim_bos, cmdpool_trim_B;
++   /* Device TLS BOs freed early (csf-v11 097 grow-only list). */
++   uint64_t dev_tls_freed_B;
++};
++
++extern struct panvk_mem_stats panvk_mem_stats;
++
++static inline void
++panvk_mem_stat_add(uint64_t *v, uint64_t d)
++{
++   p_atomic_add(v, d);
++}
+ 
+ /* Used for internal object allocation. */
+ struct panvk_priv_bo {
+@@ -23,12 +69,32 @@ struct panvk_priv_bo {
+       uint64_t dev;
+       void *host;
+    } addr;
++   /* enum panvk_mem_kind (csf-v11 223). */
++   uint8_t mem_kind;
+ };
+ 
+ VkResult panvk_priv_bo_create(struct panvk_device *dev, uint64_t size,
+                               uint32_t flags, VkSystemAllocationScope scope,
+                               struct panvk_priv_bo **out);
+ 
++/* csf-v11 223: same, counted under kind. */
++VkResult panvk_priv_bo_create_kind(struct panvk_device *dev, uint64_t size,
++                                   uint32_t flags,
++                                   VkSystemAllocationScope scope,
++                                   struct panvk_priv_bo **out,
++                                   enum panvk_mem_kind kind);
++
++/* csf-v11 223: a panvk_pool slab, counted by the pool's label. */
++VkResult panvk_priv_bo_create_pool(struct panvk_pool *pool, uint64_t size,
++                                   uint32_t flags,
++                                   VkSystemAllocationScope scope,
++                                   struct panvk_priv_bo **out);
++
++/* csf-v11 223: PANVK_DEBUG=mem / PANVK_MEM_LOG. Writes one summary line at
++ * most every PANVK_MEM_LOG_MS (default 10000) ms; final forces a line. */
++bool panvk_mem_report_enabled(void);
++void panvk_mem_report(struct panvk_device *dev, bool final);
++
+ static inline struct panvk_priv_bo *
+ panvk_priv_bo_ref(struct panvk_priv_bo *bo)
+ {
+diff --git a/src/panfrost/vulkan/panvk_vX_cmd_meta.c b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
+index c0871506..c88e1ea6 100644
+--- a/src/panfrost/vulkan/panvk_vX_cmd_meta.c
++++ b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
+@@ -1928,6 +1928,7 @@ copy_memory_to_image_raw(
+ static void
+ bc_raw_lazy_hit(struct panvk_device *dev, const char *what)
+ {
++   p_atomic_inc(&panvk_mem_stats.bc_lazy_skips);
+    if (!p_atomic_xchg(&dev->bc_raw.needed, 1))
+       mesa_logw("panvk: %s of a BC image without raw blocks skipped; BC "
+                 "images created from now on keep them (PANVK_BC_RAW=store "
+diff --git a/src/panfrost/vulkan/panvk_vX_descriptor_set.c b/src/panfrost/vulkan/panvk_vX_descriptor_set.c
+index 4df10030..254caef2 100644
+--- a/src/panfrost/vulkan/panvk_vX_descriptor_set.c
++++ b/src/panfrost/vulkan/panvk_vX_descriptor_set.c
+@@ -338,9 +338,9 @@ panvk_init_pool_memory(struct panvk_device *device,
+    if (!(pCreateInfo->flags & VK_DESCRIPTOR_POOL_CREATE_HOST_ONLY_BIT_EXT)) {
+       uint32_t bo_flags =
+          panvk_device_adjust_bo_flags(device, PAN_KMOD_BO_FLAG_WB_MMAP);
+-      VkResult result = panvk_priv_bo_create(device, pool_size, bo_flags,
++      VkResult result = panvk_priv_bo_create_kind(device, pool_size, bo_flags,
+                                              VK_SYSTEM_ALLOCATION_SCOPE_OBJECT,
+-                                             &pool->desc_bo);
++                                             &pool->desc_bo, PANVK_MEM_DESC_POOL);
+       if (result != VK_SUCCESS)
+          return result;
+ 
+-- 
+2.55.0
+
