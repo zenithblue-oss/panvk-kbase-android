@@ -402,3 +402,4 @@ With a smaller stride, present cores land in absent-core slots (all slab 0) or i
 - Not 231: it only trims the pools' free lists at vkResetCommandPool and never touches memory that is in use.
 
 - 232 (v10+ CSF): with `PANVK_TLS_SPARSE` (still default 1), emit_tls writes the sparse BO's per-thread size into the command buffer's descriptor when that size is larger, and the per-job TSD copy (now one helper, `panvk_per_arch(cmd_copy_tls_to_tsd)`) also copies word 0 (TLS Size, the only field in that word). Every job then uses the stride the BO was built for. A stack size larger than a shader needs is always valid, and the BO is sized for it. `PANVK_TLS_SPARSE=0` = the 112 layout and the 112 TSD copy. `PANVK_TLS_SHRINK_MS` and 231 are unchanged. v6/v7/v9 are unchanged.
+- FTL RC5-universal-114: shiba (v11) and panther (v10) reached 39/39 with sparse TLS on, tess_perf hashes are equal to 112, and there were no faults.
