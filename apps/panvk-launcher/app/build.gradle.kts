@@ -78,7 +78,7 @@ android {
         minSdk = 28
         // targetSdk 28: W^X (targetSdk>=29) blocks execve of wine/wineserver from app data; linker64 fails ("could not exec the wine loader"). Same as Winlator/GameNative legacy.
         targetSdk = 28
-        versionCode = 37
+        versionCode = 38
         versionName = "1.2.9-rc5"
 
         ndk {
