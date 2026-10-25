@@ -1,0 +1,54 @@
+PID 2241
+Tgid:	2241
+Pid:	2241
+PPid:	30184
+READY
+T 16100.491870043 go
+MESA: info: kbase: CSF driver, uAPI version 1.24, page_size=4096
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 24576000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: info: panvk: gpu_id 0xb8a21020 variant 0x4 arch v11 model Mali-G715 texture_features 0xc3fe001e 0 0 0
+MESA: info: panvk: BC emulation on, lowmem (native compressed mask 0xc3fe001e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+PHYS 0 Mali-G715 MC7 vendor=0x13b5 device=0xb8a21020
+FEATURE synchronization2=1
+QFAM 0 flags=0x7 count=2
+MESA: info: kbase: CSF driver, uAPI version 1.24, page_size=4096
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 24576000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: info: kbase: mem_alloc via ALLOC_EX
+MESA: info: kbase: queue_group_create layout=32 bytes
+MESA: info: kbase: tiler heaps 4 initial / 400 max chunks of 1024 KiB
+MESA: info: kbase: tiler_heap_init layout=16 bytes
+SYNC2 enabled
+T 16100.500184252 host-set
+T 16100.500526822 host-submit
+FENCE host r=0 dt=0.001
+CASE host got=0x085000a1 expect=0x085000a1
+T 16100.501996630 host-set-replay
+T 16100.502138720 host-submit-replay
+FENCE host-replay r=0 dt=0.001
+CASE host-replay got=0x085000a2 expect=0x085000a2
+T 16100.502691169 gpu-write
+T 16100.502959236 gpu-submit-set
+FENCE gpu-set r=0 dt=0.001
+GPU_EVENT_STATUS 3
+T 16100.503505907 gpu-submit-wait
+FENCE gpu r=0 dt=0.001
+CASE gpu got=0x085000b1 expect=0x085000b1
+T 16100.503789721 gpu-write-replay
+T 16100.504107348 gpu-submit-set-replay
+FENCE gpu-set-replay r=0 dt=0.001
+GPU_EVENT_STATUS 3
+T 16100.505042528 gpu-submit-wait-replay
+FENCE gpu-replay r=0 dt=0.001
+CASE gpu-replay got=0x085000b2 expect=0x085000b2
+T 16100.520987597 ring-begin
+FENCE ring r=0 dt=0.122
+FENCE ring-copy r=0 dt=0.000
+CASE ring submit=0 red=64/64 passes=1700
+FENCE ring r=0 dt=0.109
+FENCE ring-copy r=0 dt=0.000
+CASE ring submit=1 red=64/64 passes=1700
+T 16100.753303963 ring-end
+RESULT PASS
