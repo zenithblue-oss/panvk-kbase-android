@@ -1,0 +1,38 @@
+MESA: info: kbase: JM driver, uAPI version 11.16, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up 2000 ms (first JM open in this process)
+MESA: info: kbase: v6 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 (base_jd_atom_v2 without renderpass_id)
+MESA: info: kbase: timestamp calibration: cntfrq_el0 is 0 and the 5 ms measurement failed (TIMEINFO failed, 0 / 0 Hz), retrying with 20 ms
+MESA: warning: kbase: timestamp calibration: cntfrq_el0 is 0 and the GPU counter rate is unknown (TIMEINFO failed: Not a typewriter, 0 / 0 Hz): timestamps not advertised
+MESA: info: kbase: no usable ION system heap
+MESA: info: panvk: gpu_id 0x62210010 variant 0 arch v6 model Mali-G72 texture_features 0xfffe007e 0xff0fff 0xfe3fffff 0
+MESA: warning: panvk: v6 (Bifrost) support is experimental
+MESA: info: panvk: BC emulation on (native compressed mask 0xfffe007e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+ICD device=Mali-G72 MC18 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+INFO occlusionQueryPrecise=1 hostQueryReset=1
+MESA: info: kbase: JM driver, uAPI version 11.16, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up skipped (done once in this process; PANVK_KBASE_JM_WARMUP=2 = every open)
+MESA: info: kbase: v6 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 (base_jd_atom_v2 without renderpass_id)
+MESA: info: kbase: timestamp calibration: cntfrq_el0 is 0 and the 5 ms measurement failed (TIMEINFO failed, 0 / 0 Hz), retrying with 20 ms
+MESA: warning: kbase: timestamp calibration: cntfrq_el0 is 0 and the GPU counter rate is unknown (TIMEINFO failed: Not a typewriter, 0 / 0 Hz): timestamps not advertised
+MESA: info: kbase: no usable ION system heap
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 70313 pages committed
+PASS case precise_quad got=1024 exp=1024
+PASS case precise_quad_pixels
+PASS case precise_two_draws got=2048 exp=2048
+PASS case precise_empty got=0 exp=0
+PASS case precise_partial got=1024 exp=1024
+PASS case nonprecise draw=1 empty=0
+PASS case copy_results val=1024 avail=1
+PASS case cmd_reset_reuse got=4096 exp=4096
+PASS case host_reset got=1024 exp=1024
+RESULT PASS
