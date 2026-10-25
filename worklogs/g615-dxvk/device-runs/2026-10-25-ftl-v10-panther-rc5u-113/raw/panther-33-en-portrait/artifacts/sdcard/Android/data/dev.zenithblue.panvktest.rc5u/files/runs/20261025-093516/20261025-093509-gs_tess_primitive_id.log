@@ -1,0 +1,91 @@
+PID 24603
+Tgid:	24603
+Pid:	24603
+PPid:	20993
+READY
+T 1189.016518523 go
+MESA: info: kbase: CSF driver, uAPI version 1.14, page_size=4096
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 24576000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: info: panvk: gpu_id 0xa8620004 variant 0 arch v10 model Mali-G710 texture_features 0xc1fe001e 0 0 0
+MESA: info: panvk: BC emulation on, lowmem (native compressed mask 0xc1fe001e)
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+PHYS 0 Mali-G710 MC7 vendor=0x13b5 device=0xa8620004
+FEATURE tess=1 geom=1 vpsa=1 sync2=1
+QFAM 0 flags=0x7 count=2
+MEM 0 flags=0x1
+MEM 1 flags=0x7
+MEM 2 flags=0xb
+MESA: info: kbase: CSF driver, uAPI version 1.14, page_size=4096
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 24576000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: info: kbase: mem_alloc via ALLOC_EX
+MESA: info: kbase: queue_group_create layout=32 bytes
+MESA: info: kbase: tiler heaps 4 initial / 400 max chunks of 1024 KiB
+MESA: info: kbase: tiler_heap_init layout=16 bytes
+FEATURES enabled tess geom vpsa sync2
+ALLOC buf host=0 local=1 type=0 bits=0x7 flags=0x1
+ALLOC buf host=1 local=0 type=1 bits=0x7 flags=0x7
+ALLOC buf host=1 local=0 type=1 bits=0x7 flags=0x7
+ALLOC buf host=1 local=0 type=1 bits=0x7 flags=0x7
+ALLOC buf host=1 local=0 type=1 bits=0x7 flags=0x7
+ALLOC img type=1 bits=0x7 flags=0x7
+MESA: info: panvk: gpu_prerast tessellation arena committed (96 MiB)
+MESA: info: panvk: gpu_prerast draw arena committed (64 MiB)
+MESA: info: panvk: device TLS 4096 B/thread x 2048 threads x 25 core IDs (7 cores, mask 0x1110055) = 200 MiB of VA, 56 MiB backed
+FENCE zero r=0 dt=0.000
+T 1189.122177825 direct
+FENCE direct r=0 dt=0.001
+FENCE copy r=0 dt=0.002
+RAW n=24 id0=0 id1=1 id2=0 id3=1
+CASE direct n=24 expect=24
+HIST direct 12 12
+CASE direct PASS
+FENCE zero r=0 dt=0.000
+T 1189.123983815 direct-replay
+FENCE direct-replay r=0 dt=0.001
+FENCE copy r=0 dt=0.001
+RAW n=24 id0=1 id1=1 id2=1 id3=1
+CASE direct-replay n=24 expect=24
+HIST direct-replay 12 12
+CASE direct-replay PASS
+FENCE zero r=0 dt=0.000
+T 1189.125586313 indirect
+FENCE indirect r=0 dt=0.001
+FENCE copy r=0 dt=0.001
+RAW n=24 id0=1 id1=1 id2=0 id3=1
+CASE indirect n=24 expect=24
+HIST indirect 12 12
+CASE indirect PASS
+FENCE zero r=0 dt=0.000
+T 1189.127270802 indirect-replay
+FENCE indirect-replay r=0 dt=0.001
+FENCE copy r=0 dt=0.001
+RAW n=24 id0=1 id1=1 id2=1 id3=0
+CASE indirect-replay n=24 expect=24
+HIST indirect-replay 12 12
+CASE indirect-replay PASS
+FENCE zero r=0 dt=0.000
+T 1189.128640187 chunk
+FENCE chunk r=0 dt=0.003
+FENCE copy r=0 dt=0.003
+RAW n=3600 id0=143 id1=0 id2=0 id3=446
+CASE chunk n=3600 expect=3600
+HIST chunk 1320 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 2 1 1 1 1 0 1 1 1 1 1 1 2 1 1 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 6 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 6 6 6 6 6 6 6 6 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 10 10 10 10 10 10 10 10 10 10 10 10 0 1 2 1 2 3 2 2 2 2 1 2 1 2 2 0 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5 6 6 5 1 1 1 1 0 0 0 0 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 10 10 10 10 0 0 0 0 0 0 0 0 0 0 0 0 4 4 3 4 3 3 3 3 3 3 4 3 3 3 3 4 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 0 0 0 0 0 0 0 0 6 6 6 6 6 6 6 6 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 1 0 0 1 5 5 5 5 5 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6
+FAIL chunk ids bad=307 first=143 0 0 446
+FENCE zero r=0 dt=0.000
+T 1189.133077443 chunk-replay
+FENCE chunk-replay r=0 dt=0.003
+FENCE copy r=0 dt=0.003
+RAW n=3600 id0=116 id1=117 id2=114 id3=118
+CASE chunk-replay n=3600 expect=3600
+HIST chunk-replay 813 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 1 1 0 1 10 10 10 10 11 11 11 11 11 11 11 11 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 6 6 6 6 6 6 6 6 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 1 1 1 6 6 6 6 6 6 6 8 4 6 6 6 8 8 8 8 6 6 6 6 2 2 2 2 0 0 0 0 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 0 0 0 0 1 1 1 1 0 0 0 0 0 0 0 0 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 2 2 2 2 7 7 7 7 7 7 7 7 7 7 7 7 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 0 0 0 0 0 3 3 3 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 2 2 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 11 11 11 11 8 8 8 8 13 13 13 13 8 8 8 8 12 12 12 12 12 12 12 12 6 6 6 6 6 6 6 6 16 16 16 16 0 0 0 0 0 0 0 0 0 0 0 0 4 4 4 4 1 0 0 1 4 4 4 4 4 4 4 4 11 11 11 11 8 8 8 8 11 11 11 11 6 6 6 6 0 0 0 0 0 0 0 0 6 6 6 6 6 6 6 6 12 12 12 12 17 17 17 17 12 12 12 12 17 17 17 17 1 2 2 2 0 0 0 0 0 0 0 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6
+FAIL chunk-replay ids bad=322 first=116 117 114 118
+FENCE zero r=0 dt=0.000
+T 1189.138025766 indirect-chunk
+FENCE indirect-chunk r=0 dt=0.003
+FENCE copy r=0 dt=0.003
+RAW n=3600 id0=287 id1=432 id2=435 id3=287
+CASE indirect-chunk n=3600 expect=3600
+HIST indirect-chunk 577 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 0 0 0 0 2 2 2 2 3 3 2 3 2 2 2 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 2 2 2 6 6 6 6 0 0 0 0 0 0 0 0 3 3 3 3 3 4 3 3 4 3 3 3 7 7 7 7 2 2 2 12 7 7 7 7 7 7 7 7 12 12 12 12 1 1 1 1 6 6 6 6 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 2 1 2 10 10 10 10 1 1 2 1 10 10 10 10 3 3 3 3 6 6 6 6 7 7 7 7 6 6 6 6 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 10 10 10 10 3 4 4 4 2 2 2 1 0 2 2 2 2 1 2 2 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 6 6 6 6 0 0 0 0 6 6 6 6 0 0 0 0 17 17 17 17 7 7 7 7 18 18 18 18 7 7 7 7 16 16 16 16 22 22 22 22 14 14 14 14 16 16 16 16 10 10 11 10 1 1 1 1 4 4 4 4 1 1 1 1 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 11 11 11 11 7 7 7 7 11 11 11 6 6 6 6 6 10 10 10 10 10 10 10 10 16 16 16 16 6 6 6 6 8 7 7 7 11 11 11 12 5 3 3 3 8 8 8 8 6 7 7 7 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6
+FAIL indirect-chunk ids bad=323 first=287 432 435 287
+RESULT FAIL
