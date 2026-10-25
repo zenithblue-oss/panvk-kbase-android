@@ -1,20 +1,20 @@
 {
-  "id": "panvk-kbase-0.1.0-rc5-universal-113",
-  "name": "PanVK Kbase — RC5-universal-113",
-  "packageVersion": "0.1.0-rc5-universal-113",
-  "displayVersion": "RC5-universal-113 (Mesa 5a07217f, csf-v11 018-231 + jm-v9 + jm-v7 + jm-v7-wip 0006-0092; v6/v7/v9/v10/v11 in one .so)",
+  "id": "panvk-kbase-0.1.0-rc5-universal-114",
+  "name": "PanVK Kbase — RC5-universal-114",
+  "packageVersion": "0.1.0-rc5-universal-114",
+  "displayVersion": "RC5-universal-114 (Mesa 5a07217f, csf-v11 018-232 + jm-v9 + jm-v7 + jm-v7-wip 0006-0092; v6/v7/v9/v10/v11 in one .so)",
   "driverVersion": "Mesa 26.3.0-devel",
   "author": "abhay-byte",
-  "description": "Experimental PanVK driver for Mali GPUs on mali_kbase: Bifrost JM v6/v7, Valhall JM v9 and CSF v10-v14 in one .so. RC5-universal-113 backs the CSF device TLS only for the shader cores that exist (sparse core masks) and shrinks it after idle, and stops the command pool auto-trim from freeing and re-creating BOs every reset, on top of the RC5-universal-112 memory work. Bundled in this APK.",
+  "description": "Experimental PanVK driver for Mali GPUs on mali_kbase: Bifrost JM v6/v7, Valhall JM v9 and CSF v10-v14 in one .so. RC5-universal-114 fixes the RC5-universal-113 sparse device TLS on CSF (every job now uses the stack stride the TLS was built for, so threads no longer share stacks), keeping the 113 memory savings. Bundled in this APK.",
   "profile": "g615-v11-csf",
   "sourceCommit": "5a07217f034b3e50d8c7c7794f97a2df1742613b",
-  "buildId": "6b925d3100",
+  "buildId": "d324a2699e",
   "release": {
     "repo": "zenithblue-oss/panvk-kbase-android",
-    "tag": "panvk-kbase-v0.1.0-rc5-universal-113",
+    "tag": "panvk-kbase-v0.1.0-rc5-universal-114",
     "asset": "libvulkan_panfrost-android-aarch64.so",
     "published": false,
-    "sha256": "48a548e4750e926aead10e8bd498cec380d8d0a129a4285ff750f7464cc57a32",
-    "size": 30685184
+    "sha256": "57018130249ed9002b93b71c58cb35845326b4b0b737d86cffb37a70c5c34997",
+    "size": 30670384
   }
 }
