@@ -2,7 +2,7 @@
   "#": "PanProbe driver env A/B (Firebase game-loop scenario 3, EnvPasses.kt). Doc: worklogs/g615-dxvk/panplay-firebase-cubes.md. One Run all per pass, in order, rc5 driver. env: PANVK_* / MESA_* / PAN_* keys only, into every test process. Optional per pass: \"tests\": \"name1,name2\" (default all). Scenarios 1 and 2 never read this file.",
   "passes": [
     { "name": "defaults", "env": {} },
-    { "name": "114-knobs", "#env": "every default-on 115 perf knob of staging-115 pa (8), pb (8) and pc (5) at its 114 value (NOTES.md of each package; same set as PanPlay gameloop.json 'old'). Opt-in knobs (PANVK_KBASE_COHERENT_POOLS, PANVK_KBASE_EVICTABLE, PANVK_KBASE_HEAP_SLOTS) stay unset. PANVK_ZS_PRELOAD_ALWAYS is left out: on v11 its 114 value is the unset default (csf-v11 061); add PANVK_ZS_PRELOAD_ALWAYS=1 on v9/v10. A subset bisects (override file /data/local/tmp/panprobe-env-ab.json).", "env": {
+    { "name": "114-knobs", "#env": "every default-on 115 perf knob of staging-115 pa (8), pb (8), pc (5) and pd (5; JM only, ignored on CSF) at its 114 value (NOTES.md of each package; the pa-pc 21 are the PanPlay gameloop.json 'old' set). pd 0007 (JM TLS/WLS no-clear) is restored by PANVK_KBASE_ZERO_ALL=1 (pb). Opt-in knobs (PANVK_KBASE_COHERENT_POOLS, PANVK_KBASE_EVICTABLE, PANVK_KBASE_HEAP_SLOTS) stay unset. PANVK_ZS_PRELOAD_ALWAYS is left out: on v11 its 114 value is the unset default (csf-v11 061); add PANVK_ZS_PRELOAD_ALWAYS=1 on v9/v10. A subset bisects (override file /data/local/tmp/panprobe-env-ab.json).", "env": {
         "PANVK_CSF_FS_IDLE_CLEAN": "0",
         "PANVK_DB_ALT": "0",
         "PANVK_CSF_INDIRECT_REEMIT": "0",
@@ -23,7 +23,12 @@
         "PANVK_WSI_SW_DEFER_REPLY": "0",
         "PANVK_ANDROID_PRESENT_FENCE": "0",
         "PANVK_ANDROID_PRESENT_THREAD": "0",
-        "PANVK_PRELOAD_BARRIER_TRACK": "0"
+        "PANVK_PRELOAD_BARRIER_TRACK": "0",
+        "PANVK_V7_FS_COPY_ONCE": "0",
+        "PANVK_JM_RESET_FLUSH": "batch",
+        "PANVK_V7_TESS_BATCH_DRAWS": "0",
+        "PANVK_V9_PRERAST_ARENA_LAZY": "0",
+        "PANVK_KBASE_JM_WARMUP": "1"
       } }
   ]
 }
