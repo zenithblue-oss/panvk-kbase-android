@@ -1,0 +1,101 @@
+From de6b5b2d2324633114c9e5b28e17ad44ef90cedf Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 19:10:56 +0000
+Subject: [PATCH 4/4] wsi/x11: no RandR on a server without RANDR, no present
+ timing on the CPU copy path
+
+vkd3d-proton creates its swapchain with VK_SWAPCHAIN_CREATE_PRESENT_TIMING_BIT_EXT
+when the surface reports present timing. wsi_CreateSwapchainKHR then polls the
+early refresh rate (x11_poll_early_refresh), which sends RandR requests. The
+PanPlay X server (Winlator's Java X server) has no RANDR: libxcb shuts the
+connection down on a request to a missing extension (XCB_CONN_CLOSED_EXT_NOTSUPPORTED),
+the reply is NULL, and loader_update_screen_resources read reply->num_crtcs:
+SIGSEGV in xcb_randr_get_screen_resources_current_crtcs_end+0x10 (fault address
+0x10), seen by Wine as "vkCreateSwapchainKHR Exception 0xc0000005 in Unix call".
+Every D3D12 test in PanPlay exited with code 3. 114 has the same code (present
+timing on X11 and EXT_present_timing were already exposed there).
+
+- The connection records whether the server has RANDR. Without it a swapchain
+  gets no screen resources, so the refresh estimate is 0 and no RandR request
+  is sent (this also covers VK_GOOGLE_display_timing).
+- loader_update_screen_resources keeps its old state when the screen resources
+  reply is NULL (RandR older than 1.3, or a failed connection).
+- The CPU copy present (x11_present_to_x11_sw: sw device without MIT-SHM
+  pixmaps) never reports a present stage, so its surfaces report no present
+  timing. vkd3d-proton then keeps present id2/wait2 without timing, instead of
+  filling the timing queue with requests that never complete.
+
+Bug fixes, no knob.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/loader/loader_dri_helper.c  |  6 ++++++
+ src/vulkan/wsi/wsi_common_x11.c | 14 +++++++++++++-
+ 2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/loader/loader_dri_helper.c b/src/loader/loader_dri_helper.c
+index 5d6a3ddd..41733537 100644
+--- a/src/loader/loader_dri_helper.c
++++ b/src/loader/loader_dri_helper.c
+@@ -223,6 +223,12 @@ loader_update_screen_resources(struct loader_screen_resources *res)
+    xcb_randr_get_screen_resources_current_reply_t *reply =
+       xcb_randr_get_screen_resources_current_reply(res->conn, cookie, NULL);
+ 
++   /* No RandR 1.3 on the server, or the connection failed: keep what we had. */
++   if (!reply) {
++      mtx_unlock(&res->mtx);
++      return false;
++   }
++
+    xcb_randr_crtc_t *new_crtcs =
+       xcb_randr_get_screen_resources_current_crtcs(reply);
+ 
+diff --git a/src/vulkan/wsi/wsi_common_x11.c b/src/vulkan/wsi/wsi_common_x11.c
+index 275f8732..0aa9249f 100644
+--- a/src/vulkan/wsi/wsi_common_x11.c
++++ b/src/vulkan/wsi/wsi_common_x11.c
+@@ -100,6 +100,7 @@ struct wsi_x11_connection {
+    bool is_xwayland;
+    bool has_mit_shm;
+    bool has_xfixes;
++   bool has_randr;
+ 
+    struct list_head screen_resources_list;
+ };
+@@ -356,6 +357,7 @@ wsi_x11_connection_create(struct wsi_device *wsi_dev,
+ 
+    wsi_conn->is_xwayland = wsi_x11_detect_xwayland(conn, randr_reply,
+                                                    xwl_reply);
++   wsi_conn->has_randr = randr_reply && randr_reply->present;
+ 
+    wsi_conn->has_dri3_modifiers = has_dri3_v1_2 && has_present_v1_2;
+    wsi_conn->has_dri3_explicit_sync = has_dri3_v1_4 && has_present_v1_4;
+@@ -473,6 +475,13 @@ static struct wsi_x11_screen_resources *
+ wsi_x11_connection_find_screen_resources(struct wsi_device *wsi_dev, xcb_connection_t *conn, xcb_window_t window)
+ {
+    struct wsi_x11_connection *wsi_conn = wsi_x11_get_connection(wsi_dev, conn);
++
++   /* The refresh estimate uses RandR. libxcb shuts the connection down on a
++    * request to an extension the server lacks (EXT_NOTSUPPORTED), so a
++    * server without RANDR gets no screen resources and no estimate. */
++   if (!wsi_conn || !wsi_conn->has_randr)
++      return NULL;
++
+    xcb_get_geometry_cookie_t geometry_cookie = xcb_get_geometry_unchecked(conn, window);
+    xcb_get_geometry_reply_t *geometry_reply = xcb_get_geometry_reply(conn, geometry_cookie, NULL);
+ 
+@@ -932,7 +941,10 @@ x11_surface_get_capabilities2(VkIcdSurfaceBase *icd_surface,
+          xcb_connection_t *conn = x11_surface_get_connection(icd_surface);
+          struct wsi_x11_connection *wsi_conn = wsi_x11_get_connection(wsi_device, conn);
+ 
+-         if (!wsi_device->has_host_query_reset && !wsi_conn->is_xwayland) {
++         /* The CPU copy present (x11_present_to_x11_sw) never reports a
++          * present stage, so timing requests would never complete. */
++         if ((!wsi_device->has_host_query_reset && !wsi_conn->is_xwayland) ||
++             (wsi_device->sw && !wsi_conn->has_mit_shm)) {
+             /* X11 can sometimes COMPLETE before the GPU is even done.
+              * In this case, we need to observe a reset timestamp when polling,
+              * which requires host query resets. On Xwayland, this cannot happen,
+-- 
+2.55.0
+

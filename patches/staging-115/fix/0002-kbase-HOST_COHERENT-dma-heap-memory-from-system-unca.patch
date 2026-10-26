@@ -1,0 +1,157 @@
+From 7cd2e7d848a6242665a46280a9a8067fa55ad14d Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 17:59:47 +0000
+Subject: [PATCH 2/4] kbase: HOST_COHERENT dma-heap memory from system-uncached
+ on a non-coherent GPU
+
+On a GPU without IO coherency (kbase coherency mode 31, Pixel 8 Mali-G715)
+the GPU does not snoop the CPU caches and kbase drops
+BASE_MEM_COHERENT_SYSTEM from dma-buf imports. Shareable host-visible BOs
+come from /dev/dma_heap/system, whose CPU mapping is cached, so CPU writes
+to HOST_COHERENT memory can sit in the CPU cache while the GPU reads
+memory. On CSF that hit 32-bit WoW64 games, whose host-visible memory is
+placed-mapped dma-heap memory (091, winevulkan "Using placed map"): the
+DXVK HUD text of the i686 D3D9 cube was garbled or missing on Pixel 8
+(the dma-heap path is unchanged since 114; the G615's imports keep
+COHERENT_SYSTEM, so the X6 Pro never showed it).
+
+- On CSF with coherency mode 31, BOs without WB_MMAP now come from
+  /dev/dma_heap/system-uncached (write-combined CPU mapping, like kbase's
+  own HOST_COHERENT mappings). HOST_CACHED (WB_MMAP) BOs keep the system
+  heap and the explicit flush/invalidate. PANVK_KBASE_UNCACHED_HEAP=0
+  restores 115 (the cached system heap for all).
+- Without that heap, CPU-mapped non-coherent imports are cleaned
+  (DMA_BUF_IOCTL_SYNC) before each submit, as on v9 JM: the
+  PANVK_KBASE_IMPORT_SYNC default is on there (=0 disables). On a coherent
+  GPU nothing changes.
+
+Pixel 8 (FTL, i686 D3D9 cube): HUD text clean with the uncached heap
+(119.5 fps, default 120.0) and with the clean (119.8 fps); garbled with
+the cached heap.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/lib/kmod/kbase_kmod.c           | 52 ++++++++++++++++++--
+ src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c |  5 ++
+ 2 files changed, 53 insertions(+), 4 deletions(-)
+
+diff --git a/src/panfrost/lib/kmod/kbase_kmod.c b/src/panfrost/lib/kmod/kbase_kmod.c
+index 3641a2ad..b11997f6 100644
+--- a/src/panfrost/lib/kmod/kbase_kmod.c
++++ b/src/panfrost/lib/kmod/kbase_kmod.c
+@@ -183,6 +183,12 @@ struct kbase_kmod_dev {
+ 
+    /* Android dma-heap used for BOs which need to be shared with WSI. */
+    int dma_heap_fd;
++   /* system-uncached heap for the BOs without WB_MMAP on a GPU without IO
++    * coherency (PANVK_KBASE_UNCACHED_HEAP), or -1. */
++   int dma_heap_uncached_fd;
++   /* CSF, no IO coherency and no uncached heap: PANVK_KBASE_IMPORT_SYNC
++    * default (clean CPU-mapped imports before each submit). */
++   bool csf_import_sync;
+ 
+    /* Kernels without dma-heap (4.14/5.4 ION) use /dev/ion through the same
+     * fd field; ion_heap_mask is the system heap id mask. */
+@@ -2148,6 +2154,7 @@ kbase_kmod_dev_create(int fd, uint32_t flags,
+    kbase_dev->tracking_page = tracking_page;
+    kbase_dev->next_handle = 1;
+    kbase_dev->dma_heap_fd = -1;
++   kbase_dev->dma_heap_uncached_fd = -1;
+    kbase_dev->kcpu.fence_fd = -1;
+    simple_mtx_init(&kbase_dev->kcpu.lock, mtx_plain);
+    simple_mtx_init(&kbase_dev->kcpu_export.lock, mtx_plain);
+@@ -2229,6 +2236,32 @@ kbase_kmod_dev_create(int fd, uint32_t flags,
+       }
+    }
+ 
++   /* A GPU without IO coherency (mode 31) does not snoop the CPU caches, and
++    * kbase drops BASE_MEM_COHERENT_SYSTEM from dma-buf imports, so CPU writes
++    * through the system heap's cached mapping can sit in the CPU cache while
++    * the GPU reads memory. On CSF that hit HOST_COHERENT memory of 32-bit
++    * WoW64 games (placed maps, 091): garbled DXVK HUD text on Pixel 8. BOs
++    * without WB_MMAP come from the write-combined system-uncached heap then,
++    * like kbase's own HOST_COHERENT mappings. Without that heap, CPU-mapped
++    * imports are cleaned before each submit (PANVK_KBASE_IMPORT_SYNC).
++    * PANVK_KBASE_UNCACHED_HEAP=0 = 115 (the cached system heap for all). */
++   if (is_csf && !kbase_dev->heap_is_ion && kbase_dev->dma_heap_fd >= 0 &&
++       kbase_dev->coherency_mode == DRM_PANTHOR_GPU_COHERENCY_NONE &&
++       debug_get_bool_option("PANVK_KBASE_UNCACHED_HEAP", true)) {
++      kbase_dev->dma_heap_uncached_fd =
++         open("/dev/dma_heap/system-uncached", O_RDONLY | O_CLOEXEC);
++      if (kbase_dev->dma_heap_uncached_fd >= 0) {
++         mesa_logi("kbase: GPU not IO-coherent: HOST_COHERENT dma-heap BOs "
++                   "from /dev/dma_heap/system-uncached "
++                   "(PANVK_KBASE_UNCACHED_HEAP=0 = 115)");
++      } else {
++         kbase_dev->csf_import_sync = true;
++         mesa_logi("kbase: GPU not IO-coherent, /dev/dma_heap/system-uncached "
++                   "unavailable (%s): imports cleaned before each submit",
++                   strerror(errno));
++      }
++   }
++
+    if (!kbase_dev->base.props.gpu_id) {
+       mesa_loge("kbase: failed to determine GPU ID from properties");
+       if (kbase_dev->dma_heap_fd >= 0)
+@@ -2320,6 +2353,8 @@ kbase_kmod_dev_destroy(struct pan_kmod_dev *dev)
+ 
+    if (kbase_dev->dma_heap_fd >= 0)
+       close(kbase_dev->dma_heap_fd);
++   if (kbase_dev->dma_heap_uncached_fd >= 0)
++      close(kbase_dev->dma_heap_uncached_fd);
+ 
+    pan_kmod_dev_cleanup(dev);
+    pan_kmod_free(dev->allocator, kbase_dev);
+@@ -2630,12 +2665,17 @@ kbase_kmod_import_dmabuf(struct pan_kmod_dev *dev,
+     * PANVK_KBASE_IMPORT_SYNC=1. The clean is a full DMA_BUF_IOCTL_SYNC of
+     * every listed BO on every submit, O(BO size), and DXVK host-visible
+     * chunks are 32-256 MiB; the A06 (v7) passes without it. Enable it when
+-    * a v6/v7 device shows the black-dash symptom, then measure. */
++    * a v6/v7 device shows the black-dash symptom, then measure.
++    *
++    * CSF (v10+): on by default only for a GPU without IO coherency whose
++    * kernel has no system-uncached heap (the submit cleans the list too). */
+    const unsigned bo_arch = pan_arch(dev->props.gpu_id);
+-   if (!kbase_dev->is_csf && bo_arch <= 9 &&
++   if ((kbase_dev->is_csf || bo_arch <= 9) &&
+        !kbase_bo->cpu_gpu_coherent && kbase_bo->cpu_ptr &&
+        !(kmod_flags & PAN_KMOD_BO_FLAG_WB_MMAP) &&
+-       debug_get_bool_option("PANVK_KBASE_IMPORT_SYNC", bo_arch == 9)) {
++       debug_get_bool_option("PANVK_KBASE_IMPORT_SYNC",
++                             kbase_dev->is_csf ? kbase_dev->csf_import_sync
++                                               : bo_arch == 9)) {
+       mesa_logw_once("kbase: dma-buf imports are not CPU-coherent; cleaning "
+                      "them before each submit (PANVK_KBASE_IMPORT_SYNC=0 "
+                      "disables)");
+@@ -2688,7 +2728,11 @@ kbase_kmod_bo_alloc_dmabuf(struct pan_kmod_dev *dev, uint64_t size,
+          return NULL;
+       }
+       alloc.fd = ia.fd;
+-   } else if (ioctl(kbase_dev->dma_heap_fd, DMA_HEAP_IOCTL_ALLOC, &alloc)) {
++   } else if (ioctl(kbase_dev->dma_heap_uncached_fd >= 0 &&
++                       !(kmod_flags & PAN_KMOD_BO_FLAG_WB_MMAP)
++                    ? kbase_dev->dma_heap_uncached_fd
++                    : kbase_dev->dma_heap_fd,
++                    DMA_HEAP_IOCTL_ALLOC, &alloc)) {
+       mesa_loge("kbase: DMA_HEAP_IOCTL_ALLOC failed: %s", strerror(errno));
+       return NULL;
+    }
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+index 0e73b805..98839929 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+@@ -3467,6 +3467,11 @@ panvk_per_arch(gpu_queue_submit)(struct vk_queue *vk_queue, struct vk_queue_subm
+ 
+ #ifdef HAVE_PAN_KMOD_KBASE
+    if (gpu_queue_uses_kbase(submit.dev)) {
++      /* Non-coherent CPU-mapped imports (PANVK_KBASE_IMPORT_SYNC=1): the
++       * list is empty otherwise, then this is only a lock. */
++      if (vk_submit->command_buffer_count)
++         kbase_kmod_jm_clean_imports(submit.dev->kmod.dev);
++
+       result = panvk_queue_submit_ioctl_kbase(&submit, vk_submit);
+       if (result != VK_SUCCESS)
+          goto out;
+-- 
+2.55.0
+

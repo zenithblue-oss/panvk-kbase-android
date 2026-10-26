@@ -1,0 +1,328 @@
+From d7013dbd39e9f147286b4ebd61cb5336c22b1cfd Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 17:59:30 +0000
+Subject: [PATCH 1/4] wsi/x11, kbase: opt-in present stage timing and CSF wait
+ stats
+
+Diagnostics for the PanPlay cube fps cap (Pixel 8, v11), off by default:
+
+- MESA_VK_X11_SW_TIMING=1: the X11 software present path logs once a
+  second per swapchain the mean/max time of each stage: queue (present
+  call to the present thread), fence (blit fence wait), pace (FIFO sleep),
+  slot (wait for the segment or a reply slot), copy (memcpy into the
+  MIT-SHM segment), put (GetGeometry + flush), reply (put flushed to
+  GetGeometry reply) and acquire (vkAcquireNextImageKHR wait).
+- PANVK_KBASE_WAIT_STATS=1: once a second, the CSF notification waits of
+  that second: count, waits that slept a whole 20 ms slice without a
+  notification, mean and longest wait, and whether KCPU fence waits are
+  on.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/lib/kmod/kbase_kmod.c |  59 +++++++++++++++++
+ src/vulkan/wsi/wsi_common_x11.c    | 103 +++++++++++++++++++++++++++++
+ 2 files changed, 162 insertions(+)
+
+diff --git a/src/panfrost/lib/kmod/kbase_kmod.c b/src/panfrost/lib/kmod/kbase_kmod.c
+index d6d726d7..3641a2ad 100644
+--- a/src/panfrost/lib/kmod/kbase_kmod.c
++++ b/src/panfrost/lib/kmod/kbase_kmod.c
+@@ -1231,8 +1231,67 @@ kbase_kmod_csf_queue_kick(struct pan_kmod_dev *dev, uint64_t ringbuf_va)
+    return 0;
+ }
+ 
++/* PANVK_KBASE_WAIT_STATS=1 (diagnostics, off by default): once a second, one
++ * line over the CSF notification waits of that second: how many, how many
++ * slept a whole 20 ms slice without a notification (a late or missed
++ * wakeup), their mean and longest time, and whether KCPU fence waits are on. */
++static int kbase_kmod_csf_wait_event_raw(struct pan_kmod_dev *dev,
++                                         int64_t timeout_ns);
++
++static struct {
++   simple_mtx_t lock;
++   int on; /* -1 = not read yet */
++   uint64_t start_ns, n, full_slices, sum_ns, max_ns;
++} kbase_wait_stats = { .lock = SIMPLE_MTX_INITIALIZER, .on = -1 };
++
++static void
++kbase_wait_stats_add(struct pan_kmod_dev *dev, uint64_t t0, int64_t timeout_ns,
++                     bool timed_out)
++{
++   struct kbase_kmod_dev *kd = container_of(dev, struct kbase_kmod_dev, base);
++   const uint64_t now = os_time_get_nano(), d = now - t0;
++
++   simple_mtx_lock(&kbase_wait_stats.lock);
++   if (!kbase_wait_stats.start_ns)
++      kbase_wait_stats.start_ns = t0;
++   kbase_wait_stats.n++;
++   kbase_wait_stats.sum_ns += d;
++   kbase_wait_stats.max_ns = MAX2(kbase_wait_stats.max_ns, d);
++   if (timed_out && timeout_ns >= 19000000)
++      kbase_wait_stats.full_slices++;
++   if (now - kbase_wait_stats.start_ns >= 1000000000ull) {
++      mesa_logi("kbase: wait-stats waits=%" PRIu64 " full_20ms_slices=%" PRIu64
++                " avg_ms=%.2f max_ms=%.2f kcpu=%d",
++                kbase_wait_stats.n, kbase_wait_stats.full_slices,
++                (double)kbase_wait_stats.sum_ns / 1e6 / kbase_wait_stats.n,
++                (double)kbase_wait_stats.max_ns / 1e6, kd->kcpu.valid);
++      kbase_wait_stats.start_ns = now;
++      kbase_wait_stats.n = kbase_wait_stats.full_slices = 0;
++      kbase_wait_stats.sum_ns = kbase_wait_stats.max_ns = 0;
++   }
++   simple_mtx_unlock(&kbase_wait_stats.lock);
++}
++
+ int
+ kbase_kmod_csf_wait_event(struct pan_kmod_dev *dev, int64_t timeout_ns)
++{
++   if (unlikely(kbase_wait_stats.on))  {
++      if (kbase_wait_stats.on < 0)
++         kbase_wait_stats.on =
++            debug_get_bool_option("PANVK_KBASE_WAIT_STATS", false);
++      if (kbase_wait_stats.on) {
++         const uint64_t t0 = os_time_get_nano();
++         int ret = kbase_kmod_csf_wait_event_raw(dev, timeout_ns);
++         kbase_wait_stats_add(dev, t0, timeout_ns, ret == 0 &&
++                              os_time_get_nano() - t0 >= (uint64_t)timeout_ns);
++         return ret;
++      }
++   }
++   return kbase_kmod_csf_wait_event_raw(dev, timeout_ns);
++}
++
++static int
++kbase_kmod_csf_wait_event_raw(struct pan_kmod_dev *dev, int64_t timeout_ns)
+ {
+    /* Block until the kernel has a CSF notification pending, then consume one
+     * notification with read().  This is what drives kernel-side
+diff --git a/src/vulkan/wsi/wsi_common_x11.c b/src/vulkan/wsi/wsi_common_x11.c
+index 00669083..275f8732 100644
+--- a/src/vulkan/wsi/wsi_common_x11.c
++++ b/src/vulkan/wsi/wsi_common_x11.c
+@@ -51,6 +51,8 @@
+ #include "util/os_file.h"
+ #include "util/os_time.h"
+ #include "util/u_debug.h"
++#include "util/u_atomic.h"
++#include "util/log.h"
+ #include "util/u_thread.h"
+ #include "util/xmlconfig.h"
+ #include "util/timespec.h"
+@@ -1260,6 +1262,9 @@ struct x11_image {
+    unsigned int                              sw_reply_sequence;
+    uint64_t                                  sw_reply_serial;
+    uint64_t                                  sw_reply_present_id;
++   /* MESA_VK_X11_SW_TIMING: when the app queued it, when its put went out */
++   uint64_t                                  sw_t_queued_ns;
++   uint64_t                                  sw_t_put_ns;
+    uint64_t                                  present_id;
+    VkPresentModeKHR                          present_mode;
+    xcb_rectangle_t                           rects[MAX_DAMAGE_RECTS];
+@@ -1306,6 +1311,11 @@ struct x11_swapchain {
+    bool                                         sw_defer_reply;
+    uint64_t                                     sw_reply_serial;
+    uint32_t                                     sw_replies_pending;
++   /* MESA_VK_X11_SW_TIMING=1 (diagnostics): per-stage time, see
++    * x11_sw_t_frame(). */
++   bool                                         sw_timing;
++   uint64_t                                     sw_t_start_ns, sw_t_frames;
++   uint64_t                                     sw_t_n[8], sw_t_sum[8], sw_t_max[8];
+ 
+    xcb_connection_t *                           conn;
+    xcb_window_t                                 window;
+@@ -1930,6 +1940,61 @@ x11_sw_complete_present_id(struct x11_swapchain *chain, uint64_t present_id)
+    mtx_unlock(&chain->present_progress_mutex);
+ }
+ 
++/* MESA_VK_X11_SW_TIMING=1: sw present stages, in ms (mean/max per event),
++ * logged once a second by the present thread:
++ *   queue   vkQueuePresentKHR -> the present thread takes the image
++ *   fence   present thread waits for the image's blit fence (GPU done)
++ *   pace    FIFO sleep to the next refresh (MESA_VK_X11_SW_REFRESH_HZ)
++ *   slot    wait for the image's segment / a free reply slot
++ *   copy    memcpy into the MIT-SHM segment (plus the ShmPutImage requests)
++ *   put     GetGeometry + xcb_flush (the requests reach the server)
++ *   reply   put flushed -> GetGeometry reply back (server done with it)
++ *   acquire vkAcquireNextImageKHR wait for a free image (app thread) */
++enum x11_sw_stage {
++   X11_SW_T_QUEUE, X11_SW_T_FENCE, X11_SW_T_PACE, X11_SW_T_SLOT,
++   X11_SW_T_COPY, X11_SW_T_PUT, X11_SW_T_REPLY, X11_SW_T_ACQUIRE,
++};
++
++static void
++x11_sw_t_add(struct x11_swapchain *chain, enum x11_sw_stage s, uint64_t t0)
++{
++   const uint64_t d = os_time_get_nano() - t0;
++   p_atomic_inc(&chain->sw_t_n[s]);
++   p_atomic_add(&chain->sw_t_sum[s], d);
++   if (d > chain->sw_t_max[s])
++      chain->sw_t_max[s] = d; /* racy max: good enough for a diagnostic */
++}
++
++/* Present thread, after each present. */
++static void
++x11_sw_t_frame(struct x11_swapchain *chain)
++{
++   static const char *const names[] = {
++      "queue", "fence", "pace", "slot", "copy", "put", "reply", "acquire",
++   };
++   const uint64_t now = os_time_get_nano();
++   if (!chain->sw_t_start_ns)
++      chain->sw_t_start_ns = now;
++   chain->sw_t_frames++;
++   if (now - chain->sw_t_start_ns < 1000000000ull)
++      return;
++
++   char line[512];
++   int o = snprintf(line, sizeof(line), "wsi/x11 sw timing %ux%u: %.1f fps",
++                    chain->extent.width, chain->extent.height,
++                    chain->sw_t_frames * 1e9 / (now - chain->sw_t_start_ns));
++   for (unsigned s = 0; s < ARRAY_SIZE(names) && o < (int)sizeof(line); s++) {
++      const uint64_t n = p_atomic_xchg(&chain->sw_t_n[s], 0);
++      const uint64_t sum = p_atomic_xchg(&chain->sw_t_sum[s], 0);
++      const uint64_t max = p_atomic_xchg(&chain->sw_t_max[s], 0);
++      o += snprintf(line + o, sizeof(line) - o, " %s=%.2f/%.2f", names[s],
++                    n ? sum / 1e6 / n : 0.0, max / 1e6);
++   }
++   mesa_logi("%s", line);
++   chain->sw_t_start_ns = now;
++   chain->sw_t_frames = 0;
++}
++
+ /* sw_defer_reply: in-flight puts, at most.  The server always has the next
+  * frame queued while it handles one, and the window lags at most one frame
+  * behind the present thread. */
+@@ -1962,6 +2027,8 @@ x11_sw_collect_reply(struct x11_swapchain *chain)
+    VkResult result = x11_sw_geometry_result(chain, geom);
+    free(err);
+    free(geom);
++   if (chain->sw_timing)
++      x11_sw_t_add(chain, X11_SW_T_REPLY, image->sw_t_put_ns);
+ 
+    image->sw_reply_pending = false;
+    chain->sw_replies_pending--;
+@@ -2000,6 +2067,7 @@ x11_present_to_x11_sw(struct x11_swapchain *chain, uint32_t image_index)
+    size_t size = (hdr_len + stride_b * chain->extent.height) >> 2;
+    uint64_t max_req_len = xcb_get_maximum_request_length(chain->conn);
+ 
++   uint64_t t_stage = chain->sw_timing ? os_time_get_nano() : 0;
+    if (chain->sw_shm) {
+       if (chain->sw_defer_reply) {
+          /* The reply to this image's previous put proves the server has
+@@ -2012,6 +2080,10 @@ x11_present_to_x11_sw(struct x11_swapchain *chain, uint32_t image_index)
+          if (chain->status < 0)
+             return chain->status;
+       }
++      if (chain->sw_timing) {
++         x11_sw_t_add(chain, X11_SW_T_SLOT, t_stage);
++         t_stage = os_time_get_nano();
++      }
+ 
+       /* One CPU copy into the memfd segment; the server reads it directly. */
+       int n = image->rectangle_count;
+@@ -2043,6 +2115,10 @@ x11_present_to_x11_sw(struct x11_swapchain *chain, uint32_t image_index)
+                                     image->shmseg, 0);
+          xcb_discard_reply(chain->conn, cookie.sequence);
+       }
++      if (chain->sw_timing) {
++         x11_sw_t_add(chain, X11_SW_T_COPY, t_stage);
++         t_stage = os_time_get_nano();
++      }
+       geom_cookie = xcb_get_geometry(chain->conn, chain->window);
+    } else if (image->rectangle_count > 0) {
+       for (int i = 0; i < image->rectangle_count; i++) {
+@@ -2092,6 +2168,10 @@ x11_present_to_x11_sw(struct x11_swapchain *chain, uint32_t image_index)
+    }
+ 
+    xcb_flush(chain->conn);
++   if (chain->sw_timing) {
++      x11_sw_t_add(chain, X11_SW_T_PUT, t_stage);
++      image->sw_t_put_ns = os_time_get_nano();
++   }
+ 
+    if (chain->sw_defer_reply) {
+       /* The server reads only the segment, so the image can be acquired
+@@ -2117,6 +2197,8 @@ x11_present_to_x11_sw(struct x11_swapchain *chain, uint32_t image_index)
+    VkResult result = x11_sw_geometry_result(chain, geom);
+    free(err);
+    free(geom);
++   if (chain->sw_timing)
++      x11_sw_t_add(chain, X11_SW_T_REPLY, image->sw_t_put_ns);
+ 
+    x11_sw_complete_present_id(chain, image->present_id);
+ 
+@@ -2360,8 +2442,11 @@ x11_acquire_next_image(struct wsi_swapchain *wsi_chain,
+       result = x11_wait_for_explicit_sync_release_submission(chain, timeout,
+                                                              image_index);
+    } else {
++      const uint64_t t_acquire = chain->sw_timing ? os_time_get_nano() : 0;
+       result = wsi_queue_pull(&chain->acquire_queue,
+                               image_index, timeout);
++      if (chain->sw_timing && result >= 0)
++         x11_sw_t_add(chain, X11_SW_T_ACQUIRE, t_acquire);
+ 
+       /* x11_wait_for_explicit_sync_release_submission() is smart enough to do
+        * this for us but wsi_queue_pull() isn't.
+@@ -2457,6 +2542,8 @@ x11_queue_present(struct wsi_swapchain *wsi_chain,
+    chain->images[image_index].present_mode = chain->base.present_mode;
+    chain->images[image_index].timing_request = chain->timing_request;
+    memset(&chain->timing_request, 0, sizeof(chain->timing_request));
++   if (chain->sw_timing)
++      chain->images[image_index].sw_t_queued_ns = os_time_get_nano();
+ 
+    wsi_queue_push(&chain->present_queue, image_index);
+    return x11_swapchain_read_status_atomic(chain);
+@@ -2738,6 +2825,13 @@ x11_manage_present_queue(void *state)
+       if (result < 0)
+          break;
+ 
++      uint64_t t_stage = 0;
++      if (chain->sw_timing) {
++         x11_sw_t_add(chain, X11_SW_T_QUEUE,
++                      chain->images[image_index].sw_t_queued_ns);
++         t_stage = os_time_get_nano();
++      }
++
+       VkPresentModeKHR present_mode = chain->images[image_index].present_mode;
+ 
+       /* Not necessary to block when we have explicit sync */
+@@ -2761,6 +2855,10 @@ x11_manage_present_queue(void *state)
+             break;
+          }
+       }
++      if (chain->sw_timing) {
++         x11_sw_t_add(chain, X11_SW_T_FENCE, t_stage);
++         t_stage = os_time_get_nano();
++      }
+ 
+       /* sw present has no vblank feedback (the X server completes at once),
+        * so pace FIFO by the display refresh interval. A late frame goes out
+@@ -2776,6 +2874,8 @@ x11_manage_present_queue(void *state)
+          }
+          uint64_t next = chain->sw_next_present_ns + chain->sw_fifo_interval_ns;
+          chain->sw_next_present_ns = next > now ? next : now + chain->sw_fifo_interval_ns;
++         if (chain->sw_timing)
++            x11_sw_t_add(chain, X11_SW_T_PACE, t_stage);
+       }
+ 
+       mtx_lock(&chain->thread_state_lock);
+@@ -2801,6 +2901,8 @@ x11_manage_present_queue(void *state)
+          mtx_unlock(&chain->thread_state_lock);
+          break;
+       }
++      if (chain->sw_timing)
++         x11_sw_t_frame(chain);
+ 
+       if (present_mode == VK_PRESENT_MODE_FIFO_KHR ||
+           present_mode == VK_PRESENT_MODE_FIFO_RELAXED_KHR) {
+@@ -3599,6 +3701,7 @@ x11_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
+       double hz = hz_str ? strtod(hz_str, NULL) : 0.0;
+       if (hz >= 1.0 && hz <= 1000.0)
+          chain->sw_fifo_interval_ns = (uint64_t)(1000000000.0 / hz);
++      chain->sw_timing = debug_get_bool_option("MESA_VK_X11_SW_TIMING", false);
+    }
+ 
+    /* When images in the swapchain don't fit the window, X can still present them, but it won't
+-- 
+2.55.0
+
