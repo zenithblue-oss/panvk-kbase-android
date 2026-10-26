@@ -1,0 +1,437 @@
+From f6f1d26617e05731953ad59fe502927c99a1ed86 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 07:41:41 +0000
+Subject: [PATCH 08/10] panvk: device-wide caches for command buffer CS,
+ descriptor and TLS slabs
+
+Rationale: perf review 2026-10-26 part B, finding B1. Every VkCommandPool
+kept its own free lists of 64 KiB slabs, trimmed by csf-v11 226/231 to the
+largest count one of its resets got back in the last one or two windows of
+64 resets, plus 25 %. DXVK records one command list at a time but recycles
+about 20 pools and resets each with flags = 0 about every 2 s at
+Fallout 4's 11 submits/s, so a pool's window is about 2 minutes and the
+footprint was the sum of all per-pool peaks: cmd_cs + cmd_desc were
+125-155 MiB (2000-2480 slabs) in 112, most of them idle.
+
+Now each kind of command buffer slab (CS, descriptor, TLS) has one cache
+for the whole device. After a flags = 0 vkResetCommandPool the pool keeps
+2 free slabs of each cached kind for its next recording and hands the
+rest to the caches; vkDestroyCommandPool hands them all. A recording takes
+from its pool's free list first, then from the cache (one uncontended
+mutex per 64 KiB slab), then allocates. The cache gives out its newest
+slab and, at the first hand-off after each window of
+PANVK_CMD_SLAB_CACHE_MS (default 2000 ms), frees its oldest slabs down to
+a quarter of the window's swing (at least 2): with takes from the tail,
+the slabs below the window's lowest count were not used in the whole
+window. A spike is freed one to two windows after it ends, whatever the
+number of pools. csf-v11 231 still trims the other free lists (the big
+TLS BOs, JM). RELEASE_RESOURCES resets and vkTrimCommandPool free the
+pool's own free lists as before; the caches keep theirs.
+
+Cache coherency is that of reuse within a pool: slabs enter a cache only
+when the command buffers that used them are reset or freed (not pending),
+CPU writes are flushed at EndCommandBuffer as before, and the kind keeps
+the BO flags.
+
+PANVK_DEBUG=mem: the report line gains "slab_cache=<MiB>/<slabs>
+hits=<taken> freed=<slabs> <MiB>"; the cached slabs are still counted in
+cmd_cs / cmd_desc / cmd_tls.
+
+Knob: PANVK_CMD_SLAB_CACHE (default 1, read once at device creation);
+0 = 114 (per-pool free lists, 231 trim). PANVK_CMD_SLAB_CACHE_MS (default
+2000, 100-600000) sets the window. Arch: v10+ (CSF); JM keeps its
+per-pool lists.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_cmd_pool.c  |  40 +++++++++
+ src/panfrost/vulkan/panvk_device.h    |   7 ++
+ src/panfrost/vulkan/panvk_mempool.c   | 114 +++++++++++++++++++++++++-
+ src/panfrost/vulkan/panvk_mempool.h   |  37 +++++++++
+ src/panfrost/vulkan/panvk_priv_bo.c   |   9 +-
+ src/panfrost/vulkan/panvk_priv_bo.h   |   5 ++
+ src/panfrost/vulkan/panvk_vX_device.c |  12 +++
+ 7 files changed, 222 insertions(+), 2 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_cmd_pool.c b/src/panfrost/vulkan/panvk_cmd_pool.c
+index e850f7c1..2e477a52 100644
+--- a/src/panfrost/vulkan/panvk_cmd_pool.c
++++ b/src/panfrost/vulkan/panvk_cmd_pool.c
+@@ -46,11 +46,33 @@ panvk_CreateCommandPool(VkDevice _device,
+    panvk_bo_pool_init(&pool->gs_bo_pool);
+    panvk_bo_pool_init(&pool->tls_bo_pool);
+    panvk_bo_pool_init(&pool->tls_big_bo_pool);
++   if (device->cmdbuf_opt.slab_cache) {
++      pool->cs_bo_pool.cache = &device->slab_cache[PANVK_SLAB_CACHE_CS];
++      pool->desc_bo_pool.cache = &device->slab_cache[PANVK_SLAB_CACHE_DESC];
++      pool->tls_bo_pool.cache = &device->slab_cache[PANVK_SLAB_CACHE_TLS];
++   }
+    list_inithead(&pool->push_sets);
+    *pCmdPool = panvk_cmd_pool_to_handle(pool);
+    return VK_SUCCESS;
+ }
+ 
++/* Hands the free slabs of the pool's cached kinds but keep of each to the
++ * device slab caches. */
++static void
++panvk_cmd_pool_give_to_caches(struct panvk_cmd_pool *pool, unsigned keep)
++{
++   struct panvk_bo_pool *cached[] = {
++      &pool->cs_bo_pool,
++      &pool->desc_bo_pool,
++      &pool->tls_bo_pool,
++   };
++
++   for (unsigned i = 0; i < ARRAY_SIZE(cached); i++) {
++      if (cached[i]->cache)
++         panvk_bo_pool_give_to_cache(cached[i], keep);
++   }
++}
++
+ VKAPI_ATTR void VKAPI_CALL
+ panvk_DestroyCommandPool(VkDevice _device, VkCommandPool commandPool,
+                          const VkAllocationCallbacks *pAllocator)
+@@ -63,6 +85,10 @@ panvk_DestroyCommandPool(VkDevice _device, VkCommandPool commandPool,
+ 
+    vk_command_pool_finish(&pool->vk);
+ 
++   /* None of the pool's command buffers is pending: its idle slabs can
++    * serve other pools. */
++   panvk_cmd_pool_give_to_caches(pool, 0);
++
+    panvk_bo_pool_cleanup(&pool->cs_bo_pool);
+    panvk_bo_pool_cleanup(&pool->desc_bo_pool);
+    panvk_bo_pool_cleanup(&pool->varying_bo_pool);
+@@ -136,6 +162,7 @@ panvk_cmd_pool_autotrim_enabled(struct panvk_device *dev)
+ }
+ 
+ #define PANVK_CMD_POOL_BO_POOLS 6
++#define PANVK_CMD_POOL_CACHE_KEEP 2
+ 
+ /* csf-v11 231: 226 kept only what the last reset gave back (+25%), so a pool
+  * whose recordings vary in size freed BOs at a light reset and allocated
+@@ -220,9 +247,22 @@ panvk_ResetCommandPool(VkDevice _device, VkCommandPool commandPool,
+    if (result == VK_SUCCESS && release_resources)
+       panvk_cmd_pool_release_free_bos(pool);
+ 
++   /* With the device slab caches (PANVK_CMD_SLAB_CACHE), the pool keeps
++    * PANVK_CMD_POOL_CACHE_KEEP free slabs of each cached kind for its next
++    * recording and the caches get the rest: one DXVK command list records
++    * at a time, so per-pool peaks summed over its ~20 recycled pools were
++    * mostly idle. The caches trim themselves, csf-v11 231 does not apply to
++    * them.
++    */
++   if (result == VK_SUCCESS && !release_resources)
++      panvk_cmd_pool_give_to_caches(pool, PANVK_CMD_POOL_CACHE_KEEP);
++
+    if (result == VK_SUCCESS && autotrim) {
+       const unsigned window = panvk_cmd_pool_autotrim_window();
+       for (unsigned i = 0; i < PANVK_CMD_POOL_BO_POOLS; i++) {
++         if (bo_pools[i]->cache)
++            continue;
++
+          const unsigned after = list_length(&bo_pools[i]->free_bos);
+          const unsigned used = after > before[i] ? after - before[i] : 0;
+          unsigned base = used;
+diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
+index 1282f7ac..16ae3820 100644
+--- a/src/panfrost/vulkan/panvk_device.h
++++ b/src/panfrost/vulkan/panvk_device.h
+@@ -224,8 +224,15 @@ struct panvk_device {
+       /* PANVK_CS_CHUNK_KB (default 4, 64 = fixed 64 KiB chunks): size of
+        * the first CS chunk of a stream (CSF), doubling up to 64 KiB. */
+       uint32_t cs_chunk_min_B;
++      /* PANVK_CMD_SLAB_CACHE (default 1, CSF): command pools share their
++       * idle CS, descriptor and TLS slabs through slab_cache[]. */
++      bool slab_cache;
+    } cmdbuf_opt;
+ 
++   /* Device-wide caches of idle command buffer slabs, indexed by enum
++    * panvk_slab_cache_kind (used when cmdbuf_opt.slab_cache). */
++   struct panvk_slab_cache slab_cache[PANVK_SLAB_CACHE_COUNT];
++
+    /* Device-wide thread local storage shared by all command buffers. The
+     * last BO is the current one; outgrown ones stay alive for command
+     * buffers that still point at them. */
+diff --git a/src/panfrost/vulkan/panvk_mempool.c b/src/panfrost/vulkan/panvk_mempool.c
+index ceaf82e4..4b0ad813 100644
+--- a/src/panfrost/vulkan/panvk_mempool.c
++++ b/src/panfrost/vulkan/panvk_mempool.c
+@@ -10,6 +10,8 @@
+ 
+ #include "kmod/pan_kmod.h"
+ 
++#include "util/os_time.h"
++
+ void
+ panvk_bo_pool_cleanup(struct panvk_bo_pool *bo_pool)
+ {
+@@ -20,6 +22,111 @@ panvk_bo_pool_cleanup(struct panvk_bo_pool *bo_pool)
+    }
+ }
+ 
++void
++panvk_slab_cache_init(struct panvk_slab_cache *cache, uint64_t window_ns)
++{
++   memset(cache, 0, sizeof(*cache));
++   simple_mtx_init(&cache->lock, mtx_plain);
++   list_inithead(&cache->bos);
++   cache->window_ns = window_ns;
++   cache->window_start_ns = os_time_get_nano();
++}
++
++void
++panvk_slab_cache_finish(struct panvk_slab_cache *cache)
++{
++   list_for_each_entry_safe(struct panvk_priv_bo, bo, &cache->bos, node) {
++      list_del(&bo->node);
++      p_atomic_dec(&panvk_mem_stats.slab_cache_count);
++      p_atomic_add(&panvk_mem_stats.slab_cache_B,
++                   -(int64_t)pan_kmod_bo_size(bo->bo));
++      panvk_priv_bo_unref(bo);
++   }
++   simple_mtx_destroy(&cache->lock);
++}
++
++static struct panvk_priv_bo *
++panvk_slab_cache_take(struct panvk_slab_cache *cache)
++{
++   struct panvk_priv_bo *bo = NULL;
++
++   simple_mtx_lock(&cache->lock);
++   if (cache->count) {
++      bo = list_last_entry(&cache->bos, struct panvk_priv_bo, node);
++      list_del(&bo->node);
++      cache->count--;
++      cache->low = MIN2(cache->low, cache->count);
++   }
++   simple_mtx_unlock(&cache->lock);
++
++   if (bo) {
++      p_atomic_inc(&panvk_mem_stats.slab_cache_hits);
++      p_atomic_dec(&panvk_mem_stats.slab_cache_count);
++      p_atomic_add(&panvk_mem_stats.slab_cache_B,
++                   -(int64_t)pan_kmod_bo_size(bo->bo));
++   }
++
++   return bo;
++}
++
++void
++panvk_bo_pool_give_to_cache(struct panvk_bo_pool *bo_pool, unsigned keep)
++{
++   struct panvk_slab_cache *cache = bo_pool->cache;
++   struct list_head give, drop;
++   unsigned have = list_length(&bo_pool->free_bos), given = 0, dropped = 0;
++   uint64_t given_B = 0, dropped_B = 0;
++
++   list_inithead(&give);
++   list_inithead(&drop);
++   for (; have > keep; have--, given++) {
++      struct panvk_priv_bo *bo =
++         list_first_entry(&bo_pool->free_bos, struct panvk_priv_bo, node);
++      list_del(&bo->node);
++      list_addtail(&bo->node, &give);
++      given_B += pan_kmod_bo_size(bo->bo);
++   }
++
++   const uint64_t now = os_time_get_nano();
++
++   simple_mtx_lock(&cache->lock);
++   list_splicetail(&give, &cache->bos);
++   cache->count += given;
++   cache->high = MAX2(cache->high, cache->count);
++
++   if (now - cache->window_start_ns >= cache->window_ns) {
++      /* With takes from the tail, the low oldest slabs were not used in
++       * this window. */
++      const uint32_t margin = MAX2((cache->high - cache->low) / 4, 2);
++      uint32_t idle = MIN2(cache->low, cache->count);
++
++      for (; idle > margin; idle--, dropped++) {
++         struct panvk_priv_bo *bo =
++            list_first_entry(&cache->bos, struct panvk_priv_bo, node);
++         list_del(&bo->node);
++         list_addtail(&bo->node, &drop);
++         dropped_B += pan_kmod_bo_size(bo->bo);
++      }
++
++      cache->count -= dropped;
++      cache->low = cache->high = cache->count;
++      cache->window_start_ns = now;
++   }
++   simple_mtx_unlock(&cache->lock);
++
++   p_atomic_add(&panvk_mem_stats.slab_cache_count,
++                (int64_t)given - (int64_t)dropped);
++   p_atomic_add(&panvk_mem_stats.slab_cache_B,
++                (int64_t)given_B - (int64_t)dropped_B);
++   p_atomic_add(&panvk_mem_stats.slab_cache_freed_bos, dropped);
++   p_atomic_add(&panvk_mem_stats.slab_cache_freed_B, dropped_B);
++
++   list_for_each_entry_safe(struct panvk_priv_bo, bo, &drop, node) {
++      list_del(&bo->node);
++      panvk_priv_bo_unref(bo);
++   }
++}
++
+ /* Knockoff u_upload_mgr. Uploads wherever we left off, allocating new entries
+  * when needed.
+  *
+@@ -48,7 +155,12 @@ panvk_pool_alloc_backing(struct panvk_pool *pool, size_t sz)
+          list_first_entry(&pool->bo_pool->free_bos, struct panvk_priv_bo, node);
+       list_del(&bo->node);
+    } else {
+-      if (pool->big_bo_pool) {
++      /* Else an idle slab of the same kind from the device cache. */
++      if (pool->bo_pool && pool->bo_pool->cache &&
++          bo_sz == pool->base.slab_size)
++         bo = panvk_slab_cache_take(pool->bo_pool->cache);
++
++      if (bo == NULL && pool->big_bo_pool) {
+          list_for_each_entry_safe(struct panvk_priv_bo, pooled_bo,
+                                   &pool->big_bo_pool->free_bos, node) {
+             const size_t picked_bo_sz = pan_kmod_bo_size(pooled_bo->bo);
+diff --git a/src/panfrost/vulkan/panvk_mempool.h b/src/panfrost/vulkan/panvk_mempool.h
+index bc24b9da..6baaa3c0 100644
+--- a/src/panfrost/vulkan/panvk_mempool.h
++++ b/src/panfrost/vulkan/panvk_mempool.h
+@@ -14,18 +14,55 @@
+ #include "util/list.h"
+ #include "util/simple_mtx.h"
+ 
++/* One cache per kind of command buffer slab (CS, descriptor, TLS) for the
++ * whole device, so that command pools share their idle slabs instead of
++ * each keeping its own peak. Slabs in a cache belong to no command buffer.
++ * They are handed out newest first and trimmed oldest first: at the first
++ * hand-off after each window of window_ns, the slabs that stayed in the
++ * cache through the whole window (its lowest count) are freed, but for a
++ * quarter of the window's swing, at least 2.
++ */
++enum panvk_slab_cache_kind {
++   PANVK_SLAB_CACHE_CS,
++   PANVK_SLAB_CACHE_DESC,
++   PANVK_SLAB_CACHE_TLS,
++   PANVK_SLAB_CACHE_COUNT,
++};
++
++struct panvk_slab_cache {
++   simple_mtx_t lock;
++   /* Idle slabs, oldest first. */
++   struct list_head bos;
++   uint32_t count;
++   /* Lowest and highest count in the current window. */
++   uint32_t low, high;
++   uint64_t window_start_ns, window_ns;
++};
++
++void panvk_slab_cache_init(struct panvk_slab_cache *cache, uint64_t window_ns);
++void panvk_slab_cache_finish(struct panvk_slab_cache *cache);
++
+ struct panvk_bo_pool {
+    struct list_head free_bos;
++
++   /* When not NULL, slabs come from this cache when free_bos is empty, and
++    * panvk_bo_pool_give_to_cache() hands it the free ones. */
++   struct panvk_slab_cache *cache;
+ };
+ 
+ static inline void
+ panvk_bo_pool_init(struct panvk_bo_pool *bo_pool)
+ {
+    list_inithead(&bo_pool->free_bos);
++   bo_pool->cache = NULL;
+ }
+ 
+ void panvk_bo_pool_cleanup(struct panvk_bo_pool *bo_pool);
+ 
++/* Moves all but keep of the free BOs to bo_pool->cache. They must be slabs
++ * no pending command buffer uses. */
++void panvk_bo_pool_give_to_cache(struct panvk_bo_pool *bo_pool, unsigned keep);
++
+ struct panvk_pool_properties {
+    /* BO flags to use in the pool */
+    unsigned create_flags;
+diff --git a/src/panfrost/vulkan/panvk_priv_bo.c b/src/panfrost/vulkan/panvk_priv_bo.c
+index 46b8851d..f9674118 100644
+--- a/src/panfrost/vulkan/panvk_priv_bo.c
++++ b/src/panfrost/vulkan/panvk_priv_bo.c
+@@ -389,6 +389,8 @@ panvk_mem_report(struct panvk_device *dev, bool final)
+       " remats=%" PRIu64 " pins=%" PRIu64 " lazy_skips=%" PRIu64
+       " stale=%" PRIu64 "/%" PRIu64
+       " | trim bos=%" PRIu64 " %.1f tls_freed=%.1f"
++      " | slab_cache=%.1f/%" PRIu64 " hits=%" PRIu64 " freed=%" PRIu64
++      " %.1f"
+       " | rss=%.1f anon=%.1f file=%.1f swap=%.1f avail=%.1f",
+       final ? "-final" : "", (now - panvk_mem_report_start_ns) / 1e9,
+       MIB(devmem), MIB(priv), MIB(b[PANVK_MEM_DEV_POOL]),
+@@ -423,7 +425,12 @@ panvk_mem_report(struct panvk_device *dev, bool final)
+       p_atomic_read_relaxed(&s->bc_stale_reads),
+       p_atomic_read_relaxed(&s->cmdpool_trim_bos),
+       MIB(p_atomic_read_relaxed(&s->cmdpool_trim_B)),
+-      MIB(p_atomic_read_relaxed(&s->dev_tls_freed_B)), kb[0] / 1024.0,
++      MIB(p_atomic_read_relaxed(&s->dev_tls_freed_B)),
++      MIB(p_atomic_read_relaxed(&s->slab_cache_B)),
++      p_atomic_read_relaxed(&s->slab_cache_count),
++      p_atomic_read_relaxed(&s->slab_cache_hits),
++      p_atomic_read_relaxed(&s->slab_cache_freed_bos),
++      MIB(p_atomic_read_relaxed(&s->slab_cache_freed_B)), kb[0] / 1024.0,
+       kb[1] / 1024.0, kb[2] / 1024.0, kb[3] / 1024.0, MIB(avail));
+ 
+    FILE *fp = panvk_mem_report_file();
+diff --git a/src/panfrost/vulkan/panvk_priv_bo.h b/src/panfrost/vulkan/panvk_priv_bo.h
+index de4c1028..c25ff2fd 100644
+--- a/src/panfrost/vulkan/panvk_priv_bo.h
++++ b/src/panfrost/vulkan/panvk_priv_bo.h
+@@ -49,6 +49,11 @@ struct panvk_mem_stats {
+    uint64_t cmdpool_trim_bos, cmdpool_trim_B;
+    /* Device TLS BOs freed early (csf-v11 097 grow-only list). */
+    uint64_t dev_tls_freed_B;
++   /* Device slab caches (panvk_mempool.c): slabs and bytes idle in them
++    * (counted in their kind too), slabs they handed out, slabs and bytes
++    * their window trim freed. */
++   uint64_t slab_cache_count, slab_cache_B, slab_cache_hits,
++      slab_cache_freed_bos, slab_cache_freed_B;
+ };
+ 
+ extern struct panvk_mem_stats panvk_mem_stats;
+diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
+index f6b3b4f1..23a1185e 100644
+--- a/src/panfrost/vulkan/panvk_vX_device.c
++++ b/src/panfrost/vulkan/panvk_vX_device.c
+@@ -876,6 +876,14 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+       util_next_power_of_two(
+          CLAMP(debug_get_num_option("PANVK_CS_CHUNK_KB", 4), 1, 64)) *
+       1024;
++   device->cmdbuf_opt.slab_cache =
++      PAN_ARCH >= 10 && debug_get_bool_option("PANVK_CMD_SLAB_CACHE", true);
++   const uint64_t slab_cache_window_ns =
++      CLAMP(debug_get_num_option("PANVK_CMD_SLAB_CACHE_MS", 2000), 100,
++            600000) *
++      1000000ull;
++   for (unsigned i = 0; i < PANVK_SLAB_CACHE_COUNT; i++)
++      panvk_slab_cache_init(&device->slab_cache[i], slab_cache_window_ns);
+ 
+ #if PAN_ARCH >= 9
+    if (PANVK_DEBUG(GPU_PRERAST) || device->vk.enabled_features.fillModeNonSolid ||
+@@ -1193,6 +1201,8 @@ err_free_priv_bos:
+    panvk_priv_bo_unref(device->tess_gs_scratch[1]);
+    panvk_priv_bo_unref(device->tiler_heap);
+    panvk_priv_bo_unref(device->tiler_heap2);
++   for (unsigned i = 0; i < PANVK_SLAB_CACHE_COUNT; i++)
++      panvk_slab_cache_finish(&device->slab_cache[i]);
+    panvk_device_cleanup_mempools(device);
+    vk_free(&device->vk.alloc, device->dump_region_size);
+ err_free_heaps:
+@@ -1264,6 +1274,8 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
+ #if PAN_ARCH >= 10
+     simple_mtx_destroy(&device->gpu_prerast_lock);
+ #endif
++    for (unsigned i = 0; i < PANVK_SLAB_CACHE_COUNT; i++)
++       panvk_slab_cache_finish(&device->slab_cache[i]);
+     panvk_device_cleanup_mempools(device);
+    vk_free(&device->vk.alloc, device->dump_region_size);
+    pan_kmod_vm_destroy(device->kmod.vm);
+-- 
+2.55.0
+

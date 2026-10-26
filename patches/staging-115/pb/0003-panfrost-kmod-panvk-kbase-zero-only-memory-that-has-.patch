@@ -1,0 +1,186 @@
+From 9d7a6250aed4f264a969a5cf1d1a27e65d8e1a55 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 02:28:41 +0000
+Subject: [PATCH 03/10] panfrost/kmod, panvk: kbase: zero only memory that has
+ to be zero
+
+Rationale: perf review 2026-10-26 part B, finding Q4. csf-v11 041 memsets
+every committed page of every kbase BO, NO_MMAP ones included (all kbase
+BOs are mapped), plus a MEM_SYNC for cached mappings. It was needed for
+dEQP zero_initialize_device_memory, but it is paid by every allocation:
+the Fallout 4 load grew device memory from 716 to 1772 MiB (about 1 GiB
+of memset, mostly through write-combined mappings), each DXVK chunk
+allocated in game costs a 40-80 ms memset on the allocating thread, and
+the device TLS (336 MiB in 112) was cleared the same way. The memset also
+faults in CPU page tables for GPU-only BOs.
+
+kbase hands out zeroed pages from the kernel and from the device pool
+(pages spilled there are cleared); only the context's own freed pages
+come back with their old contents, and kbase cleaned them from the CPU
+caches when they were freed. Skipping the clear can therefore only show
+this process's own data, which Vulkan allows for memory allocated without
+VK_MEMORY_ALLOCATE_ZERO_INITIALIZE_BIT_EXT.
+
+New kmod flag PAN_KMOD_BO_FLAG_NO_ZERO (kbase only; masked by
+panvk_device_adjust_bo_flags() on other backends). Used for:
+- VkDeviceMemory without ZERO_INITIALIZE_BIT_EXT, on v9+ only: an AFBC
+  header that was never written holds an arbitrary payload offset (a zero
+  header is a solid-colour block). Valhall AFBC planes carry the plane
+  size; v6/v7 surfaces do not, so v6/v7 keep the clear. CRC state is
+  already cleared at bind. DXVK clears every image and buffer it creates.
+- the CSF device TLS (stacks, written before read; a reused BO holds old
+  stacks anyway) and the CSF command buffer TLS pool (WLS only: workgroup
+  memory is undefined unless the shader zero-initializes it, which
+  nir_zero_initialize_shared_memory does; pooled slabs are reused).
+Everything else keeps 041 (CS and descriptor slabs, device pools, query
+and event BOs, the gpu_prerast and tessellation arenas). The null
+descriptor image memory now asks for ZERO_INITIALIZE explicitly.
+
+Knob: PANVK_KBASE_ZERO_ALL=1 (read once at kmod device creation: NO_ZERO
+is then not advertised) clears every BO as in 114. Arch: VkDeviceMemory
+v9+, TLS v10+ (CSF).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/lib/kmod/kbase_kmod.c            |  7 ++++++-
+ src/panfrost/lib/kmod/pan_kmod.h              |  7 +++++++
+ src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c | 12 ++++++++----
+ src/panfrost/vulkan/panvk_device.h            |  4 ++++
+ src/panfrost/vulkan/panvk_device_memory.c     | 12 ++++++++++++
+ src/panfrost/vulkan/panvk_vX_device.c         |  6 ++++++
+ 6 files changed, 43 insertions(+), 5 deletions(-)
+
+diff --git a/src/panfrost/lib/kmod/kbase_kmod.c b/src/panfrost/lib/kmod/kbase_kmod.c
+index 2057bc99..2728ed3c 100644
+--- a/src/panfrost/lib/kmod/kbase_kmod.c
++++ b/src/panfrost/lib/kmod/kbase_kmod.c
+@@ -623,6 +623,11 @@ kbase_dev_query_props(struct kbase_kmod_dev *kbase_dev,
+                                 PAN_KMOD_BO_FLAG_WB_MMAP |
+                                 PAN_KMOD_BO_FLAG_GPU_UNCACHED |
+                                 PAN_KMOD_BO_FLAG_CSF_EVENT;
++
++   /* NO_ZERO skips 041's clear of the committed pages.
++    * PANVK_KBASE_ZERO_ALL=1 clears every BO again (114). */
++   if (!debug_get_bool_option("PANVK_KBASE_ZERO_ALL", false))
++      props->supported_bo_flags |= PAN_KMOD_BO_FLAG_NO_ZERO;
+ }
+ 
+ /* jm-v7 109: GPU timestamp frequency calibration.
+@@ -2830,7 +2835,7 @@ retry_alloc:;
+    kbase_bo->gpu_mapping = cpu_ptr;
+    kbase_bo->gpu_va = kbase_bo->same_va ? (uintptr_t)cpu_ptr : alloc_gpu_va;
+ 
+-   if (commit_pages) {
++   if (commit_pages && !(kmod_flags & PAN_KMOD_BO_FLAG_NO_ZERO)) {
+       memset(cpu_ptr, 0, commit_pages * page_size);
+       if ((alloc_flags & BASE_MEM_CACHED_CPU) && !kbase_bo->cpu_gpu_coherent) {
+          struct kbase_ioctl_mem_sync sync_req = {
+diff --git a/src/panfrost/lib/kmod/pan_kmod.h b/src/panfrost/lib/kmod/pan_kmod.h
+index 250750fe..b61d6e3f 100644
+--- a/src/panfrost/lib/kmod/pan_kmod.h
++++ b/src/panfrost/lib/kmod/pan_kmod.h
+@@ -137,6 +137,13 @@ enum pan_kmod_bo_flags {
+ 
+    /* kbase CSF event memory monitored for cross-CSG synchronization. */
+    PAN_KMOD_BO_FLAG_CSF_EVENT = BITFIELD_BIT(8),
++
++   /* kbase: leave the committed pages as the kernel hands them out instead
++    * of clearing them in user space. Pages come zeroed from the kernel and
++    * the device pool; only pages this context freed come back with their
++    * old contents, so a BO never sees another process's data.
++    */
++   PAN_KMOD_BO_FLAG_NO_ZERO = BITFIELD_BIT(9),
+ };
+ 
+ /* Allowed group priority flags. */
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c
+index 9bb47dc7..26206c88 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c
+@@ -247,8 +247,10 @@ dev_tls_alias(struct panvk_device *dev, const struct panvk_priv_bo *backing,
+ static struct panvk_priv_bo *
+ dev_tls_create(struct panvk_device *dev, const struct dev_tls_layout *l)
+ {
+-   const uint32_t flags =
+-      panvk_device_adjust_bo_flags(dev, PAN_KMOD_BO_FLAG_NO_MMAP);
++   /* Stacks are written before they are read, and a reused BO holds old
++    * stacks anyway: no clear (it was up to 336 MiB of memset in 112). */
++   const uint32_t flags = panvk_device_adjust_bo_flags(
++      dev, PAN_KMOD_BO_FLAG_NO_MMAP | PAN_KMOD_BO_FLAG_NO_ZERO);
+    struct panvk_priv_bo *bo = NULL;
+ 
+ #ifdef HAVE_PAN_KMOD_KBASE
+@@ -1405,9 +1407,11 @@ panvk_create_cmdbuf(struct vk_command_pool *vk_pool, VkCommandBufferLevel level,
+    panvk_pool_init(&cmdbuf->desc_pool, device, &pool->desc_bo_pool, NULL,
+                    &desc_pool_props);
+ 
++   /* WLS: workgroup memory is undefined at dispatch start (zero-init is
++    * lowered in the shader), and pooled slabs are reused uncleared. */
+    struct panvk_pool_properties tls_pool_props = {
+-      .create_flags =
+-         panvk_device_adjust_bo_flags(device, PAN_KMOD_BO_FLAG_NO_MMAP),
++      .create_flags = panvk_device_adjust_bo_flags(
++         device, PAN_KMOD_BO_FLAG_NO_MMAP | PAN_KMOD_BO_FLAG_NO_ZERO),
+       .slab_size = 64 * 1024,
+       .label = "TLS pool",
+       .prealloc = false,
+diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
+index af03a289..be6f39a7 100644
+--- a/src/panfrost/vulkan/panvk_device.h
++++ b/src/panfrost/vulkan/panvk_device.h
+@@ -344,6 +344,10 @@ panvk_device_adjust_bo_flags(const struct panvk_device *device,
+          PAN_KMOD_BO_FLAG_GPU_UNCACHED))
+       bo_flags &= ~PAN_KMOD_BO_FLAG_GPU_UNCACHED;
+ 
++   if (!(device->kmod.dev->props.supported_bo_flags &
++         PAN_KMOD_BO_FLAG_NO_ZERO))
++      bo_flags &= ~PAN_KMOD_BO_FLAG_NO_ZERO;
++
+    return bo_flags;
+ }
+ 
+diff --git a/src/panfrost/vulkan/panvk_device_memory.c b/src/panfrost/vulkan/panvk_device_memory.c
+index cf9f4c0a..506e2db3 100644
+--- a/src/panfrost/vulkan/panvk_device_memory.c
++++ b/src/panfrost/vulkan/panvk_device_memory.c
+@@ -132,6 +132,18 @@ panvk_AllocateMemory(VkDevice _device,
+          (device->vk.enabled_features.memoryMapPlaced &&
+           (type->propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
+ 
++      /* Vulkan leaves new memory undefined unless the application asks
++       * for VK_MEMORY_ALLOCATE_ZERO_INITIALIZE_BIT_EXT, so skip the kbase
++       * clear (041: about 1 GiB of memset at a Fallout 4 load, 40-80 ms
++       * per 256 MiB DXVK chunk). Only on v9+, whose AFBC plane descriptors
++       * carry the plane size: an AFBC header that was never written holds
++       * an arbitrary payload offset, while a zero one is a solid-colour
++       * block, and v6/v7 surfaces have no size to bound the fetch.
++       */
++      if (pan_arch(device->kmod.dev->props.gpu_id) >= 9 &&
++          !(mem->vk.alloc_flags & VK_MEMORY_ALLOCATE_ZERO_INITIALIZE_BIT_EXT))
++         bo_flags |= PAN_KMOD_BO_FLAG_NO_ZERO;
++
+       bo_flags = panvk_device_adjust_bo_flags(device, bo_flags);
+       mem->bo = pan_kmod_bo_alloc(device->kmod.dev,
+                                   shareable ? NULL : device->kmod.vm,
+diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
+index 869d0098..a558f847 100644
+--- a/src/panfrost/vulkan/panvk_vX_device.c
++++ b/src/panfrost/vulkan/panvk_vX_device.c
+@@ -576,8 +576,14 @@ panvk_init_null_descs(struct panvk_device *dev)
+ 
+    VkMemoryRequirements mr;
+    t->GetImageMemoryRequirements(h, dev->null_descs.image, &mr);
++   /* Reads go through ZERO swizzles, but keep the texel zero anyway. */
++   const VkMemoryAllocateFlagsInfo mafi = {
++      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
++      .flags = VK_MEMORY_ALLOCATE_ZERO_INITIALIZE_BIT_EXT,
++   };
+    const VkMemoryAllocateInfo mai = {
+       .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
++      .pNext = &mafi,
+       .allocationSize = mr.size,
+       .memoryTypeIndex = ffs(mr.memoryTypeBits) - 1,
+    };
+-- 
+2.55.0
+

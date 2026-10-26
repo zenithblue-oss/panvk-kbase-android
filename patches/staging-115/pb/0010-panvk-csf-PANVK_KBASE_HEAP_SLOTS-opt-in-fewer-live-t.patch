@@ -1,0 +1,119 @@
+From f8e249a08f648070dc7370b481a2160f66b10eb4 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 07:52:44 +0000
+Subject: [PATCH 10/10] panvk/csf: PANVK_KBASE_HEAP_SLOTS, opt-in fewer live
+ tiler heaps
+
+Rationale: perf review 2026-10-26 part B, finding B6 (option a). A kbase
+tiler heap keeps every chunk it grew until it is destroyed (csf-v11 098
+turned chunk recycling off after "Invalid Heap statistics" DEVICE_LOST in
+NFS Most Wanted), and the 4 TILER_HEAP descriptor slots of 107 let the
+current heap plus up to 3 retired ones live at once: with the spare that
+is the "heap live=5" of the Fallout 4 log, 163-285 MiB that panvk does not
+see, about 35-60 MiB per heap.
+
+The slot count is now read at queue creation: PANVK_KBASE_HEAP_SLOTS
+(default 4 = 114, clamped to 2-4) bounds the retired heaps to slots - 1.
+The descriptor slot rotation and the completion test are unchanged, only
+taken modulo the run-time count: a renewal still needs a free retired
+slot, and the slot it takes is the oldest heap's, which the firmware no
+longer reads (the test proved it before that heap was destroyed).
+
+Opt-in because fewer slots can cost memory as well as save it: when every
+retired slot is still in use, the renewal is skipped (VK_INCOMPLETE,
+retried at a later graphics submission) and the current heap keeps
+growing, and 107 measured submit stalls with a single retired heap. 3 is
+the value to A/B on 8 GB parts. Chunk recycling with correct heap
+statistics (option c, the real fix) and a lower max_chunks (option b,
+earlier incremental rendering) are not done.
+
+Measure: PANVK_DEBUG=mem "heap live" and "renew", kctx - devmem - priv;
+fps and stalls in NFS Most Wanted and Fallout 4.
+
+Knob: PANVK_KBASE_HEAP_SLOTS (default 4 = 114, 2-4), read once per
+queue. Arch: v10+ (CSF) on kbase.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/csf/panvk_queue.h        |  3 +++
+ src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c | 22 +++++++++++++-------
+ 2 files changed, 18 insertions(+), 7 deletions(-)
+
+diff --git a/src/panfrost/vulkan/csf/panvk_queue.h b/src/panfrost/vulkan/csf/panvk_queue.h
+index 04d76cd3..aa2c8f7a 100644
+--- a/src/panfrost/vulkan/csf/panvk_queue.h
++++ b/src/panfrost/vulkan/csf/panvk_queue.h
+@@ -159,6 +159,9 @@ struct panvk_gpu_queue {
+       uint64_t frag_jobs;
+    } kbase_retired_heaps[PANVK_KBASE_HEAP_SLOTS - 1];
+    uint32_t kbase_retired_heap_count;
++   /* Descriptor slots in use, 2 to PANVK_KBASE_HEAP_SLOTS (env
++    * PANVK_KBASE_HEAP_SLOTS): at most kbase_heap_slots - 1 retired heaps. */
++   uint32_t kbase_heap_slots;
+    /* Test the retired heaps at every submission, not only at renewal
+     * (PANVK_KBASE_HEAP_EAGER_TERM). */
+    bool kbase_heap_eager_term;
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+index dc36f6bf..0e73b805 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+@@ -2224,6 +2224,13 @@ DEBUG_GET_ONCE_BOOL_OPTION(kbase_async_heap_term, "PANVK_KBASE_ASYNC_HEAP_TERM",
+ DEBUG_GET_ONCE_BOOL_OPTION(kbase_heap_eager_term, "PANVK_KBASE_HEAP_EAGER_TERM",
+                            true)
+ 
++/* Every live heap keeps the chunks it grew, and with 4 slots up to 3 retired
++ * heaps wait for the GPU. Fewer slots free memory sooner, but a renewal is
++ * skipped while all retired slots are still in use, and the current heap
++ * then keeps growing (107 saw submit stalls with 1 retired heap). */
++DEBUG_GET_ONCE_NUM_OPTION(kbase_heap_slots, "PANVK_KBASE_HEAP_SLOTS",
++                          PANVK_KBASE_HEAP_SLOTS)
++
+ static void
+ kbase_heap_term_job(void *job, void *gdata, int thread_index)
+ {
+@@ -2310,6 +2317,8 @@ kbase_spare_heap_init(struct panvk_gpu_queue *queue)
+       debug_get_option_kbase_async_heap_term() &&
+       mtx_init(&queue->kbase_heap_term.lock, mtx_plain) == thrd_success;
+    queue->kbase_heap_eager_term = debug_get_option_kbase_heap_eager_term();
++   queue->kbase_heap_slots =
++      CLAMP(debug_get_option_kbase_heap_slots(), 2, PANVK_KBASE_HEAP_SLOTS);
+ 
+    kbase_spare_heap_kick(queue);
+ }
+@@ -2548,8 +2557,7 @@ kbase_try_destroy_retired_heap(struct panvk_gpu_queue *queue)
+            queue->kbase_retired_heap_count *
+               sizeof(queue->kbase_retired_heaps[0]));
+ 
+-   return queue->kbase_retired_heap_count <
+-          ARRAY_SIZE(queue->kbase_retired_heaps);
++   return queue->kbase_retired_heap_count < queue->kbase_heap_slots - 1;
+ }
+ 
+ static VkResult
+@@ -2563,10 +2571,10 @@ kbase_renew_tiler_heap(struct panvk_gpu_queue *queue)
+    kbase_heap_chunks(phys_dev, &initial_chunks, &max_chunks);
+    uint64_t new_ctx, first_chunk;
+ 
+-   /* Hold at most PANVK_KBASE_HEAP_SLOTS - 1 retired contexts: if they are
+-    * all still firmware-visible, skip this renewal (VK_INCOMPLETE) and retry
+-    * on a later graphics submission.  The next descriptor slot belonged to
+-    * the oldest heap, which the firmware no longer reads. */
++   /* Hold at most kbase_heap_slots - 1 retired contexts: if they are all
++    * still firmware-visible, skip this renewal (VK_INCOMPLETE) and retry on
++    * a later graphics submission.  The next descriptor slot belonged to the
++    * oldest heap, which the firmware no longer reads. */
+    if (!kbase_try_destroy_retired_heap(queue))
+       return VK_INCOMPLETE;
+ 
+@@ -2584,7 +2592,7 @@ kbase_renew_tiler_heap(struct panvk_gpu_queue *queue)
+    uint64_t old_ctx = tiler_heap->context.dev_addr;
+    tiler_heap->context.dev_addr = new_ctx;
+ 
+-   const uint32_t slot = (queue->kbase_heap_slot + 1) % PANVK_KBASE_HEAP_SLOTS;
++   const uint32_t slot = (queue->kbase_heap_slot + 1) % queue->kbase_heap_slots;
+    const uint32_t slot_offset = slot * KBASE_HEAP_DESC_SLOT_STRIDE;
+    panvk_priv_mem_write_desc(tiler_heap->desc, slot_offset, TILER_HEAP, cfg) {
+       cfg.size = tiler_heap->chunk_size;
+-- 
+2.55.0
+

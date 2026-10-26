@@ -1,0 +1,456 @@
+From fb1f12e85f2a821f89d1a9bf87895d239620c8b0 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 07:48:37 +0000
+Subject: [PATCH 09/10] kbase, panvk: opt-in evictable command buffer slabs
+ (BASE_MEM_DONT_NEED)
+
+Rationale: perf review 2026-10-26 part B, finding B4. All idle driver
+memory is pinned: kbase's KBASE_IOCTL_MEM_FLAGS_CHANGE with
+BASE_MEM_DONT_NEED puts a native region on the context's evict list,
+whose shrinker frees the pages under memory pressure (the X6 is under
+pressure all the time in Fallout 4), but nothing used it. B1's slab
+caches free their idle slabs deterministically one window after they
+were last needed; this lets the kernel decide instead.
+
+kbase: kbase_kmod_bo_set_evictable(bo, evictable). Setting DONT_NEED
+returns the ioctl's result. Clearing it re-backs what the shrinker took,
+but kbase returns EINVAL for that on native regions (only imports get
+past its flags update), so the result says nothing: the clear is followed
+by a KBASE_IOCTL_MEM_COMMIT of every page, which kbase refuses for
+DONT_NEED regions and which grows the region back if the re-backing fell
+short. Only a successful commit makes the BO usable again. Imports and
+growable BOs are refused. KBASE_IOCTL_MEM_FLAGS_CHANGE (nr 23) is added to
+mali_kbase_ioctl.h.
+
+panvk: with PANVK_KBASE_EVICTABLE=N, the slabs a cache window trim would
+free are marked DONT_NEED and kept on the cache's evict list (outside the
+cache lock: FLAGS_CHANGE takes the mm write lock), and freed N windows
+later unless taken first. A take uses the evict list only when the cache
+has no other slab, and frees the slab instead when the clear does not
+verify. The first refusal to mark turns marking off for that cache with a
+warning. Only slabs B1 has already found idle for a whole window are
+marked, so the two ioctls per transition stay off the recording path
+(with N = 0 nothing changes). Slabs in a cache belong to no command
+buffer, nothing reads them from the CPU (the mode is off with pandecode),
+and kbase frees DONT_NEED regions like others.
+
+PANVK_DEBUG=mem: "evictable=<MiB>/<slabs> reused=<n> lost=<n>" after the
+slab cache fields; lost counts slabs whose pages could not be brought back.
+
+Knob: PANVK_KBASE_EVICTABLE (default 0 = off, 1-64 windows), read once at
+device creation, kbase and PANVK_CMD_SLAB_CACHE only. Opt-in: the clear
+semantics are from kbase sources and are untested on MTK kbase uAPI 1.21;
+a PanProbe check (mark, memory pressure, take, CPU write, GPU read) should
+come before anyone enables it. Arch: v10+ (CSF).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ include/drm-uapi/mali_kbase_ioctl.h   |  12 +++
+ src/panfrost/lib/kmod/kbase_kmod.c    |  35 +++++++
+ src/panfrost/lib/kmod/kbase_kmod.h    |   9 ++
+ src/panfrost/vulkan/panvk_mempool.c   | 131 ++++++++++++++++++++++++--
+ src/panfrost/vulkan/panvk_mempool.h   |  11 ++-
+ src/panfrost/vulkan/panvk_priv_bo.c   |   8 +-
+ src/panfrost/vulkan/panvk_priv_bo.h   |   6 ++
+ src/panfrost/vulkan/panvk_vX_device.c |   9 +-
+ 8 files changed, 209 insertions(+), 12 deletions(-)
+
+diff --git a/include/drm-uapi/mali_kbase_ioctl.h b/include/drm-uapi/mali_kbase_ioctl.h
+index 3c6f4d28..0a8ab529 100644
+--- a/include/drm-uapi/mali_kbase_ioctl.h
++++ b/include/drm-uapi/mali_kbase_ioctl.h
+@@ -288,6 +288,18 @@ struct kbase_ioctl_mem_commit {
+ #define KBASE_IOCTL_MEM_COMMIT \
+    _IOW(KBASE_IOCTL_TYPE, 20, struct kbase_ioctl_mem_commit)
+ 
++/* -----------------------------------------------------------------------
++ * Memory flags change — set or clear the modifiable flags of a region
++ * (BASE_MEM_DONT_NEED makes a native region evictable).
++ * ----------------------------------------------------------------------- */
++struct kbase_ioctl_mem_flags_change {
++   __u64 gpu_va;
++   __u64 flags;
++   __u64 mask;
++};
++#define KBASE_IOCTL_MEM_FLAGS_CHANGE \
++   _IOW(KBASE_IOCTL_TYPE, 23, struct kbase_ioctl_mem_flags_change)
++
+ /* -----------------------------------------------------------------------
+  * Memory alias — create an alias of one or more existing regions.
+  * ----------------------------------------------------------------------- */
+diff --git a/src/panfrost/lib/kmod/kbase_kmod.c b/src/panfrost/lib/kmod/kbase_kmod.c
+index 2728ed3c..123520da 100644
+--- a/src/panfrost/lib/kmod/kbase_kmod.c
++++ b/src/panfrost/lib/kmod/kbase_kmod.c
+@@ -1693,6 +1693,41 @@ kbase_kmod_alias_destroy(struct pan_kmod_dev *dev, uint64_t va, uint64_t size,
+    munmap((void *)(uintptr_t)va, size * nents);
+ }
+ 
++int
++kbase_kmod_bo_set_evictable(struct pan_kmod_bo *bo, bool evictable)
++{
++   struct kbase_kmod_bo *kbase_bo =
++      container_of(bo, struct kbase_kmod_bo, base);
++
++   /* kbase only evicts native regions; growable ones are not fully
++    * committed. */
++   if (kbase_bo->dmabuf_fd >= 0 ||
++       (bo->flags & PAN_KMOD_BO_FLAG_ALLOC_ON_FAULT))
++      return -EINVAL;
++
++   struct kbase_ioctl_mem_flags_change req = {
++      .gpu_va = kbase_bo->gpu_va,
++      .flags = evictable ? BASE_MEM_DONT_NEED : 0,
++      .mask = BASE_MEM_DONT_NEED,
++   };
++   int ret = ioctl(bo->dev->fd, KBASE_IOCTL_MEM_FLAGS_CHANGE, &req);
++
++   if (evictable)
++      return ret ? -errno : 0;
++
++   /* Clearing DONT_NEED re-backs what the shrinker took, but kbase returns
++    * EINVAL for it on native regions (only imports get past the flags
++    * update that follows), so its result says nothing. MEM_COMMIT refuses
++    * DONT_NEED regions: committing every page succeeds only when the region
++    * is needed again, and grows it back if the re-backing fell short. */
++   struct kbase_ioctl_mem_commit commit = {
++      .gpu_addr = kbase_bo->gpu_va,
++      .pages = DIV_ROUND_UP(bo->size, kbase_kmod_page_size()),
++   };
++
++   return ioctl(bo->dev->fd, KBASE_IOCTL_MEM_COMMIT, &commit) ? -errno : 0;
++}
++
+ /* struct base_jd_atom above is the kernel's base_jd_atom_v2 (56 bytes)
+  * padded with zeros to 64.  Stock kbase reads stride 56 as base_jd_atom_v2
+  * and stride 64 as base_jd_atom (a leading seq_nr, so our layout would be
+diff --git a/src/panfrost/lib/kmod/kbase_kmod.h b/src/panfrost/lib/kmod/kbase_kmod.h
+index 4020bcc8..0a239048 100644
+--- a/src/panfrost/lib/kmod/kbase_kmod.h
++++ b/src/panfrost/lib/kmod/kbase_kmod.h
+@@ -183,6 +183,15 @@ uint64_t kbase_kmod_alias_create(struct pan_kmod_dev *dev, uint64_t bo_va,
+ void kbase_kmod_alias_destroy(struct pan_kmod_dev *dev, uint64_t va,
+                               uint64_t size, uint32_t nents);
+ 
++/* Marks a native, fully committed BO evictable (BASE_MEM_DONT_NEED): under
++ * memory pressure the kernel may take its pages. Neither the CPU nor the GPU
++ * may touch it until kbase_kmod_bo_set_evictable(bo, false) returns 0, which
++ * means the region is needed again and every page is backed (the contents
++ * are undefined if the pages were taken). Returns 0 or a negative errno;
++ * on failure to clear the flag, free the BO. Not for imported or aliased
++ * BOs. */
++int kbase_kmod_bo_set_evictable(struct pan_kmod_bo *bo, bool evictable);
++
+ #if defined(__cplusplus)
+ } // extern "C"
+ #endif
+diff --git a/src/panfrost/vulkan/panvk_mempool.c b/src/panfrost/vulkan/panvk_mempool.c
+index 4b0ad813..4410b3d0 100644
+--- a/src/panfrost/vulkan/panvk_mempool.c
++++ b/src/panfrost/vulkan/panvk_mempool.c
+@@ -10,8 +10,11 @@
+ 
+ #include "kmod/pan_kmod.h"
+ 
++#include "util/log.h"
+ #include "util/os_time.h"
+ 
++#include <string.h>
++
+ void
+ panvk_bo_pool_cleanup(struct panvk_bo_pool *bo_pool)
+ {
+@@ -23,13 +26,18 @@ panvk_bo_pool_cleanup(struct panvk_bo_pool *bo_pool)
+ }
+ 
+ void
+-panvk_slab_cache_init(struct panvk_slab_cache *cache, uint64_t window_ns)
++panvk_slab_cache_init(struct panvk_slab_cache *cache, uint64_t window_ns,
++                      uint32_t evict_windows)
+ {
+    memset(cache, 0, sizeof(*cache));
+    simple_mtx_init(&cache->lock, mtx_plain);
+    list_inithead(&cache->bos);
++   list_inithead(&cache->evict_bos);
+    cache->window_ns = window_ns;
+    cache->window_start_ns = os_time_get_nano();
++#ifdef HAVE_PAN_KMOD_KBASE
++   cache->evict_windows = evict_windows;
++#endif
+ }
+ 
+ void
+@@ -42,6 +50,15 @@ panvk_slab_cache_finish(struct panvk_slab_cache *cache)
+                    -(int64_t)pan_kmod_bo_size(bo->bo));
+       panvk_priv_bo_unref(bo);
+    }
++   /* kbase frees evictable regions like any other. */
++   list_for_each_entry_safe(struct panvk_priv_bo, bo, &cache->evict_bos,
++                            node) {
++      list_del(&bo->node);
++      p_atomic_dec(&panvk_mem_stats.slab_evict_count);
++      p_atomic_add(&panvk_mem_stats.slab_evict_B,
++                   -(int64_t)pan_kmod_bo_size(bo->bo));
++      panvk_priv_bo_unref(bo);
++   }
+    simple_mtx_destroy(&cache->lock);
+ }
+ 
+@@ -49,6 +66,7 @@ static struct panvk_priv_bo *
+ panvk_slab_cache_take(struct panvk_slab_cache *cache)
+ {
+    struct panvk_priv_bo *bo = NULL;
++   bool evictable = false;
+ 
+    simple_mtx_lock(&cache->lock);
+    if (cache->count) {
+@@ -56,29 +74,98 @@ panvk_slab_cache_take(struct panvk_slab_cache *cache)
+       list_del(&bo->node);
+       cache->count--;
+       cache->low = MIN2(cache->low, cache->count);
++   } else if (cache->evict_count) {
++      bo = list_last_entry(&cache->evict_bos, struct panvk_priv_bo, node);
++      list_del(&bo->node);
++      cache->evict_count--;
++      evictable = true;
+    }
+    simple_mtx_unlock(&cache->lock);
+ 
+-   if (bo) {
+-      p_atomic_inc(&panvk_mem_stats.slab_cache_hits);
++   if (!bo)
++      return NULL;
++
++   const int64_t size = pan_kmod_bo_size(bo->bo);
++
++   if (evictable) {
++      p_atomic_dec(&panvk_mem_stats.slab_evict_count);
++      p_atomic_add(&panvk_mem_stats.slab_evict_B, -size);
++#ifdef HAVE_PAN_KMOD_KBASE
++      /* Needed again and fully backed, or freed. */
++      if (kbase_kmod_bo_set_evictable(bo->bo, false)) {
++         p_atomic_inc(&panvk_mem_stats.slab_evict_lost);
++         panvk_priv_bo_unref(bo);
++         return NULL;
++      }
++#endif
++      p_atomic_inc(&panvk_mem_stats.slab_evict_reused);
++   } else {
+       p_atomic_dec(&panvk_mem_stats.slab_cache_count);
+-      p_atomic_add(&panvk_mem_stats.slab_cache_B,
+-                   -(int64_t)pan_kmod_bo_size(bo->bo));
++      p_atomic_add(&panvk_mem_stats.slab_cache_B, -size);
+    }
+ 
++   p_atomic_inc(&panvk_mem_stats.slab_cache_hits);
+    return bo;
+ }
+ 
++#ifdef HAVE_PAN_KMOD_KBASE
++/* Marks the slabs on drop evictable and moves them to the cache's evict
++ * list, outside the cache lock (FLAGS_CHANGE takes the mm write lock). The
++ * first refusal turns marking off for the cache. Returns the slabs moved.
++ */
++static unsigned
++panvk_slab_cache_mark(struct panvk_slab_cache *cache, struct list_head *drop,
++                      uint32_t window)
++{
++   struct list_head marked;
++   unsigned n = 0;
++   uint64_t n_B = 0;
++   int ret = 0;
++
++   list_inithead(&marked);
++   list_for_each_entry_safe(struct panvk_priv_bo, bo, drop, node) {
++      ret = kbase_kmod_bo_set_evictable(bo->bo, true);
++      if (ret)
++         break;
++
++      list_del(&bo->node);
++      list_addtail(&bo->node, &marked);
++      bo->cache_window = window;
++      n_B += pan_kmod_bo_size(bo->bo);
++      n++;
++   }
++
++   simple_mtx_lock(&cache->lock);
++   list_splicetail(&marked, &cache->evict_bos);
++   cache->evict_count += n;
++   if (ret)
++      cache->evict_windows = 0;
++   simple_mtx_unlock(&cache->lock);
++
++   if (ret) {
++      mesa_logw("panvk: BASE_MEM_DONT_NEED refused (%s), command buffer "
++                "slabs are freed instead",
++                strerror(-ret));
++   }
++
++   p_atomic_add(&panvk_mem_stats.slab_evict_count, n);
++   p_atomic_add(&panvk_mem_stats.slab_evict_B, n_B);
++   return n;
++}
++#endif
++
+ void
+ panvk_bo_pool_give_to_cache(struct panvk_bo_pool *bo_pool, unsigned keep)
+ {
+    struct panvk_slab_cache *cache = bo_pool->cache;
+-   struct list_head give, drop;
++   struct list_head give, drop, expired;
+    unsigned have = list_length(&bo_pool->free_bos), given = 0, dropped = 0;
+    uint64_t given_B = 0, dropped_B = 0;
++   uint32_t window = 0, evict_windows = 0;
+ 
+    list_inithead(&give);
+    list_inithead(&drop);
++   list_inithead(&expired);
+    for (; have > keep; have--, given++) {
+       struct panvk_priv_bo *bo =
+          list_first_entry(&bo_pool->free_bos, struct panvk_priv_bo, node);
+@@ -111,6 +198,20 @@ panvk_bo_pool_give_to_cache(struct panvk_bo_pool *bo_pool, unsigned keep)
+       cache->count -= dropped;
+       cache->low = cache->high = cache->count;
+       cache->window_start_ns = now;
++      window = ++cache->window_seq;
++      evict_windows = cache->evict_windows;
++
++      /* Evictable slabs nobody took in evict_windows windows; the list is
++       * in marking order. */
++      list_for_each_entry_safe(struct panvk_priv_bo, bo, &cache->evict_bos,
++                               node) {
++         if (window - bo->cache_window < cache->evict_windows)
++            break;
++
++         list_del(&bo->node);
++         list_addtail(&bo->node, &expired);
++         cache->evict_count--;
++      }
+    }
+    simple_mtx_unlock(&cache->lock);
+ 
+@@ -118,10 +219,24 @@ panvk_bo_pool_give_to_cache(struct panvk_bo_pool *bo_pool, unsigned keep)
+                 (int64_t)given - (int64_t)dropped);
+    p_atomic_add(&panvk_mem_stats.slab_cache_B,
+                 (int64_t)given_B - (int64_t)dropped_B);
+-   p_atomic_add(&panvk_mem_stats.slab_cache_freed_bos, dropped);
+-   p_atomic_add(&panvk_mem_stats.slab_cache_freed_B, dropped_B);
++
++#ifdef HAVE_PAN_KMOD_KBASE
++   if (evict_windows && dropped)
++      panvk_slab_cache_mark(cache, &drop, window);
++#endif
++
++   list_for_each_entry_safe(struct panvk_priv_bo, bo, &expired, node) {
++      p_atomic_dec(&panvk_mem_stats.slab_evict_count);
++      p_atomic_add(&panvk_mem_stats.slab_evict_B,
++                   -(int64_t)pan_kmod_bo_size(bo->bo));
++      list_del(&bo->node);
++      list_addtail(&bo->node, &drop);
++   }
+ 
+    list_for_each_entry_safe(struct panvk_priv_bo, bo, &drop, node) {
++      p_atomic_inc(&panvk_mem_stats.slab_cache_freed_bos);
++      p_atomic_add(&panvk_mem_stats.slab_cache_freed_B,
++                   pan_kmod_bo_size(bo->bo));
+       list_del(&bo->node);
+       panvk_priv_bo_unref(bo);
+    }
+diff --git a/src/panfrost/vulkan/panvk_mempool.h b/src/panfrost/vulkan/panvk_mempool.h
+index 6baaa3c0..562fd298 100644
+--- a/src/panfrost/vulkan/panvk_mempool.h
++++ b/src/panfrost/vulkan/panvk_mempool.h
+@@ -37,9 +37,18 @@ struct panvk_slab_cache {
+    /* Lowest and highest count in the current window. */
+    uint32_t low, high;
+    uint64_t window_start_ns, window_ns;
++   uint32_t window_seq;
++   /* When evict_windows is not 0 (kbase, PANVK_KBASE_EVICTABLE), the slabs
++    * the window trim would free are marked evictable instead, so the kernel
++    * can take their pages under memory pressure. They are handed out only
++    * when bos is empty, and freed evict_windows windows later. Oldest
++    * first. */
++   struct list_head evict_bos;
++   uint32_t evict_count, evict_windows;
+ };
+ 
+-void panvk_slab_cache_init(struct panvk_slab_cache *cache, uint64_t window_ns);
++void panvk_slab_cache_init(struct panvk_slab_cache *cache, uint64_t window_ns,
++                           uint32_t evict_windows);
+ void panvk_slab_cache_finish(struct panvk_slab_cache *cache);
+ 
+ struct panvk_bo_pool {
+diff --git a/src/panfrost/vulkan/panvk_priv_bo.c b/src/panfrost/vulkan/panvk_priv_bo.c
+index f9674118..ea48761d 100644
+--- a/src/panfrost/vulkan/panvk_priv_bo.c
++++ b/src/panfrost/vulkan/panvk_priv_bo.c
+@@ -390,7 +390,7 @@ panvk_mem_report(struct panvk_device *dev, bool final)
+       " stale=%" PRIu64 "/%" PRIu64
+       " | trim bos=%" PRIu64 " %.1f tls_freed=%.1f"
+       " | slab_cache=%.1f/%" PRIu64 " hits=%" PRIu64 " freed=%" PRIu64
+-      " %.1f"
++      " %.1f evictable=%.1f/%" PRIu64 " reused=%" PRIu64 " lost=%" PRIu64
+       " | rss=%.1f anon=%.1f file=%.1f swap=%.1f avail=%.1f",
+       final ? "-final" : "", (now - panvk_mem_report_start_ns) / 1e9,
+       MIB(devmem), MIB(priv), MIB(b[PANVK_MEM_DEV_POOL]),
+@@ -430,7 +430,11 @@ panvk_mem_report(struct panvk_device *dev, bool final)
+       p_atomic_read_relaxed(&s->slab_cache_count),
+       p_atomic_read_relaxed(&s->slab_cache_hits),
+       p_atomic_read_relaxed(&s->slab_cache_freed_bos),
+-      MIB(p_atomic_read_relaxed(&s->slab_cache_freed_B)), kb[0] / 1024.0,
++      MIB(p_atomic_read_relaxed(&s->slab_cache_freed_B)),
++      MIB(p_atomic_read_relaxed(&s->slab_evict_B)),
++      p_atomic_read_relaxed(&s->slab_evict_count),
++      p_atomic_read_relaxed(&s->slab_evict_reused),
++      p_atomic_read_relaxed(&s->slab_evict_lost), kb[0] / 1024.0,
+       kb[1] / 1024.0, kb[2] / 1024.0, kb[3] / 1024.0, MIB(avail));
+ 
+    FILE *fp = panvk_mem_report_file();
+diff --git a/src/panfrost/vulkan/panvk_priv_bo.h b/src/panfrost/vulkan/panvk_priv_bo.h
+index c25ff2fd..399f5b08 100644
+--- a/src/panfrost/vulkan/panvk_priv_bo.h
++++ b/src/panfrost/vulkan/panvk_priv_bo.h
+@@ -54,6 +54,10 @@ struct panvk_mem_stats {
+     * their window trim freed. */
+    uint64_t slab_cache_count, slab_cache_B, slab_cache_hits,
+       slab_cache_freed_bos, slab_cache_freed_B;
++   /* PANVK_KBASE_EVICTABLE: cached slabs marked evictable (and their
++    * bytes), taken back, and freed because they could not be taken back. */
++   uint64_t slab_evict_count, slab_evict_B, slab_evict_reused,
++      slab_evict_lost;
+ };
+ 
+ extern struct panvk_mem_stats panvk_mem_stats;
+@@ -76,6 +80,8 @@ struct panvk_priv_bo {
+    } addr;
+    /* enum panvk_mem_kind (csf-v11 223). */
+    uint8_t mem_kind;
++   /* Window of its slab cache in which the BO was marked evictable. */
++   uint32_t cache_window;
+    /* csf-v11 230: when non-zero, addr.dev is a kbase MEM_ALIAS region of
+     * this many bytes over the BO (sparse device TLS), unmapped on destroy. */
+    uint64_t alias_size;
+diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
+index 23a1185e..67643e87 100644
+--- a/src/panfrost/vulkan/panvk_vX_device.c
++++ b/src/panfrost/vulkan/panvk_vX_device.c
+@@ -882,8 +882,15 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+       CLAMP(debug_get_num_option("PANVK_CMD_SLAB_CACHE_MS", 2000), 100,
+             600000) *
+       1000000ull;
++   /* Opt-in: evictable slabs need a kernel that clears DONT_NEED as
++    * expected (MTK kbase 1.21 untested), and pandecode reads every BO. */
++   const uint32_t slab_evict_windows =
++      physical_device->kbase_node_path[0] && !device->debug.decode_ctx
++         ? CLAMP(debug_get_num_option("PANVK_KBASE_EVICTABLE", 0), 0, 64)
++         : 0;
+    for (unsigned i = 0; i < PANVK_SLAB_CACHE_COUNT; i++)
+-      panvk_slab_cache_init(&device->slab_cache[i], slab_cache_window_ns);
++      panvk_slab_cache_init(&device->slab_cache[i], slab_cache_window_ns,
++                            slab_evict_windows);
+ 
+ #if PAN_ARCH >= 9
+    if (PANVK_DEBUG(GPU_PRERAST) || device->vk.enabled_features.fillModeNonSolid ||
+-- 
+2.55.0
+

@@ -1,0 +1,89 @@
+From fa4dde1c64245b56e8a352f01a8cce9d1eccc550 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 02:18:47 +0000
+Subject: [PATCH 01/10] panvk/csf: destroy completed retired tiler heaps at
+ every submission
+
+Rationale: perf review 2026-10-26 part B, finding Q2.
+kbase_try_destroy_retired_heap() only ran from kbase_renew_tiler_heap(),
+that is when a renewal was due (every 128 submissions or 65536 units of
+tiler work: about once per frame in Fallout 4, up to 128 submissions in
+light games). A retired heap whose work has finished keeps every chunk it
+grew until then (098 disabled chunk recycling), about 35-60 MiB per heap
+in Fallout 4 and up to a frame (260 ms at 3.8 fps) after it went idle.
+
+Run the same completion test (two cache-line invalidates and two loads of
+the graphics seqno cells) after every submission that emitted work while
+retired heaps are pending. The test is unchanged, so the csf/007 and 107
+safety argument holds: a context is destroyed only once both graphics
+subqueues completed a ring entry emitted after its retirement. TERM still
+goes to the heap thread with 224's backlog bound, and heaps now complete
+one at a time, so fewer TERMs fall back to the submitting thread. The
+next renewal also finds its retired slots free more often.
+
+Knob: PANVK_KBASE_HEAP_EAGER_TERM (default 1), read once at queue init;
+0 = 114 (test at renewal only). Arch: v10+ kbase (csf/ only).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/csf/panvk_queue.h        |  3 +++
+ src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c | 15 +++++++++++++++
+ 2 files changed, 18 insertions(+)
+
+diff --git a/src/panfrost/vulkan/csf/panvk_queue.h b/src/panfrost/vulkan/csf/panvk_queue.h
+index 26fc4c72..04d76cd3 100644
+--- a/src/panfrost/vulkan/csf/panvk_queue.h
++++ b/src/panfrost/vulkan/csf/panvk_queue.h
+@@ -159,6 +159,9 @@ struct panvk_gpu_queue {
+       uint64_t frag_jobs;
+    } kbase_retired_heaps[PANVK_KBASE_HEAP_SLOTS - 1];
+    uint32_t kbase_retired_heap_count;
++   /* Test the retired heaps at every submission, not only at renewal
++    * (PANVK_KBASE_HEAP_EAGER_TERM). */
++   bool kbase_heap_eager_term;
+    /* Heap context pre-created on a worker thread for the next renewal:
+     * KBASE_IOCTL_CS_TILER_HEAP_INIT commits and zeroes the initial chunks,
+     * which took ~7 ms per renewal on the submitting thread. */
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+index 2769a2fc..dc36f6bf 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+@@ -2217,6 +2217,13 @@ kbase_spare_heap_take(struct panvk_gpu_queue *queue, uint64_t *first_chunk)
+ DEBUG_GET_ONCE_BOOL_OPTION(kbase_async_heap_term, "PANVK_KBASE_ASYNC_HEAP_TERM",
+                            true)
+ 
++/* A retired heap keeps every chunk it grew until it is destroyed, and the
++ * completion test used to run only when the next renewal was due (about one
++ * frame later in heavy games, up to 128 submissions in light ones).
++ * PANVK_KBASE_HEAP_EAGER_TERM=0 runs it at renewal only. */
++DEBUG_GET_ONCE_BOOL_OPTION(kbase_heap_eager_term, "PANVK_KBASE_HEAP_EAGER_TERM",
++                           true)
++
+ static void
+ kbase_heap_term_job(void *job, void *gdata, int thread_index)
+ {
+@@ -2302,6 +2309,7 @@ kbase_spare_heap_init(struct panvk_gpu_queue *queue)
+       queue->kbase_spare_heap.enabled &&
+       debug_get_option_kbase_async_heap_term() &&
+       mtx_init(&queue->kbase_heap_term.lock, mtx_plain) == thrd_success;
++   queue->kbase_heap_eager_term = debug_get_option_kbase_heap_eager_term();
+ 
+    kbase_spare_heap_kick(queue);
+ }
+@@ -3209,6 +3217,13 @@ panvk_queue_submit_ioctl_kbase(struct panvk_queue_submit *submit,
+          queue->kbase_tiler_work_count += submit->tiler_work_estimate;
+    }
+ 
++   /* Destroy the retired heaps whose work has completed now rather than at
++    * the next renewal: the same completion test (two cache-line invalidates
++    * and two loads), and TERM still goes to the heap thread. */
++   if (touched && queue->kbase_heap_eager_term &&
++       queue->kbase_retired_heap_count)
++      kbase_try_destroy_retired_heap(queue);
++
+    uint64_t renew_work = kbase_tiler_heap_renew_work();
+    if (submit->tiler_work_estimate &&
+        (queue->kbase_tiler_submit_count >=
+-- 
+2.55.0
+

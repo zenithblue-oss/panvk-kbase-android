@@ -1,0 +1,99 @@
+From d79eb127477f2860b1649c2fb883154bb24f3fa1 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 02:33:00 +0000
+Subject: [PATCH 05/10] panvk: command pool auto-trim on JM too
+
+Rationale: perf review 2026-10-26 part B, finding J1 (and the auto-trim
+half of part D's D2a). csf-v11 226/231 trim a command pool's BO free lists
+at every flags = 0 vkResetCommandPool (DXVK resets that way after every
+submission and never trims), but only on v10+. On v6/v7/v9 JM each pool's
+descriptor, TLS (small and big), varying and GS free lists stay at the
+largest command list it ever recorded, loading screens included: tens of
+MB per device, more with the per-command-buffer JM TLS.
+
+The JM command buffers give their pool BOs back to the same free lists at
+reset (panvk_pool_reset), and the only per-command-buffer pointers into
+them (tls_half) are cleared at the same time. The free lists therefore
+hold only BOs that no pending command buffer uses (a pool reset requires
+none of its command buffers to be pending), which is the property 226
+relies on. The trim itself is unchanged: 231's window high-water plus a
+quarter, freeing the newest free-list entries.
+
+Knob: PANVK_JM_CMD_POOL_AUTOTRIM (default 1), read once at device
+creation; 0 = 114 (auto-trim on v10+ only). PANVK_CMD_POOL_AUTOTRIM=0
+still disables auto-trim everywhere.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_cmd_pool.c  | 10 +++++++---
+ src/panfrost/vulkan/panvk_device.h    |  9 ++++++---
+ src/panfrost/vulkan/panvk_vX_device.c |  2 ++
+ 3 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_cmd_pool.c b/src/panfrost/vulkan/panvk_cmd_pool.c
+index fb18d755..e850f7c1 100644
+--- a/src/panfrost/vulkan/panvk_cmd_pool.c
++++ b/src/panfrost/vulkan/panvk_cmd_pool.c
+@@ -117,9 +117,12 @@ panvk_cmd_pool_release_free_bos(struct panvk_cmd_pool *pool)
+  * pool's free lists stayed at the largest command list it ever recorded
+  * (loading screens included). On a flags = 0 reset, keep what the command
+  * buffers just gave back plus a quarter (at least 2 slabs) for the next
+- * recording, and free older free-list BOs beyond that. v10+ only;
++ * recording, and free older free-list BOs beyond that.
+  * PANVK_CMD_POOL_AUTOTRIM=0 (or PANVK_CMD_POOL_TRIM=0) is the old
+- * behaviour. */
++ * behaviour. The JM pools (descriptor, TLS, varying and GS slabs) go back
++ * to the same free lists at reset and only hold BOs no pending command
++ * buffer uses, so v6/v7/v9 trim the same way unless
++ * PANVK_JM_CMD_POOL_AUTOTRIM=0 (114: v10+ only). */
+ static bool
+ panvk_cmd_pool_autotrim_enabled(struct panvk_device *dev)
+ {
+@@ -128,7 +131,8 @@ panvk_cmd_pool_autotrim_enabled(struct panvk_device *dev)
+       v = debug_get_bool_option("PANVK_CMD_POOL_AUTOTRIM", true);
+    const struct panvk_physical_device *pdev =
+       to_panvk_physical_device(dev->vk.physical);
+-   return v && pan_arch(pdev->kmod.dev->props.gpu_id) >= 10;
++   return v && (pan_arch(pdev->kmod.dev->props.gpu_id) >= 10 ||
++                dev->cmdbuf_opt.jm_pool_autotrim);
+ }
+ 
+ #define PANVK_CMD_POOL_BO_POOLS 6
+diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
+index 2adda9c8..51da9dfd 100644
+--- a/src/panfrost/vulkan/panvk_device.h
++++ b/src/panfrost/vulkan/panvk_device.h
+@@ -213,11 +213,14 @@ struct panvk_device {
+       uint64_t vs_region_end;
+    } tess_opt;
+ 
+-   /* CSF command buffer memory options, read once at device creation. */
++   /* Command buffer memory options, read once at device creation. */
+    struct {
+-      /* PANVK_CS_FLUSH_USED (default 1): EndCommandBuffer flushes each CS
+-       * chunk up to what its builder wrote, not every CS pool BO whole. */
++      /* PANVK_CS_FLUSH_USED (default 1, CSF): EndCommandBuffer flushes each
++       * CS chunk up to what its builder wrote, not every CS pool BO whole. */
+       bool cs_flush_used;
++      /* PANVK_JM_CMD_POOL_AUTOTRIM (default 1): command pool auto-trim
++       * (csf-v11 226/231) on v6/v7/v9 JM too. */
++      bool jm_pool_autotrim;
+    } cmdbuf_opt;
+ 
+    /* Device-wide thread local storage shared by all command buffers. The
+diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
+index 8da83334..154912c1 100644
+--- a/src/panfrost/vulkan/panvk_vX_device.c
++++ b/src/panfrost/vulkan/panvk_vX_device.c
+@@ -870,6 +870,8 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+    util_dynarray_init(&device->tls.bos, NULL);
+    device->cmdbuf_opt.cs_flush_used =
+       debug_get_bool_option("PANVK_CS_FLUSH_USED", true);
++   device->cmdbuf_opt.jm_pool_autotrim =
++      debug_get_bool_option("PANVK_JM_CMD_POOL_AUTOTRIM", true);
+ 
+ #if PAN_ARCH >= 9
+    if (PANVK_DEBUG(GPU_PRERAST) || device->vk.enabled_features.fillModeNonSolid ||
+-- 
+2.55.0
+

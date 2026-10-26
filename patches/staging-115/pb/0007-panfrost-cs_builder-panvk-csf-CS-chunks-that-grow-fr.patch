@@ -1,0 +1,200 @@
+From 0ba68f1fe71568169aa6ca4f98c80592ccd8ad65 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 02:39:31 +0000
+Subject: [PATCH 07/10] panfrost/cs_builder, panvk/csf: CS chunks that grow
+ from 4 KiB
+
+Rationale: perf review 2026-10-26 part B, finding B2 (and the memory
+half of Q5). alloc_cs_buffer() handed out a fixed 64 KiB chunk, one CS
+pool slab, and finish_cs() always emits into all three subqueues, so every
+primary held at least 192 KiB of CS however little it recorded: in the
+Fallout 4 menu, 175 CS BOs (10.9 MB) were about 58 command buffers x 3
+root chunks. cs_builder_conf::alloc_buffer() had no size parameter, and
+only an assert checked that a sequence fits in one chunk.
+
+cs_builder: optional cs_builder_conf::alloc_buffer_sized(b, cookie,
+min_instrs), used instead of alloc_buffer() when set, for the lazy root
+chunk and for every next chunk. min_instrs is the sequence that needs the
+chunk plus JUMP_SEQ_INSTR_COUNT, so the sequence and the jump out always
+fit. b->cur_chunk is still the chunk being left. Builders that do not set
+it (Gallium panfrost, kraid, the cs_builder test, the other panvk
+builders) are unchanged.
+
+panvk: the first chunk of a command buffer stream (and of each VMR
+segment) is PANVK_CS_CHUNK_KB (default 4 KiB) and each next one twice the
+chunk it follows, up to 64 KiB, or bigger when a sequence needs it.
+Chunks are suballocated from the CS pool's 64 KiB slabs (alignment 64),
+and A3's chunk records flush each one up to what was written. A stream
+over 64 KiB costs four more JUMPs than before.
+
+Knob: PANVK_CS_CHUNK_KB (default 4, rounded up to a power of two in
+1-64), read once at device creation; 64 = 114 (fixed 64 KiB chunks
+through alloc_buffer()). Arch: v10+ (CSF only).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/genxml/cs_builder.h              | 25 +++++++++++--
+ src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c | 36 +++++++++++++++++--
+ src/panfrost/vulkan/panvk_device.h            |  3 ++
+ src/panfrost/vulkan/panvk_vX_device.c         |  4 +++
+ 4 files changed, 62 insertions(+), 6 deletions(-)
+
+diff --git a/src/panfrost/genxml/cs_builder.h b/src/panfrost/genxml/cs_builder.h
+index 93201b5b..949ffa63 100644
+--- a/src/panfrost/genxml/cs_builder.h
++++ b/src/panfrost/genxml/cs_builder.h
+@@ -105,6 +105,14 @@ struct cs_builder_conf {
+    /* CS buffer allocator */
+    struct cs_buffer (*alloc_buffer)(void *cookie);
+ 
++   /* Optional CS buffer allocator used instead of alloc_buffer when set: the
++    * buffer must hold at least min_instrs instructions. b->cur_chunk is
++    * still the chunk being left (empty for the root chunk), so chunks can
++    * grow from one to the next.
++    */
++   struct cs_buffer (*alloc_buffer_sized)(struct cs_builder *b, void *cookie,
++                                          uint32_t min_instrs);
++
+    /* Optional dirty registers tracker. */
+    struct cs_dirty_tracker *dirty_tracker;
+ 
+@@ -513,6 +521,17 @@ cs_cur_block(struct cs_builder *b)
+ 
+ #define JUMP_SEQ_INSTR_COUNT 4
+ 
++/* A new chunk holds the sequence that needs it and the jump out of it. */
++static inline struct cs_buffer
++cs_alloc_chunk(struct cs_builder *b, uint32_t num_instrs)
++{
++   if (b->conf.alloc_buffer_sized)
++      return b->conf.alloc_buffer_sized(b, b->conf.cookie,
++                                        num_instrs + JUMP_SEQ_INSTR_COUNT);
++
++   return b->conf.alloc_buffer(b->conf.cookie);
++}
++
+ static inline bool
+ cs_reserve_instrs(struct cs_builder *b, uint32_t num_instrs)
+ {
+@@ -527,7 +546,7 @@ cs_reserve_instrs(struct cs_builder *b, uint32_t num_instrs)
+       return false;
+ 
+    /* Make sure we have sufficient capacity if we wont allocate more */
+-   if (b->conf.alloc_buffer == NULL) {
++   if (b->conf.alloc_buffer == NULL && b->conf.alloc_buffer_sized == NULL) {
+       if (unlikely(b->cur_chunk.size + num_instrs > b->cur_chunk.buffer.capacity)) {
+          assert(!"Out of CS space");
+          b->invalid = true;
+@@ -539,7 +558,7 @@ cs_reserve_instrs(struct cs_builder *b, uint32_t num_instrs)
+ 
+    /* Lazy root chunk allocation. */
+    if (unlikely(!b->root_chunk.buffer.cpu)) {
+-      b->root_chunk.buffer = b->conf.alloc_buffer(b->conf.cookie);
++      b->root_chunk.buffer = cs_alloc_chunk(b, num_instrs);
+       b->cur_chunk.buffer = b->root_chunk.buffer;
+       if (!b->cur_chunk.buffer.cpu) {
+          b->invalid = true;
+@@ -559,7 +578,7 @@ cs_reserve_instrs(struct cs_builder *b, uint32_t num_instrs)
+       b->cur_chunk.buffer.capacity;
+    if (unlikely(jump_to_next_chunk)) {
+       /* Now, allocate a new chunk */
+-      struct cs_buffer newbuf = b->conf.alloc_buffer(b->conf.cookie);
++      struct cs_buffer newbuf = cs_alloc_chunk(b, num_instrs);
+ 
+       /* Allocation failure, from now on, all new instructions will be
+        * discarded.
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c
+index 7bfa3725..ad64659c 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_buffer.c
+@@ -1195,11 +1195,9 @@ panvk_per_arch(CmdPipelineBarrier2)(VkCommandBuffer commandBuffer,
+ }
+ 
+ static struct cs_buffer
+-alloc_cs_buffer(void *cookie)
++alloc_cs_chunk(struct panvk_cmd_buffer *cmdbuf, uint32_t capacity)
+ {
+-   struct panvk_cmd_buffer *cmdbuf = cookie;
+    const struct panvk_device *dev = to_panvk_device(cmdbuf->vk.base.device);
+-   const unsigned capacity = 64 * 1024 / sizeof(uint64_t);
+ 
+    if (!dev->cmdbuf_opt.cs_flush_used) {
+       struct pan_ptr ptr =
+@@ -1247,6 +1245,35 @@ alloc_cs_buffer(void *cookie)
+    };
+ }
+ 
++static struct cs_buffer
++alloc_cs_buffer(void *cookie)
++{
++   return alloc_cs_chunk(cookie, 64 * 1024 / sizeof(uint64_t));
++}
++
++/* Every chunk was 64 KiB, so each subqueue a command buffer touched cost a
++ * 64 KiB slab however little it recorded. The first chunk of a stream is
++ * cmdbuf_opt.cs_chunk_min_B and each next one twice the chunk it follows,
++ * up to 64 KiB, always big enough for the sequence that needs it. Small
++ * chunks share the CS pool's 64 KiB slabs.
++ */
++static struct cs_buffer
++alloc_cs_buffer_sized(struct cs_builder *b, void *cookie, uint32_t min_instrs)
++{
++   struct panvk_cmd_buffer *cmdbuf = cookie;
++   const struct panvk_device *dev = to_panvk_device(cmdbuf->vk.base.device);
++   const uint32_t max_B = 64 * 1024;
++   uint32_t size_B = dev->cmdbuf_opt.cs_chunk_min_B;
++
++   if (b->cur_chunk.buffer.cpu)
++      size_B = MAX2(size_B, MIN2(max_B, b->cur_chunk.buffer.capacity * 2 *
++                                           (uint32_t)sizeof(uint64_t)));
++   size_B =
++      MAX2(size_B, ALIGN_POT(min_instrs * (uint32_t)sizeof(uint64_t), 64));
++
++   return alloc_cs_chunk(cmdbuf, size_B / sizeof(uint64_t));
++}
++
+ static enum cs_reg_perm
+ cs_reg_perm(struct cs_builder *b, unsigned reg)
+ {
+@@ -1289,6 +1316,9 @@ init_cs_builder(struct panvk_cmd_buffer *cmdbuf, uint32_t i)
+          .compute_ep_limit =
+             PAN_ARCH >= 12 ? phys_dev->kmod.dev->props.max_tasks_per_core : 0,
+          .alloc_buffer = alloc_cs_buffer,
++         .alloc_buffer_sized = dev->cmdbuf_opt.cs_chunk_min_B < 64 * 1024
++                                  ? alloc_cs_buffer_sized
++                                  : NULL,
+          .cookie = cmdbuf,
+          .ls_sb_slot = SB_ID(LS),
+       };
+diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
+index 51da9dfd..1282f7ac 100644
+--- a/src/panfrost/vulkan/panvk_device.h
++++ b/src/panfrost/vulkan/panvk_device.h
+@@ -221,6 +221,9 @@ struct panvk_device {
+       /* PANVK_JM_CMD_POOL_AUTOTRIM (default 1): command pool auto-trim
+        * (csf-v11 226/231) on v6/v7/v9 JM too. */
+       bool jm_pool_autotrim;
++      /* PANVK_CS_CHUNK_KB (default 4, 64 = fixed 64 KiB chunks): size of
++       * the first CS chunk of a stream (CSF), doubling up to 64 KiB. */
++      uint32_t cs_chunk_min_B;
+    } cmdbuf_opt;
+ 
+    /* Device-wide thread local storage shared by all command buffers. The
+diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
+index 154912c1..f6b3b4f1 100644
+--- a/src/panfrost/vulkan/panvk_vX_device.c
++++ b/src/panfrost/vulkan/panvk_vX_device.c
+@@ -872,6 +872,10 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+       debug_get_bool_option("PANVK_CS_FLUSH_USED", true);
+    device->cmdbuf_opt.jm_pool_autotrim =
+       debug_get_bool_option("PANVK_JM_CMD_POOL_AUTOTRIM", true);
++   device->cmdbuf_opt.cs_chunk_min_B =
++      util_next_power_of_two(
++         CLAMP(debug_get_num_option("PANVK_CS_CHUNK_KB", 4), 1, 64)) *
++      1024;
+ 
+ #if PAN_ARCH >= 9
+    if (PANVK_DEBUG(GPU_PRERAST) || device->vk.enabled_features.fillModeNonSolid ||
+-- 
+2.55.0
+

@@ -1,0 +1,277 @@
+From cc1ff45bc5eaf7fadc2aebb95cdae629538dc277 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 02:22:23 +0000
+Subject: [PATCH 02/10] panvk/csf: tessellation arenas with an 8 MiB VS region
+
+Rationale: perf review 2026-10-26 part B, finding Q3. The tessellation
+arena reused the gpu_prerast layout: VS records up to 32 MiB, then the
+64 MiB data region (96 MiB per arena, two arenas with csf-v11 215). The
+VS region of a tessellation chunk only holds max_patches x patch size
+records, and max_patches is bounded by the data region to about 490
+patches at the maximum level: about 0.25 MiB for 4 control points with
+128 B records, 8 MiB only for 32 control points with 512 B records. All
+32 MiB were committed (and zeroed by 041) for each arena.
+
+The tessellation VS region now ends at panvk_device::tess_opt.vs_region_end
+(8 MiB by default): the data region (same 64 MiB, same tessellation bound
+on max_patches) starts there and the arenas are 72 MiB. max_patches also
+takes the VS capacity of that region, so only patches with more than
+16 KiB of VS records (patch size x record stride) get fewer patches per
+chunk: more GPU loop iterations, never a failure. The record capacity the
+lowered VS checks before each store is the one of the arena it writes
+(the tessellation VS pass writes the tessellation arena), so a chunk can
+never write past the VS region. The GPU takes every other address from
+the CPU-computed layout. The nested TES/GS passes use the draw arena and
+v9 JM computes its own layout from the 32 MiB constants, both unchanged.
+
+Knob: PANVK_TESS_VS_REGION_MB (default 8, clamped to 2-32), read once at
+device creation; 32 = 114 layout. Arch: v10+ only, v9 keeps 32 MiB.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c | 27 +++++++++++--
+ src/panfrost/vulkan/panvk_device.h          |  4 ++
+ src/panfrost/vulkan/panvk_gpu_prerast.h     | 45 ++++++++++++++++-----
+ src/panfrost/vulkan/panvk_vX_device.c       | 30 ++++++++++----
+ 4 files changed, 84 insertions(+), 22 deletions(-)
+
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+index bdd47054..423e7402 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+@@ -3767,6 +3767,23 @@ gpu_prerast_arena_sync(const struct panvk_device *dev, uint64_t arena)
+                 : offsetof(struct panvk_gpu_prerast_syncs, arena));
+ }
+ 
++/* VS records the arena holds: the tessellation arenas have a smaller VS
++ * region (panvk_device::tess_opt.vs_region_end).
++ */
++static uint32_t
++gpu_prerast_arena_record_capacity(const struct panvk_device *dev,
++                                  uint64_t arena, uint32_t record_stride)
++{
++   const bool tess =
++      arena == panvk_priv_mem_dev_addr(dev->gpu_prerast_tess_arena) ||
++      (panvk_priv_mem_check_alloc(dev->gpu_prerast_tess_arena2) &&
++       arena == panvk_priv_mem_dev_addr(dev->gpu_prerast_tess_arena2));
++
++   return panvk_gpu_prerast_record_capacity_in(
++      tess ? dev->tess_opt.vs_region_end : PANVK_GPU_PRERAST_VS_REGION_END,
++      record_stride);
++}
++
+ static void
+ gpu_prerast_release_arena(struct panvk_cmd_buffer *cmdbuf, uint64_t arena)
+ {
+@@ -4306,8 +4323,8 @@ gpu_prerast_vs(struct panvk_cmd_buffer *cmdbuf,
+                  source->index.index_size == 2 ? UINT16_MAX : UINT32_MAX);
+    STORE_PARAM32(primitive_restart, source->index.restart_enable);
+    STORE_PARAM32(record_capacity,
+-                 panvk_gpu_prerast_record_capacity(
+-                    shader->gpu_prerast.io.record_stride));
++                 gpu_prerast_arena_record_capacity(
++                    dev, arena, shader->gpu_prerast.io.record_stride));
+    STORE_PARAM32(draw_id, source->indirect.draw_index);
+    if (chunk_addr) {
+       cs_move64_to(compute, addr, chunk_addr);
+@@ -4705,6 +4722,7 @@ gpu_prerast_draw_generated(struct panvk_cmd_buffer *cmdbuf,
+ static uint32_t
+ gpu_prerast_tess_max_patches(const struct panvk_cmd_buffer *cmdbuf)
+ {
++   const struct panvk_device *dev = to_panvk_device(cmdbuf->vk.base.device);
+    const struct panvk_shader *vs = cmdbuf->state.gfx.vs.shader;
+    const struct panvk_shader *tcs = cmdbuf->state.gfx.tcs.shader;
+    const uint32_t ps =
+@@ -4715,7 +4733,7 @@ gpu_prerast_tess_max_patches(const struct panvk_cmd_buffer *cmdbuf)
+ 
+    return panvk_gpu_prerast_tess_max_patches(
+       tcs->gpu_prerast.tess.stride_el * 4, vs->gpu_prerast.io.record_stride,
+-      ps);
++      ps, dev->tess_opt.vs_region_end);
+ }
+ 
+ /* Loads the address of a tessellation sync of the queue syncobjs BO, see
+@@ -5069,7 +5087,8 @@ gpu_prerast_tess(struct panvk_cmd_buffer *cmdbuf,
+    const uint64_t prerast_arena =
+       nested ? panvk_priv_mem_dev_addr(dev->gpu_prerast_arena) : 0;
+    struct panvk_gpu_prerast_tess_layout l;
+-   panvk_gpu_prerast_tess_layout(arena, max_patches, tc->stride_el * 4, &l);
++   panvk_gpu_prerast_tess_layout(arena, dev->tess_opt.vs_region_end,
++                                 max_patches, tc->stride_el * 4, &l);
+ 
+     struct pan_ptr td = panvk_cmd_alloc_dev_mem(
+        cmdbuf, desc, sizeof(struct panlib_tess_draw), 16);
+diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
+index 2178c678..af03a289 100644
+--- a/src/panfrost/vulkan/panvk_device.h
++++ b/src/panfrost/vulkan/panvk_device.h
+@@ -207,6 +207,10 @@ struct panvk_device {
+       uint8_t arenas;
+       /* PANVK_TESS_WINDING_INLINE (default 1): POLY_TESS_CCW_INLINE. */
+       bool winding_inline;
++      /* PANVK_TESS_VS_REGION_MB (default 8 on v10+, 32 = the v9 layout):
++       * end of the VS records in the tessellation arenas, where their data
++       * region starts. */
++      uint64_t vs_region_end;
+    } tess_opt;
+ 
+    /* Device-wide thread local storage shared by all command buffers. The
+diff --git a/src/panfrost/vulkan/panvk_gpu_prerast.h b/src/panfrost/vulkan/panvk_gpu_prerast.h
+index 28943efb..985a3759 100644
+--- a/src/panfrost/vulkan/panvk_gpu_prerast.h
++++ b/src/panfrost/vulkan/panvk_gpu_prerast.h
+@@ -307,22 +307,32 @@ static_assert(PANVK_GPU_PRERAST_PARAMS_OFFSET +
+                  PANVK_GPU_PRERAST_DISPATCH_OFFSET,
+               "gpu_prerast params overlap the dispatch words");
+ 
++/* VS records an arena whose VS region ends at vs_region_end holds. */
+ static inline uint32_t
+-panvk_gpu_prerast_record_capacity(uint32_t record_stride)
++panvk_gpu_prerast_record_capacity_in(uint64_t vs_region_end,
++                                     uint32_t record_stride)
+ {
+    uint64_t cap = record_stride
+-      ? (PANVK_GPU_PRERAST_VS_REGION_END - PANVK_GPU_PRERAST_RECORD_OFFSET) /
+-           record_stride
++      ? (vs_region_end - PANVK_GPU_PRERAST_RECORD_OFFSET) / record_stride
+       : 0;
+    return MIN2(cap, PANVK_GPU_PRERAST_MAX_INVOCATIONS);
+ }
+ 
++static inline uint32_t
++panvk_gpu_prerast_record_capacity(uint32_t record_stride)
++{
++   return panvk_gpu_prerast_record_capacity_in(PANVK_GPU_PRERAST_VS_REGION_END,
++                                               record_stride);
++}
++
+ /* The tessellation arena reuses the gpu_prerast header and VS region layout
+  * for the control points, the TCS outputs, domain points and indices live
+  * past it. Sized for patches tessellated at the maximum level.
+  */
+ #define PANVK_GPU_PRERAST_TESS_ARENA_SIZE (96ull * 1024 * 1024)
+ #define PANVK_GPU_PRERAST_TESS_DATA_OFFSET PANVK_GPU_PRERAST_VS_REGION_END
++#define PANVK_GPU_PRERAST_TESS_DATA_SIZE                                       \
++   (PANVK_GPU_PRERAST_TESS_ARENA_SIZE - PANVK_GPU_PRERAST_TESS_DATA_OFFSET)
+ #define PANVK_GPU_PRERAST_TESS_MAX_LEVEL 64
+ #define PANVK_GPU_PRERAST_TESS_MAX_PATCH_SIZE 32
+ #define PANVK_GPU_PRERAST_TESS_UNSET 0xff
+@@ -348,25 +358,37 @@ panvk_gpu_prerast_tess_patch_bytes(uint32_t tcs_stride_B)
+           16 + PANVK_GPU_PRERAST_TESS_MAX_INDICES * sizeof(uint32_t);
+ }
+ 
++/* A CSF tessellation arena only holds the VS records of one chunk
++ * (max_patches x patch size), so its data region can start right after a
++ * smaller VS region (panvk_device::tess_opt.vs_region_end). The data region
++ * keeps its size. The JM v9 path uses the constants above.
++ */
++static inline uint64_t
++panvk_gpu_prerast_tess_arena_size(uint64_t vs_region_end)
++{
++   return vs_region_end + PANVK_GPU_PRERAST_TESS_DATA_SIZE;
++}
++
+ static inline uint32_t
+ panvk_gpu_prerast_tess_max_patches(uint32_t tcs_stride_B,
+                                    uint32_t vs_record_stride,
+-                                   uint32_t patch_size)
++                                   uint32_t patch_size,
++                                   uint64_t vs_region_end)
+ {
+-   uint64_t tess = (PANVK_GPU_PRERAST_TESS_ARENA_SIZE -
+-                    PANVK_GPU_PRERAST_TESS_DATA_OFFSET - 4 * 16) /
++   uint64_t tess = (PANVK_GPU_PRERAST_TESS_DATA_SIZE - 4 * 16) /
+                    panvk_gpu_prerast_tess_patch_bytes(tcs_stride_B);
+    uint64_t vs =
+-      panvk_gpu_prerast_record_capacity(vs_record_stride) / MAX2(patch_size, 1);
++      panvk_gpu_prerast_record_capacity_in(vs_region_end, vs_record_stride) /
++      MAX2(patch_size, 1);
+    return MIN2(tess, vs);
+ }
+ 
+ static inline void
+-panvk_gpu_prerast_tess_layout(uint64_t arena, uint32_t patches,
+-                              uint32_t tcs_stride_B,
++panvk_gpu_prerast_tess_layout(uint64_t arena, uint64_t vs_region_end,
++                              uint32_t patches, uint32_t tcs_stride_B,
+                               struct panvk_gpu_prerast_tess_layout *l)
+ {
+-   uint64_t off = arena + PANVK_GPU_PRERAST_TESS_DATA_OFFSET;
++   uint64_t off = arena + vs_region_end;
+ 
+    l->tcs = off;
+    off += ALIGN_POT((uint64_t)patches * tcs_stride_B, 16);
+@@ -381,7 +403,8 @@ panvk_gpu_prerast_tess_layout(uint64_t arena, uint32_t patches,
+    l->index = off;
+    l->index_size =
+       patches * PANVK_GPU_PRERAST_TESS_MAX_INDICES * sizeof(uint32_t);
+-   assert(off + l->index_size <= arena + PANVK_GPU_PRERAST_TESS_ARENA_SIZE);
++   assert(off + l->index_size <=
++          arena + panvk_gpu_prerast_tess_arena_size(vs_region_end));
+ }
+ 
+ struct panvk_gpu_prerast_arena {
+diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
+index 8f67ec8b..869d0098 100644
+--- a/src/panfrost/vulkan/panvk_vX_device.c
++++ b/src/panfrost/vulkan/panvk_vX_device.c
+@@ -190,14 +190,15 @@ panvk_per_arch(device_gpu_prerast_arena)(struct panvk_device *dev, bool tess)
+ 
+    simple_mtx_lock(&dev->gpu_prerast_lock);
+    if (!panvk_priv_mem_check_alloc(*mem)) {
+-      *mem = alloc_gpu_prerast_arena(
+-         dev, tess ? PANVK_GPU_PRERAST_TESS_ARENA_SIZE
+-                   : PANVK_GPU_PRERAST_ARENA_SIZE);
++      const uint64_t size =
++         tess ? panvk_gpu_prerast_tess_arena_size(dev->tess_opt.vs_region_end)
++              : PANVK_GPU_PRERAST_ARENA_SIZE;
++
++      *mem = alloc_gpu_prerast_arena(dev, size);
+       if (panvk_priv_mem_check_alloc(*mem))
+          mesa_logi("panvk: gpu_prerast %s arena committed (%llu MiB)",
+                    tess ? "tessellation" : "draw",
+-                   (unsigned long long)((tess ? PANVK_GPU_PRERAST_TESS_ARENA_SIZE
+-                                              : PANVK_GPU_PRERAST_ARENA_SIZE) >> 20));
++                   (unsigned long long)(size >> 20));
+    }
+    struct panvk_priv_mem ret = *mem;
+    simple_mtx_unlock(&dev->gpu_prerast_lock);
+@@ -214,11 +215,14 @@ panvk_per_arch(device_gpu_prerast_tess_arena2)(struct panvk_device *dev)
+ 
+    simple_mtx_lock(&dev->gpu_prerast_lock);
+    if (!panvk_priv_mem_check_alloc(*mem)) {
+-      *mem = alloc_gpu_prerast_arena(dev, PANVK_GPU_PRERAST_TESS_ARENA_SIZE);
++      const uint64_t size =
++         panvk_gpu_prerast_tess_arena_size(dev->tess_opt.vs_region_end);
++
++      *mem = alloc_gpu_prerast_arena(dev, size);
+       if (panvk_priv_mem_check_alloc(*mem))
+          mesa_logi("panvk: gpu_prerast second tessellation arena committed "
+                    "(%llu MiB)",
+-                   (unsigned long long)(PANVK_GPU_PRERAST_TESS_ARENA_SIZE >> 20));
++                   (unsigned long long)(size >> 20));
+       else
+          dev->tess_opt.arenas = 1; /* Do not retry on every draw. */
+    }
+@@ -878,6 +882,18 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+       debug_get_num_option("PANVK_TESS_ARENAS", 2) >= 2 ? 2 : 1;
+    device->tess_opt.winding_inline =
+       debug_get_num_option("PANVK_TESS_WINDING_INLINE", 1) != 0;
++   /* A tessellation chunk needs max_patches x patch size VS records, about
++    * 0.25 MiB for 4 control points x 128 B and 8 MiB only for 32 control
++    * points x 512 B records (then fewer patches per chunk). v9 JM computes
++    * its layout from the 32 MiB constants.
++    */
++   device->tess_opt.vs_region_end = PANVK_GPU_PRERAST_VS_REGION_END;
++   if (PAN_ARCH >= 10) {
++      const uint64_t mb =
++         CLAMP(debug_get_num_option("PANVK_TESS_VS_REGION_MB", 8), 2,
++               PANVK_GPU_PRERAST_VS_REGION_END >> 20);
++      device->tess_opt.vs_region_end = mb << 20;
++   }
+ 
+    /* v9, or PANVK_GPU_PRERAST_ARENA=eager: commit both arenas here, as
+     * before csf-v11/205 (64 + 96 MiB per VkDevice with the features). */
+-- 
+2.55.0
+
