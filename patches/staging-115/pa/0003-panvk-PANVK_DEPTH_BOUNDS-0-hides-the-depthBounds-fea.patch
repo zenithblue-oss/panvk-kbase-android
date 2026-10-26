@@ -1,0 +1,78 @@
+From 5cc135f0bd1409157464e2100aef690170fe53c9 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 02:30:03 +0000
+Subject: [PATCH 3/3] panvk: PANVK_DEPTH_BOUNDS=0 hides the depthBounds feature
+
+Rationale: perf review 2026-10-26 finding C1 (c-gpu.md), the interim A/B
+knob. With the feature hidden, DXVK declares no depth bounds state, so
+no fragment shader is lowered at all: the state before csf-v11 092 on
+v10/v11 and before jm-v7 015 on v6/v7. It measures the whole cost of
+the emulation against the C1 alternate (PANVK_DB_ALT), on every arch,
+and is a fallback if the alternate shows a problem on a device.
+Applications that use depth bounds (vkd3d-proton's D3D12 depth bounds
+test, DXVK's NVAPI extension) lose it while the knob is 0.
+
+Knobs: PANVK_DEPTH_BOUNDS=0 = feature not exposed. Default on (as 114).
+Arch: all, resolved once at instance creation.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_instance.c           | 1 +
+ src/panfrost/vulkan/panvk_perf_knobs.h         | 2 ++
+ src/panfrost/vulkan/panvk_vX_physical_device.c | 8 ++++++--
+ 3 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_instance.c b/src/panfrost/vulkan/panvk_instance.c
+index f07cdf3e..dc0f8e08 100644
+--- a/src/panfrost/vulkan/panvk_instance.c
++++ b/src/panfrost/vulkan/panvk_instance.c
+@@ -85,6 +85,7 @@ static const struct {
+ } panvk_perf_knob_names[] = {
+    {"PANVK_CSF_FS_IDLE_CLEAN", PANVK_PERF_FS_IDLE_CLEAN},
+    {"PANVK_DB_ALT", PANVK_PERF_DB_ALT},
++   {"PANVK_DEPTH_BOUNDS", PANVK_PERF_DEPTH_BOUNDS},
+ };
+ 
+ void
+diff --git a/src/panfrost/vulkan/panvk_perf_knobs.h b/src/panfrost/vulkan/panvk_perf_knobs.h
+index 904ca4b4..612c4abc 100644
+--- a/src/panfrost/vulkan/panvk_perf_knobs.h
++++ b/src/panfrost/vulkan/panvk_perf_knobs.h
+@@ -26,6 +26,8 @@ enum panvk_perf_knob {
+    /* C1, PANVK_DB_ALT: v9+ fragment shaders with the depth bounds lowering
+     * get an unlowered compile, drawn while the test is off (jm-v7 076). */
+    PANVK_PERF_DB_ALT = 1 << 1,
++   /* C1, PANVK_DEPTH_BOUNDS: the depthBounds feature is exposed. */
++   PANVK_PERF_DEPTH_BOUNDS = 1 << 2,
+ };
+ 
+ extern uint32_t panvk_perf_knobs;
+diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
+index f749afa8..b185d4e8 100644
+--- a/src/panfrost/vulkan/panvk_vX_physical_device.c
++++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
+@@ -23,6 +23,7 @@
+ #include "panvk_buffer.h"
+ #include "panvk_cmd_draw.h"
+ #include "panvk_descriptor_set_layout.h"
++#include "panvk_perf_knobs.h"
+ #include "panvk_physical_device.h"
+ #include "panvk_wsi.h"
+ 
+@@ -335,8 +336,11 @@ panvk_per_arch(get_physical_device_features)(
+       .depthBiasClamp = true,
+       /* v6/v7: a passthrough GS emits edges or vertices (jm-v7 018). */
+       .fillModeNonSolid = true,
+-      /* v6/v7: emulated in the FS with LD_TILE of the depth (jm-v7 015). */
+-      .depthBounds = true,
++      /* v6/v7: emulated in the FS with LD_TILE of the depth (jm-v7 015).
++       * PANVK_DEPTH_BOUNDS=0 hides it for A/B runs (C1, 115): DXVK then
++       * declares no depth bounds state, as before csf-v11 092 on v10/v11.
++       */
++      .depthBounds = PANVK_PERF(DEPTH_BOUNDS),
+       .wideLines = true,
+       .largePoints = true,
+       .alphaToOne = PAN_ARCH >= 10,
+-- 
+2.55.0
+

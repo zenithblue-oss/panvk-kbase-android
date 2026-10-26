@@ -1,0 +1,244 @@
+From f6afa2edc09cc9fc29b9a58840c716800cc0ec07 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 02:27:36 +0000
+Subject: [PATCH 1/3] panvk/csf: leave the FS state clean across draws that do
+ not run the FS
+
+Rationale: perf review 2026-10-26 finding A1 (a-csf-cpu.md, ranked 1).
+clear_dirty_after_draw() marks FS dirty again after every draw that did
+not use the bound fragment shader (fs.shader != get_fs()). Since csf-v11
+092 a pipeline without a fragment shader binds the device depth bounds
+FS, which is not required while the test is off, so every depth-only
+draw (shadow maps, depth prepasses) re-ran all the FS-side preparation:
+FRAGMENT_SRT/SPD and push uniforms, the FS driver set and resource
+table, blend descriptors, ZSD, the three DCD words and the tiler flags.
+An application FS with nothing to write hits the same rule.
+
+Every input of fs_required() is in fs_user_dirty() (FS, rasterizer
+discard, CB attachment count, color write enables, write masks,
+alpha-to-coverage, depth bounds enable, RENDER_STATE), so the state
+emitted for "no FS" at the first such draw stays valid until one of them
+changes, and that change re-emits it anyway. The draws in between now
+leave it clean. fs.unused records that the bound FS has not been emitted
+since; the first draw that requires it marks FS and FS_PUSH_UNIFORMS
+dirty in panvk_cmd_draw(), a superset of what the old rule left dirty at
+that draw. Meta, command buffer reset and secondaries already dirty FS
+themselves.
+
+This also adds panvk_perf_knobs.h for the 115 changes: each knob is
+resolved once, at the first vkCreateInstance, with os_get_option()
+(debug.mesa.* properties work on Android), and one log line lists the
+knobs set to 0.
+
+Knobs: PANVK_CSF_FS_IDLE_CLEAN=0 = 114 (FS re-dirtied after every draw
+that does not run it). Default on.
+Arch: v10+ (CSF) only; the v6/v7/v9 JM macro is unchanged.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c |  9 +++++
+ src/panfrost/vulkan/panvk_cmd_draw.h        | 41 ++++++++++++++++++++-
+ src/panfrost/vulkan/panvk_instance.c        | 39 ++++++++++++++++++++
+ src/panfrost/vulkan/panvk_perf_knobs.h      | 34 +++++++++++++++++
+ 4 files changed, 122 insertions(+), 1 deletion(-)
+ create mode 100644 src/panfrost/vulkan/panvk_perf_knobs.h
+
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+index 078158f6..21d28495 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+@@ -6096,6 +6096,15 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info draw)
+    cmdbuf->state.gfx.fs.required =
+       fs_required(&cmdbuf->state.gfx, &cmdbuf->vk.dynamic_graphics_state);
+ 
++   /* A1: the first draw that runs the FS after draws that did not (see
++    * clear_dirty_after_draw()) emits its state again.
++    */
++   if (cmdbuf->state.gfx.fs.unused && cmdbuf->state.gfx.fs.required) {
++      cmdbuf->state.gfx.fs.unused = false;
++      gfx_state_set_dirty(cmdbuf, FS);
++      gfx_state_set_dirty(cmdbuf, FS_PUSH_UNIFORMS);
++   }
++
+    if (cmdbuf->state.gfx.vi.base_instance != draw.instance.base) {
+       cmdbuf->state.gfx.vi.base_instance = draw.instance.base;
+       gfx_state_set_dirty(cmdbuf, BASE_INSTANCE);
+diff --git a/src/panfrost/vulkan/panvk_cmd_draw.h b/src/panfrost/vulkan/panvk_cmd_draw.h
+index 527a43c3..9634bf5e 100644
+--- a/src/panfrost/vulkan/panvk_cmd_draw.h
++++ b/src/panfrost/vulkan/panvk_cmd_draw.h
+@@ -16,6 +16,7 @@
+ #include "panvk_entrypoints.h"
+ #include "panvk_image.h"
+ #include "panvk_image_view.h"
++#include "panvk_perf_knobs.h"
+ #include "panvk_physical_device.h"
+ #include "panvk_shader.h"
+ 
+@@ -231,6 +232,13 @@ struct panvk_cmd_graphics_state {
+       uint64_t blend_descs[MAX_RTS];
+       uint64_t push_uniforms;
+       bool required;
++#if PAN_ARCH >= 10
++      /* A1 (115): a draw since the last FS emission did not run the bound
++       * FS (fs_required() false). The next draw that runs it marks FS and
++       * FS_PUSH_UNIFORMS dirty, see clear_dirty_after_draw().
++       */
++      bool unused;
++#endif
+ #if PAN_ARCH < 9
+       uint64_t rsd;
+ #endif
+@@ -598,8 +606,38 @@ cached_fs_required(ASSERTED const struct panvk_cmd_graphics_state *state,
+     gfx_state_dirty(cmdbuf, RENDER_STATE))
+ 
+ /* After a draw, all dirty flags are cleared except the FS dirty flag which
+- * needs to be set again if the draw didn't use the fragment shader. */
++ * needs to be set again if the draw didn't use the fragment shader.
++ *
++ * A1 (115), CSF: since csf-v11 092 a pipeline without a fragment shader has
++ * the device depth bounds FS bound, which is not used while the test is off,
++ * so that rule re-emitted all the FS-side state (blend, ZSD, DCD, tiler
++ * flags, FS registers and descriptors) on every depth-only draw. Every input
++ * of fs_required() is in fs_user_dirty(), so a draw that starts using the FS
++ * again re-emits it anyway; fs.unused only remembers to mark FS and
++ * FS_PUSH_UNIFORMS dirty at that draw (panvk_cmd_draw()), and the draws in
++ * between leave the FS state clean. PANVK_CSF_FS_IDLE_CLEAN=0 restores the
++ * per-draw re-dirtying.
++ */
+ 
++#if PAN_ARCH >= 10
++#define clear_dirty_after_draw(__cmdbuf)                                       \
++   do {                                                                        \
++      bool __fs_unused =                                                       \
++         (__cmdbuf)->state.gfx.fs.shader != get_fs(__cmdbuf);                  \
++      bool __idle_clean = __fs_unused && PANVK_PERF(FS_IDLE_CLEAN);            \
++      bool __set_fs_push_dirty = __fs_unused && !__idle_clean &&               \
++                                 gfx_state_dirty(__cmdbuf, FS_PUSH_UNIFORMS);  \
++      vk_dynamic_graphics_state_clear_dirty(                                   \
++         &(__cmdbuf)->vk.dynamic_graphics_state);                              \
++      gfx_state_clear_all_dirty(__cmdbuf);                                     \
++      if (__idle_clean)                                                        \
++         (__cmdbuf)->state.gfx.fs.unused = true;                               \
++      else if (__fs_unused)                                                    \
++         gfx_state_set_dirty(__cmdbuf, FS);                                    \
++      if (__set_fs_push_dirty)                                                 \
++         gfx_state_set_dirty(__cmdbuf, FS_PUSH_UNIFORMS);                      \
++   } while (0)
++#else
+ #define clear_dirty_after_draw(__cmdbuf)                                       \
+    do {                                                                        \
+       bool __set_fs_dirty =                                                    \
+@@ -614,6 +652,7 @@ cached_fs_required(ASSERTED const struct panvk_cmd_graphics_state *state,
+       if (__set_fs_push_dirty)                                                 \
+          gfx_state_set_dirty(__cmdbuf, FS_PUSH_UNIFORMS);                      \
+    } while (0)
++#endif
+ 
+ #if PAN_ARCH >= 10 && PAN_ARCH < 14
+ VkResult
+diff --git a/src/panfrost/vulkan/panvk_instance.c b/src/panfrost/vulkan/panvk_instance.c
+index 74520c4a..13ad29c3 100644
+--- a/src/panfrost/vulkan/panvk_instance.c
++++ b/src/panfrost/vulkan/panvk_instance.c
+@@ -30,6 +30,7 @@
+ #include "panvk_entrypoints.h"
+ #include "panvk_instance.h"
+ #include "panvk_macros.h"
++#include "panvk_perf_knobs.h"
+ #include "panvk_physical_device.h"
+ 
+ #ifdef HAVE_VALGRIND
+@@ -75,11 +76,49 @@ static const struct debug_control panvk_debug_options[] = {
+ 
+ uint64_t panvk_debug;
+ 
++uint32_t panvk_perf_knobs;
++
++/* panvk_perf_knobs.h: on unless "<name>=0". */
++static const struct {
++   const char *name;
++   uint32_t knob;
++} panvk_perf_knob_names[] = {
++   {"PANVK_CSF_FS_IDLE_CLEAN", PANVK_PERF_FS_IDLE_CLEAN},
++};
++
++void
++panvk_perf_knobs_init(void)
++{
++   char off[512];
++   unsigned off_len = 0;
++   uint32_t knobs = 0;
++
++   off[0] = '\0';
++   for (unsigned i = 0; i < ARRAY_SIZE(panvk_perf_knob_names); i++) {
++      const char *e = os_get_option(panvk_perf_knob_names[i].name);
++
++      if (e && e[0] == '0') {
++         if (off_len < sizeof(off))
++            off_len += snprintf(off + off_len, sizeof(off) - off_len, " %s",
++                                panvk_perf_knob_names[i].name);
++      } else {
++         knobs |= panvk_perf_knob_names[i].knob;
++      }
++   }
++
++   panvk_perf_knobs = knobs;
++
++   /* Once per process, so a device log tells which 115 changes were off. */
++   if (off_len)
++      mesa_logi("panvk: 114 behaviour restored for:%s", off);
++}
++
+ static void
+ panvk_debug_init_once(void)
+ {
+    panvk_debug =
+       parse_debug_string(os_get_option("PANVK_DEBUG"), panvk_debug_options);
++   panvk_perf_knobs_init();
+ }
+ 
+ static void
+diff --git a/src/panfrost/vulkan/panvk_perf_knobs.h b/src/panfrost/vulkan/panvk_perf_knobs.h
+new file mode 100644
+index 00000000..3f2a1ff5
+--- /dev/null
++++ b/src/panfrost/vulkan/panvk_perf_knobs.h
+@@ -0,0 +1,34 @@
++/*
++ * Copyright © 2026 Collabora Ltd.
++ * SPDX-License-Identifier: MIT
++ */
++
++/* Build 115 driver-side performance changes (perf review 2026-10-26,
++ * package P-A). Each change has an environment knob that brings the 114
++ * behaviour back with "<name>=0". The knobs are resolved once per process,
++ * at the first vkCreateInstance (panvk_debug_init()), so hot paths only test
++ * a bit of panvk_perf_knobs. Like PANVK_DEBUG, they are read with
++ * os_get_option(): on Android a debug.mesa.* property works too.
++ */
++
++#ifndef PANVK_PERF_KNOBS_H
++#define PANVK_PERF_KNOBS_H
++
++#include <stdint.h>
++
++#include "util/macros.h"
++
++enum panvk_perf_knob {
++   /* A1, PANVK_CSF_FS_IDLE_CLEAN: a CSF draw that does not run its FS (the
++    * depth bounds stand-in of a depth-only pipeline, or an FS with nothing
++    * to write) leaves the FS state clean instead of dirtying it again. */
++   PANVK_PERF_FS_IDLE_CLEAN = 1 << 0,
++};
++
++extern uint32_t panvk_perf_knobs;
++
++#define PANVK_PERF(knob) likely(panvk_perf_knobs & PANVK_PERF_##knob)
++
++void panvk_perf_knobs_init(void);
++
++#endif /* PANVK_PERF_KNOBS_H */
+-- 
+2.55.0
+
