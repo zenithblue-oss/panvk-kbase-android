@@ -53,7 +53,9 @@ pkg_ver = str(meta.get("packageVersion", ""))
 blob = (pkg_ver + " " + os.path.basename(zpath)).lower()
 
 def tier_of(s):
-    if re.search(r"(^|[^a-z])dev([^a-z]|$)|-dev", s):
+    # "-dev" is the dev tier, "-devel" is not: upstream-style names carry the Mesa version
+    # (e.g. Mesa-PanVK-26.3.0-devel-6a5d4e27).
+    if re.search(r"(^|[^a-z])dev([^a-z]|$)|-dev(?!el)", s):
         return "dev"
     if "alpha" in s:
         return "alpha"

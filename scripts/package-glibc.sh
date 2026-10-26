@@ -10,21 +10,36 @@ SRC="$ROOT/dist/glibc-$PROFILE/libvulkan_panfrost.so"
 [ -f "$SRC" ] || { echo "build first: $SRC missing" >&2; exit 1; }
 MESA_SHA="$(python3 -c "import json;print(json.load(open('$ROOT/sources.lock'))['mesaCommit'])")"
 PATCH_SERIES_ID="$(python3 "$ROOT/scripts/compute-patch-series-id.py" --profile "$PROFILE")"
-OUT="$ROOT/dist/PanVK-Kbase-$VER-${MESA_SHA:0:8}-EMULATOR.zip"
+# Builds that report driverInfo like upstream Mesa ("Mesa 26.3.0-devel (git-<sha>)", scripts/driver_identity.py)
+# are named after that git sha; older "PanVK-kbase <release>" builds keep the old name.
+IDENT_SHA8="$(python3 "$ROOT/scripts/driver_identity.py" --field sha8 "$SRC")"
+if [ "$(python3 "$ROOT/scripts/driver_identity.py" --field style "$SRC")" = upstream ]; then
+  OUT="$ROOT/dist/Mesa-PanVK-$VER-$IDENT_SHA8-EMULATOR.zip"
+else
+  OUT="$ROOT/dist/PanVK-Kbase-$VER-${MESA_SHA:0:8}-EMULATOR.zip"
+fi
 STAGE="$(mktemp -d)"; trap 'rm -rf "$STAGE"' EXIT
 cp "$SRC" "$STAGE/libvulkan_panfrost.so"
 cp "$ROOT/dist/glibc-$PROFILE/panfrost_icd.aarch64.json" "$STAGE/" 2>/dev/null || \
   printf '{"file_format_version":"1.0.0","ICD":{"library_path":"libvulkan_panfrost.so","api_version":"1.4.0"}}\n' > "$STAGE/panfrost_icd.aarch64.json"
-python3 - "$STAGE/meta.json" "$PROFILE" "$MESA_SHA" "$PATCH_SERIES_ID" "$ROOT" "$VER" "$PUBLISHED" <<'EOF'
+python3 - "$STAGE/meta.json" "$PROFILE" "$MESA_SHA" "$PATCH_SERIES_ID" "$ROOT" "$VER" "$PUBLISHED" "$SRC" <<'EOF'
 import sys, json, pathlib
-out, profile, sha, psid, root, version, published = sys.argv[1:]
+out, profile, sha, psid, root, version, published, so = sys.argv[1:]
+sys.path.insert(0, str(pathlib.Path(root) / "scripts"))
+from driver_identity import identity_of
+ident = identity_of(so)
+upstream = bool(ident and ident["style"] == "upstream")
+name = ident["packageName"] if upstream else "PanVK-kbase-" + version.removeprefix("v")
+drvver = ident["driverInfo"] if upstream else "Mesa 26.3.0-devel"
+desc = (f"{ident['displayName']} (git-{ident['gitSha']}): experimental glibc Vulkan ICD for Mali GPUs on mali_kbase, for Bachata/NativeCode" if upstream else
+        "Experimental PanVK Kbase glibc ICD for Bachata/NativeCode")
 prof = {}
 pp = pathlib.Path(root) / "profiles" / f"{profile}.json"
 if pp.is_file():
     prof = json.loads(pp.read_text())
-meta = {"schemaVersion":1,"name":"PanVK-kbase-"+version.removeprefix("v"),"author":"panvk-kbase-android",
- "packageVersion":version.removeprefix("v"),"vendor":"Mesa","driverVersion":"Mesa 26.3.0-devel",
- "description":"Experimental PanVK Kbase glibc ICD for Bachata/NativeCode",
+meta = {"schemaVersion":1,"name":name,"author":"panvk-kbase-android",
+ "packageVersion":version.removeprefix("v"),"vendor":"Mesa","driverVersion":drvver,
+ "description":desc,
  "libraryName":"libvulkan_panfrost.so","abi":"linux-aarch64-glibc","backend":"panvk-kbase",
  "kernelInterface":"mali_kbase","profile":profile.replace("g615-",""),
  "panArch":prof.get("panArch",11),

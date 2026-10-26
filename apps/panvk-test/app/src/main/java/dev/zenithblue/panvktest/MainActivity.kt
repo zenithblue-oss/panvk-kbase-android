@@ -77,13 +77,19 @@ data class RunItem(
     val compliance: String = "" // "DXVK PASS · S4 FAIL · vkd3d FAIL" from summary.json
 )
 
-enum class DriverType(val label: String, val slot: String? = null) {
-    RC5("Bundled PanVK RC5", "rc5"),
-    RC4("Bundled PanVK RC4", "rc4"),
+// label is stored as summary.json "driverType"; legacyLabel is the label older PanProbe builds stored there.
+enum class DriverType(val label: String, val slot: String? = null, val legacyLabel: String? = null) {
+    RC5("Bundled Mesa PanVK", "rc5", "Bundled PanVK RC5"),
+    RC4("Bundled PanVK RC4 (previous release)", "rc4", "Bundled PanVK RC4"),
     SYSTEM("System Vulkan"),
     IMPORTED("Imported .so");
 
     val isBundled get() = slot != null
+
+    companion object {
+        fun ofLabel(label: String?): DriverType? =
+            label?.let { l -> entries.firstOrNull { it.label == l || it.legacyLabel == l } }
+    }
 }
 
 data class TestCase(
@@ -699,7 +705,7 @@ class MainActivity : ComponentActivity() {
                 try { JSONObject(summaryFile.readText()).optString("driverType").takeIf { it.isNotEmpty() } } catch (_: Exception) { null }
             } else null
 
-            val resolvedDriverType = DriverType.entries.firstOrNull { it.label == summaryDriverTypeLabel }
+            val resolvedDriverType = DriverType.ofLabel(summaryDriverTypeLabel)
                 ?: driverTypeState.value
             val driverPath = getDriverPath(resolvedDriverType)
             val driverFile = File(driverPath)

@@ -28,16 +28,37 @@ fun gnuBuildId(b: ByteArray): String? {
     return null
 }
 
-fun driverInfoOf(b: ByteArray): String? {
-    val key = "PanVK-kbase ".toByteArray()
-    outer@ for (i in 0 until b.size - key.size) {
+fun indexOfBytes(b: ByteArray, key: ByteArray, from: Int): Int {
+    outer@ for (i in from until b.size - key.size) {
         if (b[i] != key[0]) continue
         for (j in key.indices) if (b[i + j] != key[j]) continue@outer
-        var e = i
-        while (e < b.size && b[e] != 0.toByte()) e++
-        return String(b, i, e - i, Charsets.UTF_8)
+        return i
     }
-    return null
+    return -1
+}
+
+fun cStringAt(b: ByteArray, i: Int): String {
+    var e = i
+    while (e < b.size && b[e] != 0.toByte()) e++
+    return String(b, i, e - i, Charsets.UTF_8)
+}
+
+// The driverInfo string the .so reports. Builds from p115-int on report it like upstream Mesa,
+// "Mesa 26.3.0-devel (git-6a5d4e2756)": a whole NUL-terminated string (the fps-log header that also contains it
+// starts with "# panvk-fps "). RC4 up to rc5g-114 reported "PanVK-kbase <release> (Mesa ...)".
+fun driverInfoOf(b: ByteArray): String? {
+    val upstream = Regex("""Mesa \d+\.\d+\.\d+[-.0-9A-Za-z]* \(git-[0-9a-f]+\)""")
+    val mesa = "Mesa ".toByteArray()
+    var i = indexOfBytes(b, mesa, 1)
+    while (i >= 0) {
+        if (b[i - 1] == 0.toByte()) {
+            val s = cStringAt(b, i)
+            if (upstream.matches(s)) return s
+        }
+        i = indexOfBytes(b, mesa, i + 1)
+    }
+    val legacy = indexOfBytes(b, "PanVK-kbase ".toByteArray(), 0)
+    return if (legacy >= 0) cStringAt(b, legacy) else null
 }
 
 // Copies each driver under a distinct name, and generates the bundled-driver.json asset from the REAL .so files

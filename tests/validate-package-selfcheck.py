@@ -75,9 +75,9 @@ def glibc_ok():
         "extension-gap.json": json.dumps({"summary": {"runtimeExposed": 194}}),
     }
 
-def expect(name, files, want_ok):
+def expect(name, files, want_ok, zname="p.zip"):
     with tempfile.TemporaryDirectory() as td:
-        z = pathlib.Path(td) / "p.zip"
+        z = pathlib.Path(td) / zname
         write_zip(z, files)
         rc, out = run_val(z)
         ok = rc == 0
@@ -101,6 +101,15 @@ def main():
         "swapchain300": "pass", "coldSecondLaunch": "pass",
     }}), False)
     fails += expect("minapi-29", android_ok(meta={"minApi": 29}), False)
+    # "-devel" in an upstream-style name is not the dev tier: an rc package with an untested gate still fails.
+    untested_rc = android_ok(meta={"name": "Mesa-PanVK-26.3.0-devel-6a5d4e27", "packageVersion": "0.1.0-rc5"},
+                             valid={"android": {"enumeration": "untested"}})
+    fails += expect("devel-name-is-rc", untested_rc, False, "Mesa-PanVK-Android-v0.1.0-rc5-26.3.0-devel.adpkg.zip")
+    fails += expect("devel-name-rc-pass", android_ok(meta={"packageVersion": "0.1.0-rc5"}), True,
+                    "Mesa-PanVK-Android-v0.1.0-rc5-26.3.0-devel.adpkg.zip")
+    # A real dev package skips the beta+ gates.
+    fails += expect("dev-tier-skips-gates", android_ok(meta={"packageVersion": "0.0.0-dev"}, drop=("VALIDATION.json",)),
+                    True, "Mesa-PanVK-Android-v0.0.0-dev-6a5d4e27.adpkg.zip")
     bad_sha = android_ok()
     bad_sha["SHA256SUMS.txt"] = ("0" * 64) + "  libvulkan_panfrost.so\n"
     fails += expect("sha-mismatch", bad_sha, False)

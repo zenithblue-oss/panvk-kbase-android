@@ -11,19 +11,34 @@ SRC="$ROOT/dist/android-$PROFILE/libvulkan_panfrost.so"
 [ -f "$SRC" ] || { echo "build first: $SRC missing" >&2; exit 1; }
 MESA_SHA="$(python3 -c "import json;print(json.load(open('$ROOT/sources.lock'))['mesaCommit'])")"
 PATCH_SERIES_ID="$(python3 "$ROOT/scripts/compute-patch-series-id.py" --profile "$PROFILE")"
-OUT="$ROOT/dist/PanVK-Kbase-Android-$VER-${MESA_SHA:0:8}.adpkg.zip"
+# Builds that report driverInfo like upstream Mesa ("Mesa 26.3.0-devel (git-<sha>)", scripts/driver_identity.py)
+# are named after that git sha; older "PanVK-kbase <release>" builds keep the old name.
+IDENT_SHA8="$(python3 "$ROOT/scripts/driver_identity.py" --field sha8 "$SRC")"
+if [ "$(python3 "$ROOT/scripts/driver_identity.py" --field style "$SRC")" = upstream ]; then
+  OUT="$ROOT/dist/Mesa-PanVK-Android-$VER-$IDENT_SHA8.adpkg.zip"
+else
+  OUT="$ROOT/dist/PanVK-Kbase-Android-$VER-${MESA_SHA:0:8}.adpkg.zip"
+fi
 STAGE="$(mktemp -d)"; trap 'rm -rf "$STAGE"' EXIT
 cp "$SRC" "$STAGE/libvulkan_panfrost.so"
-python3 - "$STAGE/meta.json" "$PROFILE" "$MESA_SHA" "$PATCH_SERIES_ID" "$ROOT" "$VER" "$PUBLISHED" <<'EOF'
+python3 - "$STAGE/meta.json" "$PROFILE" "$MESA_SHA" "$PATCH_SERIES_ID" "$ROOT" "$VER" "$PUBLISHED" "$SRC" <<'EOF'
 import sys, json, pathlib
-out, profile, sha, psid, root, version, published = sys.argv[1:]
+out, profile, sha, psid, root, version, published, so = sys.argv[1:]
+sys.path.insert(0, str(pathlib.Path(root) / "scripts"))
+from driver_identity import identity_of
+ident = identity_of(so)
+upstream = bool(ident and ident["style"] == "upstream")
+name = ident["packageName"] if upstream else "PanVK-kbase-" + version.removeprefix("v")
+drvver = ident["driverInfo"] if upstream else "Mesa 26.3.0-devel"
+desc = (f"{ident['displayName']} (git-{ident['gitSha']}): experimental Vulkan driver for Mali GPUs on the mali_kbase kernel driver. minApi=35 until API 29 rebuild is proven." if upstream else
+        "Experimental PanVK Kbase driver for supported Mali devices. minApi=35 until API 29 rebuild is proven.")
 prof = {}
 pp = pathlib.Path(root) / "profiles" / f"{profile}.json"
 if pp.is_file():
     prof = json.loads(pp.read_text())
-meta = {"schemaVersion":1,"name":"PanVK-kbase-"+version.removeprefix("v"),"author":"panvk-kbase-android",
- "packageVersion":version.removeprefix("v"),"vendor":"Mesa","driverVersion":"Mesa 26.3.0-devel","minApi":35,
- "description":"Experimental PanVK Kbase driver for supported Mali devices. minApi=35 until API 29 rebuild is proven.",
+meta = {"schemaVersion":1,"name":name,"author":"panvk-kbase-android",
+ "packageVersion":version.removeprefix("v"),"vendor":"Mesa","driverVersion":drvver,"minApi":35,
+ "description":desc,
  "libraryName":"libvulkan_panfrost.so","abi":"android-aarch64-bionic","backend":"panvk-kbase",
  "kernelInterface":"mali_kbase","profile":profile.replace("g615-",""),
  "panArch":prof.get("panArch",11),

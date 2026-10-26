@@ -1,4 +1,4 @@
-<h1 align="center">PanVK Kbase Android Driver</h1>
+<h1 align="center">Mesa PanVK for Android (mali_kbase)</h1>
 
 <p align="center">
   Open Mesa <b>PanVK</b> Vulkan driver for Android Mali GPUs, talking directly to the vendor <code>mali_kbase</code> kernel driver.
@@ -38,6 +38,17 @@ open Mesa PanVK driver that talks directly to Android's proprietary
 
 It is **not** a Samba-specific or Winlator-specific fork: one driver
 source/patch stack, with adapter packages around it.
+
+**Driver identity.** Builds from 115 on (the first GitHub release) identify
+themselves like an upstream Mesa PanVK development build: `driverName` `panvk`,
+`driverInfo` `Mesa 26.3.0-devel (git-<sha>)` (the Mesa base version and the
+git sha of the patched tree, e.g. `Mesa 26.3.0-devel (git-6a5d4e2756)`), and
+the upstream `deviceName` (e.g. `Mali-G615 MC6`, `Mali-G715 MC7`). The apps
+show it as **Mesa PanVK 26.3.0-devel**. Packages are named after it: meta name
+`Mesa-PanVK-26.3.0-devel-<sha8>`, launcher zips
+`Mesa-PanVK-Android-<version>-<sha8>-<launcher>.zip`. RC4 and earlier reported
+`PanVK-kbase <release> (Mesa 26.3.0-devel (git-<sha>))`; their release names
+below are unchanged.
 
 **Primary consumers**
 

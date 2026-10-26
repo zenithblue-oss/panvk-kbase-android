@@ -64,7 +64,7 @@ Create an adrenotools-compatible flat zip for Android frontends (`v0.1.0-beta.3`
 ```sh
 ./scripts/package-android-adpkg.sh --profile g615-v11-csf --version <dev-version>
 ```
-Output: `dist/PanVK-Kbase-Android-g615-v11-csf-<dev-version>-<commit>.adpkg.zip`.
+Output: `dist/Mesa-PanVK-Android-<dev-version>-<sha8>.adpkg.zip` (`<sha8>` from the driver's `driverInfo`, `Mesa 26.3.0-devel (git-<sha>)`; builds that report the older `PanVK-kbase <release>` string give `dist/PanVK-Kbase-Android-<dev-version>-<mesa8>.adpkg.zip`).
 
 ### Step 5: Build glibc driver (for Linux chroot)
 Build the native aarch64 glibc ICD and manifest (on non-aarch64 build hosts such as x86_64, this requires a configured device chroot reached via ADB; see [`scripts/build-glibc.sh`](file:///home/abhaybyte/repos/panvk/scripts/build-glibc.sh#L63-L95)):
@@ -78,7 +78,7 @@ Package the glibc ICD for container/chroot environments (`v0.1.0-beta.3` is froz
 ```sh
 ./scripts/package-glibc.sh --profile g615-v11-csf --version <dev-version>
 ```
-Output: `dist/PanVK-Kbase-g615-v11-csf-<dev-version>-<commit>-EMULATOR.zip`.
+Output: `dist/Mesa-PanVK-<dev-version>-<sha8>-EMULATOR.zip` (older builds: `dist/PanVK-Kbase-<dev-version>-<mesa8>-EMULATOR.zip`).
 
 ## 4. Option A: Existing Frontends (Custom Driver ZIP)
 

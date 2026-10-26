@@ -88,7 +88,7 @@ jobs:
             done < <(find dist -maxdepth 1 -type f || true)
           fi
           gh release create "$TAG" \
-            --title "PanVK Kbase ${TAG}${TITLE_EXTRA}" \
+            --title "Mesa PanVK ${TAG}${TITLE_EXTRA}" \
             --notes-file "$NOTES" \
             $PRE_FLAG \
             "${ASSETS[@]}"

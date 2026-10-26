@@ -1,6 +1,10 @@
 #!/bin/sh
 # package-launcher-zips.sh — build the six Android launcher driver zips from a validated .so
 # (adrenotools, winlator, bannerlator, cmod, ludashi, gamehub). Layouts reproduce the RC4 zips.
+# Names follow the driverInfo the .so reports (scripts/driver_identity.py): builds that report it like upstream
+# Mesa ("Mesa 26.3.0-devel (git-6a5d4e2756)") get meta name "Mesa-PanVK-26.3.0-devel-6a5d4e27", that driverInfo
+# as driverVersion and Mesa-PanVK-Android-<version>-<git sha8>-<launcher>.zip; older "PanVK-kbase <release>"
+# builds keep the RC4 names (PanVK-kbase-<label>, PanVK-Kbase-Android-<version>-<mesa8>-<launcher>.zip).
 # Usage: ./scripts/package-launcher-zips.sh --so path/libvulkan_panfrost.so [--version v0.1.0-rc4]
 #        [--label RC4] [--tag g615-v11-csf] [--mesa-sha 5a07217f (or 10+ chars to set the driverVersion git id)] [--outdir dist]
 set -eu
@@ -21,18 +25,32 @@ if [ "${#MESA8}" -ge 10 ]; then MESA10="$MESA8"; MESA8="$(echo "$MESA8" | cut -c
 else MESA10="$(python3 -c "import json;print(json.load(open('$ROOT/sources.lock'))['mesaCommit'][:10])")"; fi
 export MESA10
 mkdir -p "$OUTDIR"
-python3 - "$SO" "$VER" "$LABEL" "$TAG" "$MESA8" "$OUTDIR" <<'EOF'
+python3 - "$SO" "$VER" "$LABEL" "$TAG" "$MESA8" "$OUTDIR" "$ROOT" <<'EOF'
 import sys, json, hashlib, zipfile, pathlib
-so, ver, label, tag, mesa8, outdir = sys.argv[1:]
+so, ver, label, tag, mesa8, outdir, reporoot = sys.argv[1:]
 import os
+sys.path.insert(0, os.path.join(reporoot, "scripts"))
+from driver_identity import identity
 mesa10 = os.environ.get("MESA10") or mesa8
 so = pathlib.Path(so); outdir = pathlib.Path(outdir)
 data = so.read_bytes()
 sha = hashlib.sha256(data).hexdigest()
 pkgver = ver.removeprefix("v")
-name = f"PanVK-kbase-{label}"
-drvver = f"PanVK-kbase {label} (Mesa 26.3.0-devel git-{mesa10})"
-base = f"PanVK (Mesa) Vulkan driver for Mali v10+ CSF via kbase, {label} build."
+ident = identity(data)
+upstream = bool(ident and ident["style"] == "upstream")
+if upstream:
+    name = ident["packageName"]
+    drvver = ident["driverInfo"]
+    title = f"{ident['displayName']} (git-{ident['gitSha']})"
+    base = f"{title}: Vulkan driver for Mali GPUs on the mali_kbase kernel driver, package {pkgver}."
+    zipstem = f"Mesa-PanVK-Android-{ver}-{ident['sha8']}"
+else:
+    name = f"PanVK-kbase-{label}"
+    drvver = f"PanVK-kbase {label} (Mesa 26.3.0-devel git-{mesa10})"
+    title = f"PanVK-kbase {label}"
+    base = f"PanVK (Mesa) Vulkan driver for Mali v10+ CSF via kbase, {label} build."
+    zipstem = f"PanVK-Kbase-Android-{ver}-{mesa8}"
+check = drvver if upstream else f"PanVK-kbase {label}"
 # launcher -> (package id for abs path, minApi, description tail, libname, wrapper-style extras)
 L = {
  "adrenotools": dict(minApi=29, desc="Generic adrenotools package.", lib="libvulkan_panfrost.so", app=None),
@@ -62,7 +80,7 @@ for key, c in L.items():
         files["panvk_icd.aarch64.json"] = icd("./libvulkan_panfrost.so").encode()
         files["panvk_icd_abs.aarch64.json"] = icd(f"{root}/libvulkan_panfrost.so").encode()
         files[f"README-{key}.txt"] = (
-f"""PanVK-kbase {label} for {key} ({app})
+f"""{title} for {key} ({app})
 Install: Adrenotools GPU Drivers > Install > pick this zip. It installs to
   {root}/
 Direct load (no wrapper ICD): container > Environment, add
@@ -70,9 +88,9 @@ Direct load (no wrapper ICD): container > Environment, add
 (container env vars are applied after the app sets the wrapper ICD, so this replaces it).
 If the X11 present path fails, also add MESA_VK_WSI_DEBUG=sw.
 Fallback (wrapper in path): leave VK_ICD_FILENAMES unset and pick "{name}" as Graphics Driver Version.
-Check: wine log / logcat shows driverInfo "PanVK-kbase {label}"; .so sha256 {sha}
+Check: wine log / logcat shows driverInfo "{check}"; .so sha256 {sha}
 """).encode()
-    out = outdir / f"PanVK-Kbase-Android-{ver}-{mesa8}-{key}.zip"
+    out = outdir / f"{zipstem}-{key}.zip"
     if out.exists(): out.unlink()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for n in sorted(files):

@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased (115)
+
+### Changed
+
+- **Upstream-style driver identity** (`patches/staging-115/int` 0001): `driverInfo` is now
+  `Mesa 26.3.0-devel (git-<sha>)`, as an upstream Mesa PanVK development build reports it (`driverName`
+  `panvk`; `deviceName` unchanged, it already matches upstream). The `PANVK_FPS_LOG` header reads
+  `# panvk-fps Mesa 26.3.0-devel (git-<sha>) pid=...`. Earlier builds reported
+  `PanVK-kbase <release> (Mesa 26.3.0-devel (git-<sha>))`; the `PANVK_KBASE_RELEASE` build define no longer has
+  an effect.
+- PanPlay and PanProbe show the bundled driver as **Mesa PanVK 26.3.0-devel** (git sha in the details).
+- Packages are named after the driver identity (`scripts/driver_identity.py`): meta name
+  `Mesa-PanVK-26.3.0-devel-<sha8>`, `driverVersion` = the exact `driverInfo`, zips
+  `Mesa-PanVK-Android-<version>-<sha8>-<launcher>.zip`, `Mesa-PanVK-Android-<version>-<sha8>.adpkg.zip` and
+  `Mesa-PanVK-<version>-<sha8>-EMULATOR.zip`. Release title `Mesa PanVK <tag>`. Tags keep the
+  `panvk-kbase-v` prefix. Builds that still report the old string keep the old package names.
+- `validate-package.sh` no longer reads `-devel` as the `dev` tier.
+
 ## panvk-kbase-v0.1.0-rc3-lowmem (release candidate)
 
 RC3 plus one patch (csf-v11/185), 173 patches on Mesa `5a07217f034b`. Not faster; it trades some BCn
