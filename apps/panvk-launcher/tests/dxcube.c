@@ -1,7 +1,8 @@
 /*
  * "Test Direct3D" demo: 2x2 rotating lit rounded blocks (green/red/yellow/blue)
  * on a grey background, indexed vertex+index buffers with normals, depth buffer.
- * dxcube.exe <d3d11|d3d10|d3d9|d3d8>. Env: DXCUBE_SECS (default 25) render time, keeps
+ * dxcube.exe <d3d11|d3d10|d3d9|d3d8>. Env: DXCUBE_SECS (default 25) render time, DXCUBE_PUMP=old
+ * (the old 10 ms message pump, see pump()), keeps
  * presenting the whole time so screenshots hit a live frame.
  * d3d9 = fixed function lighting; d3d11 = HLSL via d3dcompiler_47.dll.
  */
@@ -63,13 +64,41 @@ static HWND mkwin(void)
     return h;
 }
 
-static void pump(DWORD ms)
+/* Message pump after each Present: drain the queue, no wait. The old pump waited
+ * 10 ms by GetTickCount in Sleep(5) steps; Wine's tick count only moves when the
+ * wineserver updates it (about every 16 ms when idle), so every frame waited for
+ * the next tick update: 47-50 fps on any GPU. DXCUBE_PUMP=old = that pump. */
+static int pump_old = -1;
+static void pump(void)
 {
     MSG m; DWORD t = GetTickCount();
+    if (pump_old < 0) { const char *e = getenv("DXCUBE_PUMP"); pump_old = e && !strcmp(e, "old"); }
     do {
         while (PeekMessageA(&m, NULL, 0, 0, PM_REMOVE)) { TranslateMessage(&m); DispatchMessageA(&m); }
-        Sleep(5);
-    } while (GetTickCount() - t < ms);
+        if (pump_old) Sleep(5);
+    } while (pump_old && GetTickCount() - t < 10);
+}
+
+/* "CUBE: timing" once a second, from QueryPerformanceCounter: mean/max ms of
+ * render (loop top to Present), present (the Present call) and pump. */
+static LARGE_INTEGER qpf;
+static double tmk[4], tsum[3], tmax[3], tstart;
+static int tframes;
+static double qnow(void) { LARGE_INTEGER c; QueryPerformanceCounter(&c); return (double)c.QuadPart * 1000.0 / (double)qpf.QuadPart; }
+static void tm_mark(int i)
+{
+    int k;
+    tmk[i] = qnow();
+    if (!tstart) tstart = tmk[i];
+    if (i < 3) return;
+    for (k = 0; k < 3; k++) { double d = tmk[k + 1] - tmk[k]; tsum[k] += d; if (d > tmax[k]) tmax[k] = d; }
+    if (++tframes, tmk[3] - tstart < 1000.0) return;
+    printf("CUBE: timing fps=%.1f render_ms=%.2f/%.2f present_ms=%.2f/%.2f pump_ms=%.2f/%.2f pump=%s\n",
+           tframes * 1000.0 / (tmk[3] - tstart), tsum[0] / tframes, tmax[0], tsum[1] / tframes, tmax[1],
+           tsum[2] / tframes, tmax[2], pump_old ? "old" : "drain");
+    fflush(stdout);
+    for (k = 0; k < 3; k++) tsum[k] = tmax[k] = 0;
+    tframes = 0; tstart = tmk[3];
 }
 
 /* ---- rounded box mesh: cube grid pushed onto a rounded surface ---- */
@@ -211,6 +240,7 @@ static void run11(int secs)
     t0 = GetTickCount();
     while (GetTickCount() - t0 < (DWORD)secs * 1000) {
         float t = f * 0.04f;
+        tm_mark(0);
         if (FAILED(hr = IDXGISwapChain_GetBuffer(sc, 0, &IID_Tex2D, (void **)&bb))) die("GetBuffer", hr);
         if (FAILED(hr = ID3D11Device_CreateRenderTargetView(dev, (ID3D11Resource *)bb, NULL, &rtv))) die("RTV", hr);
         ID3D11DeviceContext_OMSetRenderTargets(ctx, 1, &rtv, dsv);
@@ -233,11 +263,14 @@ static void run11(int secs)
         }
         ID3D11Texture2D_Release(bb);
         ID3D11RenderTargetView_Release(rtv);
+        tm_mark(1);
         hr = IDXGISwapChain_Present(sc, 0, 0);
+        tm_mark(2);
         if (FAILED(hr)) die("Present", hr);
         if (f < 10 || f % 30 == 0) printf("CUBE: d3d11 Present frame=%d hr=0x%08lx\n", f, (unsigned long)hr);
         f++;
-        pump(10);
+        pump();
+        tm_mark(3);
     }
     printf("CUBE: PASS api=d3d11 frames=%d (check pixels)\n", f);
     fflush(stdout);
@@ -302,6 +335,7 @@ static void run10(int secs)
     t0 = GetTickCount();
     while (GetTickCount() - t0 < (DWORD)secs * 1000) {
         float t = f * 0.04f;
+        tm_mark(0);
         if (FAILED(hr = IDXGISwapChain_GetBuffer(sc, 0, &IID_Tex2D, (void **)&bb))) die("GetBuffer", hr);
         if (FAILED(hr = ID3D10Device_CreateRenderTargetView(dev, (ID3D10Resource *)bb, NULL, &rtv))) die("RTV", hr);
         ID3D10Device_OMSetRenderTargets(dev, 1, &rtv, dsv);
@@ -324,11 +358,14 @@ static void run10(int secs)
         }
         ID3D10Texture2D_Release(bb);
         ID3D10RenderTargetView_Release(rtv);
+        tm_mark(1);
         hr = IDXGISwapChain_Present(sc, 0, 0);
+        tm_mark(2);
         if (FAILED(hr)) die("Present", hr);
         if (f < 10 || f % 30 == 0) printf("CUBE: d3d10 Present frame=%d hr=0x%08lx\n", f, (unsigned long)hr);
         f++;
-        pump(10);
+        pump();
+        tm_mark(3);
     }
     printf("CUBE: PASS api=d3d10 frames=%d (check pixels)\n", f);
     fflush(stdout);
@@ -380,6 +417,7 @@ static void run9(int secs)
     t0 = GetTickCount();
     while (GetTickCount() - t0 < (DWORD)secs * 1000) {
         float t = f * 0.04f;
+        tm_mark(0);
         IDirect3DDevice9_Clear(dev, 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(128, 128, 128), 1.0f, 0);
         IDirect3DDevice9_BeginScene(dev);
         for (b = 0; b < 4; b++) {
@@ -393,10 +431,13 @@ static void run9(int secs)
             IDirect3DDevice9_DrawIndexedPrimitive(dev, D3DPT_TRIANGLELIST, 0, 0, NV, 0, NI / 3);
         }
         IDirect3DDevice9_EndScene(dev);
+        tm_mark(1);
         hr = IDirect3DDevice9_Present(dev, NULL, NULL, NULL, NULL);
+        tm_mark(2);
         if (f < 10 || f % 30 == 0) printf("CUBE: d3d9 Present frame=%d hr=0x%08lx\n", f, (unsigned long)hr);
         f++;
-        pump(10);
+        pump();
+        tm_mark(3);
     }
     printf("CUBE: PASS api=d3d9 frames=%d (check pixels)\n", f);
     fflush(stdout);
@@ -450,6 +491,7 @@ static void run8(int secs)
     t0 = GetTickCount();
     while (GetTickCount() - t0 < (DWORD)secs * 1000) {
         float t = f * 0.04f;
+        tm_mark(0);
         IDirect3DDevice8_Clear(dev, 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(128, 128, 128), 1.0f, 0);
         IDirect3DDevice8_BeginScene(dev);
         for (b = 0; b < 4; b++) {
@@ -462,10 +504,13 @@ static void run8(int secs)
             IDirect3DDevice8_DrawIndexedPrimitive(dev, D3DPT_TRIANGLELIST, 0, NV, 0, NI / 3);
         }
         IDirect3DDevice8_EndScene(dev);
+        tm_mark(1);
         hr = IDirect3DDevice8_Present(dev, NULL, NULL, NULL, NULL);
+        tm_mark(2);
         if (f < 10 || f % 30 == 0) printf("CUBE: d3d8 Present frame=%d hr=0x%08lx\n", f, (unsigned long)hr);
         f++;
-        pump(10);
+        pump();
+        tm_mark(3);
     }
     printf("CUBE: PASS api=d3d8 frames=%d (check pixels)\n", f);
     fflush(stdout);
@@ -478,6 +523,7 @@ int main(int argc, char **argv)
 {
     const char *api = argc > 1 ? argv[1] : "d3d11";
     int secs = envi("DXCUBE_SECS", 25);
+    QueryPerformanceFrequency(&qpf);
     W = envi("DXCUBE_W", W); H = envi("DXCUBE_H", H);
     setvbuf(stdout, NULL, _IONBF, 0);
     mkmesh();

@@ -161,11 +161,15 @@ public class MITSHMExtension implements Extension {
                     detach(client, inputStream, outputStream);
                 }
                 break;
-            case ClientOpcodes.PUT_IMAGE :
+            case ClientOpcodes.PUT_IMAGE : {
+                final long t0 = com.winlator.core.XTiming.on ? System.nanoTime() : 0;
                 try (XLock lock = client.xServer.lock(XServer.Lockable.SHMSEGMENT_MANAGER, XServer.Lockable.DRAWABLE_MANAGER, XServer.Lockable.GRAPHIC_CONTEXT_MANAGER)) {
+                    final long t1 = t0 != 0 ? System.nanoTime() : 0;
                     putImage(client, inputStream, outputStream);
+                    if (t0 != 0) com.winlator.core.XTiming.shmPut(t1 - t0, System.nanoTime() - t1);
                 }
                 break;
+            }
             default:
                 throw new BadImplementation();
         }

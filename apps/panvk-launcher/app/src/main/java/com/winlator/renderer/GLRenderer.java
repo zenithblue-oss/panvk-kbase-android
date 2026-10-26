@@ -102,9 +102,19 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
             viewportNeedsUpdate = true;
         }
 
-        drawFrame();
+        if (com.winlator.core.XTiming.on) {
+            final long t0 = System.nanoTime();
+            com.winlator.core.XTiming.drawStart(t0);
+            timingLockNs = 0;
+            drawFrame();
+            com.winlator.core.XTiming.drawEnd(t0, timingLockNs);
+        }
+        else drawFrame();
         framesDrawn.incrementAndGet();
     }
+
+    /** XTiming: this frame's wait for DRAWABLE_MANAGER (GL thread only). */
+    private long timingLockNs;
 
     private void drawFrame() {
         if (viewportNeedsUpdate && magnifierEnabled) {
@@ -178,6 +188,7 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
     @Override
     public void onUpdateWindowContent(Window window) {
         contentUpdates.incrementAndGet();
+        if (com.winlator.core.XTiming.on) com.winlator.core.XTiming.contentUpdate();
         xServerView.requestRender();
     }
 
@@ -208,7 +219,12 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
         if (drawable == null) return; // vanished/contentless drawable: skip, never fatal on the GL thread
         synchronized (drawable.renderLock) {
             Texture texture = drawable.getTexture();
-            texture.updateFromDrawable(drawable);
+            if (com.winlator.core.XTiming.on && texture.isNeedsUpdate()) {
+                final long t0 = System.nanoTime();
+                texture.updateFromDrawable(drawable);
+                com.winlator.core.XTiming.upload(System.nanoTime() - t0);
+            }
+            else texture.updateFromDrawable(drawable);
 
             if (forceFullscreen) {
                 short newHeight = (short)Math.min(xServer.screenInfo.height, ((float)xServer.screenInfo.width / drawable.width) * drawable.height);
@@ -233,7 +249,9 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
         GLES20.glUniform2f(windowMaterial.getUniformLocation("viewSize"), xServer.screenInfo.width, xServer.screenInfo.height);
         quadVertices.bind(windowMaterial.programId);
 
+        final long t0 = com.winlator.core.XTiming.on ? System.nanoTime() : 0;
         try (XLock lock = xServer.lock(XServer.Lockable.DRAWABLE_MANAGER)) {
+            if (t0 != 0) timingLockNs += System.nanoTime() - t0;
             for (RenderableWindow window : renderableWindows) {
                 renderDrawable(window.content, window.rootX, window.rootY, windowMaterial, window.forceFullscreen);
             }

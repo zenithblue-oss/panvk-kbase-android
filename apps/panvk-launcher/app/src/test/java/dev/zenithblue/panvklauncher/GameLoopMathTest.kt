@@ -86,6 +86,22 @@ class GameLoopMathTest {
         assertTrue("default" in c.envSets)
     }
 
+    @Test fun passDriverInstallsAndShortPass() {
+        val j = GameLoopMath.merge(asset(), JSONObject("""{"installDrivers":{"r114":"drivers/114.so"},"mapsSnapshotSec":1,
+            "envSets":{"d114":{"driver":"r114","env":{}},"short":{"env":{"DXCUBE_SECS":"12"}}},
+            "scenarios":{"2":{"name":"d3d9","tasks":["d3d9"],"envSets":["default","d114","short"]}}}"""))
+        val c = GameLoopMath.parseConfig(j)
+        assertEquals(mapOf("r114" to "drivers/114.so"), c.installDrivers); assertEquals(1, c.mapsSnapshotSec)
+        val p = GameLoopMath.passes(c, 2)
+        assertEquals("", p[0].envSet.driver); assertEquals("r114", p[1].envSet.driver)
+        // An env set that sets the test's run time keeps it; the others get the window's.
+        assertEquals("88", GameLoopMath.passEnv(c, p[0], null)["DXCUBE_SECS"])
+        assertEquals("12", GameLoopMath.passEnv(c, p[2], null)["DXCUBE_SECS"])
+        assertEquals(0, cfg().mapsSnapshotSec); assertTrue(cfg().installDrivers.isEmpty())
+        try { GameLoopMath.parseConfig(GameLoopMath.merge(asset(), JSONObject("""{"installDrivers":{"../x":"a.so"}}"""))); fail() }
+        catch (_: IllegalArgumentException) {}
+    }
+
     @Test fun badConfigs() {
         fun bad(s: String) {
             try { GameLoopMath.parseConfig(JSONObject(s)); fail("accepted: $s") } catch (_: IllegalArgumentException) {}

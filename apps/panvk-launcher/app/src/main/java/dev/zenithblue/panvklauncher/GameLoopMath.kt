@@ -11,14 +11,19 @@ import org.json.JSONObject
  * Config shape (see assets/gameloop.json):
  *   warmupSec / measureSec / tailSec / startTimeoutSec / gapSec / fpsLogMs / screenshotAtSec / driver,
  *   env {..}                      every pass,
- *   envSets {id: {note, env}}     one env set per pass (A/B: "old" = perf knobs at their old behaviour, "default"),
+ *   envSets {id: {note, env, driver}} one env set per pass (A/B: "old" = perf knobs at their old behaviour, "default");
+ *                                 driver = a driver id for this pass only (else the run's driver),
+ *   installDrivers {id: path}     .so files (absolute, or relative to the app's external files dir) installed as
+ *                                 drivers/<id> before the passes, for env sets that name them,
+ *   mapsSnapshotSec               every N s, /proc/<pid>/maps of the game processes that mapped a Vulkan driver
+ *                                 into the pass dir (maps-<pid>.txt; 0 = off), for symbolizing crash addresses,
  *   tasks {id: {title, shortcut, env, secsEnv, firstFramePattern, okPattern, failPattern}},
  *   scenarios {"1".."N": {name, tasks [..], envSets [..] (default ["default"])}}.
  * A scenario runs, for each task in order, one pass per env set in order. Scenario numbers are 1..N without gaps
  * (Firebase runs --scenario-numbers out of com.google.test.loops = N, which the build takes from this file).
  */
 object GameLoopMath {
-    data class EnvSet(val id: String, val note: String, val env: Map<String, String>)
+    data class EnvSet(val id: String, val note: String, val env: Map<String, String>, val driver: String = "")
 
     data class Task(
         val id: String, val title: String, val shortcut: String, val env: Map<String, String>,
@@ -37,7 +42,8 @@ object GameLoopMath {
         /** "bundled" (the APK's driver), "selected" (the launcher's choice) or a driver id. */
         val driver: String,
         val env: Map<String, String>, val envSets: Map<String, EnvSet>, val tasks: Map<String, Task>,
-        val scenarios: Map<Int, Scenario>
+        val scenarios: Map<Int, Scenario>,
+        val installDrivers: Map<String, String> = emptyMap(), val mapsSnapshotSec: Int = 0
     ) {
         /** What a self-timed test is told to run: warm-up + measured window + tail, from its first frame. */
         val testSecs get() = warmupSec + measureSec + tailSec
@@ -79,10 +85,12 @@ object GameLoopMath {
             for (k in o.keys()) {
                 if (k.startsWith("#")) continue
                 val e = o.getJSONObject(k)
-                envSets[k] = EnvSet(k, e.optString("note", ""), strMap(e.optJSONObject("env")))
+                envSets[k] = EnvSet(k, e.optString("note", ""), strMap(e.optJSONObject("env")), e.optString("driver", ""))
             }
         }
         if ("default" !in envSets) envSets["default"] = EnvSet("default", "driver defaults", emptyMap())
+        val installs = strMap(j.optJSONObject("installDrivers"))
+        for ((id, path) in installs) require(id == safe(id) && id.isNotEmpty() && !id.startsWith(".") && path.isNotEmpty()) { "installDrivers: bad entry '$id'" }
         val tasks = LinkedHashMap<String, Task>()
         j.optJSONObject("tasks")?.let { o ->
             for (k in o.keys()) {
@@ -119,7 +127,8 @@ object GameLoopMath {
             startTimeoutSec = int("startTimeoutSec", 300, 10), gapSec = int("gapSec", 5, 0),
             fpsLogMs = int("fpsLogMs", 1000, 100), screenshotAtSec = j.optInt("screenshotAtSec", -1),
             driver = j.optString("driver", "bundled").ifEmpty { "bundled" },
-            env = strMap(j.optJSONObject("env")), envSets = envSets, tasks = tasks, scenarios = scenarios
+            env = strMap(j.optJSONObject("env")), envSets = envSets, tasks = tasks, scenarios = scenarios,
+            installDrivers = installs, mapsSnapshotSec = int("mapsSnapshotSec", 0, 0)
         )
     }
 
@@ -134,7 +143,8 @@ object GameLoopMath {
 
     /**
      * Env of one pass, later wins: common env, task env, env set, then what the harness itself needs (fps log path,
-     * interval, the test's run time). DXVK_HUD and DISPLAY are owned by ContainerManager (HUD stays "full").
+     * interval, the test's run time unless the env set sets it: a short diagnostic pass). DXVK_HUD and DISPLAY are
+     * owned by ContainerManager (HUD stays "full").
      */
     fun passEnv(cfg: Config, p: Pass, fpsLogPath: String?): Map<String, String> {
         val m = LinkedHashMap<String, String>()
@@ -143,7 +153,7 @@ object GameLoopMath {
             m["PANVK_FPS_LOG"] = fpsLogPath
             m["PANVK_FPS_LOG_MS"] = cfg.fpsLogMs.toString()
         }
-        if (p.task.secsEnv.isNotEmpty()) m[p.task.secsEnv] = cfg.testSecs.toString()
+        if (p.task.secsEnv.isNotEmpty() && p.task.secsEnv !in p.envSet.env) m[p.task.secsEnv] = cfg.testSecs.toString()
         return m
     }
 

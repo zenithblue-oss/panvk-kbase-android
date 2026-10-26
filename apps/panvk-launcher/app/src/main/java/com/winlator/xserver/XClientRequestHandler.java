@@ -168,6 +168,7 @@ public class XClientRequestHandler implements RequestHandler {
         client.setRequestData(requestData);
         client.setRequestLength(requestLength);
 
+        final long t0 = com.winlator.core.XTiming.on ? System.nanoTime() : 0;
         try {
             switch (opcode) {
                 case ClientOpcodes.CREATE_WINDOW:
@@ -419,6 +420,7 @@ public class XClientRequestHandler implements RequestHandler {
             com.winlator.core.XLog.log("request failed opcode=" + opcode, e);
             throw e;
         }
+        if (t0 != 0) com.winlator.core.XTiming.request(opcode, requestData, System.nanoTime() - t0);
 
         return true;
     }

@@ -186,6 +186,7 @@ object GameLoop {
             publish()
 
             prepare(ctx)
+            installDrivers(ctx, cfg, ext)
             val drv = driver(ctx, cfg)
             res.put("driver", JSONObject().put("id", drv.id).put("name", drv.name).put("version", drv.version)
                 .put("bundled", drv.bundled).put("libPath", drv.libPath).put("size", File(drv.libPath).length())
@@ -265,6 +266,33 @@ object GameLoop {
         }
     }
 
+    /** config installDrivers: copy each .so into drivers/<id> (meta.json like an imported driver). Missing files are logged. */
+    private fun installDrivers(ctx: Context, cfg: GameLoopMath.Config, ext: File) {
+        for ((id, path) in cfg.installDrivers) {
+            val src = File(path).let { if (it.isAbsolute) it else File(ext, path) }
+            if (!src.isFile) { log("installDrivers $id: ${src.path} not found"); continue }
+            val dir = File(ctx.filesDir, "drivers/$id").apply { mkdirs() }
+            src.copyTo(File(dir, "libvulkan_panfrost.so"), overwrite = true)
+            val sum = sha256(File(dir, "libvulkan_panfrost.so"))
+            File(dir, "meta.json").writeText(JSONObject().put("name", "Mesa PanVK ($id)").put("packageVersion", id)
+                .put("description", "game-loop test driver from ${src.name}").put("author", "game loop")
+                .put("libraryName", "libvulkan_panfrost.so").put("sha256", sum ?: "").toString(2))
+            log("installDrivers $id: ${src.length()} bytes, sha256 $sum")
+        }
+    }
+
+    /** /proc/<pid>/maps of this app's processes that mapped a Vulkan driver (the game), into [dir]. */
+    private fun snapshotMaps(dir: File) {
+        val uid = android.os.Process.myUid()
+        for (pd in File("/proc").listFiles { f -> f.name.all { it.isDigit() } } ?: emptyArray()) {
+            try {
+                if (android.system.Os.stat(pd.path).st_uid != uid) continue
+                val maps = File(pd, "maps").readText()
+                if (maps.contains("libvulkan_")) File(dir, "maps-${pd.name}.txt").writeText(maps)
+            } catch (_: Exception) {}
+        }
+    }
+
     private class Sample(val atMs: Long, val drawn: Long, val content: Long)
 
     private fun sample() = Sample(SystemClock.elapsedRealtime(), GLRenderer.framesDrawn.get(), GLRenderer.contentUpdates.get())
@@ -285,7 +313,11 @@ object GameLoop {
         if (!recording) env["DXVK_STATS_FILE"] = "Z:" + ownStats.absolutePath
         r.put("env", JSONObject(env as Map<*, *>))
         val base = ShortcutStore.launchOptions(ctx, sc)
-        val opts = base.copy(env = base.env + env, driverId = drv.id)
+        val pdrv = p.envSet.driver.takeIf { it.isNotEmpty() }?.let { id ->
+            DriverManager.find(ctx, DriverManager.getDrivers(ctx), id) ?: drv.also { log("env set ${p.envSet.id}: driver $id not found, using ${drv.id}") }
+        } ?: drv
+        if (pdrv !== drv) r.put("driver", JSONObject().put("id", pdrv.id).put("libPath", pdrv.libPath).put("sha256", sha256(File(pdrv.libPath)) ?: JSONObject.NULL))
+        val opts = base.copy(env = base.env + env, driverId = pdrv.id)
 
         val lines = Collections.synchronizedList(ArrayList<String>())
         val launcherLog = StringBuffer()
@@ -303,9 +335,11 @@ object GameLoop {
         // Never throws: an uncaught exception in any thread would kill the app (and the Firebase run).
         val watchdog = Thread({ try {
             var shotTaken = cfg.screenshotAtSec < 0
+            var mapsAt = 0L
             while (!done.get()) {
                 try { Thread.sleep(250) } catch (_: InterruptedException) { break }
                 val now = SystemClock.elapsedRealtime()
+                if (cfg.mapsSnapshotSec > 0 && now - mapsAt >= cfg.mapsSnapshotSec * 1000L) { mapsAt = now; snapshotMaps(dir) }
                 if (firstFrame.get() == 0L && (wdir.list()?.any { it.startsWith("panvk-fps-") } == true))
                     if (firstFrame.compareAndSet(0, now)) log("first frame (driver fps log) after ${(now - t0) / 1000} s")
                 val ff = firstFrame.get()
@@ -340,6 +374,7 @@ object GameLoop {
         var code = Int.MIN_VALUE
         var perfId: String? = null
         watchdog.start()
+        com.winlator.core.XTiming.on = env["PANPLAY_XTIMING"] == "1"
         try {
             PerfRecorder.start(ctx, sc, exePath)
             code = ContainerManager.runExe(ctx, exePath, { line ->
@@ -354,6 +389,7 @@ object GameLoop {
         } catch (t: Throwable) {
             r.put("error", t.toString())
         } finally {
+            com.winlator.core.XTiming.on = false
             done.set(true)
             watchdog.interrupt()
             try { watchdog.join(5000) } catch (_: Exception) {}
