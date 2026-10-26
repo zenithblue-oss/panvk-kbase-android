@@ -1,0 +1,47 @@
+{
+  "#": "2026-10-26 shiba diagnostic run (panplay-115fix-diag): cube fps cap, D3D9 HUD text, D3D12 vkCreateSwapchainKHR fault. Deep-merged over assets/gameloop.json.",
+  "warmupSec": 8,
+  "measureSec": 20,
+  "tailSec": 4,
+  "gapSec": 3,
+  "startTimeoutSec": 120,
+  "screenshotAtSec": 22,
+  "mapsSnapshotSec": 1,
+  "installDrivers": { "r114": "drivers/rc5u-114fps.so" },
+  "envSets": {
+    "c-old-t": { "note": "cube: old 10 ms GetTickCount pump, all timing on", "env": { "DXCUBE_PUMP": "old", "PANPLAY_XTIMING": "1", "MESA_VK_X11_SW_TIMING": "1", "PANVK_KBASE_WAIT_STATS": "1" } },
+    "c-drain-t": { "note": "cube: drain-only pump, all timing on", "env": { "DXCUBE_PUMP": "drain", "PANPLAY_XTIMING": "1", "MESA_VK_X11_SW_TIMING": "1", "PANVK_KBASE_WAIT_STATS": "1" } },
+    "c-drain-swold-t": { "note": "cube: drain pump, P-C sw knobs at 114, timing on", "env": { "DXCUBE_PUMP": "drain", "PANVK_WSI_SW_CACHED": "0", "PANVK_WSI_SW_DEFER_REPLY": "0", "PANPLAY_XTIMING": "1", "MESA_VK_X11_SW_TIMING": "1", "PANVK_KBASE_WAIT_STATS": "1" } },
+    "c-drain": { "note": "cube: drain pump, no timing", "env": { "DXCUBE_PUMP": "drain" } },
+    "nc-uncached": { "note": "d3d9: HOST_COHERENT dma-heap BOs from system-uncached (new knob)", "env": { "DXCUBE_PUMP": "drain", "PANVK_KBASE_UNCACHED_HEAP": "1" } },
+    "nc-heapenv": { "note": "d3d9: all dma-heap BOs from system-uncached (existing PANVK_KBASE_DMA_HEAP)", "env": { "DXCUBE_PUMP": "drain", "PANVK_KBASE_DMA_HEAP": "/dev/dma_heap/system-uncached" } },
+    "nc-clean": { "note": "d3d9: clean CPU-mapped imports before each submit (PANVK_KBASE_IMPORT_SYNC=1 on CSF)", "env": { "DXCUBE_PUMP": "drain", "PANVK_KBASE_IMPORT_SYNC": "1" } },
+    "drv114": { "note": "RC5-universal-114-fps driver (114 + fps log)", "driver": "r114", "env": { "DXCUBE_PUMP": "drain" } },
+    "vulkan9": { "note": "d3d9: WINEDEBUG=+vulkan, 12 s", "env": { "DXCUBE_PUMP": "drain", "WINEDEBUG": "fixme-all,+vulkan", "DXCUBE_SECS": "12" } },
+    "g-seh": { "note": "D3D12: +seh,+loaddll, swapchain create log", "env": { "WINEDEBUG": "fixme-all,+seh,+loaddll", "MESA_VK_WSI_CREATE_LOG": "1" } },
+    "g-sehvk": { "note": "D3D12: +seh,+vulkan", "env": { "WINEDEBUG": "fixme-all,+seh,+vulkan", "MESA_VK_WSI_CREATE_LOG": "1" } },
+    "g-nomaint1": { "note": "D3D12: no swapchain_maintenance1", "env": { "VKD3D_DISABLE_EXTENSIONS": "VK_KHR_swapchain_maintenance1,VK_EXT_swapchain_maintenance1", "WINEDEBUG": "fixme-all,+seh", "MESA_VK_WSI_CREATE_LOG": "1" } },
+    "g-nowait": { "note": "D3D12: no present wait/id", "env": { "VKD3D_DISABLE_EXTENSIONS": "VK_KHR_present_wait,VK_KHR_present_id,VK_KHR_present_wait2,VK_KHR_present_id2", "WINEDEBUG": "fixme-all,+seh", "MESA_VK_WSI_CREATE_LOG": "1" } },
+    "g-immediate": { "note": "D3D12: VKD3D_SWAPCHAIN_PRESENT_MODE=IMMEDIATE (no present-modes pNext)", "env": { "VKD3D_SWAPCHAIN_PRESENT_MODE": "IMMEDIATE", "WINEDEBUG": "fixme-all,+seh", "MESA_VK_WSI_CREATE_LOG": "1" } },
+    "g-swold": { "note": "D3D12: P-C sw knobs at 114", "env": { "PANVK_WSI_SW_CACHED": "0", "PANVK_WSI_SW_DEFER_REPLY": "0", "WINEDEBUG": "fixme-all,+seh", "MESA_VK_WSI_CREATE_LOG": "1" } },
+    "g-noshm": { "note": "D3D12: sw present by PutImage, no MIT-SHM", "env": { "MESA_VK_WSI_DEBUG": "noshm", "WINEDEBUG": "fixme-all,+seh", "MESA_VK_WSI_CREATE_LOG": "1" } },
+    "g-old": {
+      "note": "D3D12: the 21 knobs at 114 (old)",
+      "env": {
+        "PANVK_CSF_FS_IDLE_CLEAN": "0", "PANVK_DB_ALT": "0", "PANVK_CSF_INDIRECT_REEMIT": "0", "PANVK_CSF_DESC_DIRTY": "0",
+        "PANVK_VB_DIRTY_CMP": "0", "PANVK_PRERAST_FAST_SKIP": "0", "PANVK_KBASE_STRICT_DEVICE_CLOCK": "0", "PANVK_DESC_POOL_HINT": "0",
+        "PANVK_KBASE_HEAP_EAGER_TERM": "0", "PANVK_TESS_VS_REGION_MB": "32", "PANVK_KBASE_ZERO_ALL": "1", "PANVK_CS_FLUSH_USED": "0",
+        "PANVK_JM_CMD_POOL_AUTOTRIM": "0", "PANVK_MEM_BUDGET_PRESSURE": "0", "PANVK_CS_CHUNK_KB": "64", "PANVK_CMD_SLAB_CACHE": "0",
+        "PANVK_WSI_SW_CACHED": "0", "PANVK_WSI_SW_DEFER_REPLY": "0", "PANVK_ANDROID_PRESENT_FENCE": "0", "PANVK_ANDROID_PRESENT_THREAD": "0",
+        "PANVK_PRELOAD_BARRIER_TRACK": "0", "WINEDEBUG": "fixme-all,+seh", "MESA_VK_WSI_CREATE_LOG": "1"
+      }
+    },
+    "g-114": { "note": "D3D12: RC5-universal-114-fps driver", "driver": "r114", "env": { "WINEDEBUG": "fixme-all,+seh" } }
+  },
+  "scenarios": {
+    "1": { "name": "cube11-diag", "tasks": ["d3d11"], "envSets": ["c-old-t", "c-drain-t", "c-drain-swold-t", "c-drain"] },
+    "2": { "name": "cube9-diag", "tasks": ["d3d9"], "envSets": ["c-old-t", "c-drain-t", "nc-uncached", "nc-heapenv", "nc-clean", "drv114", "vulkan9"] },
+    "3": { "name": "gears-diag", "tasks": ["d3d12gears"], "envSets": ["g-seh", "g-sehvk", "g-nomaint1", "g-nowait", "g-immediate", "g-swold", "g-noshm", "g-old", "g-114"] },
+    "4": { "name": "squid-diag", "tasks": ["d3d12"], "envSets": ["g-seh", "g-immediate"] }
+  }
+}

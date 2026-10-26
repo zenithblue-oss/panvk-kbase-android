@@ -1,0 +1,11 @@
+PanPlay game loop, scenario 4 (squid-diag), run 20261026-114811-s4
+Device: Google Pixel 8 (shiba), SDK 34, SoC Tensor G3
+Driver: Mesa PanVK, sha256 1194cfe80defd44e
+App: dev.zenithblue.panvklauncher 1.2.9-rc5 (40)
+Window: 8 s warm-up, 20 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d12    g-seh     fail         -       -       -       -        -        -      -      -      -        -  no pass line (^DX12: PASS)
+02  d3d12    g-immediate fail         -       -       -       -        -        -      -      -      -        -  no pass line (^DX12: PASS)
+
+A/B d3d12: g-seh - fps, g-immediate - fps (change vs g-seh)

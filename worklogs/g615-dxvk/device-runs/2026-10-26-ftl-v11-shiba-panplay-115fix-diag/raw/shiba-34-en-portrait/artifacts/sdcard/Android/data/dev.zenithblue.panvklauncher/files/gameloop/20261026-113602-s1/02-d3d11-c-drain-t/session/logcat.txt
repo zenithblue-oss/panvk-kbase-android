@@ -1,0 +1,1037 @@
+--------- beginning of main
+10-26 11:39:05.776 25314 27285 I XTiming : XT 1017ms req=92 busy_ms=138.4 top 155.3:46x2.16/4.45 14.0:46x0.85/3.31 | shm n=46 lock=0.22/1.77 copy=1.78/3.86 | gl n=46 draw=4.61/19.69 lock=0.17/1.69 upload(45)=1.64/3.17 wake=0.59/5.53 gap=21.90/45.26
+10-26 11:39:05.934 25314 25347 I PanPlayGameLoop: CUBE: PASS api=d3d11 frames=1494 (check pixels)
+10-26 11:39:05.997 25314 27285 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:05.998 25314 27285 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:05.998 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:05.999 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:05.999 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:06.000 25314 27285 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-26 11:39:06.000 25314 27285 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:06.001 25314 27285 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:06.001 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-26 11:39:06.001 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-26 11:39:06.002 25314 27285 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:06.002 25314 27285 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:06.003 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:06.003 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-26 11:39:06.004 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:06.004 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:06.005 25314 27285 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:06.006 25314 27285 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:06.007 25314 27285 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:06.007 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:06.007 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:06.008 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:06.008 25314 27285 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-26 11:39:06.009 25314 27285 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:06.009 25314 27285 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:06.010 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-26 11:39:06.010 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-26 11:39:06.010 25314 27285 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:06.011 25314 27285 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:06.011 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:06.012 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-26 11:39:06.012 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:06.012 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:06.013 25314 27285 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:06.014 25314 27285 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:06.014 25314 27285 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:06.015 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:06.015 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:06.015 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:06.016 25314 27285 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-26 11:39:06.016 25314 27285 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:06.017 25314 27285 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:06.017 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-26 11:39:06.017 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-26 11:39:06.018 25314 27285 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:06.018 25314 27285 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:06.019 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:06.019 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-26 11:39:06.019 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:06.020 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:06.020 25314 27285 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:06.021 25314 27285 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:06.021 25314 27285 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:06.022 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:06.022 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:06.022 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:06.023 25314 27285 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-26 11:39:06.023 25314 27285 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:06.024 25314 27285 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:06.024 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-26 11:39:06.025 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-26 11:39:06.025 25314 27285 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:06.025 25314 27285 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:06.026 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:06.026 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-26 11:39:06.026 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:06.027 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:06.027 25314 27285 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:06.032 25314 27285 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:06.032 25314 27285 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:06.033 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:06.033 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:06.034 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:06.034 25314 27285 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-26 11:39:06.034 25314 27285 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:06.035 25314 27285 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:06.035 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-26 11:39:06.036 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-26 11:39:06.036 25314 27285 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:06.037 25314 27285 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:06.037 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:06.038 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:116)
+10-26 11:39:06.038 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:06.039 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:06.039 25314 27285 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:06.040 25314 27285 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:06.041 25314 27285 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:06.041 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:06.042 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:06.042 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:06.042 25314 27285 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-26 11:39:06.043 25314 27285 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:06.043 25314 27285 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:06.044 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-26 11:39:06.044 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-26 11:39:06.045 25314 27285 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:06.045 25314 27285 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:06.046 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:06.046 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:116)
+10-26 11:39:06.046 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:06.047 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:06.047 25314 27285 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:06.049 25314 27285 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:06.049 25314 27285 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:06.050 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:06.050 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:06.051 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:06.051 25314 27285 W System.err: 	at com.winlator.xserver.events.UnmapNotify.send(UnmapNotify.java:29)
+10-26 11:39:06.051 25314 27285 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:06.052 25314 27285 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:06.053 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.unmapWindow(WindowManager.java:113)
+10-26 11:39:06.053 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:76)
+10-26 11:39:06.053 25314 27285 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:06.054 25314 27285 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:06.054 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:06.055 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:116)
+10-26 11:39:06.055 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:06.055 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:06.056 25314 27285 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:06.057 25314 27285 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:06.057 25314 27285 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:06.058 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:06.058 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:06.058 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+--------- beginning of events
+10-26 11:39:06.053 25314 25314 I auditd  : type=1400 audit(0.0:6456): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:06.053 25314 25314 W perf-sampler: type=1400 audit(0.0:6456): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:06.060 25314 27285 W System.err: 	at com.winlator.xserver.events.FocusEvent.send(FocusEvent.java:27)
+10-26 11:39:06.060 25314 27285 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:06.060 25314 27285 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:06.061 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.setFocus(WindowManager.java:147)
+10-26 11:39:06.061 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.revertFocus(WindowManager.java:135)
+10-26 11:39:06.061 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.unmapWindow(WindowManager.java:115)
+10-26 11:39:06.061 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:76)
+10-26 11:39:06.062 25314 27285 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:06.062 25314 27285 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:06.062 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:06.062 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:116)
+10-26 11:39:06.063 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:06.063 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:06.063 25314 27285 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:06.064 25314 27285 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:06.065 25314 27285 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:06.065 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:06.065 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:06.065 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:06.066 25314 27285 W System.err: 	at com.winlator.xserver.events.PropertyNotify.send(PropertyNotify.java:34)
+10-26 11:39:06.066 25314 27285 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:06.066 25314 27285 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:06.066 25314 27285 W System.err: 	at com.winlator.xserver.Window.modifyProperty(Window.java:142)
+10-26 11:39:06.067 25314 27285 W System.err: 	at com.winlator.xserver.DesktopHelper.setWMState(DesktopHelper.java:43)
+10-26 11:39:06.067 25314 27285 W System.err: 	at com.winlator.xserver.DesktopHelper.-$$Nest$smsetWMState(Unknown Source:0)
+10-26 11:39:06.067 25314 27285 W System.err: 	at com.winlator.xserver.DesktopHelper$2.onUnmapWindow(DesktopHelper.java:29)
+10-26 11:39:06.068 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.triggerOnUnmapWindow(WindowManager.java:320)
+10-26 11:39:06.068 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.unmapWindow(WindowManager.java:116)
+10-26 11:39:06.068 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:76)
+10-26 11:39:06.068 25314 27285 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:06.068 25314 27285 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:06.068 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:06.068 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:116)
+10-26 11:39:06.068 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:06.068 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:06.068 25314 27285 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:06.068 25314 27285 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:06.068 25314 27285 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:06.068 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:06.068 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:06.069 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:06.069 25314 27285 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-26 11:39:06.069 25314 27285 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:06.069 25314 27285 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:06.069 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-26 11:39:06.069 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-26 11:39:06.069 25314 27285 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:06.069 25314 27285 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:06.069 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:06.069 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:116)
+10-26 11:39:06.069 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:06.069 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:06.069 25314 27285 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:06.129 28715 28715 I auditd  : type=1400 audit(0.0:6457): avc:  granted  { execute } for  comm="panplay-gameloo" name="wineserver" dev="dm-53" ino=29540 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:06.129 28715 28715 W panplay-gameloo: type=1400 audit(0.0:6457): avc:  granted  { execute } for  name="wineserver" dev="dm-53" ino=29540 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:06.129 28715 28715 I auditd  : type=1400 audit(0.0:6458): avc:  granted  { execute_no_trans } for  comm="panplay-gameloo" path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/Proton/11.0-2-arm64ec/bin/wineserver" dev="dm-53" ino=29540 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:06.129 28715 28715 W panplay-gameloo: type=1400 audit(0.0:6458): avc:  granted  { execute_no_trans } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/Proton/11.0-2-arm64ec/bin/wineserver" dev="dm-53" ino=29540 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:06.129 28715 28715 I auditd  : type=1400 audit(0.0:6459): avc:  granted  { execute } for  comm="wineserver" path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/Proton/11.0-2-arm64ec/bin/wineserver" dev="dm-53" ino=29540 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:06.129 28715 28715 W wineserver: type=1400 audit(0.0:6459): avc:  granted  { execute } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/Proton/11.0-2-arm64ec/bin/wineserver" dev="dm-53" ino=29540 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:06.133 28715 28715 I auditd  : type=1400 audit(0.0:6460): avc:  denied  { search } for  comm="wineserver" name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:06.133 28715 28715 W wineserver: type=1400 audit(0.0:6460): avc:  denied  { search } for  name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:06.133 28715 28715 I auditd  : type=1400 audit(0.0:6461): avc:  denied  { search } for  comm="wineserver" name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:06.133 28715 28715 W wineserver: type=1400 audit(0.0:6461): avc:  denied  { search } for  name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:06.133 28715 28715 I auditd  : type=1400 audit(0.0:6462): avc:  denied  { search } for  comm="wineserver" name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:06.133 28715 28715 W wineserver: type=1400 audit(0.0:6462): avc:  denied  { search } for  name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:06.133 28715 28715 I auditd  : type=1400 audit(0.0:6463): avc:  denied  { search } for  comm="wineserver" name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:06.133 28715 28715 W wineserver: type=1400 audit(0.0:6463): avc:  denied  { search } for  name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:06.446 25314 27285 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:06.446 25314 27285 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:06.446 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:06.447 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:06.447 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:06.447 25314 27285 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-26 11:39:06.447 25314 27285 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:06.447 25314 27285 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:06.447 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-26 11:39:06.447 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-26 11:39:06.447 25314 27285 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:06.448 25314 27285 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:06.448 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:06.448 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-26 11:39:06.448 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:06.448 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:06.448 25314 27285 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:06.448 25314 27285 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:06.449 25314 27285 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:06.449 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:06.449 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:06.449 25314 27285 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:06.449 25314 27285 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-26 11:39:06.449 25314 27285 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:06.449 25314 27285 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:06.450 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-26 11:39:06.450 25314 27285 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-26 11:39:06.450 25314 27285 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:06.450 25314 27285 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:06.450 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:06.450 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-26 11:39:06.450 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:06.450 25314 27285 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:06.451 25314 27285 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:06.635 25314 25314 I wm_on_top_resumed_lost_called: [37597460,dev.zenithblue.panvklauncher.XServerActivity,topStateChangedWhenResumed]
+10-26 11:39:06.639 25314 25314 I wm_on_paused_called: [37597460,dev.zenithblue.panvklauncher.XServerActivity,performPause,2]
+10-26 11:39:06.668 25314 25314 I wm_on_restart_called: [17632578,dev.zenithblue.panvklauncher.MainActivity,performRestart,0]
+10-26 11:39:06.668 25314 25314 I wm_on_start_called: [17632578,dev.zenithblue.panvklauncher.MainActivity,handleStartActivity,0]
+10-26 11:39:06.670 25314 25314 I wm_on_resume_called: [17632578,dev.zenithblue.panvklauncher.MainActivity,RESUME_ACTIVITY,0]
+10-26 11:39:06.672 25314 25314 I wm_on_top_resumed_gained_called: [17632578,dev.zenithblue.panvklauncher.MainActivity,topWhenResuming]
+10-26 11:39:06.705 25314 25314 I viewroot_draw_event: [VRI[MainActivity],Start draw after previous draw not visible]
+10-26 11:39:06.743 25314 25314 I viewroot_draw_event: [VRI[MainActivity],reportDrawFinished seqId=0]
+10-26 11:39:06.770 25314 25314 I viewroot_draw_event: [VRI[MainActivity],reportDrawFinished seqId=0]
+10-26 11:39:06.775 25314 27316 I jank_cuj_events_end_request: [80,1793039946774637000,5486146821687,5486146823315]
+10-26 11:39:06.807 25314 25314 D VRI[XServerActivity]: visibilityChanged oldVisibility=true newVisibility=false
+10-26 11:39:06.817 25314 25314 I viewroot_draw_event: [VRI[XServerActivity],applyTransactionOnDraw applyImmediately]
+10-26 11:39:06.817 25314 25314 I viewroot_draw_event: [VRI[XServerActivity],applyTransactionOnDraw applyImmediately]
+10-26 11:39:06.817 25314 25314 I viewroot_draw_event: [VRI[XServerActivity],Not drawing due to not visible]
+10-26 11:39:06.819 25314 25314 I viewroot_draw_event: [VRI[XServerActivity],applyTransactionOnDraw applyImmediately]
+10-26 11:39:06.824 25314 25314 I viewroot_draw_event: [VRI[MainActivity],reportDrawFinished seqId=4]
+10-26 11:39:06.833 25314 25314 I wm_on_stop_called: [37597460,dev.zenithblue.panvklauncher.XServerActivity,LIFECYCLER_STOP_ACTIVITY,0]
+10-26 11:39:06.836 25314 25314 I wm_on_destroy_called: [37597460,dev.zenithblue.panvklauncher.XServerActivity,performDestroy,0]
+10-26 11:39:06.836 25314 25314 W WindowOnBackDispatcher: sendCancelIfRunning: isInProgress=falsecallback=android.view.ViewRootImpl$$ExternalSyntheticLambda11@f4793a1
+10-26 11:39:06.856 25314 25314 I viewroot_draw_event: [VRI[XServerActivity],applyTransactionOnDraw applyImmediately]
+10-26 11:39:06.856 25314 25314 I viewroot_draw_event: [VRI[XServerActivity],applyTransactionOnDraw applyImmediately]
+10-26 11:39:07.256 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.debug"
+10-26 11:39:07.256 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.csf.fs.idle.clean"
+10-26 11:39:07.256 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.db.alt"
+10-26 11:39:07.256 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.depth.bounds"
+10-26 11:39:07.256 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.csf.indirect.reemit"
+10-26 11:39:07.256 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.csf.desc.dirty"
+10-26 11:39:07.256 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.vb.dirty.cmp"
+10-26 11:39:07.256 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.prerast.fast.skip"
+10-26 11:39:07.256 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.desc.pool.hint"
+10-26 11:39:07.256 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.wsi.sw.cached"
+10-26 11:39:07.256 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.wsi.sw.defer.reply"
+10-26 11:39:07.256 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.android.present.fence"
+10-26 11:39:07.256 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.android.present.thread"
+10-26 11:39:07.256 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.preload.barrier.track"
+10-26 11:39:07.256 25314 25347 W libc    : Access denied finding property "vendor.mesa.pan.cpu.trace"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.vk.version.override"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.vk.trace"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.vk.trace.per.submit"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.gallium.print.options"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.vk.trace.frame"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.vk.trace.trigger"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.force.vk.vendor"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.force.vk.devicename"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.vk.wsi.force.bgra8.unorm.first"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.vk.wsi.force.swapchain.to.current.extent"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.vk.wsi.disable.unordered.submits"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.vk.x11.ignore.suboptimal"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.adaptive.sync"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.vk.x11.override.min.image.count"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.vk.x11.strict.image.count"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.vk.x11.ensure.min.image.count"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.vk.google.display.timing"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.pan.compute.core.mask"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.pan.fragment.core.mask"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.pan.enable.vertex.pipeline.stores.atomics"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.pan.force.enable.shader.atomics"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.heap.memory.percent"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.driconf.executable.override"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.process.name"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.log"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.log.level"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.log.prefix"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.log.file.auto"
+10-26 11:39:07.258 25314 25347 W libc    : Access denied finding property "vendor.mesa.log.file"
+10-26 11:39:07.258 25314 25347 I MESA    : kbase: CSF driver, uAPI version 1.24, page_size=4096
+10-26 11:39:07.259 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.strict.device.clock"
+10-26 11:39:07.259 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.coherent.pools"
+10-26 11:39:07.259 25314 25347 I MESA    : kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+10-26 11:39:07.259 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.zero.all"
+10-26 11:39:07.259 25314 25347 I MESA    : kbase: timestamp calibration: CSF, keeping cntfrq 24576000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+10-26 11:39:07.259 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.uncached.heap"
+10-26 11:39:07.259 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.dvfs"
+10-26 11:39:07.259 25314 25347 I MESA    : panvk: gpu_id 0xb8a21020 variant 0x4 arch v11 model Mali-G715 texture_features 0xc3fe001e 0 0 0
+10-26 11:39:07.259 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.bc.mode"
+10-26 11:39:07.259 25314 25347 I MESA    : panvk: BC emulation on, lowmem (native compressed mask 0xc3fe001e)
+10-26 11:39:07.259 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.mem.budget.pressure"
+10-26 11:39:07.259 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.mem.budget.reserve.mb"
+10-26 11:39:07.259 25314 25347 W libc    : Access denied finding property "vendor.mesa.vk.ignore.conformance.warning"
+10-26 11:39:07.259 25314 25347 W MESA    : No gralloc hwmodule detected (video buffers won't be supported)
+10-26 11:39:07.259 25314 25347 I MESA    : Using fallback gralloc implementation
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.bifrost.mesa.debug"
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.disk.cache.single.file"
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.disk.cache.database"
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.disk.cache.multi.file"
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.shader.cache.max.size"
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.glsl.cache.max.size"
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.shader.cache.disable"
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.glsl.disable.io.opt"
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.shader.cache.dir"
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.glsl.cache.dir"
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.xdg.cache.home"
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.shader.cache.show.stats"
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.gallium.override.cpu.caps"
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.gallium.dump.cpu"
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.disk.cache.combine.rw.with.ro.foz"
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.panvk.di.tex.max"
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.vk.wsi.debug"
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.vk.wsi.present.mode"
+10-26 11:39:07.260 25314 25347 W libc    : Access denied finding property "vendor.mesa.vk.wsi.headless.swapchain"
+10-26 11:39:07.253 25314 25314 I auditd  : type=1400 audit(0.0:6467): avc:  denied  { read } for  comm="panplay-gameloo" name="dri" dev="tmpfs" ino=974 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:07.253 25314 25314 W panplay-gameloo: type=1400 audit(0.0:6467): avc:  denied  { read } for  name="dri" dev="tmpfs" ino=974 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:07.376 25314 25347 I PanPlayGameLoop: pass 1: ok  fps=46.80097870789734
+10-26 11:39:10.396 25314 25347 I PanPlayGameLoop: pass 2/4: d3d11 (D3D11 cube (ARM64EC)), env set c-drain-t
+10-26 11:39:10.484 25314 25314 I wm_on_top_resumed_lost_called: [17632578,dev.zenithblue.panvklauncher.MainActivity,topStateChangedWhenResumed]
+10-26 11:39:10.486 25314 25314 I wm_on_paused_called: [17632578,dev.zenithblue.panvklauncher.MainActivity,performPause,0]
+10-26 11:39:10.513 25314 25314 I wm_on_create_called: [236585700,dev.zenithblue.panvklauncher.XServerActivity,performCreate,7]
+10-26 11:39:10.514 25314 25314 I wm_on_start_called: [236585700,dev.zenithblue.panvklauncher.XServerActivity,handleStartActivity,0]
+10-26 11:39:10.514 25314 25314 W WindowOnBackDispatcher: OnBackInvokedCallback is not enabled for the application.
+10-26 11:39:10.514 25314 25314 W WindowOnBackDispatcher: Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+10-26 11:39:10.515 25314 25314 I wm_on_resume_called: [236585700,dev.zenithblue.panvklauncher.XServerActivity,RESUME_ACTIVITY,0]
+10-26 11:39:10.533 25314 25314 I wm_on_top_resumed_gained_called: [236585700,dev.zenithblue.panvklauncher.XServerActivity,topStateChangedWhenResumed]
+10-26 11:39:10.575 25314 25314 D VRI[MainActivity]: visibilityChanged oldVisibility=true newVisibility=false
+10-26 11:39:10.582 25314 28768 I XTiming : XT 4805ms req=25 busy_ms=19.4 top 155.3:8x1.07/1.73 4.0:4x1.23/1.64 14.0:9x0.38/0.72 | shm n=8 lock=0.06/0.10 copy=0.92/1.38 | gl n=11 draw=3.96/7.85 lock=0.37/3.50 upload(9)=1.49/2.60 wake=0.92/5.73 gap=439.16/4502.52
+10-26 11:39:10.590 25314 25314 I viewroot_draw_event: [VRI[MainActivity],Not drawing due to not visible]
+10-26 11:39:10.590 25314 28768 I viewroot_draw_event: [VRI[XServerActivity],reportDrawFinished seqId=0]
+10-26 11:39:10.603 25314 25314 I viewroot_draw_event: [VRI[XServerActivity],reportDrawFinished seqId=0]
+10-26 11:39:10.607 25314 25314 I wm_on_stop_called: [17632578,dev.zenithblue.panvklauncher.MainActivity,STOP_ACTIVITY_ITEM,0]
+10-26 11:39:10.609 25314 27316 I jank_cuj_events_end_request: [81,1793039950609334000,5489981504957,5489981505974]
+10-26 11:39:10.697 28777 28777 I auditd  : type=1400 audit(0.0:6468): avc:  granted  { execute } for  comm="panplay-gameloo" name="wine" dev="dm-53" ino=29578 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:10.697 28777 28777 W panplay-gameloo: type=1400 audit(0.0:6468): avc:  granted  { execute } for  name="wine" dev="dm-53" ino=29578 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:10.697 28777 28777 I auditd  : type=1400 audit(0.0:6469): avc:  granted  { execute_no_trans } for  comm="panplay-gameloo" path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/Proton/11.0-2-arm64ec/lib/wine/aarch64-unix/wine" dev="dm-53" ino=29578 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:10.697 28777 28777 W panplay-gameloo: type=1400 audit(0.0:6469): avc:  granted  { execute_no_trans } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/Proton/11.0-2-arm64ec/lib/wine/aarch64-unix/wine" dev="dm-53" ino=29578 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:10.697 28777 28777 I auditd  : type=1400 audit(0.0:6470): avc:  granted  { execute } for  comm="wine" path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/Proton/11.0-2-arm64ec/lib/wine/aarch64-unix/wine" dev="dm-53" ino=29578 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:10.697 28777 28777 W wine    : type=1400 audit(0.0:6470): avc:  granted  { execute } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/Proton/11.0-2-arm64ec/lib/wine/aarch64-unix/wine" dev="dm-53" ino=29578 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:10.701 28777 28777 I auditd  : type=1400 audit(0.0:6471): avc:  denied  { search } for  comm="wine" name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:10.701 28777 28777 W wine    : type=1400 audit(0.0:6471): avc:  denied  { search } for  name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:10.701 28777 28777 I auditd  : type=1400 audit(0.0:6472): avc:  denied  { search } for  comm="wine" name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:10.701 28777 28777 W wine    : type=1400 audit(0.0:6472): avc:  denied  { search } for  name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:10.701 28777 28777 I auditd  : type=1400 audit(0.0:6473): avc:  denied  { search } for  comm="wine" name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:10.701 28777 28777 W wine    : type=1400 audit(0.0:6473): avc:  denied  { search } for  name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:10.701 28777 28777 I auditd  : type=1400 audit(0.0:6474): avc:  denied  { search } for  comm="wine" name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:10.701 28777 28777 W wine    : type=1400 audit(0.0:6474): avc:  denied  { search } for  name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:10.709 28777 28777 I auditd  : type=1400 audit(0.0:6475): avc:  granted  { execute } for  comm="wine" path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/Proton/11.0-2-arm64ec/lib/wine/aarch64-unix/ntdll.so" dev="dm-53" ino=29577 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:10.709 28777 28777 W wine    : type=1400 audit(0.0:6475): avc:  granted  { execute } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/Proton/11.0-2-arm64ec/lib/wine/aarch64-unix/ntdll.so" dev="dm-53" ino=29577 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:10.713 28777 28777 I auditd  : type=1400 audit(0.0:6476): avc:  granted  { execute } for  comm="wine" name="wine-preloader" dev="dm-53" ino=29548 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:10.713 28777 28777 W wine    : type=1400 audit(0.0:6476): avc:  granted  { execute } for  name="wine-preloader" dev="dm-53" ino=29548 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:11.721 28809 28809 I auditd  : type=1400 audit(0.0:6588): avc:  denied  { ioctl } for  comm="plugplay.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows" dev="dm-53" ino=32040 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:11.721 28809 28809 W plugplay.exe: type=1400 audit(0.0:6588): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows" dev="dm-53" ino=32040 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:11.721 28809 28809 I auditd  : type=1400 audit(0.0:6589): avc:  denied  { ioctl } for  comm="plugplay.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows/Fonts" dev="dm-53" ino=32044 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:11.721 28809 28809 W plugplay.exe: type=1400 audit(0.0:6589): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows/Fonts" dev="dm-53" ino=32044 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:11.773 28790 28790 I auditd  : type=1400 audit(0.0:6590): avc:  denied  { ioctl } for  comm="services.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c" dev="dm-53" ino=31895 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:11.773 28790 28790 W services.exe: type=1400 audit(0.0:6590): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c" dev="dm-53" ino=31895 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:11.773 28790 28790 I auditd  : type=1400 audit(0.0:6591): avc:  denied  { ioctl } for  comm="services.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows" dev="dm-53" ino=32040 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:11.773 28790 28790 W services.exe: type=1400 audit(0.0:6591): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows" dev="dm-53" ino=32040 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:11.773 28790 28790 I auditd  : type=1400 audit(0.0:6592): avc:  denied  { ioctl } for  comm="services.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows/system32" dev="dm-53" ino=32074 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:11.773 28790 28790 W services.exe: type=1400 audit(0.0:6592): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows/system32" dev="dm-53" ino=32074 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:12.187 28826 28827 I padshim : winebus.so loaded, SDL ready, polling 0x77c1210000
+10-26 11:39:12.188 28826 28827 I padshim : virtual joystick attached idx=0 inst=0 gamecontroller=1
+10-26 11:39:12.741 28786 28786 I auditd  : type=1400 audit(0.0:6732): avc:  denied  { ioctl } for  comm="wineboot.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows" dev="dm-53" ino=32040 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:12.741 28786 28786 W wineboot.exe: type=1400 audit(0.0:6732): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows" dev="dm-53" ino=32040 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:12.741 28786 28786 I auditd  : type=1400 audit(0.0:6733): avc:  denied  { ioctl } for  comm="wineboot.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows/Fonts" dev="dm-53" ino=32044 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:12.741 28786 28786 W wineboot.exe: type=1400 audit(0.0:6733): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows/Fonts" dev="dm-53" ino=32044 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:12.745 28786 28786 I auditd  : type=1400 audit(0.0:6734): avc:  denied  { ioctl } for  comm="wineboot.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows" dev="dm-53" ino=32040 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:12.745 28786 28786 W wineboot.exe: type=1400 audit(0.0:6734): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows" dev="dm-53" ino=32040 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:12.745 28786 28786 I auditd  : type=1400 audit(0.0:6735): avc:  denied  { ioctl } for  comm="wineboot.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows/Fonts" dev="dm-53" ino=32044 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:12.745 28786 28786 W wineboot.exe: type=1400 audit(0.0:6735): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows/Fonts" dev="dm-53" ino=32044 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:12.745 28786 28786 I auditd  : type=1400 audit(0.0:6736): avc:  denied  { ioctl } for  comm="wineboot.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows" dev="dm-53" ino=32040 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:12.745 28786 28786 W wineboot.exe: type=1400 audit(0.0:6736): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows" dev="dm-53" ino=32040 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:13.821 28777 28777 I auditd  : type=1400 audit(0.0:6795): avc:  denied  { ioctl } for  comm="dxcube-arm64ec." path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows" dev="dm-53" ino=32040 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:13.821 28777 28777 W dxcube-arm64ec.: type=1400 audit(0.0:6795): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows" dev="dm-53" ino=32040 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:13.821 28777 28777 I auditd  : type=1400 audit(0.0:6796): avc:  denied  { ioctl } for  comm="dxcube-arm64ec." path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows/Fonts" dev="dm-53" ino=32044 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:13.821 28777 28777 W dxcube-arm64ec.: type=1400 audit(0.0:6796): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows/Fonts" dev="dm-53" ino=32044 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:14.157 28777 28777 I auditd  : type=1400 audit(0.0:6797): avc:  denied  { ioctl } for  comm="dxcube-arm64ec." path="/data/user/0/dev.zenithblue.panvklauncher/files/games/builtin" dev="dm-53" ino=34098 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:14.157 28777 28777 W dxcube-arm64ec.: type=1400 audit(0.0:6797): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/games/builtin" dev="dm-53" ino=34098 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:14.177 28777 28777 I auditd  : type=1400 audit(0.0:6798): avc:  denied  { ioctl } for  comm="dxcube-arm64ec." path="/data/user/0/dev.zenithblue.panvklauncher/files/games/builtin" dev="dm-53" ino=34098 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:14.177 28777 28777 W dxcube-arm64ec.: type=1400 audit(0.0:6798): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/games/builtin" dev="dm-53" ino=34098 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:14.189 28777 28777 I auditd  : type=1400 audit(0.0:6799): avc:  denied  { ioctl } for  comm="dxcube-arm64ec." path="/data/user/0/dev.zenithblue.panvklauncher/files/games/builtin" dev="dm-53" ino=34098 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:14.189 28777 28777 W dxcube-arm64ec.: type=1400 audit(0.0:6799): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/games/builtin" dev="dm-53" ino=34098 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:14.829 28860 28860 I auditd  : type=1400 audit(0.0:6841): avc:  denied  { ioctl } for  comm="explorer.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows" dev="dm-53" ino=32040 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:14.829 28860 28860 W explorer.exe: type=1400 audit(0.0:6841): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows" dev="dm-53" ino=32040 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:14.829 28860 28860 I auditd  : type=1400 audit(0.0:6842): avc:  denied  { ioctl } for  comm="explorer.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows/Fonts" dev="dm-53" ino=32044 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:14.829 28860 28860 W explorer.exe: type=1400 audit(0.0:6842): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows/Fonts" dev="dm-53" ino=32044 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:15.177 28860 28860 I auditd  : type=1400 audit(0.0:6843): avc:  granted  { execute } for  comm="explorer.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/imagefs/bionic/usr/lib/libxcb.so.1.1.0" dev="dm-53" ino=29470 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:15.177 28860 28860 W explorer.exe: type=1400 audit(0.0:6843): avc:  granted  { execute } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/imagefs/bionic/usr/lib/libxcb.so.1.1.0" dev="dm-53" ino=29470 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:15.177 28860 28860 I auditd  : type=1400 audit(0.0:6844): avc:  granted  { execute } for  comm="explorer.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/Proton/11.0-2-arm64ec/lib/wine/aarch64-unix/winex11.so" dev="dm-53" ino=29559 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:15.177 28860 28860 W explorer.exe: type=1400 audit(0.0:6844): avc:  granted  { execute } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/Proton/11.0-2-arm64ec/lib/wine/aarch64-unix/winex11.so" dev="dm-53" ino=29559 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:15.181 28860 28860 I auditd  : type=1400 audit(0.0:6845): avc:  granted  { execute } for  comm="explorer.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/imagefs/bionic/usr/lib/libandroid-sysvshm.so" dev="dm-53" ino=27656 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:15.181 28860 28860 W explorer.exe: type=1400 audit(0.0:6845): avc:  granted  { execute } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/imagefs/bionic/usr/lib/libandroid-sysvshm.so" dev="dm-53" ino=27656 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:15.217 25314 28764 I XTiming : XT 4635ms req=1 busy_ms=0.3 top 98.0:1x0.27/0.27 | shm n=0 lock=0.00/0.00 copy=0.00/0.00 | gl n=1 draw=6.62/6.62 lock=0.03/0.03 upload(1)=0.72/0.72 wake=0.00/0.00 gap=11.81/11.81
+10-26 11:39:15.308 28860 28860 W libc    : Access denied finding property "vendor.mesa.vk.version.override"
+10-26 11:39:15.308 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.debug"
+10-26 11:39:15.308 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.csf.fs.idle.clean"
+10-26 11:39:15.308 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.db.alt"
+10-26 11:39:15.308 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.depth.bounds"
+10-26 11:39:15.308 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.csf.indirect.reemit"
+10-26 11:39:15.308 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.csf.desc.dirty"
+10-26 11:39:15.309 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.vb.dirty.cmp"
+10-26 11:39:15.309 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.prerast.fast.skip"
+10-26 11:39:15.309 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.desc.pool.hint"
+10-26 11:39:15.309 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.wsi.sw.cached"
+10-26 11:39:15.309 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.wsi.sw.defer.reply"
+10-26 11:39:15.309 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.android.present.fence"
+10-26 11:39:15.309 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.android.present.thread"
+10-26 11:39:15.309 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.preload.barrier.track"
+10-26 11:39:15.309 28860 28860 W libc    : Access denied finding property "vendor.mesa.pan.cpu.trace"
+10-26 11:39:15.309 28860 28860 W libc    : Access denied finding property "vendor.mesa.vk.trace"
+10-26 11:39:15.309 28860 28860 W libc    : Access denied finding property "vendor.mesa.vk.trace.per.submit"
+10-26 11:39:15.309 28860 28860 W libc    : Access denied finding property "vendor.mesa.gallium.print.options"
+10-26 11:39:15.309 28860 28860 W libc    : Access denied finding property "vendor.mesa.vk.trace.frame"
+10-26 11:39:15.309 28860 28860 W libc    : Access denied finding property "vendor.mesa.vk.trace.trigger"
+10-26 11:39:15.310 28860 28860 W libc    : Access denied finding property "vendor.mesa.force.vk.vendor"
+10-26 11:39:15.310 28860 28860 W libc    : Access denied finding property "vendor.mesa.force.vk.devicename"
+10-26 11:39:15.310 28860 28860 W libc    : Access denied finding property "vendor.mesa.vk.wsi.force.bgra8.unorm.first"
+10-26 11:39:15.310 28860 28860 W libc    : Access denied finding property "vendor.mesa.vk.wsi.force.swapchain.to.current.extent"
+10-26 11:39:15.310 28860 28860 W libc    : Access denied finding property "vendor.mesa.vk.wsi.disable.unordered.submits"
+10-26 11:39:15.310 28860 28860 W libc    : Access denied finding property "vendor.mesa.vk.x11.ignore.suboptimal"
+10-26 11:39:15.310 28860 28860 W libc    : Access denied finding property "vendor.mesa.adaptive.sync"
+10-26 11:39:15.310 28860 28860 W libc    : Access denied finding property "vendor.mesa.vk.x11.override.min.image.count"
+10-26 11:39:15.310 28860 28860 W libc    : Access denied finding property "vendor.mesa.vk.x11.strict.image.count"
+10-26 11:39:15.310 28860 28860 W libc    : Access denied finding property "vendor.mesa.vk.x11.ensure.min.image.count"
+10-26 11:39:15.310 28860 28860 W libc    : Access denied finding property "vendor.mesa.vk.google.display.timing"
+10-26 11:39:15.310 28860 28860 W libc    : Access denied finding property "vendor.mesa.pan.compute.core.mask"
+10-26 11:39:15.310 28860 28860 W libc    : Access denied finding property "vendor.mesa.pan.fragment.core.mask"
+10-26 11:39:15.310 28860 28860 W libc    : Access denied finding property "vendor.mesa.pan.enable.vertex.pipeline.stores.atomics"
+10-26 11:39:15.310 28860 28860 W libc    : Access denied finding property "vendor.mesa.pan.force.enable.shader.atomics"
+10-26 11:39:15.310 28860 28860 W libc    : Access denied finding property "vendor.mesa.heap.memory.percent"
+10-26 11:39:15.310 28860 28860 W libc    : Access denied finding property "vendor.mesa.driconf.executable.override"
+10-26 11:39:15.310 28860 28860 W libc    : Access denied finding property "vendor.mesa.process.name"
+10-26 11:39:15.311 28860 28860 W libc    : Access denied finding property "vendor.mesa.log"
+10-26 11:39:15.312 28860 28860 W libc    : Access denied finding property "vendor.mesa.log.level"
+10-26 11:39:15.312 28860 28860 W libc    : Access denied finding property "vendor.mesa.log.prefix"
+10-26 11:39:15.312 28860 28860 W libc    : Access denied finding property "vendor.mesa.log.file.auto"
+10-26 11:39:15.312 28860 28860 W libc    : Access denied finding property "vendor.mesa.log.file"
+10-26 11:39:15.313 28860 28860 I MESA    : kbase: CSF driver, uAPI version 1.24, page_size=4096
+10-26 11:39:15.314 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.strict.device.clock"
+10-26 11:39:15.314 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.coherent.pools"
+10-26 11:39:15.314 28860 28860 I MESA    : kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+10-26 11:39:15.314 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.zero.all"
+10-26 11:39:15.314 28860 28860 I MESA    : kbase: timestamp calibration: CSF, keeping cntfrq 24576000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+10-26 11:39:15.314 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.uncached.heap"
+10-26 11:39:15.314 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.dvfs"
+10-26 11:39:15.314 28860 28860 I MESA    : panvk: gpu_id 0xb8a21020 variant 0x4 arch v11 model Mali-G715 texture_features 0xc3fe001e 0 0 0
+10-26 11:39:15.314 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.bc.mode"
+10-26 11:39:15.314 28860 28860 I MESA    : panvk: BC emulation on, lowmem (native compressed mask 0xc3fe001e)
+10-26 11:39:15.314 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.mem.budget.pressure"
+10-26 11:39:15.314 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.mem.budget.reserve.mb"
+10-26 11:39:15.314 28860 28860 W libc    : Access denied finding property "vendor.mesa.vk.ignore.conformance.warning"
+10-26 11:39:15.315 28860 28860 W MESA    : No gralloc hwmodule detected (video buffers won't be supported)
+10-26 11:39:15.315 28860 28860 I MESA    : Using fallback gralloc implementation
+10-26 11:39:15.315 28860 28860 W libc    : Access denied finding property "vendor.mesa.bifrost.mesa.debug"
+10-26 11:39:15.315 28860 28860 W libc    : Access denied finding property "vendor.mesa.disk.cache.single.file"
+10-26 11:39:15.315 28860 28860 W libc    : Access denied finding property "vendor.mesa.disk.cache.database"
+10-26 11:39:15.315 28860 28860 W libc    : Access denied finding property "vendor.mesa.disk.cache.multi.file"
+10-26 11:39:15.315 28860 28860 W libc    : Access denied finding property "vendor.mesa.glsl.disable.io.opt"
+10-26 11:39:15.315 28860 28860 W libc    : Access denied finding property "vendor.mesa.shader.cache.show.stats"
+10-26 11:39:15.316 28860 28860 W libc    : Access denied finding property "vendor.mesa.gallium.override.cpu.caps"
+10-26 11:39:15.316 28860 28860 W libc    : Access denied finding property "vendor.mesa.gallium.dump.cpu"
+10-26 11:39:15.316 28860 28860 W libc    : Access denied finding property "vendor.mesa.disk.cache.combine.rw.with.ro.foz"
+10-26 11:39:15.316 28860 28860 W libc    : Access denied finding property "vendor.mesa.panvk.di.tex.max"
+10-26 11:39:15.316 28860 28860 W libc    : Access denied finding property "vendor.mesa.vk.wsi.debug"
+10-26 11:39:15.316 28860 28860 W libc    : Access denied finding property "vendor.mesa.vk.wsi.present.mode"
+10-26 11:39:15.316 28860 28860 W libc    : Access denied finding property "vendor.mesa.vk.wsi.headless.swapchain"
+10-26 11:39:15.881 28860 28860 I auditd  : type=1400 audit(0.0:6876): avc:  denied  { ioctl } for  comm="explorer.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c" dev="dm-53" ino=31895 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:15.881 28860 28860 W explorer.exe: type=1400 audit(0.0:6876): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c" dev="dm-53" ino=31895 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:15.881 28860 28860 I auditd  : type=1400 audit(0.0:6877): avc:  denied  { ioctl } for  comm="explorer.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows" dev="dm-53" ino=32040 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:15.881 28860 28860 W explorer.exe: type=1400 audit(0.0:6877): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows" dev="dm-53" ino=32040 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:15.885 28860 28860 I auditd  : type=1400 audit(0.0:6878): avc:  denied  { ioctl } for  comm="explorer.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows/system32" dev="dm-53" ino=32074 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:15.885 28860 28860 W explorer.exe: type=1400 audit(0.0:6878): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows/system32" dev="dm-53" ino=32074 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:15.889 28860 28860 I auditd  : type=1400 audit(0.0:6879): avc:  denied  { ioctl } for  comm="explorer.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c" dev="dm-53" ino=31895 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:15.889 28860 28860 W explorer.exe: type=1400 audit(0.0:6879): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c" dev="dm-53" ino=31895 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:15.889 28860 28860 I auditd  : type=1400 audit(0.0:6880): avc:  denied  { ioctl } for  comm="explorer.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows" dev="dm-53" ino=32040 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:15.889 28860 28860 W explorer.exe: type=1400 audit(0.0:6880): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/container/.wine/drive_c/windows" dev="dm-53" ino=32040 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:16.792 25314 28764 I XTiming : XT 1573ms req=425 busy_ms=84.0 top 16.0:100x0.29/0.98 18.0:81x0.20/0.52 55.0:63x0.09/0.21 | shm n=0 lock=0.00/0.00 copy=0.00/0.00 | gl n=7 draw=9.69/22.87 lock=0.04/0.08 upload(0)=0.00/0.00 wake=3.62/13.21 gap=698.39/4811.61
+10-26 11:39:16.905 28777 28777 I auditd  : type=1400 audit(0.0:6941): avc:  granted  { execute } for  comm="dxcube-arm64ec." path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/imagefs/bionic/usr/lib/libXfixes.so.3.1.0" dev="dm-53" ino=27515 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:16.905 28777 28777 W dxcube-arm64ec.: type=1400 audit(0.0:6941): avc:  granted  { execute } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/imagefs/bionic/usr/lib/libXfixes.so.3.1.0" dev="dm-53" ino=27515 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:16.905 28777 28777 I auditd  : type=1400 audit(0.0:6942): avc:  granted  { execute } for  comm="dxcube-arm64ec." path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/imagefs/bionic/usr/lib/libXcursor.so.1.0.2" dev="dm-53" ino=27445 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:16.905 28777 28777 W dxcube-arm64ec.: type=1400 audit(0.0:6942): avc:  granted  { execute } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/imagefs/bionic/usr/lib/libXcursor.so.1.0.2" dev="dm-53" ino=27445 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:16.909 28894 28894 I auditd  : type=1400 audit(0.0:6943): avc:  granted  { execute } for  comm="tabtip.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/imagefs/bionic/usr/lib/libXfixes.so.3.1.0" dev="dm-53" ino=27515 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:16.909 28894 28894 W tabtip.exe: type=1400 audit(0.0:6943): avc:  granted  { execute } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/imagefs/bionic/usr/lib/libXfixes.so.3.1.0" dev="dm-53" ino=27515 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:16.909 28894 28894 I auditd  : type=1400 audit(0.0:6944): avc:  granted  { execute } for  comm="tabtip.exe" path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/imagefs/bionic/usr/lib/libXcursor.so.1.0.2" dev="dm-53" ino=27445 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:16.909 28894 28894 W tabtip.exe: type=1400 audit(0.0:6944): avc:  granted  { execute } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/imagefs/bionic/usr/lib/libXcursor.so.1.0.2" dev="dm-53" ino=27445 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:16.913 28777 28777 I auditd  : type=1400 audit(0.0:6945): avc:  denied  { ioctl } for  comm="dxcube-arm64ec." path="/data/user/0/dev.zenithblue.panvklauncher/files/games/builtin" dev="dm-53" ino=34098 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:16.913 28777 28777 W dxcube-arm64ec.: type=1400 audit(0.0:6945): avc:  denied  { ioctl } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/games/builtin" dev="dm-53" ino=34098 ioctlcmd=0x7201 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:17.066 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.version.override"
+10-26 11:39:17.066 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.debug"
+10-26 11:39:17.066 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.csf.fs.idle.clean"
+10-26 11:39:17.066 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.db.alt"
+10-26 11:39:17.066 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.depth.bounds"
+10-26 11:39:17.066 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.csf.indirect.reemit"
+10-26 11:39:17.066 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.csf.desc.dirty"
+10-26 11:39:17.066 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.vb.dirty.cmp"
+10-26 11:39:17.066 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.prerast.fast.skip"
+10-26 11:39:17.066 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.desc.pool.hint"
+10-26 11:39:17.066 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.wsi.sw.cached"
+10-26 11:39:17.066 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.wsi.sw.defer.reply"
+10-26 11:39:17.066 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.android.present.fence"
+10-26 11:39:17.066 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.android.present.thread"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.preload.barrier.track"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.pan.cpu.trace"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.trace"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.trace.per.submit"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.gallium.print.options"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.trace.frame"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.trace.trigger"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.force.vk.vendor"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.force.vk.devicename"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.wsi.force.bgra8.unorm.first"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.wsi.force.swapchain.to.current.extent"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.wsi.disable.unordered.submits"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.x11.ignore.suboptimal"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.adaptive.sync"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.x11.override.min.image.count"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.x11.strict.image.count"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.x11.ensure.min.image.count"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.google.display.timing"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.pan.compute.core.mask"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.pan.fragment.core.mask"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.pan.enable.vertex.pipeline.stores.atomics"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.pan.force.enable.shader.atomics"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.heap.memory.percent"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.driconf.executable.override"
+10-26 11:39:17.067 28777 28777 W libc    : Access denied finding property "vendor.mesa.process.name"
+10-26 11:39:17.068 28777 28777 W libc    : Access denied finding property "vendor.mesa.log"
+10-26 11:39:17.068 28777 28777 W libc    : Access denied finding property "vendor.mesa.log.level"
+10-26 11:39:17.068 28777 28777 W libc    : Access denied finding property "vendor.mesa.log.prefix"
+10-26 11:39:17.068 28777 28777 W libc    : Access denied finding property "vendor.mesa.log.file.auto"
+10-26 11:39:17.068 28777 28777 W libc    : Access denied finding property "vendor.mesa.log.file"
+10-26 11:39:17.068 28777 28777 I MESA    : kbase: CSF driver, uAPI version 1.24, page_size=4096
+10-26 11:39:17.069 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.strict.device.clock"
+10-26 11:39:17.069 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.coherent.pools"
+10-26 11:39:17.069 28777 28777 I MESA    : kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+10-26 11:39:17.069 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.zero.all"
+10-26 11:39:17.069 28777 28777 I MESA    : kbase: timestamp calibration: CSF, keeping cntfrq 24576000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+10-26 11:39:17.069 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.uncached.heap"
+10-26 11:39:17.069 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.dvfs"
+10-26 11:39:17.069 28777 28777 I MESA    : panvk: gpu_id 0xb8a21020 variant 0x4 arch v11 model Mali-G715 texture_features 0xc3fe001e 0 0 0
+10-26 11:39:17.069 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.bc.mode"
+10-26 11:39:17.069 28777 28777 I MESA    : panvk: BC emulation on, lowmem (native compressed mask 0xc3fe001e)
+10-26 11:39:17.069 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.mem.budget.pressure"
+10-26 11:39:17.069 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.mem.budget.reserve.mb"
+10-26 11:39:17.069 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.ignore.conformance.warning"
+10-26 11:39:17.069 28777 28777 W MESA    : No gralloc hwmodule detected (video buffers won't be supported)
+10-26 11:39:17.069 28777 28777 I MESA    : Using fallback gralloc implementation
+10-26 11:39:17.069 28777 28777 W libc    : Access denied finding property "vendor.mesa.bifrost.mesa.debug"
+10-26 11:39:17.069 28777 28777 W libc    : Access denied finding property "vendor.mesa.disk.cache.single.file"
+10-26 11:39:17.069 28777 28777 W libc    : Access denied finding property "vendor.mesa.disk.cache.database"
+10-26 11:39:17.069 28777 28777 W libc    : Access denied finding property "vendor.mesa.disk.cache.multi.file"
+10-26 11:39:17.069 28777 28777 W libc    : Access denied finding property "vendor.mesa.glsl.disable.io.opt"
+10-26 11:39:17.069 28777 28777 W libc    : Access denied finding property "vendor.mesa.shader.cache.show.stats"
+10-26 11:39:17.070 28777 28777 W libc    : Access denied finding property "vendor.mesa.gallium.override.cpu.caps"
+10-26 11:39:17.070 28777 28777 W libc    : Access denied finding property "vendor.mesa.gallium.dump.cpu"
+10-26 11:39:17.070 28777 28777 W libc    : Access denied finding property "vendor.mesa.disk.cache.combine.rw.with.ro.foz"
+10-26 11:39:17.070 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.di.tex.max"
+10-26 11:39:17.070 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.wsi.debug"
+10-26 11:39:17.070 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.wsi.present.mode"
+10-26 11:39:17.070 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.wsi.headless.swapchain"
+10-26 11:39:17.072 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.mem.budget"
+10-26 11:39:17.072 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.mem.budget.headroom.mb"
+10-26 11:39:17.073 28777 28777 I MESA    : kbase: CSF driver, uAPI version 1.24, page_size=4096
+10-26 11:39:17.073 28777 28777 I MESA    : kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+10-26 11:39:17.073 28777 28777 I MESA    : kbase: timestamp calibration: CSF, keeping cntfrq 24576000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+10-26 11:39:17.073 28777 28777 I MESA    : panvk: gpu_id 0xb8a21020 variant 0x4 arch v11 model Mali-G715 texture_features 0xc3fe001e 0 0 0
+10-26 11:39:17.073 28777 28777 I MESA    : panvk: BC emulation on, lowmem (native compressed mask 0xc3fe001e)
+10-26 11:39:17.089 28777 28777 I MESA    : kbase: CSF driver, uAPI version 1.24, page_size=4096
+10-26 11:39:17.090 28777 28777 I MESA    : kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+10-26 11:39:17.090 28777 28777 I MESA    : kbase: timestamp calibration: CSF, keeping cntfrq 24576000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+10-26 11:39:17.090 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.cs.flush.used"
+10-26 11:39:17.090 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.jm.cmd.pool.autotrim"
+10-26 11:39:17.090 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.cs.chunk.kb"
+10-26 11:39:17.090 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.cmd.slab.cache"
+10-26 11:39:17.090 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.cmd.slab.cache.ms"
+10-26 11:39:17.090 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.evictable"
+10-26 11:39:17.090 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.tess.fuse"
+10-26 11:39:17.090 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.tess.fuse.gen.max"
+10-26 11:39:17.090 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.tess.setup.step"
+10-26 11:39:17.090 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.tess.arenas"
+10-26 11:39:17.090 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.tess.winding.inline"
+10-26 11:39:17.090 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.tess.vs.region.mb"
+10-26 11:39:17.090 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.gpu.prerast.arena"
+10-26 11:39:17.090 28777 28777 I MESA    : kbase: mem_alloc via ALLOC_EX
+10-26 11:39:17.090 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.enable.pipeline.cache"
+10-26 11:39:17.092 28777 28777 W libc    : Access denied finding property "vendor.mesa.bifrost.mesa.dump.dir"
+10-26 11:39:17.093 28777 28777 I MESA    : kbase: queue_group_create layout=32 bytes
+10-26 11:39:17.093 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.heap.chunks"
+10-26 11:39:17.093 28777 28777 I MESA    : kbase: tiler heaps 4 initial / 400 max chunks of 1024 KiB
+10-26 11:39:17.093 28777 28777 I MESA    : kbase: tiler_heap_init layout=16 bytes
+10-26 11:39:17.093 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.async.heap.term"
+10-26 11:39:17.093 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.heap.eager.term"
+10-26 11:39:17.093 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.heap.slots"
+10-26 11:39:17.096 28777 28777 W libc    : Access denied finding property "vendor.mesa.gpu.traces"
+10-26 11:39:17.096 28777 28777 W libc    : Access denied finding property "vendor.mesa.gpu.tracefile"
+10-26 11:39:17.096 28777 28777 W libc    : Access denied finding property "vendor.mesa.panvk.utrace.clone.mem.size"
+10-26 11:39:17.155 28777 28920 W libc    : Access denied finding property "vendor.mesa.panvk.zs.preload.always"
+10-26 11:39:17.157 28777 28777 W libc    : Access denied finding property "vendor.mesa.vk.wsi.create.log"
+10-26 11:39:17.159 28777 28918 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.heap.renew.work"
+10-26 11:39:17.160 28777 28918 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.heap.renew.interval"
+10-26 11:39:17.160 28777 28918 W libc    : Access denied finding property "vendor.mesa.panvk.mem.log"
+10-26 11:39:17.160 28777 28919 W libc    : Access denied finding property "vendor.mesa.vk.max.timeout"
+10-26 11:39:17.163 28777 28919 W libc    : Access denied finding property "vendor.mesa.panvk.cmd.pool.autotrim"
+10-26 11:39:17.163 28777 28919 W libc    : Access denied finding property "vendor.mesa.panvk.cmd.pool.autotrim.window"
+10-26 11:39:17.177 25314 25347 I PanPlayGameLoop: first frame after 6 s: CUBE: d3d11 Present frame=0 hr=0x00000000
+10-26 11:39:17.191 28777 28918 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.gpu.semaphore.waits"
+10-26 11:39:17.192 28777 28918 I MESA    : panvk: PANVK_FPS_LOG=/data/user/0/dev.zenithblue.panvklauncher/files/gameloop/20261026-113602-s1/02-d3d11-c-drain-t/panvk-fps-28777.log, one line per 1000 ms
+10-26 11:39:17.209 28777 28918 W libc    : Access denied finding property "vendor.mesa.panvk.kbase.heap.term.max"
+10-26 11:39:17.794 25314 28764 I XTiming : XT 1002ms req=1282 busy_ms=365.5 top 155.3:266x0.60/7.03 14.0:272x0.22/1.60 16.0:201x0.24/0.82 | shm n=266 lock=0.15/6.35 copy=0.42/1.95 | gl n=49 draw=13.68/22.82 lock=0.13/1.42 upload(43)=1.16/5.95 wake=12.44/23.07 gap=46.23/1491.98
+10-26 11:39:18.093 28777 28919 I MESA    : kbase: wait-stats waits=8056 full_20ms_slices=1 avg_ms=0.13 max_ms=20.11 kcpu=0
+10-26 11:39:18.197 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 454.2 fps queue=0.63/6.67 fence=1.00/9.10 pace=0.00/0.00 slot=0.05/5.33 copy=0.49/2.05 put=0.04/0.28 reply=1.18/7.76 acquire=0.01/2.86
+10-26 11:39:18.537 28826 28826 I auditd  : type=1400 audit(0.0:6962): avc:  denied  { getattr } for  comm="winedevice.exe" path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:18.537 28826 28826 W winedevice.exe: type=1400 audit(0.0:6962): avc:  denied  { getattr } for  path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:18.633 25314 25314 I auditd  : type=1400 audit(0.0:6963): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:18.633 25314 25314 W perf-sampler: type=1400 audit(0.0:6963): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:18.797 25314 28764 I XTiming : XT 1000ms req=907 busy_ms=452.5 top 155.3:453x0.68/4.03 14.0:454x0.31/3.41 | shm n=453 lock=0.11/3.20 copy=0.52/2.18 | gl n=59 draw=15.50/21.01 lock=0.23/1.74 upload(59)=0.93/1.92 wake=15.30/32.71 gap=16.90/35.31
+10-26 11:39:19.095 28777 28919 I MESA    : kbase: wait-stats waits=7350 full_20ms_slices=2 avg_ms=0.14 max_ms=20.22 kcpu=0
+10-26 11:39:19.199 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 437.2 fps queue=0.72/8.97 fence=0.77/4.30 pace=0.00/0.00 slot=0.10/6.73 copy=0.57/10.12 put=0.05/0.41 reply=1.48/11.40 acquire=0.03/4.04
+10-26 11:39:19.661 25314 25314 I auditd  : type=1400 audit(0.0:6964): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:19.661 25314 25314 W perf-sampler: type=1400 audit(0.0:6964): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:19.799 25314 28764 I XTiming : XT 1001ms req=896 busy_ms=447.3 top 155.3:448x0.69/9.25 14.0:447x0.31/3.55 23.0:1x0.40/0.40 | shm n=448 lock=0.15/8.31 copy=0.49/2.02 | gl n=60 draw=15.54/25.93 lock=0.16/1.59 upload(60)=1.11/7.70 wake=15.03/24.35 gap=16.64/26.82
+10-26 11:39:20.095 28777 28919 I MESA    : kbase: wait-stats waits=6829 full_20ms_slices=2 avg_ms=0.14 max_ms=20.22 kcpu=0
+10-26 11:39:20.200 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 446.5 fps queue=0.44/9.71 fence=0.78/3.25 pace=0.00/0.00 slot=0.05/3.47 copy=0.57/2.30 put=0.05/0.68 reply=1.43/14.84 acquire=0.02/6.14
+10-26 11:39:20.681 25314 25314 I auditd  : type=1400 audit(0.0:6965): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:20.681 25314 25314 W perf-sampler: type=1400 audit(0.0:6965): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:20.797 25314 28764 I XTiming : XT 1001ms req=840 busy_ms=399.3 top 155.3:420x0.65/3.40 14.0:420x0.31/2.26 | shm n=420 lock=0.10/2.92 copy=0.50/2.88 | gl n=55 draw=15.09/23.75 lock=0.22/1.13 upload(55)=0.89/2.48 wake=15.92/47.90 gap=18.16/48.29
+10-26 11:39:21.095 28777 28919 I MESA    : kbase: wait-stats waits=6344 full_20ms_slices=2 avg_ms=0.15 max_ms=20.17 kcpu=0
+10-26 11:39:21.201 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 409.6 fps queue=0.45/9.82 fence=0.87/9.98 pace=0.00/0.00 slot=0.03/4.65 copy=0.58/1.06 put=0.05/0.15 reply=1.39/9.65 acquire=0.01/3.75
+10-26 11:39:21.537 28826 28826 I auditd  : type=1400 audit(0.0:6966): avc:  denied  { getattr } for  comm="winedevice.exe" path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:21.537 28826 28826 W winedevice.exe: type=1400 audit(0.0:6966): avc:  denied  { getattr } for  path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:21.709 25314 25314 I auditd  : type=1400 audit(0.0:6967): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:21.709 25314 25314 W perf-sampler: type=1400 audit(0.0:6967): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:21.794 25314 28764 I XTiming : XT 1002ms req=867 busy_ms=451.8 top 155.3:433x0.70/5.58 14.0:433x0.34/9.22 23.0:1x0.40/0.40 | shm n=433 lock=0.12/4.94 copy=0.53/2.92 | gl n=60 draw=15.22/25.44 lock=0.33/9.84 upload(60)=0.97/2.93 wake=15.01/28.29 gap=16.84/29.81
+10-26 11:39:22.095 28777 28919 I MESA    : kbase: wait-stats waits=7137 full_20ms_slices=1 avg_ms=0.14 max_ms=20.18 kcpu=0
+10-26 11:39:22.202 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 447.7 fps queue=0.58/11.63 fence=0.86/11.75 pace=0.00/0.00 slot=0.08/10.29 copy=0.54/2.19 put=0.05/0.62 reply=1.37/14.15 acquire=0.05/8.45
+10-26 11:39:22.745 25314 25314 I auditd  : type=1400 audit(0.0:6968): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:22.745 25314 25314 W perf-sampler: type=1400 audit(0.0:6968): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:22.798 25314 28764 I XTiming : XT 1001ms req=888 busy_ms=427.0 top 155.3:444x0.66/4.14 14.0:444x0.30/3.93 | shm n=444 lock=0.13/3.59 copy=0.49/1.67 | gl n=57 draw=15.41/23.23 lock=0.22/1.08 upload(56)=1.12/3.37 wake=16.05/53.77 gap=17.55/54.81
+10-26 11:39:22.821 25314 25323 I e.panvklauncher: Compiler allocated 4295KB to compile void dev.zenithblue.panvklauncher.PerfRecorder.sampleLoop(android.content.Context, dev.zenithblue.panvklauncher.PerfRecorder$Session)
+10-26 11:39:23.095 28777 28919 I MESA    : kbase: wait-stats waits=7595 full_20ms_slices=2 avg_ms=0.15 max_ms=20.14 kcpu=0
+10-26 11:39:23.204 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 451.8 fps queue=0.59/4.08 fence=0.96/3.06 pace=0.00/0.00 slot=0.03/2.87 copy=0.52/1.40 put=0.05/1.02 reply=1.25/6.50 acquire=0.01/0.85
+10-26 11:39:23.773 25314 25314 I auditd  : type=1400 audit(0.0:6969): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:23.773 25314 25314 W perf-sampler: type=1400 audit(0.0:6969): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:23.805 25314 28764 I XTiming : XT 1006ms req=945 busy_ms=407.5 top 155.3:472x0.61/12.75 14.0:472x0.25/1.77 23.0:1x0.33/0.33 | shm n=472 lock=0.12/4.15 copy=0.45/12.61 | gl n=57 draw=14.95/22.35 lock=0.29/4.28 upload(57)=1.00/3.16 wake=16.20/38.41 gap=17.50/39.47
+10-26 11:39:24.095 28777 28919 I MESA    : kbase: wait-stats waits=7691 full_20ms_slices=3 avg_ms=0.14 max_ms=20.22 kcpu=0
+10-26 11:39:24.206 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 439.3 fps queue=0.58/11.87 fence=0.89/3.29 pace=0.00/0.00 slot=0.08/11.88 copy=0.51/2.74 put=0.05/0.66 reply=1.25/14.29 acquire=0.02/6.44
+10-26 11:39:24.537 28826 28826 I auditd  : type=1400 audit(0.0:6970): avc:  denied  { getattr } for  comm="winedevice.exe" path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:24.537 28826 28826 W winedevice.exe: type=1400 audit(0.0:6970): avc:  denied  { getattr } for  path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:24.801 25314 25314 I auditd  : type=1400 audit(0.0:6971): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:24.801 25314 25314 W perf-sampler: type=1400 audit(0.0:6971): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:24.812 25314 28764 I XTiming : XT 1008ms req=792 busy_ms=415.5 top 155.3:396x0.73/3.91 14.0:396x0.32/1.90 | shm n=396 lock=0.11/2.99 copy=0.57/3.82 | gl n=61 draw=15.45/23.33 lock=0.19/0.89 upload(60)=0.89/2.13 wake=14.12/21.00 gap=16.60/24.67
+10-26 11:39:25.095 28777 28931 I MESA    : kbase: wait-stats waits=6637 full_20ms_slices=4 avg_ms=0.15 max_ms=20.15 kcpu=0
+10-26 11:39:25.207 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 412.7 fps queue=0.31/5.94 fence=0.79/3.42 pace=0.00/0.00 slot=0.05/3.51 copy=0.57/2.78 put=0.05/0.50 reply=1.39/7.00 acquire=0.01/1.47
+10-26 11:39:25.810 25314 28764 I XTiming : XT 1001ms req=801 busy_ms=428.9 top 155.3:400x0.72/4.41 14.0:400x0.35/3.42 23.0:1x0.50/0.50 | shm n=400 lock=0.12/3.94 copy=0.55/2.25 | gl n=60 draw=15.75/21.36 lock=0.28/1.41 upload(60)=0.93/2.63 wake=14.86/20.53 gap=16.63/23.38
+10-26 11:39:25.821 25314 25314 I auditd  : type=1400 audit(0.0:6972): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:25.821 25314 25314 W perf-sampler: type=1400 audit(0.0:6972): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:26.097 28777 28919 I MESA    : kbase: wait-stats waits=6864 full_20ms_slices=1 avg_ms=0.14 max_ms=20.14 kcpu=0
+10-26 11:39:26.207 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 432.8 fps queue=0.48/12.89 fence=0.84/6.20 pace=0.00/0.00 slot=0.03/2.87 copy=0.58/8.42 put=0.06/0.77 reply=1.33/8.36 acquire=0.04/8.56
+10-26 11:39:26.812 25314 28764 I XTiming : XT 1001ms req=944 busy_ms=416.4 top 155.3:472x0.60/4.91 14.0:472x0.28/2.03 | shm n=472 lock=0.11/4.41 copy=0.46/1.04 | gl n=60 draw=15.55/21.16 lock=0.19/1.00 upload(60)=0.86/2.60 wake=15.11/21.97 gap=16.71/22.35
+10-26 11:39:26.841 25314 25314 I auditd  : type=1400 audit(0.0:6973): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:26.841 25314 25314 W perf-sampler: type=1400 audit(0.0:6973): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:27.097 28777 28931 I MESA    : kbase: wait-stats waits=7476 full_20ms_slices=1 avg_ms=0.15 max_ms=20.36 kcpu=0
+10-26 11:39:27.208 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 455.5 fps queue=0.64/9.30 fence=0.88/8.20 pace=0.00/0.00 slot=0.08/7.48 copy=0.54/5.13 put=0.05/0.33 reply=1.32/10.28 acquire=0.02/5.62
+10-26 11:39:27.537 28826 28826 I auditd  : type=1400 audit(0.0:6974): avc:  denied  { getattr } for  comm="winedevice.exe" path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:27.537 28826 28826 W winedevice.exe: type=1400 audit(0.0:6974): avc:  denied  { getattr } for  path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:27.811 25314 28764 I XTiming : XT 1000ms req=910 busy_ms=409.6 top 155.3:454x0.63/6.31 14.0:455x0.27/4.40 23.0:1x0.28/0.28 | shm n=454 lock=0.13/5.50 copy=0.46/2.25 | gl n=59 draw=15.02/27.25 lock=0.16/1.05 upload(59)=0.92/2.58 wake=15.48/32.73 gap=17.16/34.85
+10-26 11:39:27.869 25314 25314 I auditd  : type=1400 audit(0.0:6975): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:27.869 25314 25314 W perf-sampler: type=1400 audit(0.0:6975): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:28.098 28777 28919 I MESA    : kbase: wait-stats waits=7199 full_20ms_slices=3 avg_ms=0.15 max_ms=20.26 kcpu=0
+10-26 11:39:28.215 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 421.3 fps queue=0.53/4.60 fence=0.92/7.00 pace=0.00/0.00 slot=0.03/2.88 copy=0.55/1.58 put=0.05/1.46 reply=1.34/7.02 acquire=0.00/0.14
+10-26 11:39:28.816 25314 28764 I XTiming : XT 1000ms req=855 busy_ms=421.5 top 155.3:428x0.66/3.38 14.0:427x0.33/3.46 | shm n=428 lock=0.10/2.94 copy=0.51/1.74 | gl n=56 draw=15.48/26.22 lock=0.26/2.02 upload(56)=0.98/2.48 wake=16.03/41.06 gap=17.80/44.10
+10-26 11:39:28.893 25314 25314 I auditd  : type=1400 audit(0.0:6976): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:28.893 25314 25314 W perf-sampler: type=1400 audit(0.0:6976): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:29.098 28777 28919 I MESA    : kbase: wait-stats waits=6867 full_20ms_slices=2 avg_ms=0.15 max_ms=20.18 kcpu=0
+10-26 11:39:29.215 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 410.0 fps queue=0.51/9.22 fence=0.82/2.82 pace=0.00/0.00 slot=0.08/8.08 copy=0.59/5.81 put=0.06/0.82 reply=1.43/10.28 acquire=0.02/4.95
+10-26 11:39:29.817 25314 28764 I XTiming : XT 1002ms req=799 busy_ms=451.3 top 155.3:399x0.77/5.91 14.0:399x0.36/4.18 23.0:1x0.35/0.35 | shm n=399 lock=0.14/5.13 copy=0.57/3.50 | gl n=57 draw=15.37/22.80 lock=0.26/1.63 upload(55)=1.10/3.17 wake=15.21/33.41 gap=17.44/34.14
+10-26 11:39:29.917 25314 25314 I auditd  : type=1400 audit(0.0:6977): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:29.917 25314 25314 W perf-sampler: type=1400 audit(0.0:6977): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:30.098 28777 28919 I MESA    : kbase: wait-stats waits=6890 full_20ms_slices=3 avg_ms=0.15 max_ms=20.27 kcpu=0
+10-26 11:39:30.216 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 433.5 fps queue=0.82/7.51 fence=0.84/4.48 pace=0.00/0.00 slot=0.14/4.95 copy=0.60/4.75 put=0.05/0.48 reply=1.63/12.25 acquire=0.03/2.88
+10-26 11:39:30.537 28826 28826 I auditd  : type=1400 audit(0.0:6978): avc:  denied  { getattr } for  comm="winedevice.exe" path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:30.537 28826 28826 W winedevice.exe: type=1400 audit(0.0:6978): avc:  denied  { getattr } for  path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:30.815 25314 28764 I XTiming : XT 1001ms req=872 busy_ms=466.1 top 155.3:436x0.75/8.20 14.0:436x0.32/2.09 | shm n=436 lock=0.16/7.64 copy=0.54/4.69 | gl n=59 draw=15.33/21.86 lock=0.28/3.63 upload(59)=1.01/2.94 wake=14.91/25.90 gap=16.93/26.88
+10-26 11:39:30.953 25314 25314 I auditd  : type=1400 audit(0.0:6979): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:30.953 25314 25314 W perf-sampler: type=1400 audit(0.0:6979): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:31.099 28777 28919 I MESA    : kbase: wait-stats waits=6259 full_20ms_slices=2 avg_ms=0.15 max_ms=20.14 kcpu=0
+10-26 11:39:31.220 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 399.4 fps queue=0.36/6.89 fence=0.74/6.74 pace=0.00/0.00 slot=0.06/6.42 copy=0.61/2.71 put=0.06/0.31 reply=1.56/9.06 acquire=0.01/1.17
+10-26 11:39:31.819 25314 28764 I XTiming : XT 1001ms req=781 busy_ms=449.0 top 155.3:390x0.80/10.57 14.0:390x0.35/7.16 23.0:1x0.26/0.26 | shm n=390 lock=0.16/4.37 copy=0.59/10.44 | gl n=58 draw=15.82/26.78 lock=0.41/9.40 upload(59)=1.03/3.48 wake=15.83/27.91 gap=17.20/28.78
+10-26 11:39:31.989 25314 25314 I auditd  : type=1400 audit(0.0:6980): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:31.989 25314 25314 W perf-sampler: type=1400 audit(0.0:6980): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:32.099 28777 28919 I MESA    : kbase: wait-stats waits=5982 full_20ms_slices=1 avg_ms=0.15 max_ms=20.15 kcpu=0
+10-26 11:39:32.220 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 409.8 fps queue=0.59/14.05 fence=0.77/3.36 pace=0.00/0.00 slot=0.12/12.53 copy=0.62/1.93 put=0.07/7.00 reply=1.64/15.27 acquire=0.05/7.81
+10-26 11:39:32.821 25314 28764 I XTiming : XT 1000ms req=848 busy_ms=435.1 top 155.3:424x0.70/3.91 14.0:424x0.33/3.29 | shm n=424 lock=0.12/3.19 copy=0.53/2.77 | gl n=59 draw=15.42/21.77 lock=0.23/2.30 upload(58)=0.79/1.87 wake=15.23/37.17 gap=17.09/38.29
+10-26 11:39:33.009 25314 25314 I auditd  : type=1400 audit(0.0:6982): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:33.009 25314 25314 W perf-sampler: type=1400 audit(0.0:6982): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:33.099 28777 28931 I MESA    : kbase: wait-stats waits=7385 full_20ms_slices=3 avg_ms=0.14 max_ms=20.18 kcpu=0
+10-26 11:39:33.221 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 433.6 fps queue=0.54/9.33 fence=0.87/9.57 pace=0.00/0.00 slot=0.06/8.74 copy=0.57/12.82 put=0.05/0.18 reply=1.37/14.78 acquire=0.03/4.67
+10-26 11:39:33.537 28826 28826 I auditd  : type=1400 audit(0.0:6983): avc:  denied  { getattr } for  comm="winedevice.exe" path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:33.537 28826 28826 W winedevice.exe: type=1400 audit(0.0:6983): avc:  denied  { getattr } for  path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:33.818 25314 28764 I XTiming : XT 1001ms req=841 busy_ms=442.3 top 155.3:420x0.73/4.62 14.0:420x0.32/2.39 23.0:1x0.60/0.60 | shm n=420 lock=0.15/3.93 copy=0.53/2.31 | gl n=60 draw=14.91/23.49 lock=0.21/1.31 upload(59)=1.06/3.07 wake=14.34/25.40 gap=16.62/26.97
+10-26 11:39:34.041 25314 25314 I auditd  : type=1400 audit(0.0:6984): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:34.041 25314 25314 W perf-sampler: type=1400 audit(0.0:6984): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:34.099 28777 28919 I MESA    : kbase: wait-stats waits=6537 full_20ms_slices=4 avg_ms=0.15 max_ms=20.29 kcpu=0
+10-26 11:39:34.223 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 423.3 fps queue=0.40/3.91 fence=0.79/2.57 pace=0.00/0.00 slot=0.05/4.19 copy=0.60/4.98 put=0.05/0.40 reply=1.44/6.89 acquire=0.00/0.49
+10-26 11:39:34.817 25314 28764 I XTiming : XT 1000ms req=912 busy_ms=422.5 top 155.3:456x0.66/3.73 14.0:456x0.27/2.54 | shm n=456 lock=0.11/3.30 copy=0.50/2.97 | gl n=60 draw=15.63/21.18 lock=0.20/1.86 upload(59)=0.87/3.03 wake=14.89/21.20 gap=16.64/22.23
+10-26 11:39:35.069 25314 25314 I auditd  : type=1400 audit(0.0:6985): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:35.069 25314 25314 W perf-sampler: type=1400 audit(0.0:6985): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:35.099 28777 28919 I MESA    : kbase: wait-stats waits=8061 full_20ms_slices=1 avg_ms=0.13 max_ms=20.13 kcpu=0
+10-26 11:39:35.224 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 456.6 fps queue=0.39/8.21 fence=0.82/2.53 pace=0.00/0.00 slot=0.02/2.11 copy=0.51/2.36 put=0.05/0.52 reply=1.22/4.49 acquire=0.01/2.37
+10-26 11:39:35.825 25314 28768 I XTiming : XT 1001ms req=832 busy_ms=383.8 top 155.3:415x0.63/2.46 14.0:416x0.29/3.36 23.0:1x0.37/0.37 | shm n=415 lock=0.09/1.87 copy=0.50/2.37 | gl n=60 draw=15.45/20.47 lock=0.18/1.12 upload(60)=0.89/2.65 wake=14.56/30.04 gap=16.92/32.44
+10-26 11:39:36.097 25314 25314 I auditd  : type=1400 audit(0.0:6986): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:36.097 25314 25314 W perf-sampler: type=1400 audit(0.0:6986): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:36.104 28777 28919 I MESA    : kbase: wait-stats waits=6891 full_20ms_slices=5 avg_ms=0.15 max_ms=20.19 kcpu=0
+10-26 11:39:36.227 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 403.6 fps queue=0.76/11.74 fence=0.94/10.04 pace=0.00/0.00 slot=0.06/11.02 copy=0.53/2.72 put=0.04/0.31 reply=1.33/14.79 acquire=0.04/8.90
+10-26 11:39:36.541 28826 28826 I auditd  : type=1400 audit(0.0:6987): avc:  denied  { getattr } for  comm="winedevice.exe" path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:36.541 28826 28826 W winedevice.exe: type=1400 audit(0.0:6987): avc:  denied  { getattr } for  path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:36.825 25314 28768 I XTiming : XT 1000ms req=882 busy_ms=403.9 top 155.3:441x0.63/10.34 14.0:441x0.28/3.42 | shm n=441 lock=0.10/4.25 copy=0.49/10.28 | gl n=51 draw=15.69/23.78 lock=0.20/1.41 upload(50)=0.97/2.18 wake=17.28/72.38 gap=19.72/73.84
+10-26 11:39:37.104 28777 28931 I MESA    : kbase: wait-stats waits=7400 full_20ms_slices=2 avg_ms=0.14 max_ms=20.13 kcpu=0
+10-26 11:39:37.129 25314 25314 I auditd  : type=1400 audit(0.0:6988): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:37.129 25314 25314 W perf-sampler: type=1400 audit(0.0:6988): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:37.228 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 459.7 fps queue=0.67/8.48 fence=0.86/5.24 pace=0.00/0.00 slot=0.10/8.88 copy=0.54/3.24 put=0.05/0.58 reply=1.37/12.17 acquire=0.03/4.61
+10-26 11:39:37.821 25314 28764 I XTiming : XT 1000ms req=906 busy_ms=476.6 top 155.3:453x0.74/11.60 14.0:452x0.31/6.19 23.0:1x0.37/0.37 | shm n=453 lock=0.13/4.71 copy=0.56/10.80 | gl n=60 draw=15.31/23.68 lock=0.30/6.33 upload(60)=0.99/4.04 wake=14.65/24.58 gap=16.53/24.81
+10-26 11:39:38.105 28777 28919 I MESA    : kbase: wait-stats waits=6850 full_20ms_slices=1 avg_ms=0.14 max_ms=20.18 kcpu=0
+10-26 11:39:38.149 25314 25314 I auditd  : type=1400 audit(0.0:6989): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:38.149 25314 25314 W perf-sampler: type=1400 audit(0.0:6989): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:38.229 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 454.4 fps queue=0.64/11.68 fence=0.78/5.68 pace=0.00/0.00 slot=0.09/5.79 copy=0.57/6.99 put=0.07/5.15 reply=1.46/11.60 acquire=0.04/4.55
+10-26 11:39:38.824 25314 28764 I XTiming : XT 1001ms req=804 busy_ms=417.9 top 155.3:402x0.71/7.61 14.0:402x0.33/2.17 | shm n=402 lock=0.11/3.53 copy=0.55/7.51 | gl n=60 draw=15.69/23.05 lock=0.20/1.46 upload(60)=0.94/2.81 wake=14.68/19.94 gap=16.59/24.89
+10-26 11:39:39.105 28777 28931 I MESA    : kbase: wait-stats waits=6508 full_20ms_slices=2 avg_ms=0.14 max_ms=20.25 kcpu=0
+10-26 11:39:39.181 25314 25314 I auditd  : type=1400 audit(0.0:6990): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:39.181 25314 25314 W perf-sampler: type=1400 audit(0.0:6990): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:39.231 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 409.4 fps queue=0.47/7.17 fence=0.73/2.99 pace=0.00/0.00 slot=0.08/5.64 copy=0.62/1.29 put=0.06/0.80 reply=1.53/8.54 acquire=0.01/2.20
+10-26 11:39:39.541 28826 28826 I auditd  : type=1400 audit(0.0:6991): avc:  denied  { getattr } for  comm="winedevice.exe" path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:39.541 28826 28826 W winedevice.exe: type=1400 audit(0.0:6991): avc:  denied  { getattr } for  path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:39.598 25314 28760 I PanPlayGameLoop: screenshot screen.png
+10-26 11:39:39.825 25314 28764 I XTiming : XT 1001ms req=957 busy_ms=405.3 top 155.3:478x0.57/3.10 14.0:478x0.27/6.19 23.0:1x0.39/0.39 | shm n=478 lock=0.07/2.78 copy=0.46/2.64 | gl n=49 draw=16.00/27.51 lock=0.13/0.89 upload(49)=0.75/1.62 wake=18.59/91.48 gap=20.31/92.68
+10-26 11:39:40.105 28777 28919 I MESA    : kbase: wait-stats waits=8480 full_20ms_slices=2 avg_ms=0.14 max_ms=20.16 kcpu=0
+10-26 11:39:40.217 25314 25314 I auditd  : type=1400 audit(0.0:6992): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:40.217 25314 25314 W perf-sampler: type=1400 audit(0.0:6992): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:40.231 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 452.0 fps queue=0.78/11.21 fence=0.99/6.04 pace=0.00/0.00 slot=0.08/12.16 copy=0.51/8.06 put=0.04/0.24 reply=1.16/16.18 acquire=0.02/6.29
+10-26 11:39:40.821 25314 28764 I XTiming : XT 1001ms req=846 busy_ms=435.1 top 155.3:423x0.72/13.86 14.0:423x0.31/6.82 | shm n=423 lock=0.15/13.18 copy=0.52/1.76 | gl n=58 draw=15.53/28.14 lock=0.29/1.83 upload(58)=1.20/15.58 wake=15.16/37.09 gap=17.38/38.18
+10-26 11:39:41.105 28777 28931 I MESA    : kbase: wait-stats waits=7343 full_20ms_slices=3 avg_ms=0.14 max_ms=20.18 kcpu=0
+10-26 11:39:41.232 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 448.5 fps queue=0.52/4.92 fence=0.82/4.90 pace=0.00/0.00 slot=0.08/6.74 copy=0.59/5.96 put=0.05/0.86 reply=1.45/9.54 acquire=0.00/0.54
+10-26 11:39:41.249 25314 25314 I auditd  : type=1400 audit(0.0:6993): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:41.249 25314 25314 W perf-sampler: type=1400 audit(0.0:6993): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:41.825 25314 28764 I XTiming : XT 1004ms req=905 busy_ms=416.5 top 155.3:452x0.66/4.75 14.0:452x0.26/2.31 23.0:1x0.18/0.18 | shm n=452 lock=0.14/4.07 copy=0.48/4.57 | gl n=46 draw=15.44/28.14 lock=0.27/1.93 upload(44)=1.18/3.63 wake=19.73/82.35 gap=21.88/82.57
+10-26 11:39:42.105 28777 28931 I MESA    : kbase: wait-stats waits=7569 full_20ms_slices=4 avg_ms=0.15 max_ms=20.22 kcpu=0
+10-26 11:39:42.233 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 420.5 fps queue=0.67/11.03 fence=1.00/6.82 pace=0.00/0.00 slot=0.04/2.48 copy=0.53/4.62 put=0.04/0.27 reply=1.19/5.02 acquire=0.00/1.69
+10-26 11:39:42.277 25314 25314 I auditd  : type=1400 audit(0.0:6994): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:42.277 25314 25314 W perf-sampler: type=1400 audit(0.0:6994): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:42.541 28826 28826 I auditd  : type=1400 audit(0.0:6995): avc:  denied  { getattr } for  comm="winedevice.exe" path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:42.541 28826 28826 W winedevice.exe: type=1400 audit(0.0:6995): avc:  denied  { getattr } for  path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:42.831 25314 28764 I XTiming : XT 1001ms req=836 busy_ms=419.9 top 155.3:418x0.70/7.75 14.0:418x0.30/2.10 | shm n=418 lock=0.11/2.30 copy=0.55/7.66 | gl n=60 draw=15.59/25.74 lock=0.34/7.44 upload(59)=0.83/1.78 wake=14.64/26.47 gap=16.67/27.42
+10-26 11:39:43.105 28777 28919 I MESA    : kbase: wait-stats waits=7023 full_20ms_slices=2 avg_ms=0.15 max_ms=20.15 kcpu=0
+10-26 11:39:43.233 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 412.9 fps queue=0.57/6.38 fence=0.84/3.40 pace=0.00/0.00 slot=0.10/5.44 copy=0.60/10.82 put=0.05/1.69 reply=1.46/8.98 acquire=0.02/3.08
+10-26 11:39:43.297 25314 25314 I auditd  : type=1400 audit(0.0:6996): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:43.297 25314 25314 W perf-sampler: type=1400 audit(0.0:6996): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:43.833 25314 28764 I XTiming : XT 1003ms req=835 busy_ms=445.0 top 155.3:417x0.74/5.51 14.0:417x0.33/3.03 23.0:1x0.39/0.39 | shm n=417 lock=0.14/4.90 copy=0.55/4.92 | gl n=59 draw=15.45/24.21 lock=0.40/4.55 upload(58)=1.00/3.65 wake=14.81/34.77 gap=16.90/34.79
+10-26 11:39:44.105 28777 28919 I MESA    : kbase: wait-stats waits=6650 full_20ms_slices=2 avg_ms=0.15 max_ms=20.38 kcpu=0
+10-26 11:39:44.236 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 434.8 fps queue=0.50/12.61 fence=0.75/3.19 pace=0.00/0.00 slot=0.05/5.27 copy=0.57/2.50 put=0.05/0.28 reply=1.49/13.42 acquire=0.03/9.17
+10-26 11:39:44.317 25314 25314 I auditd  : type=1400 audit(0.0:6997): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:44.317 25314 25314 W perf-sampler: type=1400 audit(0.0:6997): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:44.830 25314 28764 I XTiming : XT 1000ms req=802 busy_ms=403.5 top 155.3:401x0.70/7.16 14.0:401x0.31/3.65 | shm n=401 lock=0.12/3.57 copy=0.53/3.54 | gl n=60 draw=15.68/26.09 lock=0.20/1.10 upload(60)=1.04/2.61 wake=14.73/27.72 gap=16.69/28.38
+10-26 11:39:45.105 28777 28931 I MESA    : kbase: wait-stats waits=6341 full_20ms_slices=4 avg_ms=0.15 max_ms=20.23 kcpu=0
+10-26 11:39:45.237 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 403.5 fps queue=0.32/8.53 fence=0.78/3.22 pace=0.00/0.00 slot=0.03/7.29 copy=0.57/2.34 put=0.05/0.50 reply=1.29/12.15 acquire=0.01/3.17
+10-26 11:39:45.345 25314 25314 I auditd  : type=1400 audit(0.0:6998): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:45.345 25314 25314 W perf-sampler: type=1400 audit(0.0:6998): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:45.541 28826 28826 I auditd  : type=1400 audit(0.0:6999): avc:  denied  { getattr } for  comm="winedevice.exe" path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:45.541 28826 28826 W winedevice.exe: type=1400 audit(0.0:6999): avc:  denied  { getattr } for  path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:45.830 25314 28764 I XTiming : XT 1000ms req=885 busy_ms=425.3 top 155.3:442x0.65/4.97 14.0:442x0.31/11.32 23.0:1x0.40/0.40 | shm n=442 lock=0.12/3.91 copy=0.49/4.16 | gl n=60 draw=15.56/21.43 lock=0.23/1.23 upload(59)=0.92/2.60 wake=15.02/26.47 gap=16.82/27.97
+10-26 11:39:46.105 28777 28919 I MESA    : kbase: wait-stats waits=7150 full_20ms_slices=1 avg_ms=0.14 max_ms=20.16 kcpu=0
+10-26 11:39:46.239 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 444.3 fps queue=0.43/9.63 fence=0.87/3.00 pace=0.00/0.00 slot=0.06/9.63 copy=0.54/1.22 put=0.05/0.28 reply=1.34/11.98 acquire=0.01/2.93
+10-26 11:39:46.365 25314 25314 I auditd  : type=1400 audit(0.0:7000): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:46.365 25314 25314 W perf-sampler: type=1400 audit(0.0:7000): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:46.835 25314 28764 I XTiming : XT 1001ms req=872 busy_ms=406.5 top 155.3:436x0.61/3.79 14.0:436x0.32/6.09 | shm n=436 lock=0.08/1.86 copy=0.49/3.68 | gl n=55 draw=15.92/26.73 lock=0.20/3.09 upload(54)=0.89/2.81 wake=16.27/39.12 gap=18.13/40.44
+10-26 11:39:47.106 28777 28919 I MESA    : kbase: wait-stats waits=6495 full_20ms_slices=3 avg_ms=0.15 max_ms=20.13 kcpu=0
+10-26 11:39:47.242 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 393.0 fps queue=0.44/6.96 fence=0.83/2.93 pace=0.00/0.00 slot=0.05/4.85 copy=0.59/3.01 put=0.05/0.47 reply=1.42/9.79 acquire=0.00/0.06
+10-26 11:39:47.385 25314 25314 I auditd  : type=1400 audit(0.0:7001): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:47.385 25314 25314 W perf-sampler: type=1400 audit(0.0:7001): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:47.846 25314 28768 I XTiming : XT 1011ms req=788 busy_ms=412.7 top 155.3:393x0.71/5.80 14.0:394x0.34/3.61 23.0:1x0.23/0.23 | shm n=393 lock=0.13/4.83 copy=0.53/1.80 | gl n=57 draw=15.83/25.80 lock=0.22/2.74 upload(57)=0.95/3.95 wake=16.14/56.68 gap=17.84/59.35
+10-26 11:39:48.106 28777 28919 I MESA    : kbase: wait-stats waits=6446 full_20ms_slices=2 avg_ms=0.15 max_ms=20.15 kcpu=0
+10-26 11:39:48.243 28777 28931 I MESA    : wsi/x11 sw timing 1280x705: 405.5 fps queue=0.29/2.56 fence=0.80/2.86 pace=0.00/0.00 slot=0.02/2.48 copy=0.59/2.19 put=0.05/0.30 reply=1.37/7.15 acquire=0.00/0.25
+10-26 11:39:48.417 25314 25314 I auditd  : type=1400 audit(0.0:7002): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:48.417 25314 25314 W perf-sampler: type=1400 audit(0.0:7002): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:48.537 28826 28826 I auditd  : type=1400 audit(0.0:7003): avc:  denied  { getattr } for  comm="winedevice.exe" path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:48.537 28826 28826 W winedevice.exe: type=1400 audit(0.0:7003): avc:  denied  { getattr } for  path="/dev/input" dev="tmpfs" ino=1009 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:input_device:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:48.848 25314 28764 I XTiming : XT 1000ms req=841 busy_ms=421.5 top 155.3:421x0.68/3.58 14.0:420x0.32/4.59 | shm n=421 lock=0.11/3.16 copy=0.52/2.16 | gl n=60 draw=15.27/19.80 lock=0.21/1.00 upload(59)=0.92/2.61 wake=14.17/20.36 gap=16.64/25.41
+10-26 11:39:49.106 28777 28931 I MESA    : kbase: wait-stats waits=7016 full_20ms_slices=1 avg_ms=0.14 max_ms=20.37 kcpu=0
+10-26 11:39:49.151 25314 25347 I PanPlayGameLoop: CUBE: PASS api=d3d11 frames=13740 (check pixels)
+10-26 11:39:49.186 25314 28764 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:49.186 25314 28764 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:49.186 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:49.186 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:49.186 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:49.186 25314 28764 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-26 11:39:49.186 25314 28764 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:49.186 25314 28764 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:49.186 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-26 11:39:49.186 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-26 11:39:49.186 25314 28764 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:49.186 25314 28764 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:49.187 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:49.187 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-26 11:39:49.187 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:49.187 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:49.187 25314 28764 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:49.187 25314 28764 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:49.187 25314 28764 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:49.187 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:49.187 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:49.187 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:49.187 25314 28764 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-26 11:39:49.187 25314 28764 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:49.187 25314 28764 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:49.187 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-26 11:39:49.188 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-26 11:39:49.188 25314 28764 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:49.188 25314 28764 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:49.188 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:49.188 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-26 11:39:49.188 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:49.188 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:49.188 25314 28764 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:49.188 25314 28764 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:49.188 25314 28764 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:49.188 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:49.188 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:49.188 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:49.188 25314 28764 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-26 11:39:49.188 25314 28764 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:49.189 25314 28764 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:49.189 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-26 11:39:49.189 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-26 11:39:49.189 25314 28764 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:49.189 25314 28764 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:49.189 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:49.189 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-26 11:39:49.189 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:49.189 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:49.189 25314 28764 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:49.215 25314 28764 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:49.215 25314 28764 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:49.215 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:49.215 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:49.215 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:49.215 25314 28764 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-26 11:39:49.215 25314 28764 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:49.215 25314 28764 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:49.215 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-26 11:39:49.215 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-26 11:39:49.215 25314 28764 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:49.215 25314 28764 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:49.215 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:49.215 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-26 11:39:49.216 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:49.216 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:49.216 25314 28764 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:49.216 25314 28764 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:49.216 25314 28764 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:49.216 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:49.216 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:49.216 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:49.216 25314 28764 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-26 11:39:49.216 25314 28764 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:49.216 25314 28764 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:49.216 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-26 11:39:49.216 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-26 11:39:49.216 25314 28764 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:49.216 25314 28764 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:49.216 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:49.216 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-26 11:39:49.216 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:49.216 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:49.216 25314 28764 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:49.217 25314 28764 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:49.217 25314 28764 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:49.217 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:49.217 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:49.217 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:49.217 25314 28764 W System.err: 	at com.winlator.xserver.events.UnmapNotify.send(UnmapNotify.java:29)
+10-26 11:39:49.217 25314 28764 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:49.217 25314 28764 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:49.217 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.unmapWindow(WindowManager.java:113)
+10-26 11:39:49.217 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:76)
+10-26 11:39:49.217 25314 28764 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:49.217 25314 28764 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:49.217 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:49.217 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-26 11:39:49.217 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:49.217 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:49.217 25314 28764 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:49.217 25314 28764 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:49.217 25314 28764 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xserver.events.FocusEvent.send(FocusEvent.java:27)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.setFocus(WindowManager.java:147)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.revertFocus(WindowManager.java:135)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.unmapWindow(WindowManager.java:115)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:76)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:49.218 25314 28764 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:49.218 25314 28764 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:49.218 25314 28764 W System.err: 	at com.winlator.xserver.events.PropertyNotify.send(PropertyNotify.java:34)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xserver.Window.modifyProperty(Window.java:142)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xserver.DesktopHelper.setWMState(DesktopHelper.java:43)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xserver.DesktopHelper.-$$Nest$smsetWMState(Unknown Source:0)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xserver.DesktopHelper$2.onUnmapWindow(DesktopHelper.java:29)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.triggerOnUnmapWindow(WindowManager.java:320)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.unmapWindow(WindowManager.java:116)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:76)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:49.219 25314 28764 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:49.219 25314 28764 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-26 11:39:49.219 25314 28764 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:49.220 25314 28764 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:49.220 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-26 11:39:49.220 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-26 11:39:49.220 25314 28764 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:49.220 25314 28764 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:49.220 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:49.220 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-26 11:39:49.220 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:49.220 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:49.220 25314 28764 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:49.433 25314 25314 I auditd  : type=1400 audit(0.0:7004): avc:  denied  { read } for  comm="perf-sampler" name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:49.433 25314 25314 W perf-sampler: type=1400 audit(0.0:7004): avc:  denied  { read } for  name="devfreq" dev="sysfs" ino=35630 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:49.656 25314 28764 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:49.656 25314 28764 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:49.657 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:49.657 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:49.657 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:49.657 25314 28764 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-26 11:39:49.657 25314 28764 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:49.657 25314 28764 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:49.657 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-26 11:39:49.657 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-26 11:39:49.658 25314 28764 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:49.658 25314 28764 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:49.658 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:49.658 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-26 11:39:49.658 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:49.658 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:49.658 25314 28764 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:49.659 25314 28764 W System.err: java.io.IOException: Failed to write data.
+10-26 11:39:49.660 25314 28764 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-26 11:39:49.660 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-26 11:39:49.660 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-26 11:39:49.660 25314 28764 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-26 11:39:49.660 25314 28764 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-26 11:39:49.660 25314 28764 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-26 11:39:49.661 25314 28764 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-26 11:39:49.661 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-26 11:39:49.661 25314 28764 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-26 11:39:49.661 25314 28764 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-26 11:39:49.661 25314 28764 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-26 11:39:49.661 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-26 11:39:49.662 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-26 11:39:49.662 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-26 11:39:49.662 25314 28764 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-26 11:39:49.662 25314 28764 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-26 11:39:49.929 29222 29222 I auditd  : type=1400 audit(0.0:7005): avc:  granted  { execute } for  comm="panplay-gameloo" name="wineserver" dev="dm-53" ino=29540 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:49.929 29222 29222 W panplay-gameloo: type=1400 audit(0.0:7005): avc:  granted  { execute } for  name="wineserver" dev="dm-53" ino=29540 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:49.929 29222 29222 I auditd  : type=1400 audit(0.0:7006): avc:  granted  { execute_no_trans } for  comm="panplay-gameloo" path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/Proton/11.0-2-arm64ec/bin/wineserver" dev="dm-53" ino=29540 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:49.929 29222 29222 W panplay-gameloo: type=1400 audit(0.0:7006): avc:  granted  { execute_no_trans } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/Proton/11.0-2-arm64ec/bin/wineserver" dev="dm-53" ino=29540 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:49.929 29222 29222 I auditd  : type=1400 audit(0.0:7007): avc:  granted  { execute } for  comm="wineserver" path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/Proton/11.0-2-arm64ec/bin/wineserver" dev="dm-53" ino=29540 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:49.929 29222 29222 W wineserver: type=1400 audit(0.0:7007): avc:  granted  { execute } for  path="/data/user/0/dev.zenithblue.panvklauncher/files/contents/Proton/11.0-2-arm64ec/bin/wineserver" dev="dm-53" ino=29540 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c35,c257,c512,c768 tclass=file app=dev.zenithblue.panvklauncher
+10-26 11:39:49.929 29222 29222 I auditd  : type=1400 audit(0.0:7008): avc:  denied  { search } for  comm="wineserver" name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:49.929 29222 29222 W wineserver: type=1400 audit(0.0:7008): avc:  denied  { search } for  name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:49.933 29222 29222 I auditd  : type=1400 audit(0.0:7009): avc:  denied  { search } for  comm="wineserver" name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:49.933 29222 29222 W wineserver: type=1400 audit(0.0:7009): avc:  denied  { search } for  name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:49.933 29222 29222 I auditd  : type=1400 audit(0.0:7010): avc:  denied  { search } for  comm="wineserver" name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:49.933 29222 29222 W wineserver: type=1400 audit(0.0:7010): avc:  denied  { search } for  name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:49.933 29222 29222 I auditd  : type=1400 audit(0.0:7011): avc:  denied  { search } for  comm="wineserver" name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:49.933 29222 29222 W wineserver: type=1400 audit(0.0:7011): avc:  denied  { search } for  name="tests" dev="dm-53" ino=109 scontext=u:r:untrusted_app_27:s0:c35,c257,c512,c768 tcontext=u:object_r:shell_test_data_file:s0 tclass=dir permissive=0 app=dev.zenithblue.panvklauncher
+10-26 11:39:49.963 25314 25314 I wm_on_top_resumed_lost_called: [236585700,dev.zenithblue.panvklauncher.XServerActivity,topStateChangedWhenResumed]
+10-26 11:39:49.968 25314 25314 I wm_on_paused_called: [236585700,dev.zenithblue.panvklauncher.XServerActivity,performPause,3]
+10-26 11:39:49.986 25314 25314 I wm_on_restart_called: [17632578,dev.zenithblue.panvklauncher.MainActivity,performRestart,0]
+10-26 11:39:49.986 25314 25314 I wm_on_start_called: [17632578,dev.zenithblue.panvklauncher.MainActivity,handleStartActivity,0]
+10-26 11:39:49.988 25314 25314 I wm_on_resume_called: [17632578,dev.zenithblue.panvklauncher.MainActivity,RESUME_ACTIVITY,1]
+10-26 11:39:49.990 25314 25314 I wm_on_top_resumed_gained_called: [17632578,dev.zenithblue.panvklauncher.MainActivity,topWhenResuming]
+10-26 11:39:50.015 25314 25314 I viewroot_draw_event: [VRI[MainActivity],Start draw after previous draw not visible]
+10-26 11:39:50.046 25314 25314 I viewroot_draw_event: [VRI[MainActivity],reportDrawFinished seqId=4]
+10-26 11:39:50.064 25314 25314 I viewroot_draw_event: [VRI[MainActivity],reportDrawFinished seqId=4]
+10-26 11:39:50.066 25314 27316 I jank_cuj_events_end_request: [80,1793039990065746000,5529437982312,5529437986300]
+10-26 11:39:50.081 25314 25314 D VRI[XServerActivity]: visibilityChanged oldVisibility=true newVisibility=false
+10-26 11:39:50.106 25314 25314 I viewroot_draw_event: [VRI[XServerActivity],applyTransactionOnDraw applyImmediately]
+10-26 11:39:50.107 25314 25314 I viewroot_draw_event: [VRI[XServerActivity],applyTransactionOnDraw applyImmediately]
+10-26 11:39:50.107 25314 25314 I viewroot_draw_event: [VRI[XServerActivity],Not drawing due to not visible]
+10-26 11:39:50.116 25314 25314 I viewroot_draw_event: [VRI[XServerActivity],applyTransactionOnDraw applyImmediately]
+10-26 11:39:50.132 25314 25314 I viewroot_draw_event: [VRI[MainActivity],reportDrawFinished seqId=8]
+10-26 11:39:50.149 25314 25314 I wm_on_stop_called: [236585700,dev.zenithblue.panvklauncher.XServerActivity,LIFECYCLER_STOP_ACTIVITY,0]
+10-26 11:39:50.154 25314 25314 I wm_on_destroy_called: [236585700,dev.zenithblue.panvklauncher.XServerActivity,performDestroy,0]
+10-26 11:39:50.155 25314 25314 W WindowOnBackDispatcher: sendCancelIfRunning: isInProgress=falsecallback=android.view.ViewRootImpl$$ExternalSyntheticLambda11@201396b
+10-26 11:39:50.172 25314 25314 I viewroot_draw_event: [VRI[XServerActivity],applyTransactionOnDraw applyImmediately]
+10-26 11:39:50.172 25314 25314 I viewroot_draw_event: [VRI[XServerActivity],applyTransactionOnDraw applyImmediately]

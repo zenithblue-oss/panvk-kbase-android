@@ -1,0 +1,18 @@
+PanPlay game loop, scenario 3 (gears-diag), run 20261026-114601-s3
+Device: Google Pixel 8 (shiba), SDK 34, SoC Tensor G3
+Driver: Mesa 26.3.0-devel (git-e519b567f0), sha256 1194cfe80defd44e
+App: dev.zenithblue.panvklauncher 1.2.9-rc5 (40)
+Window: 8 s warm-up, 20 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d12gears g-seh     fail         -       -       -       -        -        -      -      -      -        -  no pass line (^DX12: PASS)
+02  d3d12gears g-sehvk   fail         -       -       -       -        -        -      -      -      -        -  no pass line (^DX12: PASS)
+03  d3d12gears g-nomaint1 fail         -       -       -       -        -        -      -      -      -        -  no pass line (^DX12: PASS)
+04  d3d12gears g-nowait  fail     213.9   195.3   231.9    48.6        -        -      -      -      -     60.1  no pass line (^DX12: PASS)
+05  d3d12gears g-immediate fail         -       -       -       -        -        -      -      -      -        -  no pass line (^DX12: PASS)
+06  d3d12gears g-swold   fail         -       -       -       -        -        -      -      -      -        -  no pass line (^DX12: PASS)
+07  d3d12gears g-noshm   fail         -       -       -       -        -        -      -      -      -        -  no pass line (^DX12: PASS)
+08  d3d12gears g-old     fail         -       -       -       -        -        -      -      -      -        -  no pass line (^DX12: PASS)
+09  d3d12gears g-114     fail         -       -       -       -        -        -      -      -      -        -  no pass line (^DX12: PASS)
+
+A/B d3d12gears: g-seh - fps, g-sehvk - fps, g-nomaint1 - fps, g-nowait - fps, g-immediate - fps, g-swold - fps, g-noshm - fps, g-old - fps, g-114 - fps (change vs g-seh)

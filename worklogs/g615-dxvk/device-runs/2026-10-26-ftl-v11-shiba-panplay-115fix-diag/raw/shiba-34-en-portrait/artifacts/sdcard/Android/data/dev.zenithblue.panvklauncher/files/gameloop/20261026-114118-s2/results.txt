@@ -1,0 +1,16 @@
+PanPlay game loop, scenario 2 (cube9-diag), run 20261026-114118-s2
+Device: Google Pixel 8 (shiba), SDK 34, SoC Tensor G3
+Driver: Mesa 26.3.0-devel (git-e519b567f0), sha256 1194cfe80defd44e
+App: dev.zenithblue.panvklauncher 1.2.9-rc5 (40)
+Window: 8 s warm-up, 20 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d9     c-old-t   ok        49.2    46.1    52.1    55.9     49.2     22.5   22.1   28.7   37.7     49.1  CUBE: PASS api=d3d9 frames=1541 (check pixels)
+02  d3d9     c-drain-t ok       120.0   118.1   122.0    31.2    120.0     41.0    8.2   12.6   21.5     60.1  CUBE: PASS api=d3d9 frames=3421 (check pixels)
+03  d3d9     nc-uncached ok       119.5   115.4   120.4    59.2    119.6     36.6    8.3   12.9   21.7     60.2  CUBE: PASS api=d3d9 frames=3795 (check pixels)
+04  d3d9     nc-heapenv ok       116.9   108.9   121.6    75.3    117.1     27.4    7.8   17.8   25.8     60.1  CUBE: PASS api=d3d9 frames=3729 (check pixels)
+05  d3d9     nc-clean  ok       119.8   117.0   122.0    44.3    119.8     42.5    8.2   12.1   19.4     60.2  CUBE: PASS api=d3d9 frames=3813 (check pixels)
+06  d3d9     drv114    ok       119.6   117.3   122.7    43.2    119.6     39.8    8.3   11.9   18.8     60.2  CUBE: PASS api=d3d9 frames=3414 (check pixels)
+07  d3d9     vulkan9   ok       120.7   118.3   133.7    29.1    119.6     50.5    8.3   11.7   17.7        -  CUBE: PASS api=d3d9 frames=1016 (check pixels)
+
+A/B d3d9: c-old-t 49.2 fps, c-drain-t 120.0 fps (+143.8%), nc-uncached 119.5 fps (+142.8%), nc-heapenv 116.9 fps (+137.5%), nc-clean 119.8 fps (+143.3%), drv114 119.6 fps (+143.0%), vulkan9 120.7 fps (+145.1%) (change vs c-old-t)
