@@ -1,0 +1,212 @@
+--- orig/D3D12Multithreading.cpp
++++ src/D3D12Multithreading.cpp
+@@ -32,7 +32,14 @@
+ 
+     m_keyboardInput.animate = true;
+ 
+-    ThrowIfFailed(DXGIDeclareAdapterRemovalSupport());
++    // PanPlay build: not declared by the mingw-w64 dxgi headers; resolve it at runtime (Wine and DXVK export it).
++    typedef HRESULT (WINAPI *PFN_DXGI_DECLARE_ADAPTER_REMOVAL_SUPPORT)(void);
++    auto declareAdapterRemovalSupport = reinterpret_cast<PFN_DXGI_DECLARE_ADAPTER_REMOVAL_SUPPORT>(
++        GetProcAddress(LoadLibraryW(L"dxgi.dll"), "DXGIDeclareAdapterRemovalSupport"));
++    if (declareAdapterRemovalSupport)
++    {
++        ThrowIfFailed(declareAdapterRemovalSupport());
++    }
+ }
+ 
+ D3D12Multithreading::~D3D12Multithreading()
+@@ -213,19 +220,14 @@
+ 
+     // Create the pipeline state, which includes loading shaders.
+     {
+-        ComPtr<ID3DBlob> vertexShader;
+-        ComPtr<ID3DBlob> pixelShader;
++        // PanPlay build: vs_5_0 / ps_5_0 DXBC compiled from shaders.hlsl at build time (vkd3d-compiler).
++        UINT8* pVertexShaderData = nullptr;
++        UINT8* pPixelShaderData = nullptr;
++        UINT vertexShaderDataLength = 0;
++        UINT pixelShaderDataLength = 0;
++        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_VSMain.cso").c_str(), &pVertexShaderData, &vertexShaderDataLength));
++        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_PSMain.cso").c_str(), &pPixelShaderData, &pixelShaderDataLength));
+ 
+-#if defined(_DEBUG)
+-        // Enable better shader debugging with the graphics debugging tools.
+-        UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+-#else
+-        UINT compileFlags = D3DCOMPILE_OPTIMIZATION_LEVEL3;
+-#endif
+-
+-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
+-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
+-
+         D3D12_INPUT_LAYOUT_DESC inputLayoutDesc;
+         inputLayoutDesc.pInputElementDescs = SampleAssets::StandardVertexDescription;
+         inputLayoutDesc.NumElements = _countof(SampleAssets::StandardVertexDescription);
+@@ -240,8 +242,8 @@
+         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+         psoDesc.InputLayout = inputLayoutDesc;
+         psoDesc.pRootSignature = m_rootSignature.Get();
+-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
+-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
++        psoDesc.VS = CD3DX12_SHADER_BYTECODE(pVertexShaderData, vertexShaderDataLength);
++        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pPixelShaderData, pixelShaderDataLength);
+         psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+         psoDesc.DepthStencilState = depthStencilDesc;
+@@ -264,6 +266,8 @@
+ 
+         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineStateShadowMap)));
+         NAME_D3D12_OBJECT(m_pipelineStateShadowMap);
++        free(pVertexShaderData);
++        free(pPixelShaderData);
+     }
+ 
+     // Create temporary command list for initial GPU setup.
+@@ -755,7 +759,7 @@
+         if (m_titleCount == TitleThrottle)
+         {
+             WCHAR cpu[64];
+-            swprintf_s(cpu, L"%.4f CPU", m_cpuTime / m_titleCount);
++            swprintf(cpu, _countof(cpu), L"%.4f CPU", m_cpuTime / m_titleCount);
+             SetCustomWindowText(cpu);
+ 
+             m_titleCount = 0;
+@@ -770,7 +774,8 @@
+ 
+         // Present and update the frame index for the next frame.
+         PIXBeginEvent(m_commandQueue.Get(), 0, L"Presenting to screen");
+-        ThrowIfFailed(m_swapChain->Present(1, 0));
++        HRESULT presentHr = m_swapChain->Present(pph_sync_interval(), 0);
++        ThrowIfFailed(presentHr);
+         PIXEndEvent(m_commandQueue.Get());
+         m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+ 
+@@ -778,6 +783,12 @@
+         m_pCurrentFrameResource->m_fenceValue = m_fenceValue;
+         ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_fenceValue));
+         m_fenceValue++;
++
++        // PanPlay harness: frame/fps lines on stdout, quit after DX12TEST_SECS.
++        if (pph_on_present(presentHr))
++        {
++            PostQuitMessage(0);
++        }
+     }
+     catch (HrException& e)
+     {
+--- orig/DXSample.cpp
++++ src/DXSample.cpp
+@@ -118,8 +118,9 @@
+ {
+     for (int i = 1; i < argc; ++i)
+     {
+-        if (_wcsnicmp(argv[i], L"-warp", wcslen(argv[i])) == 0 || 
+-            _wcsnicmp(argv[i], L"/warp", wcslen(argv[i])) == 0)
++        // PanPlay build: exact match. Upstream compares only wcslen(argv[i]) characters, so an empty argument ("" from
++        // a launcher script) or a prefix like "-" took the WARP path (DXVK's dxgi then hands out the hardware adapter).
++        if (_wcsicmp(argv[i], L"-warp") == 0 || _wcsicmp(argv[i], L"/warp") == 0)
+         {
+             m_useWarpDevice = true;
+             m_title = m_title + L" (WARP)";
+--- orig/DXSampleHelper.h
++++ src/DXSampleHelper.h
+@@ -21,7 +21,7 @@
+ inline std::string HrToString(HRESULT hr)
+ {
+     char s_str[64] = {};
+-    sprintf_s(s_str, "HRESULT of 0x%08X", static_cast<UINT>(hr));
++    snprintf(s_str, sizeof(s_str), "HRESULT of 0x%08X", static_cast<UINT>(hr));
+     return std::string(s_str);
+ }
+ 
+@@ -65,9 +65,17 @@
+     }
+ }
+ 
++// PanPlay build: mingw-w64's WRL has no Wrappers::FileHandle; minimal RAII stand-in.
++struct SampleFileHandle
++{
++    HANDLE h;
++    explicit SampleFileHandle(HANDLE handle) : h(handle) {}
++    ~SampleFileHandle() { if (h != INVALID_HANDLE_VALUE) CloseHandle(h); }
++    HANDLE Get() const { return h; }
++};
++
+ inline HRESULT ReadDataFromFile(LPCWSTR filename, byte** data, UINT* size)
+ {
+-    using namespace Microsoft::WRL;
+ 
+ #if WINVER >= _WIN32_WINNT_WIN8
+     CREATEFILE2_EXTENDED_PARAMETERS extendedParams = {};
+@@ -78,9 +86,9 @@
+     extendedParams.lpSecurityAttributes = nullptr;
+     extendedParams.hTemplateFile = nullptr;
+ 
+-    Wrappers::FileHandle file(CreateFile2(filename, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, &extendedParams));
++    SampleFileHandle file(CreateFile2(filename, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, &extendedParams));
+ #else
+-    Wrappers::FileHandle file(CreateFile(filename, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | SECURITY_SQOS_PRESENT | SECURITY_ANONYMOUS, nullptr));
++    SampleFileHandle file(CreateFile(filename, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | SECURITY_SQOS_PRESENT | SECURITY_ANONYMOUS, nullptr));
+ #endif
+     if (file.Get() == INVALID_HANDLE_VALUE)
+     {
+@@ -193,8 +201,8 @@
+ // Naming helper for ComPtr<T>.
+ // Assigns the name of the variable as the name of the object.
+ // The indexed variant will include the index in the name of the object.
+-#define NAME_D3D12_OBJECT(x) SetName((x).Get(), L#x)
+-#define NAME_D3D12_OBJECT_INDEXED(x, n) SetNameIndexed((x)[n].Get(), L#x, n)
++#define NAME_D3D12_OBJECT(x) SetName((x).Get(), L"" #x)
++#define NAME_D3D12_OBJECT_INDEXED(x, n) SetNameIndexed((x)[n].Get(), L"" #x, n)
+ 
+ inline UINT CalculateConstantBufferByteSize(UINT byteSize)
+ {
+--- orig/Main.cpp
++++ src/Main.cpp
+@@ -15,6 +15,23 @@
+ _Use_decl_annotations_
+ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
+ {
+-    D3D12Multithreading sample(1280, 720, L"D3D12 Multithreading Sample");
+-    return Win32Application::Run(&sample, hInstance, nCmdShow);
++    // PanPlay harness: options (-secs N, -sync N, DX12TEST_SECS, DX12TEST_SYNC) and a FAIL line instead of an abort.
++    int argc = 0;
++    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
++    pph_init("d3d12-multithreading", argc, argv, 1280, 720);
++    LocalFree(argv);
++    try
++    {
++        D3D12Multithreading sample(1280, 720, L"D3D12 Multithreading Sample");
++        return Win32Application::Run(&sample, hInstance, nCmdShow);
++    }
++    catch (HrException& e)
++    {
++        pph_fail(e.what(), e.Error());
++    }
++    catch (std::exception& e)
++    {
++        pph_fail(e.what(), E_FAIL);
++    }
++    return 1;
+ }
+--- orig/stdafx.h
++++ src/stdafx.h
+@@ -23,7 +23,7 @@
+ 
+ #include <d3d12.h>
+ #include <dxgi1_6.h>
+-#include <D3Dcompiler.h>
++// PanPlay build: shaders are precompiled DXBC (shaders_VSMain.cso / shaders_PSMain.cso), no D3DCompiler.
+ #include <DirectXMath.h>
+ #include "d3dx12.h"
+ #include <pix3.h>
+@@ -32,6 +32,8 @@
+ #include <wrl.h>
+ #include <process.h>
+ #include <shellapi.h>
++#include <stdio.h>
++#include "PanPlayHarness.h"
+ 
+ #define SINGLETHREADED FALSE
+ 

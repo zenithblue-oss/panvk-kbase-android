@@ -1,0 +1,88 @@
+d3d12-multithreading: PanPlay D3D12 test build of the Microsoft D3D12 Multithreading sample
+Staged 2026-10-26 for PanPlay (dev.zenithblue.panvklauncher). Not yet run on a device.
+
+UPSTREAM
+  Microsoft DirectX-Graphics-Samples, Samples/Desktop/D3D12Multithreading/src
+    https://github.com/microsoft/DirectX-Graphics-Samples
+    commit 0f86e460bec17ed5231549748599a91ca5093132 (2021-07-26, "Update samples with latest changes in OS repo").
+    This is the last revision before the samples moved to the Agility SDK, DXC (SM6 DXIL) and enhanced barriers.
+    Fetched as a sparse git checkout. Git blob ids, checked with git hash-object against the staged copies:
+      LICENSE                b8b569d7746d98d07183806fb4af673fca6dfb57  -> LICENSE-DirectX-Graphics-Samples.txt
+      src/SquidRoom.bin      91a246367147dae065eed418b834e809097c72dc  -> SquidRoom.bin (unmodified)
+      src/shaders.hlsl       d2649ab7e0baf3d7623e56c5aeff559368c27687  -> source/shaders.hlsl (unmodified)
+      src/D3D12Multithreading.png 675a66ff08ad6bbeba8fe49aadab4d2d11a22473 -> source/reference-windows.png
+                             (upstream Windows screenshot; for visual comparison only, do not bundle)
+    The other src/ files (C++ sources, d3dx12.h) are compiled in with the patch below.
+  License: MIT, "Copyright (c) Microsoft Corporation" (LICENSE-DirectX-Graphics-Samples.txt).
+    The SquidRoom.bin geometry and texture asset ships in the same MIT repository. The repository has
+    no separate asset license or notice, so the repository MIT license covers it.
+
+  Microsoft DirectXMath (header-only, compiled in)
+    https://github.com/microsoft/DirectXMath tag jun2026, commit 93e6399d6d15e1e57f80b5cea04d5a8eb892d693
+    ("June 2026 (3.21b) hotfix (#317)"). Only Inc/ is used.
+  License: MIT (LICENSE-DirectXMath.txt = repo LICENSE, git blob 9e841e7a26e4eb057b24511e7b92d42b257a80e5).
+
+TOOLS (build host only, not shipped)
+  llvm-mingw 20260922, UCRT, aarch64 Linux host
+    https://github.com/mstorsjo/llvm-mingw/releases/download/20260922/llvm-mingw-20260922-ucrt-ubuntu-22.04-aarch64.tar.xz
+    sha256 07d21263c56bfe9a713db6fdb3f7434bf4c121a005e40397d3b4c0170fb06769 (matches the GitHub release asset digest)
+    Statically linked into the exes: libc++, libc++abi and libunwind (Apache-2.0 WITH LLVM-exception,
+    no binary notice required), plus the mingw-w64 CRT startup code.
+  vkd3d 1.19 (Wine's vkd3d-compiler, HLSL to DXBC SM5.0, used instead of fxc)
+    https://dl.winehq.org/vkd3d/source/vkd3d-1.19.tar.xz
+    sha256 034613605baab8ba84674f8d272cf22b5e86bc6bc03fc5728ef9bce07308baa6
+    The .sign file was not checked because gpg is not installed. Built by
+    ../scripts/build-vkd3d-compiler.sh with its own config.h; the tarball's configure is not run.
+
+BUILD
+  1. Copy upstream src/ to a work directory, normalise it to LF, and apply the patch there:
+     patch -p1 -d <dir> < source/d3d12multithreading-panplay.patch (the patch was made with "diff -ru orig src").
+  2. Shaders (bit-identical on rebuild, 2026-10-26):
+       vkd3d-compiler -x hlsl -b dxbc-tpf -p vs_5_0 -e VSMain -o shaders_VSMain.cso shaders.hlsl
+       vkd3d-compiler -x hlsl -b dxbc-tpf -p ps_5_0 -e PSMain -o shaders_PSMain.cso shaders.hlsl
+     The output is DXBC with ISGN, OSGN, RDEF, SHDR and STAT chunks. The only diagnostics are
+     W5300 implicit-truncation warnings at shaders.hlsl:127-128; fxc warns there too.
+  3. Exes: source/build-d3d12multithreading.sh <patched src> <DirectXMath/Inc> <out> x86_64 arm64ec
+     The script compiles with clang++ -std=c++17 -O2 -DNDEBUG -DUNICODE and includes
+     scripts/shim-mt/pix3.h (no-op PIX macros) and scripts/common/PanPlayHarness.h. It links with
+     -static -s -mconsole -Wl,--no-insert-timestamp -ld3d12 -ldxgi -ldxguid -luser32 -lshell32 -lkernel32.
+     The build ran under flock /home/flux/build-cache/build.lock. A second build from the final patch
+     (2026-10-26, build/mt/out-check) produced bit-identical x86_64 and arm64ec exes.
+
+MODIFICATIONS (all in source/d3d12multithreading-panplay.patch)
+  - stdafx.h: drops D3Dcompiler.h and includes stdio.h and PanPlayHarness.h.
+  - D3D12Multithreading.cpp:
+    - Loads the precompiled shaders_VSMain.cso and shaders_PSMain.cso from the exe directory (ReadDataFromFile)
+      instead of D3DCompileFromFile, so d3dcompiler_47.dll is not needed.
+    - Present(1, 0) becomes Present(pph_sync_interval(), 0), followed by
+      if (pph_on_present(hr)) PostQuitMessage(0).
+    - DXGIDeclareAdapterRemovalSupport is resolved with GetProcAddress, because the mingw-w64 headers do not
+      declare it.
+    - swprintf_s becomes swprintf.
+  - DXSampleHelper.h: sprintf_s becomes snprintf. A small RAII handle class replaces WRL Wrappers::FileHandle,
+    which mingw-w64 does not have. NAME_D3D12_OBJECT uses L"" #x so clang accepts it.
+  - Main.cpp: pph_init("d3d12-multithreading", argv, 1280x720). Exceptions are caught and printed as
+    "DX12: FAIL ..." with exit code 1.
+  - DXSample.cpp: -warp and /warp must match exactly. Upstream compared only wcslen(arg) characters, so an
+    empty argument or "-" also took the WARP path.
+  The rendering code, scene, camera path, lights and threading are unchanged.
+  PanPlayHarness.h times the run and the fps average from the first Present; startup is reported separately.
+
+RUNTIME IMPORTS (llvm-readobj)
+  KERNEL32, USER32, SHELL32, api-ms-win-crt-*, d3d12.dll, dxgi.dll. Console subsystem.
+  x86_64: machine AMD64. arm64ec: ARM64EC with CHPE metadata, the same layout as the PanPlay dxcube-arm64ec.exe.
+
+FILES (sha256)
+  1c79bae4bd3148d5e908d00873b1346154cdbf237b6af33d60a0f87e8441c430  d3d12-multithreading-x86_64.exe  (432640 B)
+  d4dde5b49e6200493933886157809ea589e60a7bd617f89a80201fb42cf402d9  d3d12-multithreading-arm64ec.exe (450048 B)
+  02c3d5421b4d4714971bd34e5416e9de619f993510da4c66192b15653858e0aa  SquidRoom.bin                    (43020292 B)
+  8226faa84def7a71dbabc1ce37aca9d64205dbe181aef62c68521d5e5a069128  shaders_VSMain.cso               (4596 B)
+  e1e9f4abf97683e51810fd87c7b786d3e70585053d698865c54e3a51ff4c4765  shaders_PSMain.cso               (7332 B)
+  cf248820bf1178370bb4f1670a59f8748d46bc96d0f64080cd631511c6046409  LICENSE-DirectX-Graphics-Samples.txt
+  c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383  LICENSE-DirectXMath.txt
+  4afc437a0732449054b2f97fca99171d72a253ab1aad068e239d0ef20f98cca3  source/d3d12multithreading-panplay.patch
+  e9e44e687c0c2ec0b28ccf3ea91e95dc1f7ceeeaf9bfbd6af084153decd71866  source/PanPlayHarness.h
+  dad62f6cc1ffb346fbc9e71658968da22921709d2a4edc24895d22ac7ecd6dfb  source/pix3.h
+  eb627c814110d823e8c748aaf3f6eacc0b8575ef2f39e316f4d6e6b72abaecb1  source/build-d3d12multithreading.sh
+  5bdbce084f90d1c3c52baf60e9d4c4536d8e47bb20c71cb68eb89106ab5545b8  source/shaders.hlsl
+  7fd60059b8ee5bfe31d033d13bb33c1c895fc55441dada0860f502fec3a66fc5  source/reference-windows.png

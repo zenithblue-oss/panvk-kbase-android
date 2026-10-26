@@ -433,10 +433,14 @@ object PeInfo {
 /** Own test programs (built from tests/dxcube.c) shipped in assets/builtin; read-only shortcuts, never stored in files/shortcuts. */
 object BuiltinTests {
     private val ARCHES = listOf(Triple("i686", "i386", "x86"), Triple("x86_64", "x86_64", "x64"), Triple("arm64ec", "arm64ec", "ARM64EC"))
-    // (api, label, exe prefix, argument)
+    // (api, display name, exe prefix, argument); the name gets " · <arch>" appended.
+    // D3D12 (vkd3d-proton, 64-bit only, so no i686 exe): the Microsoft D3D12 Multithreading sample (SquidRoom
+    // scene; SquidRoom.bin and the two .cso files sit next to the exe) and vkd3d-proton's gears demo. Sources,
+    // patches and build scripts: tests/dx12. Both print "DX12: Present frame=", "DX12: fps=", "DX12: PASS|FAIL".
     private val APIS = listOf(
-        listOf("d3d8", "D3D8", "dxcube8", ""), listOf("d3d9", "D3D9", "dxcube", "d3d9"),
-        listOf("d3d10", "D3D10", "dxcube", "d3d10"), listOf("d3d11", "D3D11", "dxcube", "d3d11")
+        listOf("d3d8", "Cube · D3D8", "dxcube8", ""), listOf("d3d9", "Cube · D3D9", "dxcube", "d3d9"),
+        listOf("d3d10", "Cube · D3D10", "dxcube", "d3d10"), listOf("d3d11", "Cube · D3D11", "dxcube", "d3d11"),
+        listOf("d3d12", "D3D12 · SquidRoom", "d3d12-multithreading", ""), listOf("d3d12gears", "D3D12 · Gears", "vkd3d-gears", "")
     )
 
     fun isBuiltin(s: Shortcut) = s.id.startsWith("builtin-")
@@ -460,7 +464,7 @@ object BuiltinTests {
         ARCHES.mapNotNull { (file, arch, short) ->
             val f = File(dir(ctx), "$exe-$file.exe")
             if (!f.isFile) null else Shortcut(
-                id = "builtin-$api-$file", name = "Cube · $label · $short", exe = f.path, args = arg,
+                id = "builtin-$api-$file", name = "$label · $short", exe = f.path, args = arg,
                 arch = arch, icon = "res:ic_directx_cube", created = 0
             )
         }

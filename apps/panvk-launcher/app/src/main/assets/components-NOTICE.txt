@@ -35,5 +35,36 @@ Wine 11.19 i386 d3dcompiler_43.dll + wined3d.dll (assets/deps/x86, HLSL compiler
   tag at offset 0x40 renamed so Wine loads them as native. Original sha256 f5f517bb1f352af6e5117a238d37b19b10a0625992e416a3a0a87b27a5f60d4e
   (d3dcompiler_43), 1b9362fc31c54dbc9f949f8be9e3209c6526bc26749786e572dfa2a86f41c60f (wined3d).
 
+Built-in D3D12 tests (assets/builtin, extracted to files/games/builtin; sources, patches and build scripts in the
+PanVK repository under apps/panvk-launcher/tests/dx12)
+
+D3D12 Multithreading sample (d3d12-multithreading-x86_64.exe, d3d12-multithreading-arm64ec.exe, SquidRoom.bin,
+shaders_VSMain.cso, shaders_PSMain.cso)
+  License: MIT, Copyright (c) Microsoft Corporation. Source: https://github.com/microsoft/DirectX-Graphics-Samples
+  commit 0f86e460bec17ed5231549748599a91ca5093132 (Samples/Desktop/D3D12Multithreading; SquidRoom.bin unmodified),
+  with DirectXMath (MIT, Copyright (c) Microsoft Corporation, https://github.com/microsoft/DirectXMath tag jun2026,
+  93e6399d6d15e1e57f80b5cea04d5a8eb892d693) and the PanPlay patch tests/dx12/d3d12-multithreading/source/
+  d3d12multithreading-panplay.patch. Shaders compiled to DXBC with vkd3d-compiler 1.19 (Wine vkd3d, LGPL-2.1-or-later,
+  build tool only). Built with llvm-mingw 20260922 (libc++/libunwind statically linked, Apache-2.0 WITH LLVM-exception).
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+    documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+    permit persons to whom the Software is furnished to do so, subject to the following conditions:
+    The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+    the Software.
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+    WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+    COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+    OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+vkd3d-proton gears demo (vkd3d-gears-x86_64.exe, vkd3d-gears-arm64ec.exe)
+  License: LGPL-2.1-or-later, Copyright 2016 Henri Verbeet for CodeWeavers; glxgears-derived parts MIT,
+  Copyright (C) 1999-2001 Brian Paul. Source: https://github.com/HansKristian-Work/vkd3d-proton commit
+  2230755878b01993b4b82d0ac0c0624f3ab4d333 (demos/), plus the PanPlay patch. The complete corresponding source
+  (demos/gears.c and headers as built, the patch, the harness header, the shims and the build script) and the
+  license texts (LGPL-2.1, glxgears MIT) are in tests/dx12/vkd3d-gears of the PanVK repository. Built with
+  llvm-mingw 20260922.
+
 For any LGPL/GPL component above, the corresponding source is available from the listed upstream at the
 listed revision.

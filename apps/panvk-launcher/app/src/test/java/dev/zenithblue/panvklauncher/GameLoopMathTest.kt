@@ -17,7 +17,7 @@ class GameLoopMathTest {
 
     @Test fun shippedConfigScenarios() {
         val c = cfg()
-        assertEquals(listOf(1, 2, 3, 4), c.scenarios.keys.sorted())
+        assertEquals(listOf(1, 2, 3, 4, 5, 6), c.scenarios.keys.sorted())
         assertEquals(20, c.warmupSec); assertEquals(60, c.measureSec); assertEquals(88, c.testSecs)
         assertEquals("bundled", c.driver)
         fun labels(n: Int) = GameLoopMath.passes(c, n).map { it.label }
@@ -28,6 +28,35 @@ class GameLoopMathTest {
         assertEquals(listOf("01-d3d11-old", "02-d3d11-default", "03-d3d9-old", "04-d3d9-default"), labels(4))
         assertEquals("builtin-d3d11-arm64ec", c.tasks.getValue("d3d11").shortcut)
         assertEquals("builtin-d3d9-i686", c.tasks.getValue("d3d9").shortcut)
+        // D3D12 (vkd3d-proton): SquidRoom, then gears, one pass each with the driver defaults.
+        assertEquals(listOf("01-d3d12-default"), labels(5))
+        assertEquals(listOf("01-d3d12gears-default"), labels(6))
+        assertEquals("builtin-d3d12-arm64ec", c.tasks.getValue("d3d12").shortcut)
+        assertEquals("builtin-d3d12gears-arm64ec", c.tasks.getValue("d3d12gears").shortcut)
+        // 'old' restores 114 for every default-on knob of staging-115 pa, pb and pc; 'default' sets nothing.
+        val old = c.envSets.getValue("old").env
+        assertEquals(21, old.size)
+        assertEquals("0", old["PANVK_CSF_DESC_DIRTY"]); assertEquals("32", old["PANVK_TESS_VS_REGION_MB"])
+        assertEquals("1", old["PANVK_KBASE_ZERO_ALL"]); assertEquals("0", old["PANVK_WSI_SW_CACHED"])
+        assertTrue(old.keys.all { it.startsWith("PANVK_") })
+        assertNull(old["PANVK_KBASE_COHERENT_POOLS"]); assertNull(old["PANVK_ZS_PRELOAD_ALWAYS"])
+        assertTrue(c.envSets.getValue("default").env.isEmpty())
+    }
+
+    @Test fun d3d12Patterns() {
+        val t = cfg().tasks.getValue("d3d12")
+        assertEquals("DX12TEST_SECS", t.secsEnv)
+        assertTrue(t.firstFramePattern!!.containsMatchIn("DX12: Present frame=1 hr=0x00000000"))
+        assertFalse(t.firstFramePattern.containsMatchIn("DX12: first frame startup=3.2"))
+        val pass = GameLoopMath.parseTest(t, sequenceOf("DX12: fps=58.0 frames=59 t=1.0",
+            "DX12: PASS test=d3d12-multithreading frames=5104 secs=88.0 fps=57.99 startup=6.41", "exit=0"))
+        assertEquals(true, pass.ok); assertEquals(5104L, pass.frames)
+        assertEquals(57.99, pass.fps!!, 1e-9); assertEquals(6.41, pass.startupSec!!, 1e-9)
+        val failed = GameLoopMath.parseTest(t, sequenceOf("DX12: FAIL D3D12CreateDevice hr=0x887a0004"))
+        assertEquals(false, failed.ok); assertNull(failed.fps)
+        // The cube's PASS line has no fps or startup field.
+        val cube = GameLoopMath.parseTest(cfg().tasks.getValue("d3d11"), sequenceOf("CUBE: PASS api=d3d11 frames=3912"))
+        assertNull(cube.fps); assertNull(cube.startupSec)
     }
 
     @Test fun cubePatterns() {
@@ -71,7 +100,7 @@ class GameLoopMathTest {
 
     // Lines written by the csf-v11 233 counter in its host test (60, 30 and 45 fps, a 100 ms stall, two swapchains).
     private val fpsLog = """
-        # panvk-fps PanVK-kbase hosttest (Mesa 26.3.0-devel (git-test)) pid=19183 interval_ms=1000 first_present_unix_ms=1792977816430
+        # panvk-fps Mesa 26.3.0-devel (git-0123456789) pid=19183 interval_ms=1000 first_present_unix_ms=1792977816430
         fps t_ms=1016 frames=61 fps=60.0 avg_ms=16.67 max_ms=16.67 total=62
         fps t_ms=2033 frames=61 fps=60.0 avg_ms=16.67 max_ms=16.67 total=123
         fps t_ms=3099 frames=59 fps=55.3 avg_ms=18.08 max_ms=100.00 total=182
@@ -85,7 +114,10 @@ class GameLoopMathTest {
 
     @Test fun driverFpsLog() {
         val l = GameLoopMath.parseFpsLog(fpsLog.lineSequence())
-        assertEquals("PanVK-kbase hosttest (Mesa 26.3.0-devel (git-test))", l.driverInfo)
+        assertEquals("Mesa 26.3.0-devel (git-0123456789)", l.driverInfo)
+        // Builds before the upstream-style driverInfo (csf-v11 099 + 233 headers) still parse.
+        assertEquals("PanVK-kbase RC5-universal-114-fps (Mesa 26.3.0-devel (git-3071c6dfa2))", GameLoopMath.parseFpsLog(sequenceOf(
+            "# panvk-fps PanVK-kbase RC5-universal-114-fps (Mesa 26.3.0-devel (git-3071c6dfa2)) pid=1 interval_ms=1000 first_present_unix_ms=1")).driverInfo)
         assertEquals(7, l.lines.size); assertEquals(2, l.summaries.size); assertEquals(307L, l.total)
         // Intervals fully inside [1000, 5100] ms: 1016-2033 .. 4133-5099.
         val w = GameLoopMath.driverWindow(l, 1000, 5100)!!

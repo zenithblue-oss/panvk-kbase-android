@@ -82,7 +82,7 @@ android {
         minSdk = 28
         // targetSdk 28: W^X (targetSdk>=29) blocks execve of wine/wineserver from app data; linker64 fails ("could not exec the wine loader"). Same as Winlator/GameNative legacy.
         targetSdk = 28
-        versionCode = 39
+        versionCode = 40
         versionName = "1.2.9-rc5"
         // Firebase game loop (GameLoop.kt): com.google.test.loops = number of scenarios in assets/gameloop.json.
         manifestPlaceholders["gameLoopScenarios"] = gameLoopScenarios.toString()
@@ -188,9 +188,36 @@ tasks.named("preBuild") {
     dependsOn(copyComponents)
 }
 
+// D3D12 Multithreading test data (SquidRoom.bin, 43 MB, MIT, Microsoft DirectX-Graphics-Samples 0f86e460; see
+// tests/dx12/d3d12-multithreading/SOURCES.txt): copied from -Pdx12AssetsDir (default the staging dir below) into
+// assets/builtin next to the committed test exes and shaders, sha256-checked; never committed.
+// -PbundleSquidRoom=false leaves it out (the SquidRoom test then fails; gears still runs).
+val bundleSquidRoom = providers.gradleProperty("bundleSquidRoom").orNull != "false"
+val dx12AssetsDir = file(providers.gradleProperty("dx12AssetsDir").orNull ?: "/home/flux/build-cache/dx12-test/d3d12-multithreading")
+val squidRoomSha = "02c3d5421b4d4714971bd34e5416e9de619f993510da4c66192b15653858e0aa"
+val testAssetsDir = layout.buildDirectory.dir("generated/testAssets")
+
+val copyTestAssets = tasks.register<Sync>("copyTestAssets") {
+    into(testAssetsDir.map { it.dir("builtin") })
+    if (bundleSquidRoom) {
+        from(File(dx12AssetsDir, "SquidRoom.bin"))
+        doFirst {
+            val f = File(dx12AssetsDir, "SquidRoom.bin")
+            if (!f.isFile) throw GradleException("Missing $f (D3D12 Multithreading data, tests/dx12/d3d12-multithreading/SOURCES.txt), or -PbundleSquidRoom=false")
+            val got = sha256Of(f)
+            if (got != squidRoomSha) throw GradleException("$f sha256 $got != pinned $squidRoomSha")
+        }
+    }
+}
+
+tasks.named("preBuild") {
+    dependsOn(copyTestAssets)
+}
+
 android {
     sourceSets.getByName("main") {
         assets.directories.add(componentAssetsDir.get().asFile.path)
+        assets.directories.add(testAssetsDir.get().asFile.path)
     }
     // Archives are already xz/zstd: store them so they are not compressed twice and can be openFd'd.
     androidResources {

@@ -1,0 +1,83 @@
+--- orig/demo_win32.h
++++ src/demo_win32.h
+@@ -297,10 +297,11 @@
+ 
+ #define debug_printf(...) do { char buf[1024]; snprintf(buf, sizeof(buf), __VA_ARGS__); OutputDebugStringA(buf); } while(0)
+ 
+-static inline void demo_swapchain_present(struct demo_swapchain *swapchain)
++static inline HRESULT demo_swapchain_present(struct demo_swapchain *swapchain)
+ {
+     DXGI_FRAME_STATISTICS stats;
+-    IDXGISwapChain3_Present(swapchain->swapchain, 2, 0);
++    /* PanPlay build: sync interval from the harness (DX12TEST_SYNC / -sync, default 0) instead of 2. */
++    HRESULT hr = IDXGISwapChain3_Present(swapchain->swapchain, pph_sync_interval(), 0);
+     WaitForSingleObject(swapchain->handle, INFINITE);
+ 
+     if (SUCCEEDED(IDXGISwapChain3_GetFrameStatistics(swapchain->swapchain, &stats)))
+@@ -311,6 +312,7 @@
+     }
+ 	else
+ 		debug_printf("gears: Failed to get frame stats.\n");
++    return hr;
+ }
+ 
+ static inline void demo_swapchain_destroy(struct demo_swapchain *swapchain)
+--- orig/gears.c
++++ src/gears.c
+@@ -44,12 +44,18 @@
+ #ifndef _WIN32
+ #include <sys/time.h>
+ #endif
+-#include <assert.h>
+ #include <stdio.h>
+ #define _USE_MATH_DEFINES
+ #include <math.h>
++#include "PanPlayHarness.h"
+ #include "demo.h"
++#include <shellapi.h>
+ 
++/* PanPlay build: a failed check prints a harness FAIL line and exits instead of assert(). */
++#define PPH_STR2(x) #x
++#define PPH_STR(x) PPH_STR2(x)
++#define assert(x) do { if (!(x)) { pph_fail("gears.c:" PPH_STR(__LINE__) " " #x, E_FAIL); ExitProcess(1); } } while (0)
++
+ #include "gears_vs.h"
+ #include "gears_ps_flat.h"
+ #include "gears_ps_smooth.h"
+@@ -293,6 +299,7 @@
+ {
+     static double t_prev = -1.0;
+     double dt, t;
++    HRESULT hr;
+     float a;
+ 
+     t = cxg_get_time();
+@@ -317,8 +324,11 @@
+ 
+     ID3D12CommandQueue_ExecuteCommandLists(cxg->command_queue, 1,
+             (ID3D12CommandList **)&cxg->command_list[cxg->rt_idx]);
+-    demo_swapchain_present(cxg->swapchain);
++    hr = demo_swapchain_present(cxg->swapchain);
+     cxg_wait_for_previous_frame(cxg);
++    /* PanPlay harness: frame/fps lines on stdout, quit after DX12TEST_SECS. */
++    if (pph_on_present(hr))
++        PostQuitMessage(0);
+ }
+ 
+ static void cxg_destroy_pipeline(struct cx_gears *cxg)
+@@ -848,8 +858,14 @@
+ 
+ static int cxg_main(void)
+ {
+-    unsigned int width = 300, height = 300;
++    unsigned int width = 1280, height = 720; /* PanPlay build: 1280x720 like the other built-in tests (was 300x300). */
+     struct cx_gears cxg;
++    LPWSTR *argv;
++    int argc = 0;
++
++    argv = CommandLineToArgvW(GetCommandLineW(), &argc);
++    pph_init("vkd3d-gears", argc, argv, width, height);
++    LocalFree(argv);
+ 
+     memset(&cxg, 0, sizeof(cxg));
+     if (!demo_init(&cxg.demo, &cxg))

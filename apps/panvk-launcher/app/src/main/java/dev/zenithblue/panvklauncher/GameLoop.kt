@@ -423,7 +423,8 @@ object GameLoop {
         // Verdict.
         val test = GameLoopMath.parseTest(p.task, lines.toList().asSequence())
         r.put("test", JSONObject().put("ok", test.ok ?: JSONObject.NULL).put("line", test.line ?: JSONObject.NULL)
-            .put("frames", test.frames ?: JSONObject.NULL))
+            .put("frames", test.frames ?: JSONObject.NULL).put("fps", test.fps ?: JSONObject.NULL)
+            .put("startupSec", test.startupSec ?: JSONObject.NULL))
         val reason = when {
             stopReason.get() != null -> stopReason.get()
             r.has("error") -> "run error: ${r.getString("error")}"

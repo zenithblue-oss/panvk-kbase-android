@@ -155,7 +155,7 @@ object GameLoopMath {
     class FpsLog(val header: String?, val lines: List<FpsLine>, val summaries: List<String>) {
         /** Presents counted in the whole file (last line's total). */
         val total get() = lines.lastOrNull()?.total ?: 0L
-        /** "PanVK-kbase <release> (Mesa ...)" from the "# panvk-fps" header. */
+        /** The driverInfo from the "# panvk-fps" header: "Mesa 26.3.0-devel (git-...)" (older builds: "PanVK-kbase <release> (Mesa ...)"). */
         val driverInfo get() = header?.let { Regex("# panvk-fps (.*?) pid=").find(it)?.groupValues?.get(1) }
     }
 
@@ -220,9 +220,11 @@ object GameLoopMath {
         return PerfMath.frames(sel.toLongArray())
     }
 
-    // ---- test stdout (the cube: "CUBE: PASS api=d3d11 frames=N", "CUBE: FAIL <what> hr=0x...") ----
+    // ---- test stdout (the cube: "CUBE: PASS api=d3d11 frames=N", "CUBE: FAIL <what> hr=0x...";
+    //      D3D12: "DX12: PASS test=<name> frames=N secs=S fps=F startup=T", "DX12: FAIL <what> hr=0x...") ----
 
-    data class TestResult(val ok: Boolean?, val line: String?, val frames: Long?)
+    /** [fps] and [startupSec]: the test's own average from first frame, and its time to the first frame (D3D12). */
+    data class TestResult(val ok: Boolean?, val line: String?, val frames: Long?, val fps: Double? = null, val startupSec: Double? = null)
 
     /** ok = true on an okPattern line, false on a failPattern line (the first FAIL wins), null if neither showed. */
     fun parseTest(task: Task, lines: Sequence<String>): TestResult {
@@ -231,7 +233,9 @@ object GameLoopMath {
             val s = l.trim()
             if (task.failPattern?.containsMatchIn(s) == true) return TestResult(false, s, null)
             if (ok == null && task.okPattern?.containsMatchIn(s) == true)
-                ok = TestResult(true, s, Regex("frames=(\\d+)").find(s)?.groupValues?.get(1)?.toLongOrNull())
+                ok = TestResult(true, s, Regex("frames=(\\d+)").find(s)?.groupValues?.get(1)?.toLongOrNull(),
+                    Regex("\\bfps=([\\d.]+)").find(s)?.groupValues?.get(1)?.toDoubleOrNull(),
+                    Regex("\\bstartup=([\\d.]+)").find(s)?.groupValues?.get(1)?.toDoubleOrNull())
         }
         return ok ?: TestResult(null, null, null)
     }
