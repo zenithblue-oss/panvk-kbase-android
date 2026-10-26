@@ -1,0 +1,55 @@
+From 8a4d9f8e50fc74554736bed7f18d8702a04b02d6 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 09:43:35 +0000
+Subject: [PATCH 7/7] panvk/jm: the TLS/WLS pool skips the kbase CPU clear
+
+Rationale: perf review 2026-10-26, finding D2 (quick part, second half;
+the first half, command pool auto-trim on JM, is P-B's 0005). The JM
+command buffer TLS pool holds only the per-half TLS and WLS buffers of
+jm-v7 107 (cmd_close_batch_impl()), and kbase_kmod_bo_alloc() memset and
+synced every committed page of each new one (csf-v11 041): 40.5 + 6.75 MiB
+per half on the S9 (2324 B tessellator stacks over a core-ID range of 27),
+92 MiB per half on the Pixel 6, so a command buffer with a tessellated
+draw spent 10-30 ms of CPU on its first use of each half, and again for
+every other command buffer and after every pool trim.
+
+Shaders never read either before writing it: stack slots are written
+before they are read, WLS is undefined at dispatch start
+(zero-initialized workgroup memory is lowered in the shader), and pooled
+BOs are already handed out again uncleared. The pool now asks for
+PAN_KMOD_BO_FLAG_NO_ZERO (P-B 0003), as the CSF TLS and WLS pools do;
+kbase still hands out zeroed pages except this context's own freed ones.
+
+Knob: PANVK_KBASE_ZERO_ALL=1 (P-B's) clears these BOs again (114). Arch:
+v6/v7/v9 (JM). Non-kbase kmods mask the flag (panvk_device_adjust_bo_flags()).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
+index f239d45c..f991c562 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_buffer.c
+@@ -669,9 +669,15 @@ panvk_create_cmdbuf(struct vk_command_pool *vk_pool, VkCommandBufferLevel level,
+    panvk_pool_init(&cmdbuf->desc_pool, device, &pool->desc_bo_pool, NULL,
+                    &desc_pool_props);
+ 
++   /* Only TLS (stacks, written before they are read) and WLS (undefined
++    * at dispatch start, zero-init is lowered in the shader) come from this
++    * pool, and pooled BOs are reused uncleared anyway: no kbase clear, as
++    * the CSF TLS does (perf review 2026-10-26 D2; up to 2 x 47 MiB of
++    * memset per command buffer on the S9). PANVK_KBASE_ZERO_ALL=1 clears
++    * them again. */
+    struct panvk_pool_properties tls_pool_props = {
+-      .create_flags =
+-         panvk_device_adjust_bo_flags(device, PAN_KMOD_BO_FLAG_NO_MMAP),
++      .create_flags = panvk_device_adjust_bo_flags(
++         device, PAN_KMOD_BO_FLAG_NO_MMAP | PAN_KMOD_BO_FLAG_NO_ZERO),
+       .slab_size = 64 * 1024,
+       .label = "TLS pool",
+       .prealloc = false,
+-- 
+2.55.0
+

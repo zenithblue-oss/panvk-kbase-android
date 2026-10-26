@@ -1,7 +1,7 @@
-From 3143d1297e2a7dc9841287919311b15a1fdb0976 Mon Sep 17 00:00:00 2001
+From 3565350ecd840366765f10cb31137d76a4b2f1f5 Mon Sep 17 00:00:00 2001
 From: abhay-byte <zenithblue.dev@gmail.com>
 Date: Mon, 26 Oct 2026 02:24:05 +0000
-Subject: [PATCH 5/6] panvk/jm: v9 gpu_prerast arenas committed at first use,
+Subject: [PATCH 5/7] panvk/jm: v9 gpu_prerast arenas committed at first use,
  as on CSF
 
 Rationale: perf review 2026-10-26, finding D7 (K3 of the 10-22 review, still
@@ -23,17 +23,20 @@ gpu_prerast_wanted / gpu_prerast_tess_wanted gating is unchanged.
 A device that never records a gpu_prerast or tessellation pass now
 commits neither arena; the first one that does pays the clear then.
 
-Knob: PANVK_GPU_PRERAST_ARENA=eager commits both at device creation again
-(114 on v9). Arch: v9 (v10+ was already lazy; v6/v7 have no such arenas).
+Knobs: PANVK_V9_PRERAST_ARENA_LAZY=0 commits both at device creation on v9
+again (114; CSF unchanged, so it can sit in an all-arch 114 A/B set);
+PANVK_GPU_PRERAST_ARENA=eager still forces the creation-time commit on
+every arch. Both read once per VkDevice. Arch: v9 (v10+ was already lazy;
+v6/v7 have no such arenas).
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
- src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c | 8 ++++++--
- src/panfrost/vulkan/panvk_vX_device.c      | 9 ++++++---
- 2 files changed, 12 insertions(+), 5 deletions(-)
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c |  8 ++++++--
+ src/panfrost/vulkan/panvk_vX_device.c      | 15 ++++++++++++---
+ 2 files changed, 18 insertions(+), 5 deletions(-)
 
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index fb9c29e1..95ff46fb 100644
+index 310c1893..72c3d091 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 @@ -5825,7 +5825,10 @@ v9_prerast_draw_one(struct panvk_cmd_buffer *cmdbuf,
@@ -59,10 +62,10 @@ index fb9c29e1..95ff46fb 100644
     if (!vs || !tcs || !tes || !tcs->gpu_prerast.tess.compiled ||
         !vs->gpu_prerast.lowered_vs_compiled || !arena) {
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index 35ab63a9..b059cb48 100644
+index 9ebb09c8..d32a3df1 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
-@@ -151,14 +151,17 @@ panvk_device_cleanup_tls(struct panvk_device *dev)
+@@ -151,14 +151,23 @@ panvk_device_cleanup_tls(struct panvk_device *dev)
   * first draw that records a gpu_prerast or tessellation pass, still fully
   * committed before any GPU access (the record happens before the submit),
   * so the fault growth problem above does not come back. The v9 JM
@@ -72,14 +75,20 @@ index 35ab63a9..b059cb48 100644
 + * arenas through panvk_per_arch(device_gpu_prerast_arena)() at record time
 + * too, so v9 is lazy as well (perf review 2026-10-26 D7: it committed and
 + * CPU-cleared 160 MiB in every such VkDevice).
-+ * PANVK_GPU_PRERAST_ARENA=eager restores the creation-time commit. */
++ * PANVK_GPU_PRERAST_ARENA=eager restores the creation-time commit;
++ * PANVK_V9_PRERAST_ARENA_LAZY=0 restores it on v9 only (the 114 behaviour,
++ * CSF stays lazy). */
  static bool
  gpu_prerast_arena_eager(void)
  {
     const char *v = os_get_option("PANVK_GPU_PRERAST_ARENA");
  
 -   return PAN_ARCH < 10 || (v && !strcmp(v, "eager"));
-+   return v && !strcmp(v, "eager");
++   if (v && !strcmp(v, "eager"))
++      return true;
++
++   return PAN_ARCH < 10 &&
++          !debug_get_bool_option("PANVK_V9_PRERAST_ARENA_LAZY", true);
  }
  
  static struct panvk_priv_mem

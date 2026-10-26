@@ -1,7 +1,7 @@
-From 8b34ac982042fe4854fd8112339992949d2cdfb1 Mon Sep 17 00:00:00 2001
+From c9d489637853ba01687c739a82b22d874274a818 Mon Sep 17 00:00:00 2001
 From: abhay-byte <zenithblue.dev@gmail.com>
 Date: Mon, 26 Oct 2026 02:24:59 +0000
-Subject: [PATCH 6/6] kbase: JM warm-up sleep off by default
+Subject: [PATCH 6/7] kbase: JM warm-up sleep off by default
 
 Rationale: perf review 2026-10-26, finding D4. jm-v9 001 (ported from
 FristOneRR-Panvk-Source efd07ba) put a 2 s nanosleep after the atom layout
@@ -39,10 +39,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  1 file changed, 21 insertions(+), 6 deletions(-)
 
 diff --git a/src/panfrost/lib/kmod/kbase_kmod.c b/src/panfrost/lib/kmod/kbase_kmod.c
-index 5ad5caf0..4af5d4f4 100644
+index 123520da..d6d726d7 100644
 --- a/src/panfrost/lib/kmod/kbase_kmod.c
 +++ b/src/panfrost/lib/kmod/kbase_kmod.c
-@@ -1741,9 +1741,24 @@ kbase_check_bifrost_atom_stride(int fd, bool *seq_nr)
+@@ -1870,9 +1870,24 @@ kbase_check_bifrost_atom_stride(int fd, bool *seq_nr)
   * was 2.0 s of every one of 94 opens (~3 min of a 463 s run).
   *
   * Keeping the delay but only for the first JM open in the process
@@ -70,7 +70,7 @@ index 5ad5caf0..4af5d4f4 100644
   */
  static void
  kbase_jm_warmup(void)
-@@ -1752,15 +1767,15 @@ kbase_jm_warmup(void)
+@@ -1881,15 +1896,15 @@ kbase_jm_warmup(void)
     static bool done;
  
     const char *env = getenv("PANVK_KBASE_JM_WARMUP");

@@ -1,7 +1,7 @@
-From 18c80588316e41f98f7c8c23b2c0e1dee6266271 Mon Sep 17 00:00:00 2001
+From f6a42a19dbe72d7df2cbcf0604292bb6ce6ae3f4 Mon Sep 17 00:00:00 2001
 From: abhay-byte <zenithblue.dev@gmail.com>
 Date: Mon, 26 Oct 2026 02:18:04 +0000
-Subject: [PATCH 1/6] panvk/jm: v6/v7 FS descriptor copy job only when the FS
+Subject: [PATCH 1/7] panvk/jm: v6/v7 FS descriptor copy job only when the FS
  tables change
 
 Rationale: perf review 2026-10-26, finding D3. panvk_draw_prepare_tiler_job()
@@ -35,7 +35,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  3 files changed, 37 insertions(+), 16 deletions(-)
 
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index fc37cc0b..bf3580f3 100644
+index 24e139c9..0d390cf6 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 @@ -1744,24 +1744,34 @@ panvk_draw_prepare_tiler_job(struct panvk_cmd_buffer *cmdbuf,
@@ -90,7 +90,7 @@ index fc37cc0b..bf3580f3 100644
     /* Per-viewport tiler jobs (jm-v7 031): one array, the emulation patches
      * each one's index count.
 diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
-index 2178c678..7c56cd2d 100644
+index 16ae3820..5b3bb37b 100644
 --- a/src/panfrost/vulkan/panvk_device.h
 +++ b/src/panfrost/vulkan/panvk_device.h
 @@ -85,6 +85,12 @@ struct panvk_device {
@@ -107,12 +107,12 @@ index 2178c678..7c56cd2d 100644
  
     struct {
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index 8f67ec8b..d630dbd9 100644
+index 67643e87..59877e2e 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
-@@ -859,6 +859,11 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
-    simple_mtx_init(&device->tls.lock, mtx_plain);
-    util_dynarray_init(&device->tls.bos, NULL);
+@@ -892,6 +892,11 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+       panvk_slab_cache_init(&device->slab_cache[i], slab_cache_window_ns,
+                             slab_evict_windows);
  
 +#if PAN_ARCH <= 9
 +   device->jm_opt.fs_copy_once =

@@ -1,7 +1,7 @@
-From 740baaf3f25401c00d0cf959bd3bb03278b0c854 Mon Sep 17 00:00:00 2001
+From daa1cd895416ef580065ea7f0c6b9a757d2725cd Mon Sep 17 00:00:00 2001
 From: abhay-byte <zenithblue.dev@gmail.com>
 Date: Mon, 26 Oct 2026 02:21:09 +0000
-Subject: [PATCH 4/6] panvk/jm: v6/v7 tess draws share a batch: per-draw charge
+Subject: [PATCH 4/7] panvk/jm: v6/v7 tess draws share a batch: per-draw charge
  capped
 
 Rationale: perf review 2026-10-26, finding D1. jm-v7 106 (0079) charges
@@ -46,7 +46,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  3 files changed, 23 insertions(+), 2 deletions(-)
 
 diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
-index 7bed33d2..fb9c29e1 100644
+index 9b20e9c3..310c1893 100644
 --- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 +++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
 @@ -3837,10 +3837,24 @@ panvk_tess_draw(struct panvk_cmd_buffer *cmdbuf,
@@ -89,7 +89,7 @@ index 7bed33d2..fb9c29e1 100644
           }
           panvk_per_arch(cmd_close_batch)(cmdbuf);
 diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
-index 1875be7b..f53d5715 100644
+index 3de854bc..46c56dc6 100644
 --- a/src/panfrost/vulkan/panvk_device.h
 +++ b/src/panfrost/vulkan/panvk_device.h
 @@ -93,6 +93,9 @@ struct panvk_device {
@@ -103,10 +103,10 @@ index 1875be7b..f53d5715 100644
     struct panvk_priv_bo *sample_positions;
  
 diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
-index 4c699776..35ab63a9 100644
+index 31716611..9ebb09c8 100644
 --- a/src/panfrost/vulkan/panvk_vX_device.c
 +++ b/src/panfrost/vulkan/panvk_vX_device.c
-@@ -871,6 +871,8 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+@@ -904,6 +904,8 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
     /* v6/v7 panvk_tess_draw() reads it per draw (v9+ sets it below). */
     device->tess_opt.winding_inline =
        debug_get_num_option("PANVK_TESS_WINDING_INLINE", 1) != 0;
