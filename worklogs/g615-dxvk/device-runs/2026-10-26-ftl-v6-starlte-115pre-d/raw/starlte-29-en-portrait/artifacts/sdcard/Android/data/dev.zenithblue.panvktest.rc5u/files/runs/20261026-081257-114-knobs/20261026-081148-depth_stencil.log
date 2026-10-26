@@ -1,0 +1,45 @@
+MESA: info: panvk: 114 behaviour restored for: PANVK_CSF_FS_IDLE_CLEAN PANVK_DB_ALT PANVK_CSF_INDIRECT_REEMIT PANVK_CSF_DESC_DIRTY PANVK_VB_DIRTY_CMP PANVK_PRERAST_FAST_SKIP PANVK_DESC_POOL_HINT PANVK_WSI_SW_CACHED PANVK_WSI_SW_DEFER_REPLY PANVK_ANDROID_PRESENT_FENCE PANVK_ANDROID_PRESENT_THREAD PANVK_PRELOAD_BARRIER_TRACK
+MESA: info: kbase: JM driver, uAPI version 11.16, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up 2000 ms (first JM open in this process)
+MESA: info: kbase: v6 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 (base_jd_atom_v2 without renderpass_id)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: cntfrq_el0 is 0 and the 5 ms measurement failed (TIMEINFO failed, 0 / 0 Hz), retrying with 20 ms
+MESA: warning: kbase: timestamp calibration: cntfrq_el0 is 0 and the GPU counter rate is unknown (TIMEINFO failed: Not a typewriter, 0 / 0 Hz): timestamps not advertised
+MESA: info: kbase: no usable ION system heap
+MESA: info: panvk: gpu_id 0x62210010 variant 0 arch v6 model Mali-G72 texture_features 0xffffffff 0xff0fff 0xfe3fffff 0
+MESA: warning: panvk: v6 (Bifrost) support is experimental
+MESA: info: panvk: BC emulation off (native compressed mask 0xffffffff)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+PHYS 0 Mali-G72 MC18 vendor=0x13b5 device=0x62210010
+FEATURE depthBiasClamp=1
+FEATURE depthBiasControl=1 exact=1 forceUnorm=0 float=0
+MESA: info: kbase: JM driver, uAPI version 11.16, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up skipped (done once in this process; PANVK_KBASE_JM_WARMUP=2 = every open)
+MESA: info: kbase: v6 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 (base_jd_atom_v2 without renderpass_id)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: cntfrq_el0 is 0 and the 5 ms measurement failed (TIMEINFO failed, 0 / 0 Hz), retrying with 20 ms
+MESA: warning: kbase: timestamp calibration: cntfrq_el0 is 0 and the GPU counter rate is unknown (TIMEINFO failed: Not a typewriter, 0 / 0 Hz): timestamps not advertised
+MESA: info: kbase: no usable ION system heap
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 70313 pages committed
+PASS case d24s8_viewport_zero_depth_range x0_minus_0.5=0.000000030
+PASS case d24s8_depth badDepth=0 badColor=0
+PASS case d24s8_stencil_ops badStencil=0 badColor=0
+PASS case d24s8_depth_bias_clamp a=0.50 b=255.50 c=127.50 d=-127.50 e=127.50
+PASS case d24s8_depth_bias_control exact=1 a=255.50
+PASS case d32s8_viewport_zero_depth_range x0_minus_0.5=0.000000000
+PASS case d32s8_depth badDepth=0 badColor=0
+PASS case d32s8_stencil_ops badStencil=0 badColor=0
+PASS case d32s8_depth_bias_clamp a=0.00 b=256.00 c=128.00 d=-128.00 e=128.00
+PASS case d32s8_depth_bias_control exact=1 a=256.00
+SKIP case d16s8_all format unsupported
+SUMMARY: passed=10 failed=0 skipped=1
+RESULT PASS
