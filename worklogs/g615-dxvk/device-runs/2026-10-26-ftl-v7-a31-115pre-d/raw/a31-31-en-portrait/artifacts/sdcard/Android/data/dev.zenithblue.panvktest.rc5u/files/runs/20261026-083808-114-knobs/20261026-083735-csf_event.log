@@ -1,0 +1,68 @@
+PID 9928
+Tgid:	9928
+Pid:	9928
+PPid:	2644
+READY
+T 70511.425235586 go
+MESA: info: panvk: 114 behaviour restored for: PANVK_CSF_FS_IDLE_CLEAN PANVK_DB_ALT PANVK_CSF_INDIRECT_REEMIT PANVK_CSF_DESC_DIRTY PANVK_VB_DIRTY_CMP PANVK_PRERAST_FAST_SKIP PANVK_DESC_POOL_HINT PANVK_WSI_SW_CACHED PANVK_WSI_SW_DEFER_REPLY PANVK_ANDROID_PRESENT_FENCE PANVK_ANDROID_PRESENT_THREAD PANVK_PRELOAD_BARRIER_TRACK
+MESA: info: kbase: JM driver, uAPI version 11.27, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up 2000 ms (first JM open in this process)
+MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: warning: kbase: GPU timestamp counter measured at 26000986 Hz (26001969 / 26000002), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)
+MESA: info: kbase: no usable ION system heap
+MESA: info: panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: warning: panvk: v7 (Bifrost) support is experimental
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe03fe)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+PHYS 0 Mali-G52 r1 MC2 vendor=0x13b5 device=0x74021000
+FEATURE synchronization2=1
+QFAM 0 flags=0x7 count=1
+MESA: info: kbase: JM driver, uAPI version 11.27, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up skipped (done once in this process; PANVK_KBASE_JM_WARMUP=2 = every open)
+MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: warning: kbase: GPU timestamp counter measured at 26000196 Hz (26001176 / 25999216), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)
+MESA: info: kbase: no usable ION system heap
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 70313 pages committed
+SYNC2 enabled
+T 70513.475005355 host-set
+T 70513.475317048 host-submit
+FENCE host r=0 dt=0.002
+CASE host got=0x085000a1 expect=0x085000a1
+T 70513.477080740 host-set-replay
+T 70513.477791278 host-submit-replay
+FENCE host-replay r=0 dt=0.000
+CASE host-replay got=0x085000a2 expect=0x085000a2
+T 70513.478198048 gpu-write
+T 70513.478874663 gpu-submit-set
+FENCE gpu-set r=0 dt=0.000
+GPU_EVENT_STATUS 3
+T 70513.479241125 gpu-submit-wait
+FENCE gpu r=0 dt=0.001
+CASE gpu got=0x085000b1 expect=0x085000b1
+T 70513.479641125 gpu-write-replay
+T 70513.480288817 gpu-submit-set-replay
+FENCE gpu-set-replay r=0 dt=0.000
+GPU_EVENT_STATUS 3
+T 70513.480584125 gpu-submit-wait-replay
+FENCE gpu-replay r=0 dt=0.000
+CASE gpu-replay got=0x085000b2 expect=0x085000b2
+T 70513.520358355 ring-begin
+FENCE ring r=0 dt=0.115
+FENCE ring-copy r=0 dt=0.001
+CASE ring submit=0 red=64/64 passes=1700
+FENCE ring r=0 dt=0.308
+FENCE ring-copy r=0 dt=0.000
+CASE ring submit=1 red=64/64 passes=1700
+T 70513.951578278 ring-end
+RESULT PASS

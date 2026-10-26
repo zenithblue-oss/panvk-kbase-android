@@ -1,0 +1,46 @@
+MESA: info: panvk: 114 behaviour restored for: PANVK_CSF_FS_IDLE_CLEAN PANVK_DB_ALT PANVK_CSF_INDIRECT_REEMIT PANVK_CSF_DESC_DIRTY PANVK_VB_DIRTY_CMP PANVK_PRERAST_FAST_SKIP PANVK_DESC_POOL_HINT PANVK_WSI_SW_CACHED PANVK_WSI_SW_DEFER_REPLY PANVK_ANDROID_PRESENT_FENCE PANVK_ANDROID_PRESENT_THREAD PANVK_PRELOAD_BARRIER_TRACK
+MESA: info: kbase: JM driver, uAPI version 11.27, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up 2000 ms (first JM open in this process)
+MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: warning: kbase: GPU timestamp counter measured at 26000583 Hz (26001161 / 26000004), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)
+MESA: info: kbase: no usable ION system heap
+MESA: info: panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: warning: panvk: v7 (Bifrost) support is experimental
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe03fe)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+PHYS 0 Mali-G52 r1 MC2 vendor=0x13b5 device=0x74021000
+FEATURE samplerAnisotropy=1
+FEATURE samplerMirrorClampToEdge=1
+FEATURE customBorderColors=1
+FEATURE customBorderColorWithoutFormat=1
+FEATURE imageCubeArray=1
+FEATURE nonSeamlessCubeMap=1
+FEATURE shaderImageGatherExtended=1
+MESA: info: kbase: JM driver, uAPI version 11.27, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up skipped (done once in this process; PANVK_KBASE_JM_WARMUP=2 = every open)
+MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: warning: kbase: GPU timestamp counter measured at 26000600 Hz (26001197 / 26000004), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)
+MESA: info: kbase: no usable ION system heap
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 70313 pages committed
+PASS case anisotropy lod_iso=3.00 lod_aniso2=2.00 lod_aniso16=0.00
+PASS case mirror_clamp_to_edge all 9 samples match
+PASS case border_opaque_white border and inside correct
+PASS case border_custom custom border match
+PASS case border_custom_no_format format=UNDEFINED match
+PASS case cube_array all 12 cube layer faces match
+PASS case cube_seamless r0=10 r1=39 (seamless blend)
+PASS case cube_non_seamless r0=10 r1=10
+PASS case gather all 4 gather results exact
+PASS case gather_offsets all components exact
+RESULT PASS
