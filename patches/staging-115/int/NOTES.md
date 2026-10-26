@@ -83,3 +83,26 @@ PANVK_ANDROID_PRESENT_THREAD=0 PANVK_PRELOAD_BARRIER_TRACK=0
 `PANVK_ZS_PRELOAD_ALWAYS` is left out: on v11 the 114 behaviour is the unset default (csf-v11/061 already used
 INTERSECT there), and `=1` would select the pre-061 mode. On v9/v10 add `PANVK_ZS_PRELOAD_ALWAYS=1`.
 These are PanProbe `assets/env-ab.json` pass `114-knobs` and PanPlay `assets/gameloop.json` env set `old`.
+
+## Device results (115pre, Firebase shiba: Pixel 8, Mali-G715 MC7, v11)
+
+- **PanProbe env A/B** (`device-runs/2026-10-26-ftl-v11-shiba-115pre`):
+  - `defaults` and `114-knobs` both 39/39, with no faults;
+  - driverInfo `Mesa 26.3.0-devel (git-6a5d4e2756)`, driverName `panvk`;
+  - tess_perf hashes equal to 114;
+  - defaults total time -0.9% vs 114.
+- **PanPlay cubes A/B** (`device-runs/2026-10-26-ftl-v11-shiba-panplay-115pre`, scenario 4): all 4 passes `CUBE: PASS`.
+  Driver fps by pass:
+
+  | cube | old | default | change |
+  |---|---|---|---|
+  | d3d11 | 46.8 | 47.5 | +1.4% |
+  | d3d9 | 49.7 | 48.9 | -1.7% |
+
+  Both changes are within the noise, so there is no regression.
+- **Open: d3d9 HUD.** The DXVK HUD text is garbled in both d3d9 passes. The cubes and the pixel check are fine.
+  The `old` set shows it too, and there is no shiba 114 PanPlay baseline yet.
+- **PanPlay D3D12** (scenarios 5, 6): both FAIL. vkd3d-proton's first `vkCreateSwapchainKHR` raises
+  `Exception 0xc0000005 in Unix call`, then exit 3. Nothing was presented.
+  - These are the first D3D12 presentation tests on any driver. There is no baseline, and they ran only with `default`.
+  - The rerun plan (override file with `old`, `+seh` and vkd3d extension A/B sets) is in that run's results.md.
