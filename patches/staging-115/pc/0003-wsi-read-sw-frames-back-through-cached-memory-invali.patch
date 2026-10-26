@@ -1,0 +1,309 @@
+From ac676cbc756c1117797aad7f65fa7b86f91256da Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 02:34:47 +0000
+Subject: [PATCH 3/7] wsi: read sw frames back through cached memory,
+ invalidate first (PANVK_WSI_SW_CACHED)
+
+On kbase without the DRI3 dma-buf path PanVK is a sw WSI device, so
+every X11 present (PanPlay's Wine/DXVK games) copies the frame on the
+CPU: the GPU blits the swapchain image into a linear buffer, and
+x11_present_to_x11_sw() memcpys that buffer into the MIT-SHM segment
+(or hands it to PutImage).  wsi_select_host_memory_type() asks for
+HOST_COHERENT|HOST_CACHED and, finding none on a GPU that is not IO
+coherent, falls back to HOST_COHERENT alone.  On PanVK that is memory
+type 1, the uncached (write-combined) kbase mapping, so the CPU reads
+3.6 MB per frame at 1280x705 (10.4 MB at 2400x1080) with no line fills
+and no prefetch, roughly 3.5 ms per present at ~1 GB/s.
+
+Add wsi_device::sw_cached_noncoherent.  When set, buffers that only this
+process reads back through wsi_image::cpu_map (no alloc_shm, so no
+other process maps them) prefer HOST_COHERENT|HOST_CACHED as before,
+then HOST_CACHED without COHERENT, then the old choice.  The image
+records whether its cpu_map memory is coherent, and
+wsi_image_invalidate_cpu_map() calls vkInvalidateMappedMemoryRanges
+(new WSI_CB) over the whole range before each CPU read: in
+x11_present_to_x11_sw() and in the Wayland SHM memcpy path, both after
+the blit fence has signalled.  Memory that a foreign process reads
+directly (alloc_shm / host-pointer import) keeps the coherent type.
+The GPU side is unchanged: the blit's TRANSFER_WRITE -> HOST_READ
+barrier already cleans the GPU L2 before the fence signals.
+
+PanVK sets the flag in panvk_wsi_init() from PANVK_WSI_SW_CACHED
+(default 1), a bit of P-A's panvk_perf_knobs registry: resolved once
+at the first vkCreateInstance with os_get_option() (so a debug.mesa.*
+property works on Android) and named in the "114 behaviour restored
+for:" log line when 0.  panvk_InvalidateMappedMemoryRanges() does the
+kbase sync (userland DC CIVAC by default) and the closing barrier.  On an
+IO-coherent system the cached coherent type exists and is still taken,
+so nothing changes there.
+
+Rationale: perf review 2026-10-26 C2 (a), "X11 software present: CPU
+read from write-combined memory and a blocking round trip per
+present".  Knob: PANVK_WSI_SW_CACHED=0 restores the 114 behaviour (the
+uncached coherent buffer, no invalidate).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_instance.c   |  1 +
+ src/panfrost/vulkan/panvk_perf_knobs.h |  4 ++
+ src/panfrost/vulkan/panvk_wsi.c        |  9 ++++
+ src/vulkan/wsi/wsi_common.c            | 73 ++++++++++++++++++++++++--
+ src/vulkan/wsi/wsi_common.h            |  8 +++
+ src/vulkan/wsi/wsi_common_private.h    |  7 +++
+ src/vulkan/wsi/wsi_common_wayland.c    |  1 +
+ src/vulkan/wsi/wsi_common_x11.c        |  3 ++
+ 8 files changed, 103 insertions(+), 3 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_instance.c b/src/panfrost/vulkan/panvk_instance.c
+index e86e004b..1bf7d72d 100644
+--- a/src/panfrost/vulkan/panvk_instance.c
++++ b/src/panfrost/vulkan/panvk_instance.c
+@@ -91,6 +91,7 @@ static const struct {
+    {"PANVK_VB_DIRTY_CMP", PANVK_PERF_VB_DIRTY_CMP},
+    {"PANVK_PRERAST_FAST_SKIP", PANVK_PERF_PRERAST_FAST_SKIP},
+    {"PANVK_DESC_POOL_HINT", PANVK_PERF_DESC_POOL_HINT},
++   {"PANVK_WSI_SW_CACHED", PANVK_PERF_WSI_SW_CACHED},
+ };
+ 
+ void
+diff --git a/src/panfrost/vulkan/panvk_perf_knobs.h b/src/panfrost/vulkan/panvk_perf_knobs.h
+index c4fc89a8..d1a0b3fc 100644
+--- a/src/panfrost/vulkan/panvk_perf_knobs.h
++++ b/src/panfrost/vulkan/panvk_perf_knobs.h
+@@ -44,6 +44,10 @@ enum panvk_perf_knob {
+     * slot search at the first word that can hold a free set, and a pool
+     * reset only visits the allocated sets. */
+    PANVK_PERF_DESC_POOL_HINT = 1 << 7,
++   /* Package P-C. C2 (a), PANVK_WSI_SW_CACHED: the sw WSI reads frames
++    * back through a cached memory type plus an invalidate instead of the
++    * uncached coherent one. */
++   PANVK_PERF_WSI_SW_CACHED = 1 << 8,
+ };
+ 
+ extern uint32_t panvk_perf_knobs;
+diff --git a/src/panfrost/vulkan/panvk_wsi.c b/src/panfrost/vulkan/panvk_wsi.c
+index 56b689c1..7135fdae 100644
+--- a/src/panfrost/vulkan/panvk_wsi.c
++++ b/src/panfrost/vulkan/panvk_wsi.c
+@@ -11,6 +11,7 @@
+ 
+ #include "panvk_wsi.h"
+ #include "panvk_instance.h"
++#include "panvk_perf_knobs.h"
+ #include "panvk_physical_device.h"
+ 
+ #include <stdlib.h>
+@@ -557,6 +558,14 @@ panvk_wsi_init(struct panvk_physical_device *physical_device)
+    physical_device->wsi_device.can_present_on_device =
+       panvk_can_present_on_device;
+ 
++   /* The sw path reads every frame back on the CPU.  Without IO coherency
++    * the only coherent host-visible type is the uncached one, so read
++    * through the cached type and invalidate instead.
++    * PANVK_WSI_SW_CACHED=0 keeps the uncached buffer.
++    */
++   physical_device->wsi_device.sw_cached_noncoherent =
++      PANVK_PERF(WSI_SW_CACHED);
++
+    physical_device->vk.wsi_device = &physical_device->wsi_device;
+ 
+ #ifdef VK_USE_PLATFORM_ANDROID_KHR
+diff --git a/src/vulkan/wsi/wsi_common.c b/src/vulkan/wsi/wsi_common.c
+index ba84e36e..82f841f2 100644
+--- a/src/vulkan/wsi/wsi_common.c
++++ b/src/vulkan/wsi/wsi_common.c
+@@ -238,6 +238,7 @@ wsi_device_init(struct wsi_device *wsi,
+    WSI_GET_CB(WaitForFences);
+    WSI_GET_CB(MapMemory);
+    WSI_GET_CB(UnmapMemory);
++   WSI_GET_CB(InvalidateMappedMemoryRanges);
+    if (wsi->has_present_wait)
+       WSI_GET_CB(WaitSemaphores);
+ #undef WSI_GET_CB
+@@ -3092,6 +3093,63 @@ wsi_select_host_memory_type(const struct wsi_device *wsi,
+    return wsi_select_memory_type(wsi, req_props, 0 /* deny_props */, type_bits);
+ }
+ 
++/* Memory only this process reads, through wsi_image::cpu_map, after the
++ * blit fence (no alloc_shm: no other process maps it). */
++static uint32_t
++wsi_select_cpu_readback_memory_type(const struct wsi_device *wsi,
++                                    uint32_t type_bits)
++{
++   if (wsi->sw && wsi->sw_cached_noncoherent) {
++      /* The CPU reads every frame back: a cached type that needs an
++       * invalidate beats an uncached coherent one, but a cached coherent
++       * type beats both. */
++      const VkMemoryPropertyFlags cached_coherent =
++         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
++         VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
++      const VkMemoryPropertyFlags cached =
++         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
++         VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
++      u_foreach_bit(t, type_bits) {
++         const VkMemoryPropertyFlags flags =
++            wsi->memory_props.memoryTypes[t].propertyFlags;
++         if ((flags & cached_coherent) == cached_coherent)
++            return t;
++      }
++      u_foreach_bit(t, type_bits) {
++         const VkMemoryPropertyFlags flags =
++            wsi->memory_props.memoryTypes[t].propertyFlags;
++         if ((flags & cached) == cached)
++            return t;
++      }
++   }
++
++   return wsi_select_host_memory_type(wsi, type_bits);
++}
++
++static bool
++wsi_memory_type_is_noncoherent(const struct wsi_device *wsi, uint32_t type)
++{
++   return !(wsi->memory_props.memoryTypes[type].propertyFlags &
++            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
++}
++
++void
++wsi_image_invalidate_cpu_map(const struct wsi_swapchain *chain,
++                             const struct wsi_image *image)
++{
++   if (!image->cpu_map || !image->cpu_map_noncoherent)
++      return;
++
++   const VkMappedMemoryRange range = {
++      .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
++      .memory = image->blit.buffer != VK_NULL_HANDLE ? image->blit.memory
++                                                     : image->memory,
++      .offset = 0,
++      .size = VK_WHOLE_SIZE,
++   };
++   chain->wsi->InvalidateMappedMemoryRanges(chain->device, 1, &range);
++}
++
+ VkResult
+ wsi_create_buffer_blit_context(const struct wsi_swapchain *chain,
+                                const struct wsi_image_info *info,
+@@ -3177,6 +3235,10 @@ wsi_create_buffer_blit_context(const struct wsi_swapchain *chain,
+    if (result != VK_SUCCESS)
+       return result;
+ 
++   /* Only consulted when the CPU image path maps the buffer (cpu_map). */
++   image->cpu_map_noncoherent =
++      wsi_memory_type_is_noncoherent(wsi, buf_mem_info.memoryTypeIndex);
++
+    result = wsi->BindBufferMemory(chain->device, image->blit.buffer,
+                                   image->blit.memory, 0);
+    if (result != VK_SUCCESS)
+@@ -3541,8 +3603,9 @@ wsi_create_cpu_linear_image_mem(const struct wsi_swapchain *chain,
+       .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+       .pNext = &memory_dedicated_info,
+       .allocationSize = reqs.size,
+-      .memoryTypeIndex =
+-         wsi_select_host_memory_type(wsi, reqs.memoryTypeBits),
++      .memoryTypeIndex = info->alloc_shm ?
++         wsi_select_host_memory_type(wsi, reqs.memoryTypeBits) :
++         wsi_select_cpu_readback_memory_type(wsi, reqs.memoryTypeBits),
+    };
+ 
+    void *sw_host_ptr = NULL;
+@@ -3564,6 +3627,9 @@ wsi_create_cpu_linear_image_mem(const struct wsi_swapchain *chain,
+    if (result != VK_SUCCESS)
+       return result;
+ 
++   image->cpu_map_noncoherent =
++      wsi_memory_type_is_noncoherent(wsi, memory_info.memoryTypeIndex);
++
+    result = wsi->MapMemory(chain->device, image->memory,
+                            0, VK_WHOLE_SIZE, 0, &image->cpu_map);
+    if (result != VK_SUCCESS)
+@@ -3634,7 +3700,8 @@ wsi_configure_cpu_image(const struct wsi_swapchain *chain,
+                                  1 /* size_align */,
+                                  info);
+ 
+-      info->select_blit_dst_memory_type = wsi_select_host_memory_type;
++      info->select_blit_dst_memory_type = params->alloc_shm ?
++         wsi_select_host_memory_type : wsi_select_cpu_readback_memory_type;
+       info->select_image_memory_type = wsi_select_device_memory_type;
+       info->create_mem = wsi_create_cpu_buffer_image_mem;
+    } else {
+diff --git a/src/vulkan/wsi/wsi_common.h b/src/vulkan/wsi/wsi_common.h
+index cfb921da..973ccaa8 100644
+--- a/src/vulkan/wsi/wsi_common.h
++++ b/src/vulkan/wsi/wsi_common.h
+@@ -165,6 +165,13 @@ struct wsi_device {
+ 
+    bool sw;
+ 
++   /* sw only: when no HOST_COHERENT|HOST_CACHED memory type exists, read
++    * the image back through a HOST_CACHED type that is not coherent
++    * instead of an uncached (write-combined) one.  Every CPU read of
++    * wsi_image::cpu_map is then preceded by wsi_image_invalidate_cpu_map().
++    */
++   bool sw_cached_noncoherent;
++
+    /* Set to true if the implementation is ok with linear WSI images. */
+    bool wants_linear;
+ 
+@@ -255,6 +262,7 @@ struct wsi_device {
+    WSI_CB(WaitForFences);
+    WSI_CB(MapMemory);
+    WSI_CB(UnmapMemory);
++   WSI_CB(InvalidateMappedMemoryRanges);
+    WSI_CB(WaitSemaphores);
+ #undef WSI_CB
+ 
+diff --git a/src/vulkan/wsi/wsi_common_private.h b/src/vulkan/wsi/wsi_common_private.h
+index 7dacaa4b..58cf4af0 100644
+--- a/src/vulkan/wsi/wsi_common_private.h
++++ b/src/vulkan/wsi/wsi_common_private.h
+@@ -191,6 +191,9 @@ struct wsi_image {
+    int dma_buf_fd;
+ #endif
+    void *cpu_map;
++   /* The memory behind cpu_map is not HOST_COHERENT: invalidate it before
++    * the CPU reads what the GPU wrote (wsi_image_invalidate_cpu_map()). */
++   bool cpu_map_noncoherent;
+ 
+    VkQueryPool query_pool;
+    VkCommandBuffer *timestamp_cmd_buffers;
+@@ -458,6 +461,10 @@ void
+ wsi_destroy_image(const struct wsi_swapchain *chain,
+                   struct wsi_image *image);
+ 
++void
++wsi_image_invalidate_cpu_map(const struct wsi_swapchain *chain,
++                             const struct wsi_image *image);
++
+ VkResult
+ wsi_swapchain_wait_for_present_semaphore(const struct wsi_swapchain *chain,
+                                          uint64_t present_id, uint64_t timeout);
+diff --git a/src/vulkan/wsi/wsi_common_wayland.c b/src/vulkan/wsi/wsi_common_wayland.c
+index 66857ee1..3182190d 100644
+--- a/src/vulkan/wsi/wsi_common_wayland.c
++++ b/src/vulkan/wsi/wsi_common_wayland.c
+@@ -3334,6 +3334,7 @@ wsi_wl_swapchain_queue_present(struct wsi_swapchain *wsi_chain,
+ 
+    if (chain->buffer_type == WSI_WL_BUFFER_SHM_MEMCPY) {
+       struct wsi_wl_image *image = &chain->images[image_index];
++      wsi_image_invalidate_cpu_map(&chain->base, &image->base);
+       memcpy(image->shm_ptr, image->base.cpu_map,
+              image->base.row_pitches[0] * chain->extent.height);
+    }
+diff --git a/src/vulkan/wsi/wsi_common_x11.c b/src/vulkan/wsi/wsi_common_x11.c
+index 536dcd7c..c8b370c5 100644
+--- a/src/vulkan/wsi/wsi_common_x11.c
++++ b/src/vulkan/wsi/wsi_common_x11.c
+@@ -1905,6 +1905,9 @@ x11_present_to_x11_sw(struct x11_swapchain *chain, uint32_t image_index)
+    if (!chain->sw_shm)
+       geom_cookie = xcb_get_geometry(chain->conn, chain->window);
+ 
++   /* The blit fence has signalled (present thread or vkQueuePresentKHR). */
++   wsi_image_invalidate_cpu_map(&chain->base, &image->base);
++
+    xcb_void_cookie_t cookie;
+    void *myptr = image->base.cpu_map;
+    size_t hdr_len = sizeof(xcb_put_image_request_t);
+-- 
+2.55.0
+

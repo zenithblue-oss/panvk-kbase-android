@@ -1,0 +1,365 @@
+From b048eb399f6786c66fbf5835f542959f72453e36 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 08:28:40 +0000
+Subject: [PATCH 6/7] panvk/wsi: Android swapchain presents on its own thread
+ (PANVK_ANDROID_PRESENT_THREAD)
+
+PanVK's ANativeWindow swapchain did the whole present on the
+application thread inside vkQueuePresentKHR(): wait for the frame
+(the whole device before K1), lock the window, lock the AHB for CPU
+reads, copy every row, unlock and post.  Acquire was a round robin
+that never waited.  So the application could not record the next
+frame while the GPU finished this one, and the CPU copy (about 8 MB
+per 1080p frame) and the window's dequeue throttling ran on its
+thread too: CPU and GPU never overlapped.
+
+Give the swapchain a present thread, as the X11 swapchain has:
+
+- vkQueuePresentKHR() records the present ID and queues the image;
+  wsi_common_queue_present() has already submitted the image's present
+  fence and, with sw_fence_wait_in_present_thread set, no longer waits
+  for it on a sw WSI device.
+- The present thread waits for that fence, copies the image into the
+  window and posts it (the same copy as before, moved into
+  panvk_android_swapchain_post()), completes the present ID and gives
+  the image back.
+- vkAcquireNextImageKHR() takes images from that acquire queue, so it
+  blocks (or returns VK_NOT_READY / VK_TIMEOUT) only while every image
+  is queued or being copied; an image is never rendered while the
+  thread still reads it.  vkReleaseSwapchainImagesKHR() hands images
+  back to the same queue.
+- vkWaitForPresent2KHR() waits on a condition variable for the present
+  ID instead of only reporting it, and vkWaitForPresentKHR(), which the
+  device exposes but the swapchain had no callback for, uses the same
+  function.
+- Destroy queues a stop marker behind the pending presents, so they are
+  still posted, and joins the thread before the images go away.
+
+If any of the queues, the mutex, the condition variable or the thread
+cannot be created, the swapchain presents on the application thread as
+before.  233's PANVK_FPS_LOG counts presents at vkQueuePresentKHR, so it
+keeps measuring the application's present rate.
+
+Rationale: perf review 2026-10-26 D13 ("Android present waits for
+device idle and CPU-copies every frame", K1 still open); the fence wait
+replaces D13's kbase atom wait, since the WSI fence is backed by the
+kbase submission timeline on JM and CSF.  Knob:
+PANVK_ANDROID_PRESENT_THREAD=0 restores the synchronous present (with
+K1's fence wait unless PANVK_ANDROID_PRESENT_FENCE=0 too); a
+panvk_perf_knobs registry bit resolved once at the first
+vkCreateInstance.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_instance.c   |   1 +
+ src/panfrost/vulkan/panvk_perf_knobs.h |   3 +
+ src/panfrost/vulkan/panvk_wsi.c        | 198 ++++++++++++++++++++++---
+ 3 files changed, 181 insertions(+), 21 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_instance.c b/src/panfrost/vulkan/panvk_instance.c
+index f98001a9..c5b589f1 100644
+--- a/src/panfrost/vulkan/panvk_instance.c
++++ b/src/panfrost/vulkan/panvk_instance.c
+@@ -94,6 +94,7 @@ static const struct {
+    {"PANVK_WSI_SW_CACHED", PANVK_PERF_WSI_SW_CACHED},
+    {"PANVK_WSI_SW_DEFER_REPLY", PANVK_PERF_WSI_SW_DEFER_REPLY},
+    {"PANVK_ANDROID_PRESENT_FENCE", PANVK_PERF_ANDROID_PRESENT_FENCE},
++   {"PANVK_ANDROID_PRESENT_THREAD", PANVK_PERF_ANDROID_PRESENT_THREAD},
+ };
+ 
+ void
+diff --git a/src/panfrost/vulkan/panvk_perf_knobs.h b/src/panfrost/vulkan/panvk_perf_knobs.h
+index bc2d7d9e..700d47b9 100644
+--- a/src/panfrost/vulkan/panvk_perf_knobs.h
++++ b/src/panfrost/vulkan/panvk_perf_knobs.h
+@@ -55,6 +55,9 @@ enum panvk_perf_knob {
+    /* K1, PANVK_ANDROID_PRESENT_FENCE: the PanVK Android swapchain waits
+     * for the presented image's fence instead of the whole device. */
+    PANVK_PERF_ANDROID_PRESENT_FENCE = 1 << 10,
++   /* D13, PANVK_ANDROID_PRESENT_THREAD: the PanVK Android swapchain copies
++    * and posts frames on its own thread; vkQueuePresentKHR only queues. */
++   PANVK_PERF_ANDROID_PRESENT_THREAD = 1 << 11,
+ };
+ 
+ extern uint32_t panvk_perf_knobs;
+diff --git a/src/panfrost/vulkan/panvk_wsi.c b/src/panfrost/vulkan/panvk_wsi.c
+index f6ddfe62..c763c80d 100644
+--- a/src/panfrost/vulkan/panvk_wsi.c
++++ b/src/panfrost/vulkan/panvk_wsi.c
+@@ -51,7 +51,10 @@ panvk_can_present_on_device(VkPhysicalDevice pdevice, int fd)
+ #ifdef VK_USE_PLATFORM_ANDROID_KHR
+ #include <android/native_window.h>
+ #include <android/hardware_buffer.h>
++#include "util/timespec.h"
++#include "util/u_thread.h"
+ #include "wsi_common_private.h"
++#include "wsi_common_queue.h"
+ #include "panvk_android.h"
+ #include "panvk_device.h"
+ #include "panvk_entrypoints.h"
+@@ -70,6 +73,20 @@ struct panvk_android_swapchain {
+    uint32_t next_image;
+    uint64_t completed_present_id;
+    struct panvk_android_swapchain_image images[4];
++
++   /* PANVK_ANDROID_PRESENT_THREAD: vkQueuePresentKHR queues the image and
++    * returns.  The present thread waits for the image's present fence,
++    * copies it to the window, posts it and gives it back to
++    * vkAcquireNextImageKHR through acquire_queue.
++    */
++   bool has_present_thread;
++   thrd_t present_thread;
++   struct wsi_queue present_queue;
++   struct wsi_queue acquire_queue;
++   uint64_t present_ids[4];
++   /* Guards completed_present_id while the present thread runs. */
++   mtx_t present_mutex;
++   struct u_cnd_monotonic present_cond;
+ };
+ 
+ static VkResult
+@@ -227,6 +244,16 @@ panvk_android_swapchain_acquire_next_image(
+    uint32_t *image_index)
+ {
+    struct panvk_android_swapchain *chain = (struct panvk_android_swapchain *)swapchain;
++
++   if (chain->has_present_thread) {
++      /* Only images the present thread is done with come back. */
++      VkResult result =
++         wsi_queue_pull(&chain->acquire_queue, image_index, info->timeout);
++      if (result == VK_TIMEOUT && info->timeout == 0)
++         return VK_NOT_READY;
++      return result;
++   }
++
+     uint32_t idx = chain->next_image;
+     chain->next_image = (chain->next_image + 1) % chain->base.image_count;
+     *image_index = idx;
+@@ -238,11 +265,16 @@ panvk_android_swapchain_release_images(struct wsi_swapchain *swapchain,
+                                        uint32_t count,
+                                        const uint32_t *indices)
+ {
++   struct panvk_android_swapchain *chain =
++      (struct panvk_android_swapchain *)swapchain;
++
+    for (uint32_t i = 0; i < count; i++) {
+       if (indices[i] >= swapchain->image_count)
+          return VK_ERROR_OUT_OF_DATE_KHR;
+ 
+       swapchain->get_wsi_image(swapchain, indices[i])->acquired = false;
++      if (chain->has_present_thread)
++         wsi_queue_push(&chain->acquire_queue, indices[i]);
+    }
+ 
+    return VK_SUCCESS;
+@@ -256,7 +288,129 @@ panvk_android_swapchain_wait_for_present2(struct wsi_swapchain *swapchain,
+    struct panvk_android_swapchain *chain =
+       (struct panvk_android_swapchain *)swapchain;
+ 
+-   return present_id <= chain->completed_present_id ? VK_SUCCESS : VK_TIMEOUT;
++   if (!chain->has_present_thread)
++      return present_id <= chain->completed_present_id ? VK_SUCCESS : VK_TIMEOUT;
++
++   struct timespec abs_timespec;
++   timespec_from_nsec(&abs_timespec, os_time_get_absolute_timeout(timeout));
++
++   VkResult result = VK_SUCCESS;
++   mtx_lock(&chain->present_mutex);
++   while (chain->completed_present_id < present_id) {
++      int ret = u_cnd_monotonic_timedwait(&chain->present_cond,
++                                          &chain->present_mutex,
++                                          &abs_timespec);
++      if (ret == thrd_timedout) {
++         result = VK_TIMEOUT;
++         break;
++      }
++      if (ret != thrd_success) {
++         result = VK_ERROR_DEVICE_LOST;
++         break;
++      }
++   }
++   mtx_unlock(&chain->present_mutex);
++
++   return result;
++}
++
++/* Copies the image into the window and posts it.  The image's present
++ * fence has signalled. */
++static void
++panvk_android_swapchain_post(struct panvk_android_swapchain *chain,
++                             uint32_t image_index)
++{
++   if (chain->window && chain->images[image_index].ahb) {
++      ANativeWindow_Buffer win_buf;
++      if (ANativeWindow_lock(chain->window, &win_buf, NULL) == 0) {
++         void *ahb_data = NULL;
++         AHardwareBuffer_Desc desc;
++         AHardwareBuffer_describe(chain->images[image_index].ahb, &desc);
++         if (AHardwareBuffer_lock(chain->images[image_index].ahb,
++                                  AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN, -1, NULL, &ahb_data) == 0) {
++            uint32_t copy_h = win_buf.height < (int)desc.height ? (uint32_t)win_buf.height : desc.height;
++            uint32_t copy_w = win_buf.width < (int)desc.width ? (uint32_t)win_buf.width : desc.width;
++            for (uint32_t y = 0; y < copy_h; y++) {
++               memcpy((char *)win_buf.bits + y * win_buf.stride * 4,
++                      (char *)ahb_data + y * desc.stride * 4,
++                      copy_w * 4);
++            }
++            AHardwareBuffer_unlock(chain->images[image_index].ahb, NULL);
++         }
++         ANativeWindow_unlockAndPost(chain->window);
++      }
++   }
++}
++
++static int
++panvk_android_swapchain_present_main(void *data)
++{
++   struct panvk_android_swapchain *chain = data;
++
++   u_thread_setname("panvk present");
++
++   for (;;) {
++      uint32_t image_index;
++      VkResult result =
++         wsi_queue_pull(&chain->present_queue, &image_index, INT64_MAX);
++      if (result != VK_SUCCESS || image_index == UINT32_MAX)
++         break;
++
++      /* sw_fence_wait_in_present_thread: wsi_common_queue_present() left
++       * this wait to us. */
++      result = chain->base.wsi->WaitForFences(chain->base.device, 1,
++                                              &chain->base.fences[image_index],
++                                              true, UINT64_MAX);
++      if (result == VK_SUCCESS)
++         panvk_android_swapchain_post(chain, image_index);
++
++      mtx_lock(&chain->present_mutex);
++      chain->completed_present_id =
++         MAX2(chain->completed_present_id, chain->present_ids[image_index]);
++      u_cnd_monotonic_broadcast(&chain->present_cond);
++      mtx_unlock(&chain->present_mutex);
++
++      wsi_queue_push(&chain->acquire_queue, image_index);
++   }
++
++   return 0;
++}
++
++/* On failure the swapchain keeps presenting on the application thread. */
++static void
++panvk_android_swapchain_start_present_thread(
++   struct panvk_android_swapchain *chain)
++{
++   if (wsi_queue_init(&chain->present_queue, chain->base.image_count + 1) !=
++       VK_SUCCESS)
++      return;
++   if (wsi_queue_init(&chain->acquire_queue, chain->base.image_count + 1) !=
++       VK_SUCCESS)
++      goto fail_acquire_queue;
++   if (mtx_init(&chain->present_mutex, mtx_plain) != thrd_success)
++      goto fail_mutex;
++   if (u_cnd_monotonic_init(&chain->present_cond) != thrd_success)
++      goto fail_cond;
++
++   for (uint32_t i = 0; i < chain->base.image_count; i++)
++      wsi_queue_push(&chain->acquire_queue, i);
++
++   if (thrd_create(&chain->present_thread,
++                   panvk_android_swapchain_present_main, chain) != thrd_success)
++      goto fail_thread;
++
++   chain->has_present_thread = true;
++   chain->base.sw_fence_wait_in_present_thread = true;
++   return;
++
++fail_thread:
++   u_cnd_monotonic_destroy(&chain->present_cond);
++fail_cond:
++   mtx_destroy(&chain->present_mutex);
++fail_mutex:
++   wsi_queue_destroy(&chain->acquire_queue);
++fail_acquire_queue:
++   wsi_queue_destroy(&chain->present_queue);
+ }
+ 
+ static VkResult
+@@ -270,6 +424,12 @@ panvk_android_swapchain_queue_present(
+    if (image_index >= chain->base.image_count)
+       return VK_ERROR_OUT_OF_DATE_KHR;
+ 
++   if (chain->has_present_thread) {
++      chain->present_ids[image_index] = present_id;
++      wsi_queue_push(&chain->present_queue, image_index);
++      return VK_SUCCESS;
++   }
++
+    if (PANVK_PERF(ANDROID_PRESENT_FENCE)) {
+       /* The image's present fence covers the semaphores this present
+        * waits on and all earlier work on the queue.  On a sw WSI device
+@@ -283,26 +443,7 @@ panvk_android_swapchain_queue_present(
+       dev->dispatch_table.DeviceWaitIdle(swapchain->device);
+    }
+ 
+-   if (chain->window && chain->images[image_index].ahb) {
+-      ANativeWindow_Buffer win_buf;
+-      if (ANativeWindow_lock(chain->window, &win_buf, NULL) == 0) {
+-         void *ahb_data = NULL;
+-         AHardwareBuffer_Desc desc;
+-         AHardwareBuffer_describe(chain->images[image_index].ahb, &desc);
+-         if (AHardwareBuffer_lock(chain->images[image_index].ahb,
+-                                  AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN, -1, NULL, &ahb_data) == 0) {
+-            uint32_t copy_h = win_buf.height < (int)desc.height ? (uint32_t)win_buf.height : desc.height;
+-            uint32_t copy_w = win_buf.width < (int)desc.width ? (uint32_t)win_buf.width : desc.width;
+-            for (uint32_t y = 0; y < copy_h; y++) {
+-               memcpy((char *)win_buf.bits + y * win_buf.stride * 4,
+-                      (char *)ahb_data + y * desc.stride * 4,
+-                      copy_w * 4);
+-            }
+-            AHardwareBuffer_unlock(chain->images[image_index].ahb, NULL);
+-         }
+-         ANativeWindow_unlockAndPost(chain->window);
+-      }
+-   }
++   panvk_android_swapchain_post(chain, image_index);
+ 
+    chain->completed_present_id = MAX2(chain->completed_present_id, present_id);
+ 
+@@ -317,6 +458,17 @@ panvk_android_swapchain_destroy(
+    struct panvk_android_swapchain *chain = (struct panvk_android_swapchain *)swapchain;
+    VK_FROM_HANDLE(vk_device, dev, swapchain->device);
+ 
++   if (chain->has_present_thread) {
++      /* The thread posts the presents still queued, then exits. */
++      wsi_queue_push(&chain->present_queue, UINT32_MAX);
++      thrd_join(chain->present_thread, NULL);
++      wsi_queue_destroy(&chain->present_queue);
++      wsi_queue_destroy(&chain->acquire_queue);
++      mtx_destroy(&chain->present_mutex);
++      u_cnd_monotonic_destroy(&chain->present_cond);
++      chain->has_present_thread = false;
++   }
++
+    vk_android_set_owned_ahb(NULL);
+    for (uint32_t i = 0; i < chain->base.image_count; i++) {
+       if (chain->images[i].base.image != VK_NULL_HANDLE)
+@@ -361,6 +513,7 @@ panvk_wsi_android_create_swapchain(
+     chain->base.get_wsi_image = panvk_android_swapchain_get_wsi_image;
+    chain->base.acquire_next_image = panvk_android_swapchain_acquire_next_image;
+    chain->base.queue_present = panvk_android_swapchain_queue_present;
++   chain->base.wait_for_present = panvk_android_swapchain_wait_for_present2;
+    chain->base.wait_for_present2 = panvk_android_swapchain_wait_for_present2;
+    chain->base.release_images = panvk_android_swapchain_release_images;
+    chain->base.image_count = num_images;
+@@ -468,6 +621,9 @@ panvk_wsi_android_create_swapchain(
+    }
+    vk_android_set_owned_ahb(NULL);
+ 
++   if (PANVK_PERF(ANDROID_PRESENT_THREAD))
++      panvk_android_swapchain_start_present_thread(chain);
++
+    *swapchain_out = &chain->base;
+    return VK_SUCCESS;
+ }
+-- 
+2.55.0
+

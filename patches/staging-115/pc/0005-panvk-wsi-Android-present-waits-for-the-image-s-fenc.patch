@@ -1,0 +1,92 @@
+From 79ee29c9a8e29de7ad3ab2af048f5a4883d2b469 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 08:22:26 +0000
+Subject: [PATCH 5/7] panvk/wsi: Android present waits for the image's fence,
+ not the device (PANVK_ANDROID_PRESENT_FENCE)
+
+panvk_android_swapchain_queue_present() (PanVK's own ANativeWindow
+swapchain, used by PanProbe and other native Android apps when PanVK
+is not the system driver) called vkDeviceWaitIdle() before copying the
+image into the window.  That waits for every queue and for work other
+threads submitted after the present, not just for the frame being
+shown.
+
+wsi_common_queue_present() has already submitted the image's present
+fence by the time queue_present runs: an empty submit on the present
+queue that waits for the present's semaphores and whose fence also
+covers everything submitted earlier on that queue (for kbase the WSI
+keeps even empty submits on the real queue, so the fence is backed by
+the submission timeline, JM and CSF alike).  Wait for that fence
+instead.  On a sw WSI device (kbase without the dma-buf DRI3 path)
+wsi_common_queue_present() has waited for it already, so the present
+no longer waits at all; on the dma-buf path the wait is now limited to
+this frame.  The CPU copy itself is unchanged; D13's present thread
+(next patch) takes it off the application thread.
+
+Rationale: perf review 2026-10-22 K1 ("Android present waits on the
+whole device and copies every frame on the CPU", minimum fix) and
+2026-10-26 D13.  Knob: PANVK_ANDROID_PRESENT_FENCE=0 restores the 114
+behaviour (vkDeviceWaitIdle per present); a panvk_perf_knobs registry
+bit resolved once at the first vkCreateInstance.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_instance.c   |  1 +
+ src/panfrost/vulkan/panvk_perf_knobs.h |  3 +++
+ src/panfrost/vulkan/panvk_wsi.c        | 14 ++++++++++++--
+ 3 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_instance.c b/src/panfrost/vulkan/panvk_instance.c
+index e5174b71..f98001a9 100644
+--- a/src/panfrost/vulkan/panvk_instance.c
++++ b/src/panfrost/vulkan/panvk_instance.c
+@@ -93,6 +93,7 @@ static const struct {
+    {"PANVK_DESC_POOL_HINT", PANVK_PERF_DESC_POOL_HINT},
+    {"PANVK_WSI_SW_CACHED", PANVK_PERF_WSI_SW_CACHED},
+    {"PANVK_WSI_SW_DEFER_REPLY", PANVK_PERF_WSI_SW_DEFER_REPLY},
++   {"PANVK_ANDROID_PRESENT_FENCE", PANVK_PERF_ANDROID_PRESENT_FENCE},
+ };
+ 
+ void
+diff --git a/src/panfrost/vulkan/panvk_perf_knobs.h b/src/panfrost/vulkan/panvk_perf_knobs.h
+index 3ce66135..bc2d7d9e 100644
+--- a/src/panfrost/vulkan/panvk_perf_knobs.h
++++ b/src/panfrost/vulkan/panvk_perf_knobs.h
+@@ -52,6 +52,9 @@ enum panvk_perf_knob {
+     * reply to each sw MIT-SHM put; the present thread does not block on
+     * the round trip. */
+    PANVK_PERF_WSI_SW_DEFER_REPLY = 1 << 9,
++   /* K1, PANVK_ANDROID_PRESENT_FENCE: the PanVK Android swapchain waits
++    * for the presented image's fence instead of the whole device. */
++   PANVK_PERF_ANDROID_PRESENT_FENCE = 1 << 10,
+ };
+ 
+ extern uint32_t panvk_perf_knobs;
+diff --git a/src/panfrost/vulkan/panvk_wsi.c b/src/panfrost/vulkan/panvk_wsi.c
+index 9e8f44a4..f6ddfe62 100644
+--- a/src/panfrost/vulkan/panvk_wsi.c
++++ b/src/panfrost/vulkan/panvk_wsi.c
+@@ -270,8 +270,18 @@ panvk_android_swapchain_queue_present(
+    if (image_index >= chain->base.image_count)
+       return VK_ERROR_OUT_OF_DATE_KHR;
+ 
+-   VK_FROM_HANDLE(vk_device, dev, swapchain->device);
+-   dev->dispatch_table.DeviceWaitIdle(swapchain->device);
++   if (PANVK_PERF(ANDROID_PRESENT_FENCE)) {
++      /* The image's present fence covers the semaphores this present
++       * waits on and all earlier work on the queue.  On a sw WSI device
++       * wsi_common_queue_present() has already waited for it.
++       */
++      swapchain->wsi->WaitForFences(swapchain->device, 1,
++                                    &swapchain->fences[image_index], true,
++                                    UINT64_MAX);
++   } else {
++      VK_FROM_HANDLE(vk_device, dev, swapchain->device);
++      dev->dispatch_table.DeviceWaitIdle(swapchain->device);
++   }
+ 
+    if (chain->window && chain->images[image_index].ahb) {
+       ANativeWindow_Buffer win_buf;
+-- 
+2.55.0
+

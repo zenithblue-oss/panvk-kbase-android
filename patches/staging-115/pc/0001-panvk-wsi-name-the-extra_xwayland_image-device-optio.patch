@@ -1,0 +1,38 @@
+From 72d125312d7e9bbed736f1d26d4e9412bcf378f9 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 02:22:19 +0000
+Subject: [PATCH 1/7] panvk/wsi: name the extra_xwayland_image device option
+
+kbase-common/006 passed `kbase_dmabuf && kbase_raw_dri3` positionally
+after the designated `.sw_device` initializer.  C fills the next member,
+which is `extra_xwayland_image`, so the code did what it meant, but the
+field was invisible to readers and would silently change meaning if
+wsi_device_options gained a member in between.
+
+Rationale: perf review 2026-10-26 README, correctness items ("unnamed
+wsi_device_options field in panvk_wsi.c", package P-C).  The designated
+initializer produces the same struct as before, so there is no
+behaviour change and no knob.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_wsi.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/panfrost/vulkan/panvk_wsi.c b/src/panfrost/vulkan/panvk_wsi.c
+index e4850024..56b689c1 100644
+--- a/src/panfrost/vulkan/panvk_wsi.c
++++ b/src/panfrost/vulkan/panvk_wsi.c
+@@ -532,6 +532,9 @@ panvk_wsi_init(struct panvk_physical_device *physical_device)
+                             &instance->drirc.options,
+                             &(struct wsi_device_options){
+                                .sw_device = uses_kbase && !kbase_dmabuf,
++                               /* Only the raw-FD DRI3 path asks for the
++                                * fourth image when the server is Xwayland. */
++                               .extra_xwayland_image =
+                                   kbase_dmabuf && kbase_raw_dri3,
+                             });
+    if (result != VK_SUCCESS)
+-- 
+2.55.0
+
