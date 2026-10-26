@@ -379,12 +379,13 @@ object GameLoop {
             PerfRecorder.start(ctx, sc, exePath)
             code = ContainerManager.runExe(ctx, exePath, { line ->
                 launcherLog.append(line).append('\n')
-                if (lines.size < MAX_LINES) lines.add(line)
+                val verdict = p.task.okPattern?.containsMatchIn(line.trim()) == true || p.task.failPattern?.containsMatchIn(line.trim()) == true
+                // Verdict lines past the cap too: WINEDEBUG=+seh printed 158k lines before a gears PASS line.
+                if (lines.size < MAX_LINES || verdict) lines.add(line)
                 if (firstFrame.get() == 0L && p.task.firstFramePattern?.containsMatchIn(line.trim()) == true &&
                     firstFrame.compareAndSet(0, SystemClock.elapsedRealtime()))
                     log("first frame after ${(SystemClock.elapsedRealtime() - t0) / 1000} s: ${line.trim()}")
-                if (p.task.okPattern?.containsMatchIn(line.trim()) == true || p.task.failPattern?.containsMatchIn(line.trim()) == true)
-                    log(line.trim())
+                if (verdict) log(line.trim())
             }, opts)
         } catch (t: Throwable) {
             r.put("error", t.toString())
