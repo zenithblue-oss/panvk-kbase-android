@@ -1,0 +1,21 @@
+{
+  "#": "2026-10-26 shiba confirm run (panplay-115fix): cubes with the drain pump, D3D9 HUD with the uncached heap, both D3D12 tests, and the same on the 114 driver. Deep-merged over assets/gameloop.json.",
+  "warmupSec": 8,
+  "measureSec": 20,
+  "tailSec": 4,
+  "gapSec": 3,
+  "startTimeoutSec": 180,
+  "screenshotAtSec": 22,
+  "installDrivers": { "r114": "rc5u-114fps.so" },
+  "envSets": {
+    "createlog": { "note": "driver defaults + swapchain create log (no behaviour change)", "env": { "MESA_VK_WSI_CREATE_LOG": "1" } },
+    "heap115": { "note": "PANVK_KBASE_UNCACHED_HEAP=0: the 115 cached dma-heap for all", "env": { "PANVK_KBASE_UNCACHED_HEAP": "0" } },
+    "r114": { "note": "RC5-universal-114-fps driver (114 + fps log)", "driver": "r114", "env": {} }
+  },
+  "scenarios": {
+    "1": { "name": "confirm-cubes", "tasks": ["d3d11", "d3d9"], "envSets": ["default"] },
+    "2": { "name": "confirm-d3d12", "tasks": ["d3d12", "d3d12gears"], "envSets": ["createlog"] },
+    "3": { "name": "confirm-d3d9-old", "tasks": ["d3d9"], "envSets": ["heap115", "r114"] },
+    "4": { "name": "confirm-gears-114", "tasks": ["d3d12gears"], "envSets": ["r114"] }
+  }
+}

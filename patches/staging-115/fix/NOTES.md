@@ -40,7 +40,8 @@ diagnosed in `../../../worklogs/g615-dxvk/device-runs/2026-10-26-ftl-v11-shiba-p
 - **Problem:** 32-bit WoW64 winevulkan places its host-visible maps (091), so that memory is a shareable BO from
   `/dev/dma_heap/system`, whose CPU mapping is cached. On coherency mode 31 kbase drops `BASE_MEM_COHERENT_SYSTEM` from the
   import and the GPU does not snoop: CPU writes to HOST_COHERENT memory can still be in the CPU cache when the GPU reads.
-  The i686 D3D9 cube's DXVK HUD text was missing or garbled on Pixel 8. The G615's imports keep COHERENT_SYSTEM.
+  The i686 D3D9 cube's DXVK HUD text was missing or garbled on Pixel 8 with 115 (114 drew it clean, see the confirm run
+  below). The G615's imports keep COHERENT_SYSTEM.
 - **What:** on CSF with coherency mode 31, dma-heap BOs without WB_MMAP come from `/dev/dma_heap/system-uncached`
   (write-combined CPU mapping, as kbase maps its own HOST_COHERENT memory). HOST_CACHED (WB_MMAP) BOs stay on the system heap
   with explicit flush/invalidate. If the heap cannot be opened, CPU-mapped non-coherent imports are cleaned before each
@@ -70,3 +71,21 @@ diagnosed in `../../../worklogs/g615-dxvk/device-runs/2026-10-26-ftl-v11-shiba-p
     no present timing, because that path never reports a present stage: timing requests would never complete and fill the
     timing queue. vkd3d-proton then creates the swapchain with id2/wait2 only (flags 0xc0).
 - **Risk:** low. A normal X server has RANDR and DRI3, so neither branch is taken there.
+
+## Confirm run (FTL shiba, matrix-33ltrfa55a2v0)
+
+This build was bundled in PanPlay 871368a; details are in the confirm `results.md`.
+
+- **Cubes (with the PanPlay drain pump):**
+  - d3d11: 427.6 fps, DXVK GPU 78.5%;
+  - d3d9: 118.8 fps (vsync, 120 Hz), GPU 33.0%.
+- **0002:**
+  - The D3D9 HUD is clean by default.
+  - With `PANVK_KBASE_UNCACHED_HEAP=0` it is garbled from the first frame.
+  - 114 (RC5-universal-114-fps `51f6fdbe`) draws it clean too, although its dma-heap code is the same. The 115pre `old` set (all 21
+    knobs at 114) was still garbled, so a 115 change that has no knob changes the timing that let 114 pass. That change is not
+    identified. The uncached heap does not depend on it.
+- **0004:**
+  - Both D3D12 tests render and pass: SquidRoom `DX12: PASS ... fps=78.2`, gears `DX12: PASS ... fps=182.2`.
+  - The create log shows flags 0xc0, with no present timing.
+  - On 114, gears still faults (`vkCreateSwapchainKHR Exception 0xc0000005`, exit 3).

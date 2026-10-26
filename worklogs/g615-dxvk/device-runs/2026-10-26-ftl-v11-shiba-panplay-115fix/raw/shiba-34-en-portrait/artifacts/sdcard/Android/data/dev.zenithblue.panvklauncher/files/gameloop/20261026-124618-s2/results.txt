@@ -1,0 +1,9 @@
+PanPlay game loop, scenario 2 (confirm-d3d12), run 20261026-124618-s2
+Device: Google Pixel 8 (shiba), SDK 34, SoC Tensor G3
+Driver: Mesa 26.3.0-devel (git-de6b5b2d23), sha256 42d91d26f6ca4ec9
+App: dev.zenithblue.panvklauncher 1.2.9-rc5 (40)
+Window: 8 s warm-up, 20 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d12    createlog ok        79.3    72.1    86.3    35.0        -        -      -      -      -     60.2  DX12: PASS test=d3d12-multithreading frames=2505 secs=32.0 fps=78.2 startup=4.2
+02  d3d12gears createlog ok       183.9   161.8   197.7    39.8        -        -      -      -      -     60.2  DX12: PASS test=vkd3d-gears frames=5832 secs=32.0 fps=182.2 startup=3.2
