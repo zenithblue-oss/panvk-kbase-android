@@ -1,0 +1,92 @@
+From 6a5d4e27568bd328c7d0f1d649225452400fc8be Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 10:21:16 +0000
+Subject: [PATCH] panvk: report driverInfo like upstream Mesa ("Mesa <version>
+ (git-<sha>)")
+
+csf-v11/099 put the PanVK-kbase release name in front of the Mesa version
+("PanVK-kbase RC5-universal-114 (Mesa 26.3.0-devel (git-d324a2699e))"),
+from a PANVK_KBASE_RELEASE build define, and csf-v11/233 copied that
+string into the PANVK_FPS_LOG header.  For the first GitHub release the
+driver identifies itself exactly like an upstream PanVK development
+build:
+
+  driverName  "panvk"                              (unchanged)
+  driverInfo  "Mesa " PACKAGE_VERSION MESA_GIT_SHA1, e.g.
+              "Mesa 26.3.0-devel (git-0123456789)"  (upstream line)
+  deviceName  "<model> MC<cores>"                  (unchanged; matches
+              upstream main's pan_model_device_name(), which also names
+              Immortalis parts by core count)
+
+PACKAGE_VERSION comes from the VERSION file of the Mesa base and
+MESA_GIT_SHA1 from bin/git_sha1_gen.py, as upstream.  The fps log header
+becomes "# panvk-fps Mesa 26.3.0-devel (git-...) pid=...", which the
+PanPlay parser ("# panvk-fps (.*?) pid=") already accepts.
+
+PANVK_KBASE_RELEASE is no longer read; scripts/build-android.sh still
+passes it when set (for rebuilding trees up to rc5g-114), and it is
+harmless here.  The build identity stays traceable through the git sha
+in driverInfo, the .so sha256 and the worklogs.
+
+No functional change.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_vX_physical_device.c | 7 +------
+ src/panfrost/vulkan/panvk_wsi.c                | 8 ++------
+ 2 files changed, 3 insertions(+), 12 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_vX_physical_device.c b/src/panfrost/vulkan/panvk_vX_physical_device.c
+index b185d4e8..e4bebf35 100644
+--- a/src/panfrost/vulkan/panvk_vX_physical_device.c
++++ b/src/panfrost/vulkan/panvk_vX_physical_device.c
+@@ -30,10 +30,6 @@
+ #include "pan_format.h"
+ #include "pan_props.h"
+ 
+-#ifndef PANVK_KBASE_RELEASE
+-#define PANVK_KBASE_RELEASE "dev"
+-#endif
+-
+ /* We reserve one ubo for push constant, one for sysvals and one per-set for the
+  * descriptor metadata  */
+ #define RESERVED_UBO_COUNT                   6
+@@ -1456,8 +1452,7 @@ panvk_per_arch(get_physical_device_properties)(
+ 
+    snprintf(properties->driverName, VK_MAX_DRIVER_NAME_SIZE, "panvk");
+    snprintf(properties->driverInfo, VK_MAX_DRIVER_INFO_SIZE,
+-            "PanVK-kbase " PANVK_KBASE_RELEASE " (Mesa " PACKAGE_VERSION
+-            MESA_GIT_SHA1 ")");
++            "Mesa " PACKAGE_VERSION MESA_GIT_SHA1);
+ 
+    /* VK_EXT_physical_device_drm */
+    if (device->drm.primary_rdev) {
+diff --git a/src/panfrost/vulkan/panvk_wsi.c b/src/panfrost/vulkan/panvk_wsi.c
+index 0e15e3a9..fed59e9d 100644
+--- a/src/panfrost/vulkan/panvk_wsi.c
++++ b/src/panfrost/vulkan/panvk_wsi.c
+@@ -810,10 +810,6 @@ panvk_wsi_finish(struct panvk_physical_device *physical_device)
+ #include "vk_common_entrypoints.h"
+ #include "wsi_common_entrypoints.h"
+ 
+-#ifndef PANVK_KBASE_RELEASE
+-#define PANVK_KBASE_RELEASE "dev"
+-#endif
+-
+ /* 0 = not read yet, 1 = off, 2 = on. */
+ static int panvk_fps_state;
+ static simple_mtx_t panvk_fps_lock = SIMPLE_MTX_INITIALIZER;
+@@ -887,8 +883,8 @@ panvk_fps_log_open(void)
+    setvbuf(panvk_fps.fp, NULL, _IOLBF, 0);
+    clock_gettime(CLOCK_REALTIME, &ts);
+    fprintf(panvk_fps.fp,
+-           "# panvk-fps PanVK-kbase " PANVK_KBASE_RELEASE
+-           " (Mesa " PACKAGE_VERSION MESA_GIT_SHA1 ") pid=%d interval_ms=%" PRIu64
++           "# panvk-fps Mesa " PACKAGE_VERSION MESA_GIT_SHA1
++           " pid=%d interval_ms=%" PRIu64
+            " first_present_unix_ms=%" PRIu64 "\n",
+            (int)getpid(), panvk_fps.interval_ns / 1000000,
+            (uint64_t)ts.tv_sec * 1000 + (uint64_t)ts.tv_nsec / 1000000);
+-- 
+2.55.0
+
