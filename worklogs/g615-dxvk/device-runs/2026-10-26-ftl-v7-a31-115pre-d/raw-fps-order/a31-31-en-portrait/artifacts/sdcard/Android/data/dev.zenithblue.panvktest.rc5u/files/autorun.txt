@@ -1,0 +1,61 @@
+GAMELOOP scenario=3
+GAMELOOP envab passes=4 source=/data/local/tmp/panprobe-env-ab.json sha256=6c91d09b7cc69f7255f92a83c2065ce05863d8cb6dbe62bc06cb7b357edb94c1
+GAMELOOP pass=1/4 name=114-knobs-1 tests=clip_cull,multi_viewport,fill_mode,geometry,tessellation,pipeline_stats env=PANVK_ANDROID_PRESENT_FENCE=0;PANVK_ANDROID_PRESENT_THREAD=0;PANVK_CMD_SLAB_CACHE=0;PANVK_CSF_DESC_DIRTY=0;PANVK_CSF_FS_IDLE_CLEAN=0;PANVK_CSF_INDIRECT_REEMIT=0;PANVK_CS_CHUNK_KB=64;PANVK_CS_FLUSH_USED=0;PANVK_DB_ALT=0;PANVK_DESC_POOL_HINT=0;PANVK_JM_CMD_POOL_AUTOTRIM=0;PANVK_JM_RESET_FLUSH=batch;PANVK_KBASE_HEAP_EAGER_TERM=0;PANVK_KBASE_JM_WARMUP=1;PANVK_KBASE_STRICT_DEVICE_CLOCK=0;PANVK_KBASE_ZERO_ALL=1;PANVK_MEM_BUDGET_PRESSURE=0;PANVK_PRELOAD_BARRIER_TRACK=0;PANVK_PRERAST_FAST_SKIP=0;PANVK_TESS_VS_REGION_MB=32;PANVK_V7_FS_COPY_ONCE=0;PANVK_V7_TESS_BATCH_DRAWS=0;PANVK_V9_PRERAST_ARENA_LAZY=0;PANVK_VB_DIRTY_CMP=0;PANVK_WSI_SW_CACHED=0;PANVK_WSI_SW_DEFER_REPLY=0
+INFO devices=1 exts=166 formats=193
+DRIVER slot=RC5 driverInfo=Mesa 26.3.0-devel (git-8a4d9f8e50)
+COMPLIANCE DXVK compliance PASS items=94 missingHard=[] missingSoft=["tiled resources tier 2 (FL12_0)","VK_EXT_conservative_rasterization (FL12_1)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","shaderFloat16","drawIndirectCount","shaderOutputLayer","samplerFilterMinmax","VK_EXT_memory_priority","VK_EXT_multi_draw","VK_EXT_sample_locations"]
+COMPLIANCE Bachata S4 compliance PASS items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","shaderFloat16","drawIndirectCount","shaderOutputLayer","subgroup_wave64"]
+COMPLIANCE vkd3d compliance PASS items=100 missingHard=[] missingSoft=["viewportSubPixelBits >= 8","64 per-stage storage buffers+images (FL11_1)","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","VK_KHR_draw_indirect_count","shaderFloat64","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: VK_EXT_conservative_rasterization","proton: ROVs (pixel+sample interlock)","proton: SM6.6 (compute derivatives linear + int64 buffer atomics + int8 + fixed wave)","proton: SM6.7 (maximal reconvergence + quad control)","proton: VK_EXT_descriptor_buffer path","proton: shaderOutputViewportIndex+Layer","proton: VK_KHR_fragment_shading_rate","proton: VK_EXT_mesh_shader","proton: VK_KHR_ray_query + acceleration_structure","proton: shaderImageInt64Atomics (sampler feedback 0.9)"]
+RESULT clip_cull PASS mismatch=0 fps=2476.0 ms=3309 pass=114-knobs-1
+RESULT multi_viewport PASS mismatch=0 fps=2275.3 ms=3186 pass=114-knobs-1
+RESULT fill_mode PASS mismatch=0 fps=2713.7 ms=4482 pass=114-knobs-1
+RESULT geometry PASS mismatch=0 fps=3084.7 ms=4182 pass=114-knobs-1
+RESULT tessellation PASS mismatch=0 fps=2506.7 ms=11104 pass=114-knobs-1
+RESULT pipeline_stats PASS mismatch=0 fps=1844.9 ms=3400 pass=114-knobs-1
+AUTORUN DONE pass=6 fail=0 skip=0 total=6 (6 pass / 0 fail / 0 skip)
+EXTERNAL READY run=20261026-090216-114-knobs-1
+GAMELOOP pass=2/4 name=defaults-1 tests=clip_cull,multi_viewport,fill_mode,geometry,tessellation,pipeline_stats env=(none)
+GAMELOOP phase 2 driver=RC5
+INFO devices=1 exts=166 formats=193
+DRIVER slot=RC5 driverInfo=Mesa 26.3.0-devel (git-8a4d9f8e50)
+COMPLIANCE DXVK compliance PASS items=94 missingHard=[] missingSoft=["tiled resources tier 2 (FL12_0)","VK_EXT_conservative_rasterization (FL12_1)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","shaderFloat16","drawIndirectCount","shaderOutputLayer","samplerFilterMinmax","VK_EXT_memory_priority","VK_EXT_multi_draw","VK_EXT_sample_locations"]
+COMPLIANCE Bachata S4 compliance PASS items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","shaderFloat16","drawIndirectCount","shaderOutputLayer","subgroup_wave64"]
+COMPLIANCE vkd3d compliance PASS items=100 missingHard=[] missingSoft=["viewportSubPixelBits >= 8","64 per-stage storage buffers+images (FL11_1)","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","VK_KHR_draw_indirect_count","shaderFloat64","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: VK_EXT_conservative_rasterization","proton: ROVs (pixel+sample interlock)","proton: SM6.6 (compute derivatives linear + int64 buffer atomics + int8 + fixed wave)","proton: SM6.7 (maximal reconvergence + quad control)","proton: VK_EXT_descriptor_buffer path","proton: shaderOutputViewportIndex+Layer","proton: VK_KHR_fragment_shading_rate","proton: VK_EXT_mesh_shader","proton: VK_KHR_ray_query + acceleration_structure","proton: shaderImageInt64Atomics (sampler feedback 0.9)"]
+RESULT clip_cull PASS mismatch=0 fps=2761.9 ms=1235 pass=defaults-1
+RESULT multi_viewport PASS mismatch=0 fps=2797.8 ms=1166 pass=defaults-1
+RESULT fill_mode PASS mismatch=0 fps=2862.7 ms=2374 pass=defaults-1
+RESULT geometry PASS mismatch=0 fps=2984.4 ms=1791 pass=defaults-1
+RESULT tessellation PASS mismatch=0 fps=2774.2 ms=8170 pass=defaults-1
+RESULT pipeline_stats PASS mismatch=0 fps=1886.7 ms=1395 pass=defaults-1
+AUTORUN DONE pass=6 fail=0 skip=0 total=6 (6 pass / 0 fail / 0 skip)
+EXTERNAL READY run=20261026-090243-defaults-1
+GAMELOOP pass=3/4 name=114-knobs-2 tests=clip_cull,multi_viewport,fill_mode,geometry,tessellation,pipeline_stats env=PANVK_ANDROID_PRESENT_FENCE=0;PANVK_ANDROID_PRESENT_THREAD=0;PANVK_CMD_SLAB_CACHE=0;PANVK_CSF_DESC_DIRTY=0;PANVK_CSF_FS_IDLE_CLEAN=0;PANVK_CSF_INDIRECT_REEMIT=0;PANVK_CS_CHUNK_KB=64;PANVK_CS_FLUSH_USED=0;PANVK_DB_ALT=0;PANVK_DESC_POOL_HINT=0;PANVK_JM_CMD_POOL_AUTOTRIM=0;PANVK_JM_RESET_FLUSH=batch;PANVK_KBASE_HEAP_EAGER_TERM=0;PANVK_KBASE_JM_WARMUP=1;PANVK_KBASE_STRICT_DEVICE_CLOCK=0;PANVK_KBASE_ZERO_ALL=1;PANVK_MEM_BUDGET_PRESSURE=0;PANVK_PRELOAD_BARRIER_TRACK=0;PANVK_PRERAST_FAST_SKIP=0;PANVK_TESS_VS_REGION_MB=32;PANVK_V7_FS_COPY_ONCE=0;PANVK_V7_TESS_BATCH_DRAWS=0;PANVK_V9_PRERAST_ARENA_LAZY=0;PANVK_VB_DIRTY_CMP=0;PANVK_WSI_SW_CACHED=0;PANVK_WSI_SW_DEFER_REPLY=0
+GAMELOOP phase 2 driver=RC5
+INFO devices=1 exts=166 formats=193
+DRIVER slot=RC5 driverInfo=Mesa 26.3.0-devel (git-8a4d9f8e50)
+COMPLIANCE DXVK compliance PASS items=94 missingHard=[] missingSoft=["tiled resources tier 2 (FL12_0)","VK_EXT_conservative_rasterization (FL12_1)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","shaderFloat16","drawIndirectCount","shaderOutputLayer","samplerFilterMinmax","VK_EXT_memory_priority","VK_EXT_multi_draw","VK_EXT_sample_locations"]
+COMPLIANCE Bachata S4 compliance PASS items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","shaderFloat16","drawIndirectCount","shaderOutputLayer","subgroup_wave64"]
+COMPLIANCE vkd3d compliance PASS items=100 missingHard=[] missingSoft=["viewportSubPixelBits >= 8","64 per-stage storage buffers+images (FL11_1)","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","VK_KHR_draw_indirect_count","shaderFloat64","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: VK_EXT_conservative_rasterization","proton: ROVs (pixel+sample interlock)","proton: SM6.6 (compute derivatives linear + int64 buffer atomics + int8 + fixed wave)","proton: SM6.7 (maximal reconvergence + quad control)","proton: VK_EXT_descriptor_buffer path","proton: shaderOutputViewportIndex+Layer","proton: VK_KHR_fragment_shading_rate","proton: VK_EXT_mesh_shader","proton: VK_KHR_ray_query + acceleration_structure","proton: shaderImageInt64Atomics (sampler feedback 0.9)"]
+RESULT clip_cull PASS mismatch=0 fps=2628.6 ms=3228 pass=114-knobs-2
+RESULT multi_viewport PASS mismatch=0 fps=2719.1 ms=3176 pass=114-knobs-2
+RESULT fill_mode PASS mismatch=0 fps=2665.4 ms=4395 pass=114-knobs-2
+RESULT geometry PASS mismatch=0 fps=2897.3 ms=3752 pass=114-knobs-2
+RESULT tessellation PASS mismatch=0 fps=2828.8 ms=10070 pass=114-knobs-2
+RESULT pipeline_stats PASS mismatch=0 fps=1794.8 ms=3303 pass=114-knobs-2
+AUTORUN DONE pass=6 fail=0 skip=0 total=6 (6 pass / 0 fail / 0 skip)
+EXTERNAL READY run=20261026-090321-114-knobs-2
+GAMELOOP pass=4/4 name=defaults-2 tests=clip_cull,multi_viewport,fill_mode,geometry,tessellation,pipeline_stats env=(none)
+GAMELOOP phase 2 driver=RC5
+INFO devices=1 exts=166 formats=193
+DRIVER slot=RC5 driverInfo=Mesa 26.3.0-devel (git-8a4d9f8e50)
+COMPLIANCE DXVK compliance PASS items=94 missingHard=[] missingSoft=["tiled resources tier 2 (FL12_0)","VK_EXT_conservative_rasterization (FL12_1)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","shaderFloat16","drawIndirectCount","shaderOutputLayer","samplerFilterMinmax","VK_EXT_memory_priority","VK_EXT_multi_draw","VK_EXT_sample_locations"]
+COMPLIANCE Bachata S4 compliance PASS items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","shaderFloat16","drawIndirectCount","shaderOutputLayer","subgroup_wave64"]
+COMPLIANCE vkd3d compliance PASS items=100 missingHard=[] missingSoft=["viewportSubPixelBits >= 8","64 per-stage storage buffers+images (FL11_1)","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","VK_KHR_draw_indirect_count","shaderFloat64","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: VK_EXT_conservative_rasterization","proton: ROVs (pixel+sample interlock)","proton: SM6.6 (compute derivatives linear + int64 buffer atomics + int8 + fixed wave)","proton: SM6.7 (maximal reconvergence + quad control)","proton: VK_EXT_descriptor_buffer path","proton: shaderOutputViewportIndex+Layer","proton: VK_KHR_fragment_shading_rate","proton: VK_EXT_mesh_shader","proton: VK_KHR_ray_query + acceleration_structure","proton: shaderImageInt64Atomics (sampler feedback 0.9)"]
+RESULT clip_cull PASS mismatch=0 fps=2798.5 ms=1171 pass=defaults-2
+RESULT multi_viewport PASS mismatch=0 fps=2733.5 ms=1156 pass=defaults-2
+RESULT fill_mode PASS mismatch=0 fps=2877.8 ms=2462 pass=defaults-2
+RESULT geometry PASS mismatch=0 fps=2912.8 ms=1730 pass=defaults-2
+RESULT tessellation PASS mismatch=0 fps=2813.4 ms=7967 pass=defaults-2
+RESULT pipeline_stats PASS mismatch=0 fps=1926.5 ms=1270 pass=defaults-2
+AUTORUN DONE pass=6 fail=0 skip=0 total=6 (6 pass / 0 fail / 0 skip)
+EXTERNAL READY run=20261026-090347-defaults-2

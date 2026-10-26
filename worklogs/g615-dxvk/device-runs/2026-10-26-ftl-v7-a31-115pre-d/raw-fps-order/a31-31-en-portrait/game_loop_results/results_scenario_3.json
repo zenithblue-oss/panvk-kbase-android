@@ -1,0 +1,754 @@
+{
+  "app": "1.2.7",
+  "uploadId": null,
+  "uploadStatus": null,
+  "pass": 6,
+  "fail": 0,
+  "skip": 0,
+  "tests": [
+    {
+      "name": "clip_cull",
+      "status": "PASS",
+      "ms": 1171,
+      "extra": null
+    },
+    {
+      "name": "multi_viewport",
+      "status": "PASS",
+      "ms": 1156,
+      "extra": null
+    },
+    {
+      "name": "fill_mode",
+      "status": "PASS",
+      "ms": 2462,
+      "extra": null
+    },
+    {
+      "name": "geometry",
+      "status": "PASS",
+      "ms": 1730,
+      "extra": null
+    },
+    {
+      "name": "tessellation",
+      "status": "PASS",
+      "ms": 7967,
+      "extra": null
+    },
+    {
+      "name": "pipeline_stats",
+      "status": "PASS",
+      "ms": 1270,
+      "extra": null
+    }
+  ],
+  "driverLoad": {
+    "source": "bundled-rc5",
+    "driverType": "Bundled Mesa PanVK",
+    "path": "\/data\/app\/~~eYxyovkqEKTxt_l9glDzTA==\/dev.zenithblue.panvktest.rc5u-tJyXuJg5kkXCZAyoBZZGKQ==\/lib\/arm64\/libvulkan_panfrost_rc5.so",
+    "readable": true,
+    "soSha256": "7f2260f0598e9f062eb08d96a6a3698c4b1d1c6d8ae90bb9854a36dde2b9d544",
+    "buildId": "c4f0d9c91dcc400b53f77eac3a4d141687b66bf8",
+    "driverName": "panvk",
+    "vendorIcdFallback": false,
+    "driverVersion": 109060195,
+    "driverInfo": "Mesa 26.3.0-devel (git-8a4d9f8e50)",
+    "bundledRelease": {
+      "id": "mesa-panvk-26.3.0-devel-git-6a5d4e2756",
+      "name": "Mesa PanVK",
+      "packageVersion": "0.1.0-rc5-115pre",
+      "displayVersion": "26.3.0-devel (git-6a5d4e2756)",
+      "sourceCommit": null,
+      "buildId": "c4f0d9c91dcc400b53f77eac3a4d141687b66bf8",
+      "expectedSha256": "7f2260f0598e9f062eb08d96a6a3698c4b1d1c6d8ae90bb9854a36dde2b9d544"
+    },
+    "loadSuccess": true,
+    "deviceCount": 1,
+    "loadError": null,
+    "vkinfoLogTail": [
+      "MESA: info: kbase: JM driver, uAPI version 11.27, page_size=4096",
+      "MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56",
+      "MESA: info: kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)",
+      "MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region",
+      "MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)",
+      "MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)",
+      "MESA: warning: kbase: GPU timestamp counter measured at 26000397 Hz (25999605 \/ 26001190), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)",
+      "MESA: info: kbase: no usable ION system heap",
+      "MESA: info: panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6",
+      "MESA: warning: panvk: v7 (Bifrost) support is experimental",
+      "MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe03fe)",
+      "WARNING: panvk is not a conformant Vulkan implementation, testing use only.",
+      "MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)",
+      "MESA: info: Using fallback gralloc implementation"
+    ],
+    "kbaseUapi": "JM 11.27",
+    "gpuId": "0x74021000",
+    "bcEmulation": "BC emulation on (native compressed mask 0xf7fe03fe)",
+    "pageSize": 4096,
+    "appVersion": "1.2.7"
+  },
+  "driver": {
+    "type": "Bundled Mesa PanVK",
+    "bundled": true,
+    "path": "\/data\/app\/~~eYxyovkqEKTxt_l9glDzTA==\/dev.zenithblue.panvktest.rc5u-tJyXuJg5kkXCZAyoBZZGKQ==\/lib\/arm64\/libvulkan_panfrost_rc5.so",
+    "soSha256": "7f2260f0598e9f062eb08d96a6a3698c4b1d1c6d8ae90bb9854a36dde2b9d544",
+    "buildId": "c4f0d9c91dcc400b53f77eac3a4d141687b66bf8",
+    "driverName": "Mesa PanVK",
+    "driverInfo": "Mesa 26.3.0-devel (git-8a4d9f8e50)",
+    "driverVersion": "26.3.0-devel (git-6a5d4e2756)"
+  },
+  "device": {
+    "manufacturer": "samsung",
+    "model": "SM-A315N",
+    "board": "a31",
+    "hardware": "mt6768",
+    "socManufacturer": "Mediatek",
+    "socModel": "MT6768V\/CA"
+  },
+  "gpu": {
+    "glRenderer": "Mali-G52 MC2",
+    "glVendor": "ARM",
+    "glVersion": "OpenGL ES 3.2 v1.r26p0-01eac0.455662e55e7c7fb95a4b1db7e7af49a8",
+    "deviceName": "Mali-G52 r1 MC2",
+    "deviceID": 1946292224,
+    "vendorID": 5045,
+    "apiVersion": "1.3.363",
+    "gpuinfo": null,
+    "gpuinfo_unavailable_reason": "not readable (SELinux\/permissions)",
+    "gpuId": "0x74021000",
+    "arch": "v7",
+    "gpuModel": "Mali-G52 r1 MC2"
+  },
+  "android": {
+    "release": "12",
+    "sdk": 31,
+    "kernel": "4.14.186-25685223"
+  },
+  "deviceFacts": {
+    "kbaseUapi": "JM 11.27",
+    "gpuId": "0x74021000",
+    "textureFeatures": "0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6",
+    "bcEmulation": "BC emulation on (native compressed mask 0xf7fe03fe)",
+    "pageSize": 4096,
+    "kernel": "4.14.186-25685223",
+    "procVersion": null,
+    "props": {
+      "ro.board.platform": "mt6768",
+      "ro.build.version.release": "12",
+      "ro.build.version.sdk": "31",
+      "ro.hardware": "mt6768",
+      "ro.hardware.egl": "mali",
+      "ro.product.first_api_level": "29",
+      "ro.soc.manufacturer": "Mediatek",
+      "ro.soc.model": "MT6768V\/CA",
+      "ro.vndk.version": "31"
+    },
+    "mapperLibs": [
+      "\/vendor\/lib64\/hw\/android.hardware.graphics.mapper@4.0-impl-mediatek.so"
+    ],
+    "driverLines": [
+      "kbase: JM driver, uAPI version 11.27, page_size=4096",
+      "panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6",
+      "panvk: BC emulation on (native compressed mask 0xf7fe03fe)",
+      "kbase: mem_alloc via ALLOC",
+      "kbase: JM driver, uAPI version 11.27, page_size=4096\",",
+      "panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6\",",
+      "panvk: BC emulation on (native compressed mask 0xf7fe03fe)\",",
+      "kbase: mem_alloc via ALLOC\",",
+      "kbase: JM driver, uAPI version 11.27, page_size=4096\\\",\",",
+      "panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6\\\",\",",
+      "panvk: BC emulation on (native compressed mask 0xf7fe03fe)\\\",\",",
+      "kbase: mem_alloc via ALLOC\\\"\"",
+      "kbase: mem_alloc via ALLOC\"",
+      "kbase: mem_alloc via ALLOC\\\"\",",
+      "kbase: mem_alloc via ALLOC\\\",\",",
+      "kbase: JM driver, uAPI version 11.27, page_size=4096\\\\\\\",\\\",\",",
+      "panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6\\\\\\\",\\\",\",",
+      "panvk: BC emulation on (native compressed mask 0xf7fe03fe)\\\\\\\",\\\",\",",
+      "kbase: mem_alloc via ALLOC\\\\\\\"\\\"\""
+    ]
+  },
+  "complete": true,
+  "driverSlot": "RC5",
+  "envPass": {
+    "name": "defaults-2",
+    "index": 4,
+    "count": 4,
+    "env": [],
+    "tests": "clip_cull,multi_viewport,fill_mode,geometry,tessellation,pipeline_stats",
+    "source": "\/data\/local\/tmp\/panprobe-env-ab.json sha256=6c91d09b7cc69f7255f92a83c2065ce05863d8cb6dbe62bc06cb7b357edb94c1"
+  },
+  "previousPhases": [
+    {
+      "app": "1.2.7",
+      "uploadId": null,
+      "uploadStatus": null,
+      "pass": 6,
+      "fail": 0,
+      "skip": 0,
+      "tests": [
+        {
+          "name": "clip_cull",
+          "status": "PASS",
+          "ms": 3309,
+          "extra": null
+        },
+        {
+          "name": "multi_viewport",
+          "status": "PASS",
+          "ms": 3186,
+          "extra": null
+        },
+        {
+          "name": "fill_mode",
+          "status": "PASS",
+          "ms": 4482,
+          "extra": null
+        },
+        {
+          "name": "geometry",
+          "status": "PASS",
+          "ms": 4182,
+          "extra": null
+        },
+        {
+          "name": "tessellation",
+          "status": "PASS",
+          "ms": 11104,
+          "extra": null
+        },
+        {
+          "name": "pipeline_stats",
+          "status": "PASS",
+          "ms": 3400,
+          "extra": null
+        }
+      ],
+      "driverLoad": {
+        "source": "bundled-rc5",
+        "driverType": "Bundled Mesa PanVK",
+        "path": "\/data\/app\/~~eYxyovkqEKTxt_l9glDzTA==\/dev.zenithblue.panvktest.rc5u-tJyXuJg5kkXCZAyoBZZGKQ==\/lib\/arm64\/libvulkan_panfrost_rc5.so",
+        "readable": true,
+        "soSha256": "7f2260f0598e9f062eb08d96a6a3698c4b1d1c6d8ae90bb9854a36dde2b9d544",
+        "buildId": "c4f0d9c91dcc400b53f77eac3a4d141687b66bf8",
+        "driverName": "panvk",
+        "vendorIcdFallback": false,
+        "driverVersion": 109060195,
+        "driverInfo": "Mesa 26.3.0-devel (git-8a4d9f8e50)",
+        "bundledRelease": {
+          "id": "mesa-panvk-26.3.0-devel-git-6a5d4e2756",
+          "name": "Mesa PanVK",
+          "packageVersion": "0.1.0-rc5-115pre",
+          "displayVersion": "26.3.0-devel (git-6a5d4e2756)",
+          "sourceCommit": null,
+          "buildId": "c4f0d9c91dcc400b53f77eac3a4d141687b66bf8",
+          "expectedSha256": "7f2260f0598e9f062eb08d96a6a3698c4b1d1c6d8ae90bb9854a36dde2b9d544"
+        },
+        "loadSuccess": true,
+        "deviceCount": 1,
+        "loadError": null,
+        "vkinfoLogTail": [
+          "MESA: info: panvk: 114 behaviour restored for: PANVK_CSF_FS_IDLE_CLEAN PANVK_DB_ALT PANVK_CSF_INDIRECT_REEMIT PANVK_CSF_DESC_DIRTY PANVK_VB_DIRTY_CMP PANVK_PRERAST_FAST_SKIP PANVK_DESC_POOL_HINT PANVK_WSI_SW_CACHED PANVK_WSI_SW_DEFER_REPLY PANVK_ANDROID_PRESENT_FENCE PANVK_ANDROID_PRESENT_THREAD PANVK_PRELOAD_BARRIER_TRACK",
+          "MESA: info: kbase: JM driver, uAPI version 11.27, page_size=4096",
+          "MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56",
+          "MESA: info: kbase: JM warm-up 2000 ms (first JM open in this process)",
+          "MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region",
+          "MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)",
+          "MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)",
+          "MESA: warning: kbase: GPU timestamp counter measured at 26000192 Hz (26000380 \/ 26000004), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)",
+          "MESA: info: kbase: no usable ION system heap",
+          "MESA: info: panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6",
+          "MESA: warning: panvk: v7 (Bifrost) support is experimental",
+          "MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe03fe)",
+          "WARNING: panvk is not a conformant Vulkan implementation, testing use only.",
+          "MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)",
+          "MESA: info: Using fallback gralloc implementation"
+        ],
+        "kbaseUapi": "JM 11.27",
+        "gpuId": "0x74021000",
+        "bcEmulation": "BC emulation on (native compressed mask 0xf7fe03fe)",
+        "pageSize": 4096,
+        "appVersion": "1.2.7"
+      },
+      "driver": {
+        "type": "Bundled Mesa PanVK",
+        "bundled": true,
+        "path": "\/data\/app\/~~eYxyovkqEKTxt_l9glDzTA==\/dev.zenithblue.panvktest.rc5u-tJyXuJg5kkXCZAyoBZZGKQ==\/lib\/arm64\/libvulkan_panfrost_rc5.so",
+        "soSha256": "7f2260f0598e9f062eb08d96a6a3698c4b1d1c6d8ae90bb9854a36dde2b9d544",
+        "buildId": "c4f0d9c91dcc400b53f77eac3a4d141687b66bf8",
+        "driverName": "Mesa PanVK",
+        "driverInfo": "Mesa 26.3.0-devel (git-8a4d9f8e50)",
+        "driverVersion": "26.3.0-devel (git-6a5d4e2756)"
+      },
+      "device": {
+        "manufacturer": "samsung",
+        "model": "SM-A315N",
+        "board": "a31",
+        "hardware": "mt6768",
+        "socManufacturer": "Mediatek",
+        "socModel": "MT6768V\/CA"
+      },
+      "gpu": {
+        "glRenderer": "Mali-G52 MC2",
+        "glVendor": "ARM",
+        "glVersion": "OpenGL ES 3.2 v1.r26p0-01eac0.455662e55e7c7fb95a4b1db7e7af49a8",
+        "deviceName": "Mali-G52 r1 MC2",
+        "deviceID": 1946292224,
+        "vendorID": 5045,
+        "apiVersion": "1.3.363",
+        "gpuinfo": null,
+        "gpuinfo_unavailable_reason": "not readable (SELinux\/permissions)",
+        "gpuId": "0x74021000",
+        "arch": "v7",
+        "gpuModel": "Mali-G52 r1 MC2"
+      },
+      "android": {
+        "release": "12",
+        "sdk": 31,
+        "kernel": "4.14.186-25685223"
+      },
+      "deviceFacts": {
+        "kbaseUapi": "JM 11.27",
+        "gpuId": "0x74021000",
+        "textureFeatures": "0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6",
+        "bcEmulation": "BC emulation on (native compressed mask 0xf7fe03fe)",
+        "pageSize": 4096,
+        "kernel": "4.14.186-25685223",
+        "procVersion": null,
+        "props": {
+          "ro.board.platform": "mt6768",
+          "ro.build.version.release": "12",
+          "ro.build.version.sdk": "31",
+          "ro.hardware": "mt6768",
+          "ro.hardware.egl": "mali",
+          "ro.product.first_api_level": "29",
+          "ro.soc.manufacturer": "Mediatek",
+          "ro.soc.model": "MT6768V\/CA",
+          "ro.vndk.version": "31"
+        },
+        "mapperLibs": [
+          "\/vendor\/lib64\/hw\/android.hardware.graphics.mapper@4.0-impl-mediatek.so"
+        ],
+        "driverLines": [
+          "kbase: JM driver, uAPI version 11.27, page_size=4096",
+          "panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6",
+          "panvk: BC emulation on (native compressed mask 0xf7fe03fe)",
+          "kbase: mem_alloc via ALLOC"
+        ]
+      },
+      "complete": true,
+      "driverSlot": "RC5",
+      "envPass": {
+        "name": "114-knobs-1",
+        "index": 1,
+        "count": 4,
+        "env": [
+          "PANVK_ANDROID_PRESENT_FENCE=0",
+          "PANVK_ANDROID_PRESENT_THREAD=0",
+          "PANVK_CMD_SLAB_CACHE=0",
+          "PANVK_CSF_DESC_DIRTY=0",
+          "PANVK_CSF_FS_IDLE_CLEAN=0",
+          "PANVK_CSF_INDIRECT_REEMIT=0",
+          "PANVK_CS_CHUNK_KB=64",
+          "PANVK_CS_FLUSH_USED=0",
+          "PANVK_DB_ALT=0",
+          "PANVK_DESC_POOL_HINT=0",
+          "PANVK_JM_CMD_POOL_AUTOTRIM=0",
+          "PANVK_JM_RESET_FLUSH=batch",
+          "PANVK_KBASE_HEAP_EAGER_TERM=0",
+          "PANVK_KBASE_JM_WARMUP=1",
+          "PANVK_KBASE_STRICT_DEVICE_CLOCK=0",
+          "PANVK_KBASE_ZERO_ALL=1",
+          "PANVK_MEM_BUDGET_PRESSURE=0",
+          "PANVK_PRELOAD_BARRIER_TRACK=0",
+          "PANVK_PRERAST_FAST_SKIP=0",
+          "PANVK_TESS_VS_REGION_MB=32",
+          "PANVK_V7_FS_COPY_ONCE=0",
+          "PANVK_V7_TESS_BATCH_DRAWS=0",
+          "PANVK_V9_PRERAST_ARENA_LAZY=0",
+          "PANVK_VB_DIRTY_CMP=0",
+          "PANVK_WSI_SW_CACHED=0",
+          "PANVK_WSI_SW_DEFER_REPLY=0"
+        ],
+        "tests": "clip_cull,multi_viewport,fill_mode,geometry,tessellation,pipeline_stats",
+        "source": "\/data\/local\/tmp\/panprobe-env-ab.json sha256=6c91d09b7cc69f7255f92a83c2065ce05863d8cb6dbe62bc06cb7b357edb94c1"
+      }
+    },
+    {
+      "app": "1.2.7",
+      "uploadId": null,
+      "uploadStatus": null,
+      "pass": 6,
+      "fail": 0,
+      "skip": 0,
+      "tests": [
+        {
+          "name": "clip_cull",
+          "status": "PASS",
+          "ms": 1235,
+          "extra": null
+        },
+        {
+          "name": "multi_viewport",
+          "status": "PASS",
+          "ms": 1166,
+          "extra": null
+        },
+        {
+          "name": "fill_mode",
+          "status": "PASS",
+          "ms": 2374,
+          "extra": null
+        },
+        {
+          "name": "geometry",
+          "status": "PASS",
+          "ms": 1791,
+          "extra": null
+        },
+        {
+          "name": "tessellation",
+          "status": "PASS",
+          "ms": 8170,
+          "extra": null
+        },
+        {
+          "name": "pipeline_stats",
+          "status": "PASS",
+          "ms": 1395,
+          "extra": null
+        }
+      ],
+      "driverLoad": {
+        "source": "bundled-rc5",
+        "driverType": "Bundled Mesa PanVK",
+        "path": "\/data\/app\/~~eYxyovkqEKTxt_l9glDzTA==\/dev.zenithblue.panvktest.rc5u-tJyXuJg5kkXCZAyoBZZGKQ==\/lib\/arm64\/libvulkan_panfrost_rc5.so",
+        "readable": true,
+        "soSha256": "7f2260f0598e9f062eb08d96a6a3698c4b1d1c6d8ae90bb9854a36dde2b9d544",
+        "buildId": "c4f0d9c91dcc400b53f77eac3a4d141687b66bf8",
+        "driverName": "panvk",
+        "vendorIcdFallback": false,
+        "driverVersion": 109060195,
+        "driverInfo": "Mesa 26.3.0-devel (git-8a4d9f8e50)",
+        "bundledRelease": {
+          "id": "mesa-panvk-26.3.0-devel-git-6a5d4e2756",
+          "name": "Mesa PanVK",
+          "packageVersion": "0.1.0-rc5-115pre",
+          "displayVersion": "26.3.0-devel (git-6a5d4e2756)",
+          "sourceCommit": null,
+          "buildId": "c4f0d9c91dcc400b53f77eac3a4d141687b66bf8",
+          "expectedSha256": "7f2260f0598e9f062eb08d96a6a3698c4b1d1c6d8ae90bb9854a36dde2b9d544"
+        },
+        "loadSuccess": true,
+        "deviceCount": 1,
+        "loadError": null,
+        "vkinfoLogTail": [
+          "MESA: info: kbase: JM driver, uAPI version 11.27, page_size=4096",
+          "MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56",
+          "MESA: info: kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)",
+          "MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region",
+          "MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)",
+          "MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)",
+          "MESA: warning: kbase: GPU timestamp counter measured at 26000785 Hz (26000391 \/ 26001179), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)",
+          "MESA: info: kbase: no usable ION system heap",
+          "MESA: info: panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6",
+          "MESA: warning: panvk: v7 (Bifrost) support is experimental",
+          "MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe03fe)",
+          "WARNING: panvk is not a conformant Vulkan implementation, testing use only.",
+          "MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)",
+          "MESA: info: Using fallback gralloc implementation"
+        ],
+        "kbaseUapi": "JM 11.27",
+        "gpuId": "0x74021000",
+        "bcEmulation": "BC emulation on (native compressed mask 0xf7fe03fe)",
+        "pageSize": 4096,
+        "appVersion": "1.2.7"
+      },
+      "driver": {
+        "type": "Bundled Mesa PanVK",
+        "bundled": true,
+        "path": "\/data\/app\/~~eYxyovkqEKTxt_l9glDzTA==\/dev.zenithblue.panvktest.rc5u-tJyXuJg5kkXCZAyoBZZGKQ==\/lib\/arm64\/libvulkan_panfrost_rc5.so",
+        "soSha256": "7f2260f0598e9f062eb08d96a6a3698c4b1d1c6d8ae90bb9854a36dde2b9d544",
+        "buildId": "c4f0d9c91dcc400b53f77eac3a4d141687b66bf8",
+        "driverName": "Mesa PanVK",
+        "driverInfo": "Mesa 26.3.0-devel (git-8a4d9f8e50)",
+        "driverVersion": "26.3.0-devel (git-6a5d4e2756)"
+      },
+      "device": {
+        "manufacturer": "samsung",
+        "model": "SM-A315N",
+        "board": "a31",
+        "hardware": "mt6768",
+        "socManufacturer": "Mediatek",
+        "socModel": "MT6768V\/CA"
+      },
+      "gpu": {
+        "glRenderer": "Mali-G52 MC2",
+        "glVendor": "ARM",
+        "glVersion": "OpenGL ES 3.2 v1.r26p0-01eac0.455662e55e7c7fb95a4b1db7e7af49a8",
+        "deviceName": "Mali-G52 r1 MC2",
+        "deviceID": 1946292224,
+        "vendorID": 5045,
+        "apiVersion": "1.3.363",
+        "gpuinfo": null,
+        "gpuinfo_unavailable_reason": "not readable (SELinux\/permissions)",
+        "gpuId": "0x74021000",
+        "arch": "v7",
+        "gpuModel": "Mali-G52 r1 MC2"
+      },
+      "android": {
+        "release": "12",
+        "sdk": 31,
+        "kernel": "4.14.186-25685223"
+      },
+      "deviceFacts": {
+        "kbaseUapi": "JM 11.27",
+        "gpuId": "0x74021000",
+        "textureFeatures": "0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6",
+        "bcEmulation": "BC emulation on (native compressed mask 0xf7fe03fe)",
+        "pageSize": 4096,
+        "kernel": "4.14.186-25685223",
+        "procVersion": null,
+        "props": {
+          "ro.board.platform": "mt6768",
+          "ro.build.version.release": "12",
+          "ro.build.version.sdk": "31",
+          "ro.hardware": "mt6768",
+          "ro.hardware.egl": "mali",
+          "ro.product.first_api_level": "29",
+          "ro.soc.manufacturer": "Mediatek",
+          "ro.soc.model": "MT6768V\/CA",
+          "ro.vndk.version": "31"
+        },
+        "mapperLibs": [
+          "\/vendor\/lib64\/hw\/android.hardware.graphics.mapper@4.0-impl-mediatek.so"
+        ],
+        "driverLines": [
+          "kbase: JM driver, uAPI version 11.27, page_size=4096",
+          "panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6",
+          "panvk: BC emulation on (native compressed mask 0xf7fe03fe)",
+          "kbase: mem_alloc via ALLOC",
+          "kbase: JM driver, uAPI version 11.27, page_size=4096\",",
+          "panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6\",",
+          "panvk: BC emulation on (native compressed mask 0xf7fe03fe)\",",
+          "kbase: mem_alloc via ALLOC\""
+        ]
+      },
+      "complete": true,
+      "driverSlot": "RC5",
+      "envPass": {
+        "name": "defaults-1",
+        "index": 2,
+        "count": 4,
+        "env": [],
+        "tests": "clip_cull,multi_viewport,fill_mode,geometry,tessellation,pipeline_stats",
+        "source": "\/data\/local\/tmp\/panprobe-env-ab.json sha256=6c91d09b7cc69f7255f92a83c2065ce05863d8cb6dbe62bc06cb7b357edb94c1"
+      }
+    },
+    {
+      "app": "1.2.7",
+      "uploadId": null,
+      "uploadStatus": null,
+      "pass": 6,
+      "fail": 0,
+      "skip": 0,
+      "tests": [
+        {
+          "name": "clip_cull",
+          "status": "PASS",
+          "ms": 3228,
+          "extra": null
+        },
+        {
+          "name": "multi_viewport",
+          "status": "PASS",
+          "ms": 3176,
+          "extra": null
+        },
+        {
+          "name": "fill_mode",
+          "status": "PASS",
+          "ms": 4395,
+          "extra": null
+        },
+        {
+          "name": "geometry",
+          "status": "PASS",
+          "ms": 3752,
+          "extra": null
+        },
+        {
+          "name": "tessellation",
+          "status": "PASS",
+          "ms": 10070,
+          "extra": null
+        },
+        {
+          "name": "pipeline_stats",
+          "status": "PASS",
+          "ms": 3303,
+          "extra": null
+        }
+      ],
+      "driverLoad": {
+        "source": "bundled-rc5",
+        "driverType": "Bundled Mesa PanVK",
+        "path": "\/data\/app\/~~eYxyovkqEKTxt_l9glDzTA==\/dev.zenithblue.panvktest.rc5u-tJyXuJg5kkXCZAyoBZZGKQ==\/lib\/arm64\/libvulkan_panfrost_rc5.so",
+        "readable": true,
+        "soSha256": "7f2260f0598e9f062eb08d96a6a3698c4b1d1c6d8ae90bb9854a36dde2b9d544",
+        "buildId": "c4f0d9c91dcc400b53f77eac3a4d141687b66bf8",
+        "driverName": "panvk",
+        "vendorIcdFallback": false,
+        "driverVersion": 109060195,
+        "driverInfo": "Mesa 26.3.0-devel (git-8a4d9f8e50)",
+        "bundledRelease": {
+          "id": "mesa-panvk-26.3.0-devel-git-6a5d4e2756",
+          "name": "Mesa PanVK",
+          "packageVersion": "0.1.0-rc5-115pre",
+          "displayVersion": "26.3.0-devel (git-6a5d4e2756)",
+          "sourceCommit": null,
+          "buildId": "c4f0d9c91dcc400b53f77eac3a4d141687b66bf8",
+          "expectedSha256": "7f2260f0598e9f062eb08d96a6a3698c4b1d1c6d8ae90bb9854a36dde2b9d544"
+        },
+        "loadSuccess": true,
+        "deviceCount": 1,
+        "loadError": null,
+        "vkinfoLogTail": [
+          "MESA: info: panvk: 114 behaviour restored for: PANVK_CSF_FS_IDLE_CLEAN PANVK_DB_ALT PANVK_CSF_INDIRECT_REEMIT PANVK_CSF_DESC_DIRTY PANVK_VB_DIRTY_CMP PANVK_PRERAST_FAST_SKIP PANVK_DESC_POOL_HINT PANVK_WSI_SW_CACHED PANVK_WSI_SW_DEFER_REPLY PANVK_ANDROID_PRESENT_FENCE PANVK_ANDROID_PRESENT_THREAD PANVK_PRELOAD_BARRIER_TRACK",
+          "MESA: info: kbase: JM driver, uAPI version 11.27, page_size=4096",
+          "MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56",
+          "MESA: info: kbase: JM warm-up 2000 ms (first JM open in this process)",
+          "MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region",
+          "MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)",
+          "MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)",
+          "MESA: warning: kbase: GPU timestamp counter measured at 26000782 Hz (26001167 \/ 26000398), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)",
+          "MESA: info: kbase: no usable ION system heap",
+          "MESA: info: panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6",
+          "MESA: warning: panvk: v7 (Bifrost) support is experimental",
+          "MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe03fe)",
+          "WARNING: panvk is not a conformant Vulkan implementation, testing use only.",
+          "MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)",
+          "MESA: info: Using fallback gralloc implementation"
+        ],
+        "kbaseUapi": "JM 11.27",
+        "gpuId": "0x74021000",
+        "bcEmulation": "BC emulation on (native compressed mask 0xf7fe03fe)",
+        "pageSize": 4096,
+        "appVersion": "1.2.7"
+      },
+      "driver": {
+        "type": "Bundled Mesa PanVK",
+        "bundled": true,
+        "path": "\/data\/app\/~~eYxyovkqEKTxt_l9glDzTA==\/dev.zenithblue.panvktest.rc5u-tJyXuJg5kkXCZAyoBZZGKQ==\/lib\/arm64\/libvulkan_panfrost_rc5.so",
+        "soSha256": "7f2260f0598e9f062eb08d96a6a3698c4b1d1c6d8ae90bb9854a36dde2b9d544",
+        "buildId": "c4f0d9c91dcc400b53f77eac3a4d141687b66bf8",
+        "driverName": "Mesa PanVK",
+        "driverInfo": "Mesa 26.3.0-devel (git-8a4d9f8e50)",
+        "driverVersion": "26.3.0-devel (git-6a5d4e2756)"
+      },
+      "device": {
+        "manufacturer": "samsung",
+        "model": "SM-A315N",
+        "board": "a31",
+        "hardware": "mt6768",
+        "socManufacturer": "Mediatek",
+        "socModel": "MT6768V\/CA"
+      },
+      "gpu": {
+        "glRenderer": "Mali-G52 MC2",
+        "glVendor": "ARM",
+        "glVersion": "OpenGL ES 3.2 v1.r26p0-01eac0.455662e55e7c7fb95a4b1db7e7af49a8",
+        "deviceName": "Mali-G52 r1 MC2",
+        "deviceID": 1946292224,
+        "vendorID": 5045,
+        "apiVersion": "1.3.363",
+        "gpuinfo": null,
+        "gpuinfo_unavailable_reason": "not readable (SELinux\/permissions)",
+        "gpuId": "0x74021000",
+        "arch": "v7",
+        "gpuModel": "Mali-G52 r1 MC2"
+      },
+      "android": {
+        "release": "12",
+        "sdk": 31,
+        "kernel": "4.14.186-25685223"
+      },
+      "deviceFacts": {
+        "kbaseUapi": "JM 11.27",
+        "gpuId": "0x74021000",
+        "textureFeatures": "0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6",
+        "bcEmulation": "BC emulation on (native compressed mask 0xf7fe03fe)",
+        "pageSize": 4096,
+        "kernel": "4.14.186-25685223",
+        "procVersion": null,
+        "props": {
+          "ro.board.platform": "mt6768",
+          "ro.build.version.release": "12",
+          "ro.build.version.sdk": "31",
+          "ro.hardware": "mt6768",
+          "ro.hardware.egl": "mali",
+          "ro.product.first_api_level": "29",
+          "ro.soc.manufacturer": "Mediatek",
+          "ro.soc.model": "MT6768V\/CA",
+          "ro.vndk.version": "31"
+        },
+        "mapperLibs": [
+          "\/vendor\/lib64\/hw\/android.hardware.graphics.mapper@4.0-impl-mediatek.so"
+        ],
+        "driverLines": [
+          "kbase: JM driver, uAPI version 11.27, page_size=4096",
+          "panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6",
+          "panvk: BC emulation on (native compressed mask 0xf7fe03fe)",
+          "kbase: mem_alloc via ALLOC",
+          "kbase: JM driver, uAPI version 11.27, page_size=4096\",",
+          "panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6\",",
+          "panvk: BC emulation on (native compressed mask 0xf7fe03fe)\",",
+          "kbase: mem_alloc via ALLOC\"",
+          "kbase: mem_alloc via ALLOC\",",
+          "kbase: JM driver, uAPI version 11.27, page_size=4096\\\",\",",
+          "panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6\\\",\",",
+          "panvk: BC emulation on (native compressed mask 0xf7fe03fe)\\\",\",",
+          "kbase: mem_alloc via ALLOC\\\"\""
+        ]
+      },
+      "complete": true,
+      "driverSlot": "RC5",
+      "envPass": {
+        "name": "114-knobs-2",
+        "index": 3,
+        "count": 4,
+        "env": [
+          "PANVK_ANDROID_PRESENT_FENCE=0",
+          "PANVK_ANDROID_PRESENT_THREAD=0",
+          "PANVK_CMD_SLAB_CACHE=0",
+          "PANVK_CSF_DESC_DIRTY=0",
+          "PANVK_CSF_FS_IDLE_CLEAN=0",
+          "PANVK_CSF_INDIRECT_REEMIT=0",
+          "PANVK_CS_CHUNK_KB=64",
+          "PANVK_CS_FLUSH_USED=0",
+          "PANVK_DB_ALT=0",
+          "PANVK_DESC_POOL_HINT=0",
+          "PANVK_JM_CMD_POOL_AUTOTRIM=0",
+          "PANVK_JM_RESET_FLUSH=batch",
+          "PANVK_KBASE_HEAP_EAGER_TERM=0",
+          "PANVK_KBASE_JM_WARMUP=1",
+          "PANVK_KBASE_STRICT_DEVICE_CLOCK=0",
+          "PANVK_KBASE_ZERO_ALL=1",
+          "PANVK_MEM_BUDGET_PRESSURE=0",
+          "PANVK_PRELOAD_BARRIER_TRACK=0",
+          "PANVK_PRERAST_FAST_SKIP=0",
+          "PANVK_TESS_VS_REGION_MB=32",
+          "PANVK_V7_FS_COPY_ONCE=0",
+          "PANVK_V7_TESS_BATCH_DRAWS=0",
+          "PANVK_V9_PRERAST_ARENA_LAZY=0",
+          "PANVK_VB_DIRTY_CMP=0",
+          "PANVK_WSI_SW_CACHED=0",
+          "PANVK_WSI_SW_DEFER_REPLY=0"
+        ],
+        "tests": "clip_cull,multi_viewport,fill_mode,geometry,tessellation,pipeline_stats",
+        "source": "\/data\/local\/tmp\/panprobe-env-ab.json sha256=6c91d09b7cc69f7255f92a83c2065ce05863d8cb6dbe62bc06cb7b357edb94c1"
+      }
+    }
+  ]
+}

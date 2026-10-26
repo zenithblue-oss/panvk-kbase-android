@@ -142,6 +142,8 @@ L=16. It is returned at device teardown.
 - With 2 s removed from every `114-knobs` test, the totals are 286.9 against 284.9 s (+0.7 %).
   - The tests that are then slower with the defaults are the first, compile-heavy and CPU-bound ones: bc_decode +0.9 s,
     fill_mode +0.8 s, geometry +0.6 s, clip_cull +0.4 s, tessellation, swapchain_lifecycle and multi_viewport +0.25-0.3 s.
+  - Pass 1 has a cold shader cache and the start-of-run load (next section). In the order check, with both under the same
+    conditions, they are equal.
   - bc_perf is 1.3 s faster.
 
 ## CPU-bound draw loops (FPS lines): early-test drop on the a31
@@ -165,8 +167,32 @@ game loop starts, because there is no 2 s warm-up per process anymore.
 - So the drop looks like start-of-run system load meeting the earlier start, not a driver regression. The order check
   below tests that.
 
-Order check: pending. A short a31 run follows the oriole run: the six draw-loop tests only, with 114-knobs, defaults,
-114-knobs and defaults, through `/data/local/tmp/panprobe-env-ab.json`.
+### Order check (second a31 run): no regression
+
+- Matrix `matrix-259upvfn0pxeg` (16:00-16:05 UTC), results
+  `gs://test-lab-hrb456s6qt79m-kz4jkut67musi/panvk-v7-a31-115pre-d-fps-order/`. Same APK.
+- The override file was pushed with `--other-files /data/local/tmp/panprobe-env-ab.json=a31-fps-order.json`
+  (sha256 `6c91d09b...`, logged by `GAMELOOP envab passes=4 source=/data/local/tmp/panprobe-env-ab.json`).
+- It runs the six draw-loop tests in four passes, in this order: `114-knobs-1`, `defaults-1`, `114-knobs-2`, `defaults-2`.
+  The `114-knobs` passes use the same 26 keys.
+- All four passes are 6/6 PASS.
+
+| test | 114-knobs-1 | defaults-1 | 114-knobs-2 | defaults-2 | defaults vs 114-knobs (pair 1 / pair 2) |
+|---|---|---|---|---|---|
+| clip_cull | 2476.0 | 2761.9 | 2628.6 | 2798.5 | +12 % / +6 % |
+| multi_viewport | 2275.3 | 2797.8 | 2719.1 | 2733.5 | +23 % / +1 % |
+| fill_mode | 2713.7 | 2862.7 | 2665.4 | 2877.8 | +5 % / +8 % |
+| geometry | 3084.7 | 2984.4 | 2897.3 | 2912.8 | -3 % / +1 % |
+| tessellation | 2506.7 | 2774.2 | 2828.8 | 2813.4 | +11 % / -1 % |
+| pipeline_stats | 1844.9 | 1886.7 | 1794.8 | 1926.5 | +2 % / +7 % |
+
+- The defaults are as fast or faster in both pairs.
+- The 1052-1591 fps of the first run do not come back. In this run the first pass (`114-knobs-1`) is the slow one on
+  clip_cull and multi_viewport.
+- So the drop was the run's start conditions, not the driver. The defaults have no CPU-throughput regression on the a31.
+- Test times in this run (s, `114-knobs` minus its 2 s warm-up against `defaults`): clip_cull 1.3/1.2 against 1.2/1.2;
+  tessellation 9.1/8.1 against 8.2/8.0. The compile-heavy tests are no slower with the defaults once the shader cache is warm
+  in both.
 
 ## Screenshots
 
@@ -181,6 +207,10 @@ Order check: pending. A short a31 run follows the oriole run: the six draw-loop 
 - `panprobe-114knobs-mid.png`: video at 230 s (08:35), pass 2 (114-knobs) running, gpu_prerast_slice 2152 ms (2 s
   warm-up back).
 - `panprobe-114knobs-done.png`: same frame as `video-end.png`, pass 2 (114-knobs) done, uploaded (id b02ebc57).
+- `fps-order-start.png`: order-check run, video at 30 s (09:01), pass 1 (`114-knobs-1`): clip_cull FPS 2476.0.
+- `fps-order-mid.png`: order-check run, video at 60 s (09:02), a later pass running clip_cull.
+- `fps-order-end.png`: order-check run, 3 s before the end (09:03), pass 4 (`defaults-2`) done: 6 pass / 0 fail / 0 skip,
+  clip_cull FPS 2798.5.
 
 ## Files
 
@@ -188,5 +218,8 @@ Order check: pending. A short a31 run follows the oriole run: the six draw-loop 
 - `logcat` and `video.mp4`;
 - `game_loop_results/results_scenario_3.json`;
 - the run directories `runs/20261026-083149-defaults` and `runs/20261026-083808-114-knobs`.
+
+`raw-fps-order/a31-31-en-portrait/` contains the order-check run: `logcat`, `video.mp4`, and the run directories
+`runs/20261026-090216-114-knobs-1`, `-090243-defaults-1`, `-090321-114-knobs-2` and `-090347-defaults-2`.
 
 The uploaded APK is not kept.
