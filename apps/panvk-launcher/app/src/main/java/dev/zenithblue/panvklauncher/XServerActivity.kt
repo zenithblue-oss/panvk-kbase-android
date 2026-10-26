@@ -88,7 +88,8 @@ class XServerActivity : ComponentActivity() {
         val pad = TouchpadView(this, xs)
         val overlay = GamepadOverlayView(this)
         // Touch overlay collapses to a SHOW button when a hardware pad is attached; four-finger tap toggles.
-        overlay.hidden = GamepadBridge.physicalConnected()
+        // Game loop (Firebase): collapsed too, so screenshots and the video show the game and the HUD only.
+        overlay.hidden = GamepadBridge.physicalConnected() || GameLoop.active
         pad.setFourFingersTapCallback { overlay.hidden = !overlay.hidden }
         // EXIT (held): close the game, wineserver and the X server; the run thread then opens the session logs.
         overlay.onExit = { stopGame() }
@@ -124,7 +125,37 @@ class XServerActivity : ComponentActivity() {
         // Back opens the in-game menu; leaving the display only happens by stopping the game.
         onBackPressedDispatcher.addCallback(this) { openMenu() }
         BuiltinXServer.attach(this)
+        current = java.lang.ref.WeakReference(this)
         hideSystemBars()
+    }
+
+    companion object {
+        @Volatile private var current: java.lang.ref.WeakReference<XServerActivity>? = null
+
+        /**
+         * Game loop: PNG of what the display view shows (game + DXVK HUD), via PixelCopy. Call off the UI thread;
+         * false when no display is up or the copy fails.
+         */
+        fun capture(out: File, timeoutMs: Long = 5000): Boolean {
+            val v = current?.get()?.xView ?: return false
+            if (v.width <= 0 || v.height <= 0) return false
+            val bmp = android.graphics.Bitmap.createBitmap(v.width, v.height, android.graphics.Bitmap.Config.ARGB_8888)
+            val result = java.util.concurrent.atomic.AtomicInteger(-1)
+            val latch = java.util.concurrent.CountDownLatch(1)
+            val h = android.os.Handler(android.os.Looper.getMainLooper())
+            h.post {
+                try {
+                    android.view.PixelCopy.request(v, bmp, { r -> result.set(r); latch.countDown() }, h)
+                } catch (_: Throwable) { latch.countDown() }
+            }
+            try {
+                if (!latch.await(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)) return false
+            } catch (_: InterruptedException) { return false }
+            if (result.get() != android.view.PixelCopy.SUCCESS) return false
+            return try {
+                out.outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            } catch (_: Throwable) { false } finally { bmp.recycle() }
+        }
     }
 
     /** Same path as overlay EXIT: stop Wine + wineserver, then the X server (finishes this activity, back to the launcher). */
@@ -167,6 +198,7 @@ class XServerActivity : ComponentActivity() {
 
     override fun onDestroy() {
         BuiltinXServer.detach(this)
+        if (current?.get() === this) current = null
         super.onDestroy()
     }
 

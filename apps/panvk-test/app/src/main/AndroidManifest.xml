@@ -26,7 +26,8 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="application/javascript" />
             </intent-filter>
-            <meta-data android:name="com.google.test.loops" android:value="2" />
+            <!-- 1 = rc5 then rc4, 2 = rc5 only, 3 = rc5 once per env pass of assets/env-ab.json (EnvPasses.kt) -->
+            <meta-data android:name="com.google.test.loops" android:value="3" />
         </activity>
         <provider
             android:name="androidx.core.content.FileProvider"

@@ -24,11 +24,15 @@ import com.winlator.xserver.XLock;
 import com.winlator.xserver.XServer;
 
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
 public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindowModificationListener, Pointer.OnPointerMotionListener {
+    /** panvk-launcher: frames composited and window content updates (X client draws), read by the game-loop harness. */
+    public static final AtomicLong framesDrawn = new AtomicLong();
+    public static final AtomicLong contentUpdates = new AtomicLong();
     public final XServerView xServerView;
     private final XServer xServer;
     private final VertexAttribute quadVertices = new VertexAttribute("position", 2);
@@ -99,6 +103,7 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
         }
 
         drawFrame();
+        framesDrawn.incrementAndGet();
     }
 
     private void drawFrame() {
@@ -172,6 +177,7 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
 
     @Override
     public void onUpdateWindowContent(Window window) {
+        contentUpdates.incrementAndGet();
         xServerView.requestRender();
     }
 

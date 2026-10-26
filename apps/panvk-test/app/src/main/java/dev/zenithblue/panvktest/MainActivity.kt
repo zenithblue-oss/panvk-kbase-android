@@ -311,14 +311,18 @@ class MainActivity : ComponentActivity() {
             setShowWhenLocked(true); setTurnScreenOn(true)  // wake the display so the SurfaceView window becomes visible
             lifecycleScope.launch(Dispatchers.IO) {
                 if (gameLoop) {
-                    // Firebase scenario 1 = rc5 then rc4, scenario 2 = rc5 only (--scenario-numbers).
+                    // Firebase scenario 1 = rc5 then rc4, scenario 2 = rc5 only (--scenario-numbers),
+                    // scenario 3 = rc5 once per env pass of assets/env-ab.json (driver knob A/B, EnvPasses.kt).
                     // --ei scenario N overrides for local testing. rc4 may refuse v6; that is recorded.
                     val scenario = intent.getIntExtra("scenario", 1)
                     say0("GAMELOOP scenario=$scenario")
-                    runHeadlessAutorun(autorunExtra, final = scenario == 2)
-                    if (scenario != 2) {
-                        withContext(Dispatchers.Main) { driverTypeState.value = DriverType.RC4 }
-                        runHeadlessAutorun(autorunExtra, final = true, first = false)
+                    if (scenario == 3) runEnvPasses(autorunExtra)
+                    else {
+                        runHeadlessAutorun(autorunExtra, final = scenario == 2)
+                        if (scenario != 2) {
+                            withContext(Dispatchers.Main) { driverTypeState.value = DriverType.RC4 }
+                            runHeadlessAutorun(autorunExtra, final = true, first = false)
+                        }
                     }
                 } else runHeadlessAutorun(autorunExtra)
             }
@@ -481,9 +485,11 @@ class MainActivity : ComponentActivity() {
     private suspend fun writeRun(results: List<TestResult>): File = withContext(Dispatchers.IO) {
         val timestamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
         val runsDir = File(filesDir, "runs").apply { mkdirs() }
-        var runFolder = File(runsDir, timestamp)
+        // Scenario 3: the env pass name in the folder name too (runs/<time>-<pass>), so pulled runs say which pass.
+        val base = envPass?.let { "$timestamp-${it.name}" } ?: timestamp
+        var runFolder = File(runsDir, base)
         var n = 2
-        while (runFolder.exists()) runFolder = File(runsDir, "$timestamp-${n++}")
+        while (runFolder.exists()) runFolder = File(runsDir, "$base-${n++}")
         runFolder.mkdirs()
 
         for (res in results) {
@@ -544,6 +550,7 @@ class MainActivity : ComponentActivity() {
             put("startMs", System.currentTimeMillis() - results.sumOf { it.durationMs } - 60_000L)
             put("appVersion", getAppVersion())
             put("driverType", driverTypeState.value.label)
+            envPass?.let { put("envPass", EnvPasses.toJson(it, envPassSource)) }
 
             val firstDevProps = parsedObj?.optJSONArray("devices")?.optJSONObject(0)?.optJSONObject("properties")
             if (firstDevProps != null) {
@@ -900,6 +907,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private val extraEnv = mutableListOf<String>()
+    // Game-loop scenario 3: the env pass running now (its env goes after extraEnv), and where the passes came from.
+    @Volatile private var envPass: EnvPass? = null
+    @Volatile private var envPassSource = ""
 
     private fun buildEnv(isDraw: Boolean): Array<String> {
         val envList = mutableListOf<String>()
@@ -915,6 +925,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         envList.addAll(extraEnv)
+        envPass?.let { envList.addAll(it.env) }
         if (isDraw) {
             envList.add("PT_FPS_MS=1000")
         }
@@ -1163,6 +1174,35 @@ class MainActivity : ComponentActivity() {
 
     private val glPrev = JSONArray()
 
+    /** Scenario 3: one Run all per env pass (assets/env-ab.json, see EnvPasses), rc5 driver, results tagged with the pass. */
+    private suspend fun runEnvPasses(which: String) {
+        val (passes, src) = EnvPasses.load(this, intent.getStringExtra("env_ab"))
+        envPassSource = src
+        say("GAMELOOP envab passes=${passes.size} source=$src")
+        // Child-process tests get the pass env through buildEnv. The in-process swapchain_lifecycle test reads this
+        // process's env, so the pass env is set here too between passes (no test running), then the old values return.
+        val orig = HashMap<String, String?>()
+        fun restoreProcessEnv() {
+            for ((k, v) in orig) try { if (v == null) android.system.Os.unsetenv(k) else android.system.Os.setenv(k, v, true) } catch (_: Exception) {}
+        }
+        try {
+            for (p in passes) {
+                restoreProcessEnv()
+                for (e in p.env) {
+                    val k = e.substringBefore('=')
+                    if (k !in orig) orig[k] = android.system.Os.getenv(k)
+                    try { android.system.Os.setenv(k, e.substringAfter('='), true) } catch (_: Exception) {}
+                }
+                envPass = p
+                say("GAMELOOP pass=${p.index}/${p.count} name=${p.name} tests=${p.tests ?: "all"} env=${p.env.joinToString(";").ifEmpty { "(none)" }}")
+                Log.i("PanProbe", "PANPROBE_ENVPASS index=${p.index} name=${p.name} env=${p.env.joinToString(";")}")
+                runHeadlessAutorun(p.tests ?: which, final = p.index == p.count, first = p.index == 1)
+            }
+        } finally {
+            restoreProcessEnv()
+        }
+    }
+
     private suspend fun runHeadlessAutorun(which: String, final: Boolean = true, first: Boolean = true) {
         if (!gameLoop) {
             java.io.File(filesDir, "autorun.txt").delete()
@@ -1200,8 +1240,8 @@ class MainActivity : ComponentActivity() {
             withContext(Dispatchers.Main) {
                 updateTestResult(res)
             }
-            say("RESULT ${test.name} ${res.status} mismatch=${res.mismatch} fps=${res.fps ?: "0"} ms=${res.durationMs}${if (res.extra != null) " extra=${res.extra}" else ""}")
-            Log.i("PanProbe", "PANPROBE_TEST name=${test.name} status=${res.status} msg=${oneLine(res.lastLines.lastOrNull())}")
+            say("RESULT ${test.name} ${res.status} mismatch=${res.mismatch} fps=${res.fps ?: "0"} ms=${res.durationMs}${if (res.extra != null) " extra=${res.extra}" else ""}${envPass?.let { " pass=${it.name}" } ?: ""}")
+            Log.i("PanProbe", "PANPROBE_TEST name=${test.name} status=${res.status}${envPass?.let { " pass=${it.name}" } ?: ""} msg=${oneLine(res.lastLines.lastOrNull())}")
             if (gameLoop) {
                 if (res.status != "PASS") res.lastLines.takeLast(30).forEach { Log.i("PanProbeGameLoop", "TAIL ${test.name}: $it") }
                 writeGameLoopResult(runResults, null) // partial, survives a Test Lab timeout
@@ -1261,6 +1301,7 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) { out.put("error", e.toString()) }
         out.put("complete", run != null)
         out.put("driverSlot", driverTypeState.value.name)
+        envPass?.let { out.put("envPass", EnvPasses.toJson(it, envPassSource)) }
         if (glPrev.length() > 0) out.put("previousPhases", glPrev)
         val text = out.toString(2)
         if (run != null) {

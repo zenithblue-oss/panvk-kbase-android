@@ -67,6 +67,10 @@ tasks.named("preBuild") {
     dependsOn(copyPanvkSo)
 }
 
+@Suppress("UNCHECKED_CAST")
+val gameLoopScenarios = ((groovy.json.JsonSlurper().parse(file("src/main/assets/gameloop.json")) as Map<String, Any?>)
+    .getValue("scenarios") as Map<String, Any?>).keys.count { !it.startsWith("#") }
+
 android {
     namespace = "dev.zenithblue.panvklauncher"
     compileSdk = 36
@@ -80,6 +84,8 @@ android {
         targetSdk = 28
         versionCode = 39
         versionName = "1.2.9-rc5"
+        // Firebase game loop (GameLoop.kt): com.google.test.loops = number of scenarios in assets/gameloop.json.
+        manifestPlaceholders["gameLoopScenarios"] = gameLoopScenarios.toString()
 
         ndk {
             abiFilters.add("arm64-v8a")

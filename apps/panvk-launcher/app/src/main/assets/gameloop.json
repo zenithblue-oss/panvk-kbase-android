@@ -1,0 +1,51 @@
+{
+  "#": "Firebase Test Lab game loop (GameLoop.kt). Doc: worklogs/g615-dxvk/panplay-firebase-cubes.md. Keys starting with # are comments.",
+  "version": 1,
+  "#warmupSec": "after the first frame; the measured window is [warmupSec, warmupSec + measureSec] seconds after it",
+  "warmupSec": 20,
+  "measureSec": 60,
+  "#tailSec": "self-timed tests (secsEnv) run warmupSec + measureSec + tailSec seconds, then exit on their own",
+  "tailSec": 8,
+  "#startTimeoutSec": "a pass with no first frame after this many seconds is stopped and marked failed",
+  "startTimeoutSec": 300,
+  "gapSec": 5,
+  "#fpsLogMs": "PANVK_FPS_LOG_MS (driver fps line interval, csf-v11 233)",
+  "fpsLogMs": 1000,
+  "#screenshotAtSec": "PNG of the display (game + DXVK HUD) this many seconds after the first frame; -1 = none",
+  "screenshotAtSec": 50,
+  "#driver": "bundled = the driver this APK carries (default), selected = the launcher's choice, or a driver id",
+  "driver": "bundled",
+  "#env": "every pass (DXVK_HUD stays full: ContainerManager owns it)",
+  "env": {},
+  "#envSets": "one per pass. A/B (scenario 4): 'old' = the perf knobs of the build under test at their old-behaviour values, 'default' = driver defaults. Fill 'old' in when the 115 knobs exist; empty = same as default.",
+  "envSets": {
+    "default": { "note": "driver defaults", "env": {} },
+    "old": { "note": "perf knobs at their old-behaviour values (to fill in for 115)", "env": {} }
+  },
+  "#tasks": "shortcut = PanPlay shortcut id (built-in cubes: builtin-<api>-<arch>). Add a task here and name it in a scenario.",
+  "tasks": {
+    "d3d11": {
+      "title": "D3D11 cube (ARM64EC)",
+      "shortcut": "builtin-d3d11-arm64ec",
+      "secsEnv": "DXCUBE_SECS",
+      "firstFramePattern": "^CUBE: \\S+ Present frame=",
+      "okPattern": "^CUBE: PASS",
+      "failPattern": "^CUBE: FAIL"
+    },
+    "d3d9": {
+      "title": "D3D9 cube (i686, WoW64)",
+      "shortcut": "builtin-d3d9-i686",
+      "secsEnv": "DXCUBE_SECS",
+      "firstFramePattern": "^CUBE: \\S+ Present frame=",
+      "okPattern": "^CUBE: PASS",
+      "failPattern": "^CUBE: FAIL"
+    }
+  },
+  "#scenarios": "Firebase --scenario-numbers. Numbers 1..N without gaps (the build sets com.google.test.loops = N). Passes: each task in order, one per env set in order.",
+  "scenarios": {
+    "1": { "name": "d3d11", "tasks": ["d3d11"] },
+    "2": { "name": "d3d9", "tasks": ["d3d9"] },
+    "3": { "name": "both", "tasks": ["d3d11", "d3d9"] },
+    "4": { "name": "ab", "tasks": ["d3d11", "d3d9"], "envSets": ["old", "default"] }
+  }
+}

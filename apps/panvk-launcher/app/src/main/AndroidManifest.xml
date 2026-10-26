@@ -30,6 +30,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Firebase Test Lab game loop (GameLoop.kt); scenario count from assets/gameloop.json (build.gradle.kts). -->
+            <intent-filter>
+                <action android:name="com.google.intent.action.TEST_LOOP" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/javascript" />
+            </intent-filter>
+            <meta-data android:name="com.google.test.loops" android:value="${gameLoopScenarios}" />
         </activity>
         <activity
             android:name=".XServerActivity"

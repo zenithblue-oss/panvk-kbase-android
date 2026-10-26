@@ -43,6 +43,8 @@ import java.util.Locale
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Firebase Test Lab game loop: the harness screen instead of the launcher (GameLoop.kt).
+        if (GameLoop.isGameLoop(intent)) { startGameLoop(intent); return }
         handleUploadEndpointIntent(intent)
         val autoprobe = intent?.getBooleanExtra("autoprobe", false) ?: false
         // adb: am start -n dev.zenithblue.panvklauncher/.MainActivity --es run_exe /path/to/game.exe
@@ -72,8 +74,14 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (GameLoop.isGameLoop(intent)) { startGameLoop(intent); return }
         handleUploadEndpointIntent(intent)
         ShortcutRequests.fromIntent(this, intent)
+    }
+
+    private fun startGameLoop(i: Intent) {
+        GameLoop.start(this, i)
+        setContent { PanvkTheme(mode = "dark", dynamic = false) { GameLoopScreen() } }
     }
 
     private fun handleUploadEndpointIntent(intent: Intent?) {
