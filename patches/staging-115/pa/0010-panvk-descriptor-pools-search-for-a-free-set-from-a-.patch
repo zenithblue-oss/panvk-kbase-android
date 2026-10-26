@@ -1,0 +1,159 @@
+From 3e959a5e6a50623f57d2d25514875a900b2d57bc Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 07:07:13 +0000
+Subject: [PATCH 10/10] panvk: descriptor pools search for a free set from a
+ hint, reset visits used sets
+
+Rationale: perf review 2026-10-26 minor item M3 (a-csf-cpu.md).
+panvk_desc_pool_allocate_set() found the lowest free set with
+__bitset_ffs() from word 0, so filling a pool of N sets cost O(N / 32)
+word tests per allocation, O(N^2 / 32) per pool cycle (a 4096-set pool
+scans up to 128 words at its end). ResetDescriptorPool() called
+panvk_desc_pool_free_set() on every one of max_sets slots, and each call
+tests the slot's free bit first.
+
+- struct panvk_descriptor_pool gets free_sets_hint, a word index below
+  which every free_sets word is 0: 0 at creation (zeroed) and after a
+  reset, lowered by every free (panvk_desc_pool_free_set() is the only
+  path that sets a bit, including the AllocateDescriptorSets error path),
+  and moved to the word of the set an allocation takes. The search starts
+  there, so it returns the same set as the scan from 0, and the
+  allocation order is unchanged.
+- The reset visits the 0 bits of free_sets (the allocated sets) a word at
+  a time instead of every slot; each allocated set is freed exactly as
+  before.
+
+Descriptor pools are externally synchronized, so the hint needs no lock.
+
+Knobs: PANVK_DESC_POOL_HINT=0 = 114 (search from word 0, reset tests every
+slot). Default on.
+Arch: all.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_descriptor_set.h    |  4 ++
+ src/panfrost/vulkan/panvk_instance.c          |  1 +
+ src/panfrost/vulkan/panvk_perf_knobs.h        |  4 ++
+ src/panfrost/vulkan/panvk_vX_descriptor_set.c | 38 +++++++++++++++++--
+ 4 files changed, 44 insertions(+), 3 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_descriptor_set.h b/src/panfrost/vulkan/panvk_descriptor_set.h
+index 4da26253..778a0c03 100644
+--- a/src/panfrost/vulkan/panvk_descriptor_set.h
++++ b/src/panfrost/vulkan/panvk_descriptor_set.h
+@@ -73,6 +73,10 @@ struct panvk_descriptor_pool {
+    /* Initialize to ones */
+    BITSET_WORD *free_sets;
+ 
++   /* Every free_sets word below this index is 0, so the first-free search
++    * starts here (PANVK_DESC_POOL_HINT). */
++   uint32_t free_sets_hint;
++
+    uint32_t max_sets;
+    struct panvk_descriptor_set *sets;
+ };
+diff --git a/src/panfrost/vulkan/panvk_instance.c b/src/panfrost/vulkan/panvk_instance.c
+index e6cca0db..e86e004b 100644
+--- a/src/panfrost/vulkan/panvk_instance.c
++++ b/src/panfrost/vulkan/panvk_instance.c
+@@ -90,6 +90,7 @@ static const struct {
+    {"PANVK_CSF_DESC_DIRTY", PANVK_PERF_CSF_DESC_DIRTY},
+    {"PANVK_VB_DIRTY_CMP", PANVK_PERF_VB_DIRTY_CMP},
+    {"PANVK_PRERAST_FAST_SKIP", PANVK_PERF_PRERAST_FAST_SKIP},
++   {"PANVK_DESC_POOL_HINT", PANVK_PERF_DESC_POOL_HINT},
+ };
+ 
+ void
+diff --git a/src/panfrost/vulkan/panvk_perf_knobs.h b/src/panfrost/vulkan/panvk_perf_knobs.h
+index 5f1f340d..c4fc89a8 100644
+--- a/src/panfrost/vulkan/panvk_perf_knobs.h
++++ b/src/panfrost/vulkan/panvk_perf_knobs.h
+@@ -40,6 +40,10 @@ enum panvk_perf_knob {
+    /* A5, PANVK_PRERAST_FAST_SKIP: a CSF draw that gpu_prerast does not
+     * want skips the other gpu_prerast checks. */
+    PANVK_PERF_PRERAST_FAST_SKIP = 1 << 6,
++   /* M3, PANVK_DESC_POOL_HINT: descriptor set allocation starts the free
++    * slot search at the first word that can hold a free set, and a pool
++    * reset only visits the allocated sets. */
++   PANVK_PERF_DESC_POOL_HINT = 1 << 7,
+ };
+ 
+ extern uint32_t panvk_perf_knobs;
+diff --git a/src/panfrost/vulkan/panvk_vX_descriptor_set.c b/src/panfrost/vulkan/panvk_vX_descriptor_set.c
+index daacc386..ab9eefb5 100644
+--- a/src/panfrost/vulkan/panvk_vX_descriptor_set.c
++++ b/src/panfrost/vulkan/panvk_vX_descriptor_set.c
+@@ -32,6 +32,7 @@
+ #include "panvk_image.h"
+ #include "panvk_image_view.h"
+ #include "panvk_macros.h"
++#include "panvk_perf_knobs.h"
+ #include "panvk_priv_bo.h"
+ #include "panvk_sampler.h"
+ 
+@@ -399,6 +400,8 @@ panvk_desc_pool_free_set(struct panvk_descriptor_pool *pool,
+             set->desc_count * PANVK_DESCRIPTOR_SIZE);
+ 
+       BITSET_SET(pool->free_sets, set_idx);
++      pool->free_sets_hint =
++         MIN2(pool->free_sets_hint, (uint32_t)(set_idx / BITSET_WORDBITS));
+ 
+       /* Discard constness to call vk_descriptor_set_layout_unref(). */
+       struct panvk_descriptor_set_layout *set_layout =
+@@ -642,10 +645,21 @@ panvk_desc_pool_allocate_set(struct panvk_descriptor_pool *pool,
+    }
+ 
+    uint64_t descs_size = num_descs * PANVK_DESCRIPTOR_SIZE;
++
++   /* Perf review M3: the search for the lowest free set used to start at
++    * word 0, so filling a pool cost O(sets / 32) per allocation. The words
++    * below free_sets_hint are all 0 (every free path lowers the hint), so
++    * starting there finds the same set. PANVK_DESC_POOL_HINT=0 = 114. */
++   const uint32_t hint =
++      PANVK_PERF(DESC_POOL_HINT) ? pool->free_sets_hint : 0;
+    uint32_t first_free_set =
+-      __bitset_ffs(pool->free_sets, BITSET_WORDS(pool->max_sets));
++      __bitset_ffs(pool->free_sets + hint,
++                   BITSET_WORDS(pool->max_sets) - hint);
++   if (first_free_set)
++      first_free_set += hint * BITSET_WORDBITS;
+    if (first_free_set == 0 || pool->desc_heap.free_size < descs_size)
+       return panvk_error(pool, VK_ERROR_OUT_OF_POOL_MEMORY);
++   pool->free_sets_hint = (first_free_set - 1) / BITSET_WORDBITS;
+ 
+    uint64_t descs_dev_addr = 0;
+    if (num_descs) {
+@@ -759,10 +773,28 @@ panvk_per_arch(ResetDescriptorPool)(VkDevice _device, VkDescriptorPool _pool,
+ {
+    VK_FROM_HANDLE(panvk_descriptor_pool, pool, _pool);
+ 
+-   for (uint32_t i = 0; i < pool->max_sets; i++)
+-      panvk_desc_pool_free_set(pool, &pool->sets[i]);
++   if (PANVK_PERF(DESC_POOL_HINT)) {
++      /* Visit the allocated sets (the 0 bits of free_sets) a word at a time
++       * instead of testing every slot. */
++      for (uint32_t w = 0; w < BITSET_WORDS(pool->max_sets); w++) {
++         BITSET_WORD used = ~pool->free_sets[w];
++
++         while (used) {
++            const uint32_t i = w * BITSET_WORDBITS + u_bit_scan(&used);
++
++            if (i >= pool->max_sets)
++               break;
++
++            panvk_desc_pool_free_set(pool, &pool->sets[i]);
++         }
++      }
++   } else {
++      for (uint32_t i = 0; i < pool->max_sets; i++)
++         panvk_desc_pool_free_set(pool, &pool->sets[i]);
++   }
+ 
+    BITSET_SET_COUNT(pool->free_sets, 0, pool->max_sets);
++   pool->free_sets_hint = 0;
+    return VK_SUCCESS;
+ }
+ 
+-- 
+2.55.0
+

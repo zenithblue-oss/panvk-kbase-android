@@ -1,0 +1,258 @@
+From 6b71e842aba2cab4d39564ce2d4b257eb818d7b4 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 06:37:48 +0000
+Subject: [PATCH 05/10] panvk/csf: descriptor binds and pushes dirty only the
+ stages that use the sets
+
+Rationale: perf review 2026-10-26 finding A2 (a-csf-cpu.md, upstream
+TODO left open by jm-v7 097). On v9+ CmdBindDescriptorSets2KHR and both
+push paths set DESC_STATE for any change, even an identical rebind, and
+DESC_STATE is in both vs_desc_dirty() and fs_desc_dirty(). So every bind
+or push rebuilt the VS driver set (16 ATTRIBUTE descriptors with a format
+lookup each, the dummy sampler, the dynamic buffers and one BUFFER per
+vertex buffer), the VS resource table, the FS driver set (with the
+varying ATTRIBUTE descriptors) and the FS resource table, and the two
+driver-set builders set DESC_STATE again, so a VS-only rebuild (vertex
+buffers, base instance) rebuilt the FS tables too.
+
+- Binds and pushes go through csf_gfx_desc_dirty_sets(), the CSF form of
+  097's v7_gfx_desc_dirty_sets(): DESC_STATE plus a per-set mask, which
+  stays exact while every DESC_STATE dirtying since the last draw came
+  through it. cmd_desc_state_bind_sets() already reports the sets whose
+  handle or dynamic offsets changed, so an identical rebind dirties
+  nothing. A push marks its set.
+- vs_desc_dirty() and fs_desc_dirty() test DESC_STATE only through the
+  sets their shader uses (used_set_mask, which also covers the sets the
+  dynamic buffers in the driver set come from). An FS that does not run
+  has no tables, so set changes wait until fs_user_dirty() brings it back.
+- DESC_STATE set any other way (meta restore, secondaries, segment
+  splits) means every set; those paths also dirty VS and FS, which
+  rebuild both stages regardless. clear_dirty_after_draw() drops the
+  mask with DESC_STATE.
+- The driver-set builders no longer set DESC_STATE: prepare_vs() and
+  prepare_fs() evaluate the same predicates as the builders, so
+  VERTEX_SRT and FRAGMENT_SRT are still emitted exactly when their table
+  is rebuilt. The previous patch made the draw after a repeated indirect
+  draw rebuild the VS tables, which a descriptor bind used to do by
+  accident.
+
+Knobs: PANVK_CSF_DESC_DIRTY=0 = 114 (DESC_STATE on every bind or push,
+both stages rebuilt, builders set DESC_STATE). Default on.
+Arch: v10+ (CSF). v6/v7 keep 097, v9 JM keeps DESC_STATE on every bind
+(its draws rebuild the tables anyway).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c   | 36 ++++++++++++++++--
+ src/panfrost/vulkan/panvk_cmd_draw.h          | 10 +++++
+ src/panfrost/vulkan/panvk_instance.c          |  1 +
+ src/panfrost/vulkan/panvk_perf_knobs.h        |  3 ++
+ src/panfrost/vulkan/panvk_vX_cmd_desc_state.c | 38 +++++++++++++++++++
+ 5 files changed, 84 insertions(+), 4 deletions(-)
+
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+index 095f1031..a4e9dcfc 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+@@ -414,10 +414,30 @@ prepare_vs_driver_set(struct panvk_cmd_buffer *cmdbuf, uint32_t repeat_count)
+ 
+    vs_desc_state->driver_set.dev_addr = driver_set.gpu;
+    vs_desc_state->driver_set.size = desc_count * PANVK_DESCRIPTOR_SIZE;
+-   gfx_state_set_dirty(cmdbuf, DESC_STATE);
++   /* A2 (115): this only made the FS tables rebuild too; with per-set
++    * tracking each stage follows its own state.
++    */
++   if (!PANVK_PERF(CSF_DESC_DIRTY))
++      gfx_state_set_dirty(cmdbuf, DESC_STATE);
+    return VK_SUCCESS;
+ }
+ 
++/* A2 (115): whether a set the stage uses (@used_set_mask) may have been
++ * bound or pushed since the last draw. DESC_STATE alone means every set
++ * while the per-set mask is off (PANVK_CSF_DESC_DIRTY=0) or not exact.
++ */
++static bool
++gfx_sets_dirty(const struct panvk_cmd_buffer *cmdbuf, uint32_t used_set_mask)
++{
++   if (!gfx_state_dirty(cmdbuf, DESC_STATE))
++      return false;
++
++   if (!PANVK_PERF(CSF_DESC_DIRTY) || !cmdbuf->state.gfx.csf_dirty_sets_valid)
++      return true;
++
++   return (cmdbuf->state.gfx.csf_dirty_sets & used_set_mask) != 0;
++}
++
+ /* Only valid to call after prepare_vi() */
+ static bool
+ vs_desc_dirty(struct panvk_cmd_buffer *cmdbuf)
+@@ -435,7 +455,8 @@ vs_desc_dirty(struct panvk_cmd_buffer *cmdbuf)
+           dyn_gfx_state_dirty(cmdbuf, VI_BINDINGS_VALID) ||
+           dyn_gfx_state_dirty(cmdbuf, VI_BINDING_STRIDES) ||
+           gfx_state_dirty(cmdbuf, VB) || gfx_state_dirty(cmdbuf, VS) ||
+-          gfx_state_dirty(cmdbuf, DESC_STATE);
++          gfx_sets_dirty(cmdbuf,
++                         cmdbuf->state.gfx.vs.shader->desc_info.used_set_mask);
+ }
+ 
+ static VkResult
+@@ -578,16 +599,23 @@ prepare_fs_driver_set(struct panvk_cmd_buffer *cmdbuf)
+ 
+    fs_desc_state->driver_set.dev_addr = driver_set.gpu;
+    fs_desc_state->driver_set.size = desc_count * PANVK_DESCRIPTOR_SIZE;
+-   gfx_state_set_dirty(cmdbuf, DESC_STATE);
++   /* A2 (115): this only re-emitted VERTEX_SRT, see prepare_vs_driver_set(). */
++   if (!PANVK_PERF(CSF_DESC_DIRTY))
++      gfx_state_set_dirty(cmdbuf, DESC_STATE);
+    return VK_SUCCESS;
+ }
+ 
+ static bool
+ fs_desc_dirty(struct panvk_cmd_buffer *cmdbuf)
+ {
++   /* A2 (115): an FS that does not run has no tables (FRAGMENT_SRT is 0),
++    * so set changes only matter once fs_user_dirty() brings it back.
++    */
++   const struct panvk_shader *fs = get_fs(cmdbuf);
++
+    return fs_user_dirty(cmdbuf) ||
+           gfx_state_dirty(cmdbuf, VS) ||
+-          gfx_state_dirty(cmdbuf, DESC_STATE);
++          gfx_sets_dirty(cmdbuf, fs ? fs->desc_info.used_set_mask : 0);
+ }
+ 
+ static VkResult
+diff --git a/src/panfrost/vulkan/panvk_cmd_draw.h b/src/panfrost/vulkan/panvk_cmd_draw.h
+index 18a5d315..978c53aa 100644
+--- a/src/panfrost/vulkan/panvk_cmd_draw.h
++++ b/src/panfrost/vulkan/panvk_cmd_draw.h
+@@ -180,6 +180,15 @@ struct panvk_cmd_graphics_state {
+    uint64_t v7_query_ends[PANVK_V7_MAX_DEFERRED_QUERY_ENDS];
+    uint32_t v7_query_end_count;
+ #endif
++#if PAN_ARCH >= 10
++   /* A2 (115): the graphics sets whose binding changed since the last draw,
++    * exact only while every DESC_STATE dirtying since then came through a
++    * set bind or push (otherwise DESC_STATE means every set). Reset by
++    * clear_dirty_after_draw().
++    */
++   uint32_t csf_dirty_sets;
++   bool csf_dirty_sets_valid;
++#endif
+ 
+    struct {
+       struct vk_vertex_input_state vi;
+@@ -630,6 +639,7 @@ cached_fs_required(ASSERTED const struct panvk_cmd_graphics_state *state,
+       vk_dynamic_graphics_state_clear_dirty(                                   \
+          &(__cmdbuf)->vk.dynamic_graphics_state);                              \
+       gfx_state_clear_all_dirty(__cmdbuf);                                     \
++      (__cmdbuf)->state.gfx.csf_dirty_sets_valid = false;                      \
+       if (__idle_clean)                                                        \
+          (__cmdbuf)->state.gfx.fs.unused = true;                               \
+       else if (__fs_unused)                                                    \
+diff --git a/src/panfrost/vulkan/panvk_instance.c b/src/panfrost/vulkan/panvk_instance.c
+index 4c073d2f..79306a4b 100644
+--- a/src/panfrost/vulkan/panvk_instance.c
++++ b/src/panfrost/vulkan/panvk_instance.c
+@@ -87,6 +87,7 @@ static const struct {
+    {"PANVK_DB_ALT", PANVK_PERF_DB_ALT},
+    {"PANVK_DEPTH_BOUNDS", PANVK_PERF_DEPTH_BOUNDS},
+    {"PANVK_CSF_INDIRECT_REEMIT", PANVK_PERF_CSF_INDIRECT_REEMIT},
++   {"PANVK_CSF_DESC_DIRTY", PANVK_PERF_CSF_DESC_DIRTY},
+ };
+ 
+ void
+diff --git a/src/panfrost/vulkan/panvk_perf_knobs.h b/src/panfrost/vulkan/panvk_perf_knobs.h
+index abd8a72a..90c3a73d 100644
+--- a/src/panfrost/vulkan/panvk_perf_knobs.h
++++ b/src/panfrost/vulkan/panvk_perf_knobs.h
+@@ -31,6 +31,9 @@ enum panvk_perf_knob {
+    /* PANVK_CSF_INDIRECT_REEMIT: a CSF draw after an indirect draw that
+     * repeated the VS tables or push uniforms rebuilds them. */
+    PANVK_PERF_CSF_INDIRECT_REEMIT = 1 << 3,
++   /* A2, PANVK_CSF_DESC_DIRTY: CSF descriptor binds and pushes dirty only
++    * the stages that use the changed sets. */
++   PANVK_PERF_CSF_DESC_DIRTY = 1 << 4,
+ };
+ 
+ extern uint32_t panvk_perf_knobs;
+diff --git a/src/panfrost/vulkan/panvk_vX_cmd_desc_state.c b/src/panfrost/vulkan/panvk_vX_cmd_desc_state.c
+index d3713432..6963e7ea 100644
+--- a/src/panfrost/vulkan/panvk_vX_cmd_desc_state.c
++++ b/src/panfrost/vulkan/panvk_vX_cmd_desc_state.c
+@@ -17,6 +17,7 @@
+ #include "panvk_cmd_desc_state.h"
+ #include "panvk_device.h"
+ #include "panvk_entrypoints.h"
++#include "panvk_perf_knobs.h"
+ #include "panvk_v7_knobs.h"
+ 
+ #include "pan_pool.h"
+@@ -93,6 +94,36 @@ v7_gfx_desc_dirty_sets(struct panvk_cmd_buffer *cmdbuf, uint32_t sets)
+ }
+ #endif
+ 
++#if PAN_ARCH >= 10
++/* A2 (115): the CSF form of jm-v7 097. DESC_STATE for the graphics sets in
++ * @sets only: a draw rebuilds the tables of the stages that use one of them
++ * (vs_desc_dirty(), fs_desc_dirty()), and an identical rebind dirties
++ * nothing. The mask stays exact while every DESC_STATE dirtying since the
++ * last draw came through here; any other one (meta restore, secondaries)
++ * makes DESC_STATE mean every set, and those also dirty VS and FS, which
++ * rebuild both stages anyway. PANVK_CSF_DESC_DIRTY=0 = 114 (any bind or
++ * push rebuilds both).
++ */
++static void
++csf_gfx_desc_dirty_sets(struct panvk_cmd_buffer *cmdbuf, uint32_t sets)
++{
++   if (!PANVK_PERF(CSF_DESC_DIRTY)) {
++      gfx_state_set_dirty(cmdbuf, DESC_STATE);
++      return;
++   }
++
++   if (!sets)
++      return;
++
++   if (!gfx_state_dirty(cmdbuf, DESC_STATE)) {
++      cmdbuf->state.gfx.csf_dirty_sets = 0;
++      cmdbuf->state.gfx.csf_dirty_sets_valid = true;
++   }
++   cmdbuf->state.gfx.csf_dirty_sets |= sets;
++   gfx_state_set_dirty(cmdbuf, DESC_STATE);
++}
++#endif
++
+ static struct panvk_descriptor_set *
+ cmd_get_push_desc_set(struct vk_command_buffer *vk_cmdbuf,
+                       struct panvk_descriptor_state *desc_state,
+@@ -410,6 +441,8 @@ panvk_per_arch(CmdBindDescriptorSets2KHR)(
+ 
+ #if PAN_ARCH < 9
+       v7_gfx_desc_dirty_sets(cmdbuf, changed);
++#elif PAN_ARCH >= 10
++      csf_gfx_desc_dirty_sets(cmdbuf, changed);
+ #else
+       (void)changed;
+       gfx_state_set_dirty(cmdbuf, DESC_STATE);
+@@ -464,6 +497,9 @@ panvk_per_arch(CmdPushDescriptorSet2KHR)(
+ #if PAN_ARCH < 9
+       v7_gfx_desc_dirty_sets(cmdbuf,
+                              BITFIELD_BIT(pPushDescriptorSetInfo->set));
++#elif PAN_ARCH >= 10
++      csf_gfx_desc_dirty_sets(cmdbuf,
++                              BITFIELD_BIT(pPushDescriptorSetInfo->set));
+ #else
+       gfx_state_set_dirty(cmdbuf, DESC_STATE);
+ #endif
+@@ -509,6 +545,8 @@ panvk_per_arch(CmdPushDescriptorSetWithTemplate2KHR)(
+    if (template->bind_point == VK_PIPELINE_BIND_POINT_GRAPHICS)
+ #if PAN_ARCH < 9
+       v7_gfx_desc_dirty_sets(cmdbuf, BITFIELD_BIT(set));
++#elif PAN_ARCH >= 10
++      csf_gfx_desc_dirty_sets(cmdbuf, BITFIELD_BIT(set));
+ #else
+       gfx_state_set_dirty(cmdbuf, DESC_STATE);
+ #endif
+-- 
+2.55.0
+

@@ -1,0 +1,95 @@
+From 77ba307aa09b3fa78d72c9670bc02b2a74310d84 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 06:02:50 +0000
+Subject: [PATCH 04/10] panvk/csf: rebuild the VS tables and push uniforms
+ after a repeated indirect draw
+
+Rationale: found while checking the register assumptions of perf review
+2026-10-26 finding A2 (a-csf-cpu.md). An indirect draw whose vertex
+shader has per-instance attributes gets one VS resource table and driver
+set per draw (desc_repeat_count), and one whose VS reads firstVertex or
+firstInstance gets one push uniform block per draw. patch_vs_attribs()
+and the draw loop patch each copy with that draw's values from the
+indirect buffer, and the loop adds a table (VERTEX_SRT) and a block
+(VERTEX_FAU) after every draw, so it ends one past the last copy.
+
+The next draw re-emits VERTEX_SRT only when vs_desc_dirty() and
+VERTEX_FAU only when VS_PUSH_UNIFORMS is dirty. The indirect draw leaves
+vi.base_instance and the firstVertex/firstInstance sysvals at 0, so a
+direct draw with the same state and zero bases dirtied neither and drew
+with the registers past the copies. In 114 any descriptor bind in
+between hid it (it rebuilt the VS tables); A2 stops that, so this goes
+first.
+
+After the loop, the draw now marks BASE_INSTANCE dirty when the tables
+were repeated (vs_desc_dirty() sees it through the per-instance
+attributes that made them repeat; a VI change dirties it anyway) and
+VS_PUSH_UNIFORMS when the push uniforms were. Both are set after
+clear_dirty_after_draw(), so they reach the next draw only.
+
+Knobs: PANVK_CSF_INDIRECT_REEMIT=0 = 114. Default on.
+Arch: v10+ (CSF) only.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c | 16 ++++++++++++++++
+ src/panfrost/vulkan/panvk_instance.c        |  1 +
+ src/panfrost/vulkan/panvk_perf_knobs.h      |  3 +++
+ 3 files changed, 20 insertions(+)
+
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+index 1bfaeda3..095f1031 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+@@ -3668,6 +3668,22 @@ launch_indirect_draw(struct panvk_cmd_buffer *cmdbuf,
+          }
+       }
+    }
++
++   /* The loop leaves VERTEX_SRT past the last per-draw resource table and
++    * VERTEX_FAU past the last per-draw push uniform block, and those copies
++    * hold the indirect draws' own firstInstance/firstVertex patches. The
++    * next draw re-emits both registers only when its VS tables or push
++    * uniforms are dirty, which nothing guaranteed: a direct draw with the
++    * same state and zero firstVertex/firstInstance reused them. Make it
++    * rebuild its own (BASE_INSTANCE reaches vs_desc_dirty() through the
++    * per-instance attributes that made the tables repeat).
++    */
++   if (PANVK_PERF(CSF_INDIRECT_REEMIT)) {
++      if (cmdbuf->state.gfx.vs.desc_repeat_count)
++         gfx_state_set_dirty(cmdbuf, BASE_INSTANCE);
++      if (patch_faus)
++         gfx_state_set_dirty(cmdbuf, VS_PUSH_UNIFORMS);
++   }
+ }
+ 
+ static void panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf,
+diff --git a/src/panfrost/vulkan/panvk_instance.c b/src/panfrost/vulkan/panvk_instance.c
+index dc0f8e08..4c073d2f 100644
+--- a/src/panfrost/vulkan/panvk_instance.c
++++ b/src/panfrost/vulkan/panvk_instance.c
+@@ -86,6 +86,7 @@ static const struct {
+    {"PANVK_CSF_FS_IDLE_CLEAN", PANVK_PERF_FS_IDLE_CLEAN},
+    {"PANVK_DB_ALT", PANVK_PERF_DB_ALT},
+    {"PANVK_DEPTH_BOUNDS", PANVK_PERF_DEPTH_BOUNDS},
++   {"PANVK_CSF_INDIRECT_REEMIT", PANVK_PERF_CSF_INDIRECT_REEMIT},
+ };
+ 
+ void
+diff --git a/src/panfrost/vulkan/panvk_perf_knobs.h b/src/panfrost/vulkan/panvk_perf_knobs.h
+index 612c4abc..abd8a72a 100644
+--- a/src/panfrost/vulkan/panvk_perf_knobs.h
++++ b/src/panfrost/vulkan/panvk_perf_knobs.h
+@@ -28,6 +28,9 @@ enum panvk_perf_knob {
+    PANVK_PERF_DB_ALT = 1 << 1,
+    /* C1, PANVK_DEPTH_BOUNDS: the depthBounds feature is exposed. */
+    PANVK_PERF_DEPTH_BOUNDS = 1 << 2,
++   /* PANVK_CSF_INDIRECT_REEMIT: a CSF draw after an indirect draw that
++    * repeated the VS tables or push uniforms rebuilds them. */
++   PANVK_PERF_CSF_INDIRECT_REEMIT = 1 << 3,
+ };
+ 
+ extern uint32_t panvk_perf_knobs;
+-- 
+2.55.0
+

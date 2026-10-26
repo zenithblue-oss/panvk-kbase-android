@@ -1,0 +1,128 @@
+From 5d485ae3105fe9592265d9a518328038ef191c0e Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 06:38:31 +0000
+Subject: [PATCH 06/10] panvk: vkCmdBindVertexBuffers2 dirties VB only when a
+ binding changes
+
+Rationale: perf review 2026-10-26 finding A4 (a-csf-cpu.md). The bind
+set VB dirty unconditionally. On CSF, VB is in vs_desc_dirty(), so
+rebinding the same buffers (per draw, or a contiguous range in which
+only some slots change) rebuilt the whole VS driver set and resource
+table at the next draw; on v6/v7 it defeated the jm-v7 097 attribute
+table cache. The strides already compare in the runtime
+(vk_cmd_set_vertex_binding_strides()).
+
+The bind now computes each binding's address and size as before and
+sets VB dirty only if one of them, or the binding count, changed. Every
+consumer of VB (CSF vs_desc_dirty(), the v6/v7 attribute cache; v9 JM
+rebuilds per draw) only reads those values, so an unchanged binding
+needs nothing re-emitted. Meta still restores binding 0 and dirties VB
+itself.
+
+Knobs: PANVK_VB_DIRTY_CMP=0 = 114 (VB dirty on every call). Default on.
+Arch: all (shared bind entry point).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_instance.c    |  1 +
+ src/panfrost/vulkan/panvk_perf_knobs.h  |  3 ++
+ src/panfrost/vulkan/panvk_vX_cmd_draw.c | 40 ++++++++++++++++++-------
+ 3 files changed, 34 insertions(+), 10 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_instance.c b/src/panfrost/vulkan/panvk_instance.c
+index 79306a4b..cfa0d21e 100644
+--- a/src/panfrost/vulkan/panvk_instance.c
++++ b/src/panfrost/vulkan/panvk_instance.c
+@@ -88,6 +88,7 @@ static const struct {
+    {"PANVK_DEPTH_BOUNDS", PANVK_PERF_DEPTH_BOUNDS},
+    {"PANVK_CSF_INDIRECT_REEMIT", PANVK_PERF_CSF_INDIRECT_REEMIT},
+    {"PANVK_CSF_DESC_DIRTY", PANVK_PERF_CSF_DESC_DIRTY},
++   {"PANVK_VB_DIRTY_CMP", PANVK_PERF_VB_DIRTY_CMP},
+ };
+ 
+ void
+diff --git a/src/panfrost/vulkan/panvk_perf_knobs.h b/src/panfrost/vulkan/panvk_perf_knobs.h
+index 90c3a73d..a46bec02 100644
+--- a/src/panfrost/vulkan/panvk_perf_knobs.h
++++ b/src/panfrost/vulkan/panvk_perf_knobs.h
+@@ -34,6 +34,9 @@ enum panvk_perf_knob {
+    /* A2, PANVK_CSF_DESC_DIRTY: CSF descriptor binds and pushes dirty only
+     * the stages that use the changed sets. */
+    PANVK_PERF_CSF_DESC_DIRTY = 1 << 4,
++   /* A4, PANVK_VB_DIRTY_CMP: vkCmdBindVertexBuffers2 dirties the vertex
++    * buffers only when a binding's address or size changes. */
++   PANVK_PERF_VB_DIRTY_CMP = 1 << 5,
+ };
+ 
+ extern uint32_t panvk_perf_knobs;
+diff --git a/src/panfrost/vulkan/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/panvk_vX_cmd_draw.c
+index 1dcd7786..015d7e33 100644
+--- a/src/panfrost/vulkan/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/panvk_vX_cmd_draw.c
+@@ -1186,14 +1186,23 @@ panvk_per_arch(CmdBindVertexBuffers2)(VkCommandBuffer commandBuffer,
+                                         bindingCount, pStrides);
+    }
+ 
++   /* A4 (115): VB dirty rebuilds the VS driver set and resource table on
++    * CSF and the attribute tables on v6/v7 (jm-v7 097), so only set it when
++    * a binding really changes (the strides compare in the runtime).
++    * PANVK_VB_DIRTY_CMP=0 dirties on every call, as in 114.
++    */
++   bool changed = !PANVK_PERF(VB_DIRTY_CMP);
++
+    for (uint32_t i = 0; i < bindingCount; i++) {
+       VK_FROM_HANDLE(panvk_buffer, buffer, pBuffers[i]);
++      struct panvk_attrib_buf *vb = &cmdbuf->state.gfx.vb.bufs[firstBinding + i];
++      uint64_t address;
++      unsigned size;
+ 
+       if (buffer) {
+-         cmdbuf->state.gfx.vb.bufs[firstBinding + i].address =
+-            panvk_buffer_gpu_ptr(buffer, pOffsets[i]);
+-         cmdbuf->state.gfx.vb.bufs[firstBinding + i].size = panvk_buffer_range(
+-            buffer, pOffsets[i], pSizes ? pSizes[i] : VK_WHOLE_SIZE);
++         address = panvk_buffer_gpu_ptr(buffer, pOffsets[i]);
++         size = panvk_buffer_range(buffer, pOffsets[i],
++                                   pSizes ? pSizes[i] : VK_WHOLE_SIZE);
+       } else {
+ #if PAN_ARCH < 9
+          /* nullDescriptor: zeroed memory nothing writes rather than address
+@@ -1201,18 +1210,29 @@ panvk_per_arch(CmdBindVertexBuffers2)(VkCommandBuffer commandBuffer,
+           */
+          const struct panvk_device *dev =
+             to_panvk_device(cmdbuf->vk.base.device);
+-         cmdbuf->state.gfx.vb.bufs[firstBinding + i].address =
+-            dev->null_descs.zero_addr;
++         address = dev->null_descs.zero_addr;
+ #else
+-         cmdbuf->state.gfx.vb.bufs[firstBinding + i].address = 0;
++         address = 0;
+ #endif
+-         cmdbuf->state.gfx.vb.bufs[firstBinding + i].size = 0;
++         size = 0;
++      }
++
++      if (vb->address != address || vb->size != size) {
++         vb->address = address;
++         vb->size = size;
++         changed = true;
+       }
+    }
+ 
+-   cmdbuf->state.gfx.vb.count =
++   const uint32_t vb_count =
+       MAX2(cmdbuf->state.gfx.vb.count, firstBinding + bindingCount);
+-   gfx_state_set_dirty(cmdbuf, VB);
++   if (cmdbuf->state.gfx.vb.count != vb_count) {
++      cmdbuf->state.gfx.vb.count = vb_count;
++      changed = true;
++   }
++
++   if (changed)
++      gfx_state_set_dirty(cmdbuf, VB);
+ }
+ 
+ VKAPI_ATTR void VKAPI_CALL
+-- 
+2.55.0
+
