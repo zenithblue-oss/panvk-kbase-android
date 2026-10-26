@@ -1,0 +1,68 @@
+From bf9dd4d2828cf18fad6ef69d27990a9f35077363 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 02:19:42 +0000
+Subject: [PATCH 3/6] panvk/jm: v6/v7 tess winding option read once per device
+
+Rationale: perf review 2026-10-26, finding D14 (first item).
+panvk_tess_draw() looked up PANVK_TESS_WINDING_INLINE with
+debug_get_num_option() on every tessellated draw (an option lookup with a
+mutex and a hash lookup, about 1 us). The device already has the value in
+tess_opt.winding_inline, but set it only for v9+. It is now also set for
+v6/v7 at device creation, and the draw reads it there.
+
+No knob: same option, same default, only read once. Arch: v6/v7.
+
+Not done from D14: skipping the second poll(0) before the first read() in
+kbase_drain_events(). It is not redundant: another thread can drain the
+events between the caller's poll() and the read lock, and the kbase fd is
+blocking, so a read() without it could block until an unrelated atom
+completes. The point-size bytes in the tess budget are left to the D1 cap
+(t->varying_bytes bounds the GPU varying allocation in the prefix clamp,
+so a smaller value needs proof that the point-size buffer is empty).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c | 10 +++++-----
+ src/panfrost/vulkan/panvk_vX_device.c      |  5 +++++
+ 2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index bf3580f3..7bed33d2 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -3904,11 +3904,11 @@ panvk_tess_draw(struct panvk_cmd_buffer *cmdbuf,
+       .points_mode = points,
+       .isolines = domain == 2,
+       /* PANVK_TESS_WINDING_INLINE (default 1): the tessellator writes the
+-       * counter-clockwise triangles, no per-patch serial swap pass. */
+-      .ccw = !ccw ? 0
+-             : debug_get_num_option("PANVK_TESS_WINDING_INLINE", 1)
+-                ? POLY_TESS_CCW_INLINE
+-                : 1,
++       * counter-clockwise triangles, no per-patch serial swap pass. Read
++       * once per device (it was an option lookup per tess draw). */
++      .ccw = !ccw                        ? 0
++             : dev->tess_opt.winding_inline ? POLY_TESS_CCW_INLINE
++                                            : 1,
+    };
+    t->heap.base = l_heap;
+    t->heap.size = heap_size;
+diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
+index c85cd5c6..4c699776 100644
+--- a/src/panfrost/vulkan/panvk_vX_device.c
++++ b/src/panfrost/vulkan/panvk_vX_device.c
+@@ -867,6 +867,11 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+       !reset_flush ||
+       (strcmp(reset_flush, "batch") && strcmp(reset_flush, "0"));
+ #endif
++#if PAN_ARCH < 9
++   /* v6/v7 panvk_tess_draw() reads it per draw (v9+ sets it below). */
++   device->tess_opt.winding_inline =
++      debug_get_num_option("PANVK_TESS_WINDING_INLINE", 1) != 0;
++#endif
+ 
+ #if PAN_ARCH >= 9
+    if (PANVK_DEBUG(GPU_PRERAST) || device->vk.enabled_features.fillModeNonSolid ||
+-- 
+2.55.0
+

@@ -1,0 +1,120 @@
+From 740baaf3f25401c00d0cf959bd3bb03278b0c854 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Mon, 26 Oct 2026 02:21:09 +0000
+Subject: [PATCH 4/6] panvk/jm: v6/v7 tess draws share a batch: per-draw charge
+ capped
+
+Rationale: perf review 2026-10-26, finding D1. jm-v7 106 (0079) charges
+each tessellated draw the worst case of its tess eval varyings against the
+per-batch budget (PANVK_V7_TESS_BATCH_MB, 32 MiB): max_indices is bounded
+by PANVK_TESS_MAX_PRIMS_PER_PATCH (level 64), so a 16-patch triangle draw
+is charged 16 x 8704 x 3 indices x 54 B = 21.5 MiB. The second tess draw
+of a batch is always over budget ("varyings 43 MiB worst case" in the 113
+S9 and A31 logcats), so every tessellated draw got its own batch, two
+atoms and a fragment job, and every batch after the first in a render pass
+stores and reloads the whole framebuffer. PanProbe tess_perf records 256
+batches (512 atoms) per frame; on 1080p game content each extra split is
+about 15-33 MB of attachment traffic (2-4 ms on G52/G72). Real draws use a
+small part of the charge: 27,744 indices (1.4 MiB) at level 16, 96 at
+level 1.
+
+Each draw is now charged at most budget / PANVK_V7_TESS_BATCH_DRAWS
+(default 4), so four worst-case draws share a batch. Correctness does not
+depend on the charge: panlib_v7_tess_prefix() keeps only the whole patches
+whose varyings fit what is left of the batch's indirect varying buffer
+(4M x 72 B of VA per heap half), and several tess draws per batch were
+already recorded whenever their worst cases fit (small patch counts,
+nested draws): they serialize through the tess arena with barrier jobs as
+before. What changes is the memory a batch may touch: up to N x 21.5 MiB
+of the GROW_ON_GPF varying buffer per half (86 MiB at N=4) when every
+patch of every draw really reaches level 64, instead of 32 MiB; typical
+content stays at N x 1-2 MiB. The GS scratch budget of nested draws is
+unchanged. The "tess batch budget" log line now prints the charge and N.
+
+Knob: PANVK_V7_TESS_BATCH_DRAWS (0-64, default 4; 0 = the whole worst case
+per draw, 114). Read once per VkDevice into panvk_device::jm_opt.
+PANVK_V7_TESS_BATCH_MB=0 still removes the budget. Arch: v6/v7.
+
+Expected: tess_perf 64 instead of 256 batches per frame (L=1 should gain
+most, its frame is mostly per-batch overhead); hashes unchanged.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c | 20 ++++++++++++++++++--
+ src/panfrost/vulkan/panvk_device.h         |  3 +++
+ src/panfrost/vulkan/panvk_vX_device.c      |  2 ++
+ 3 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index 7bed33d2..fb9c29e1 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -3837,10 +3837,24 @@ panvk_tess_draw(struct panvk_cmd_buffer *cmdbuf,
+     * phases of this draw.
+     */
+    const uint64_t tess_budget = panvk_v7_tess_batch_budget();
+-   const uint64_t vary_w =
++   uint64_t vary_w =
+       (uint64_t)max_indices * layers *
+          (16 + 4 + tes_v->info.varyings.formats.generic_size_B) +
+       (uint64_t)layers * 3 * 64;
++   /* The worst case is every patch at level 64 (PANVK_TESS_MAX_PRIMS_PER_
++    * PATCH): 21.5 MiB for a 16-patch triangle draw, so with the whole worst
++    * case charged every tess draw started a new batch, and every batch
++    * after the first in a render pass stores and reloads the framebuffer.
++    * Real draws use a small part of it (1.4 MiB at level 16). Each draw is
++    * charged at most budget / PANVK_V7_TESS_BATCH_DRAWS (default 4), so
++    * that many share a batch. The prefix kernel still keeps only the
++    * patches whose varyings fit what is left of the indirect varying
++    * buffer, so a batch that really reaches the worst case only takes
++    * more of that buffer (up to N times 21.5 MiB). 0 = the whole worst
++    * case (old).
++    */
++   if (tess_budget && dev->jm_opt.tess_batch_draws)
++      vary_w = MIN2(vary_w, tess_budget / dev->jm_opt.tess_batch_draws);
+    if (!draw->indirect_dep_job && tess_budget) {
+       struct panvk_batch *b = cmdbuf->cur_batch;
+       const bool used = b->tess_vary_w || b->tess_gs_off;
+@@ -3853,9 +3867,11 @@ panvk_tess_draw(struct panvk_cmd_buffer *cmdbuf,
+          if (over && logged < 3) {
+             logged++;
+             mesa_logi("panvk: v%u tess batch budget %llu MiB: new batch "
+-                      "(varyings %llu MiB worst case, GS scratch %llu MiB)",
++                      "(varyings %llu MiB charged, %u draws per batch, "
++                      "GS scratch %llu MiB)",
+                       PAN_ARCH, (unsigned long long)(tess_budget >> 20),
+                       (unsigned long long)((b->tess_vary_w + vary_w) >> 20),
++                      dev->jm_opt.tess_batch_draws,
+                       (unsigned long long)(b->tess_gs_off >> 20));
+          }
+          panvk_per_arch(cmd_close_batch)(cmdbuf);
+diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
+index 1875be7b..f53d5715 100644
+--- a/src/panfrost/vulkan/panvk_device.h
++++ b/src/panfrost/vulkan/panvk_device.h
+@@ -93,6 +93,9 @@ struct panvk_device {
+       /* PANVK_JM_RESET_FLUSH (default once, batch/0 = old): a resubmitted
+        * command buffer cleans its descriptor pool once, not per batch. */
+       bool reset_flush_once;
++      /* PANVK_V7_TESS_BATCH_DRAWS (default 4, 0 = old): v6/v7 tess draws
++       * that may share a batch at their worst-case varying charge. */
++      uint32_t tess_batch_draws;
+    } jm_opt;
+    struct panvk_priv_bo *sample_positions;
+ 
+diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
+index 4c699776..35ab63a9 100644
+--- a/src/panfrost/vulkan/panvk_vX_device.c
++++ b/src/panfrost/vulkan/panvk_vX_device.c
+@@ -871,6 +871,8 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+    /* v6/v7 panvk_tess_draw() reads it per draw (v9+ sets it below). */
+    device->tess_opt.winding_inline =
+       debug_get_num_option("PANVK_TESS_WINDING_INLINE", 1) != 0;
++   device->jm_opt.tess_batch_draws =
++      CLAMP(debug_get_num_option("PANVK_V7_TESS_BATCH_DRAWS", 4), 0, 64);
+ #endif
+ 
+ #if PAN_ARCH >= 9
+-- 
+2.55.0
+
