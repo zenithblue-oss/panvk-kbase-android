@@ -1,0 +1,29 @@
+MESA: info: panvk: 114 behaviour restored for: PANVK_CSF_FS_IDLE_CLEAN PANVK_DB_ALT PANVK_CSF_INDIRECT_REEMIT PANVK_CSF_DESC_DIRTY PANVK_VB_DIRTY_CMP PANVK_PRERAST_FAST_SKIP PANVK_DESC_POOL_HINT PANVK_WSI_SW_CACHED PANVK_WSI_SW_DEFER_REPLY PANVK_ANDROID_PRESENT_FENCE PANVK_ANDROID_PRESENT_THREAD PANVK_PRELOAD_BARRIER_TRACK
+MESA: info: kbase: JM driver, uAPI version 11.35, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up 2000 ms (first JM open in this process)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: 24575715 Hz, keeping cntfrq 24576000 Hz
+MESA: info: panvk: gpu_id 0x92020010 variant 0 arch v9 model Mali-G78 texture_features 0xf7fe007e 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe007e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+ICD device=Mali-G78 MC20 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+MESA: info: kbase: JM driver, uAPI version 11.35, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up skipped (done once in this process; PANVK_KBASE_JM_WARMUP=2 = every open)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: 24575140 Hz, keeping cntfrq 24576000 Hz
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: panvk: gpu_prerast tessellation arena committed (96 MiB)
+MESA: info: panvk: v9 tiler heaps 2 x 512 MiB (GROW_ON_GPF)
+MESA: info: panvk: v9 batch TLS 47104 KiB (stack 2032 B/thread), half 0, shared per half
+CASE push red=4096 mismatch=0 PASS
+MESA: info: panvk: v9 batch TLS 47104 KiB (stack 2032 B/thread), half 1, shared per half
+CASE pipeline red=4096 mismatch=0 PASS
+MESA: info: panvk: v9 batch TLS 47104 KiB (stack 2032 B/thread), half 0, shared per half
+CASE inverted red=4096 mismatch=0 PASS
+MESA: info: panvk: v9 batch TLS 47104 KiB (stack 2032 B/thread), half 1, shared per half
+CASE run red=4096 mismatch=0 PASS
+RESULT PASS

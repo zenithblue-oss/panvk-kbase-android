@@ -156,6 +156,23 @@ because a batch is closed once its charged varyings or its GS-scratch offset rea
 - No test is slower with the defaults in the raw times. After removing the 2 s, only bc_perf is slower, and that is the
   cold shader cache.
 
+## CPU-bound draw loops (FPS lines)
+
+| test | defaults fps | 114-knobs fps | 113 fps |
+|---|---|---|---|
+| clip_cull | 2458.3 | 1766.9 | 1992.6 |
+| multi_viewport | 2608.7 | 1813.9 | 2554.8 |
+| fill_mode | 2914.9 | 1702.1 | 2356.6 |
+| geometry | 3390.5 | 2186.5 | 2407.2 |
+| tessellation | 3142.5 | 2396.2 | 2031.6 |
+| pipeline_stats | 1928.7 | 1411.8 | 1433.4 |
+| swapchain_lifecycle | 60.5 | 60.5 | 60.2 |
+
+These 1 s loops of tiny draws measure CPU submission cost, and they are noisy between passes and runs. Pass 2 runs on a device
+that has just done 4 minutes of GPU work, and `114-knobs` is 9-29 % below 113 on four of them. With the defaults every loop
+is faster than both. That fits pd 0001 (no dead FS copy job per draw and layer) and the pa-pc CPU knobs, but this run cannot
+separate them. On the a31 the first three loops went the other way (see that run's results.md, start-of-run system load).
+
 ## Screenshots
 
 `screenshots/`:
