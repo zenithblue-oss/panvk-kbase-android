@@ -1,4 +1,4 @@
-From 3a369f2d423948993b994bd4a2e49207a358268b Mon Sep 17 00:00:00 2001
+From 3071c6dfa2ea1b4cb6c5fd5408ad77bce0b554af Mon Sep 17 00:00:00 2001
 From: abhay-byte <zenithblue.dev@gmail.com>
 Date: Mon, 26 Oct 2026 01:27:24 +0000
 Subject: [PATCH 233/233] panvk: PANVK_FPS_LOG present counter (fps per
@@ -36,18 +36,20 @@ time is taken before the call into wsi_common, i.e. when the
 application presented. If the file cannot be opened, the lines go to
 mesa_log.
 
-Cost: both variables are read once per process, at physical device init
-(panvk_wsi_init). With PANVK_FPS_LOG unset, the present path reads one
-int and calls wsi_common as before. When set: one clock read and one
-uncontended mutex per present.
+Cost: both variables are read once per process, at the first present
+(or swapchain destroy). After that, with PANVK_FPS_LOG unset, the present
+path reads one int and calls wsi_common as before. When set: one clock
+read and one uncontended mutex per present.
 
 Hooks: strong panvk_QueuePresentKHR, panvk_DestroySwapchainKHR and
 panvk_QueueSignalReleaseImageANDROID fill those device dispatch slots
 before wsi_device_entrypoints and vk_common do (panvk_device_entrypoints
-is added first, without overwrite). Only panvk_wsi.c changes, which no
-later patch of the series touches. Device destroy is not hooked (that
-needs panvk_vX_device.c, which later patches change); the exit summary
-covers it.
+is added first, without overwrite). The patch only appends to
+panvk_wsi.c (its own includes too), so no line of the file moves: no
+later patch of the series touches the file, and patches made without
+233 (115 work on panvk_wsi.c) still apply on top of it without an
+offset. Device destroy is not hooked (that needs panvk_vX_device.c,
+which later patches change); the exit summary covers it.
 
 Knob: PANVK_FPS_LOG unset = no change. Arch: all (the hooks sit above
 the per-arch code; JM and CSF). Validation: host unit test of the
@@ -57,64 +59,14 @@ file and no state); private build RC5-universal-114-fps.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
- src/panfrost/vulkan/panvk_wsi.c | 262 ++++++++++++++++++++++++++++++++
- 1 file changed, 262 insertions(+)
+ src/panfrost/vulkan/panvk_wsi.c | 277 ++++++++++++++++++++++++++++++++
+ 1 file changed, 277 insertions(+)
 
 diff --git a/src/panfrost/vulkan/panvk_wsi.c b/src/panfrost/vulkan/panvk_wsi.c
-index e4850024..8b13502f 100644
+index e4850024..ef75f77d 100644
 --- a/src/panfrost/vulkan/panvk_wsi.c
 +++ b/src/panfrost/vulkan/panvk_wsi.c
-@@ -10,18 +10,39 @@
-  */
- 
- #include "panvk_wsi.h"
-+#include "panvk_entrypoints.h"
- #include "panvk_instance.h"
- #include "panvk_physical_device.h"
- 
-+#include <inttypes.h>
-+#include <stdio.h>
- #include <stdlib.h>
- #include <string.h>
-+#include <time.h>
-+#include <unistd.h>
- 
- #if defined(HAVE_PAN_KMOD_KBASE)
- #include "lib/kmod/kbase_kmod.h"
- #endif
- 
-+#include "git_sha1.h"
-+#include "util/log.h"
-+#include "util/os_misc.h"
-+#include "util/os_time.h"
-+#include "util/simple_mtx.h"
-+#include "util/u_atomic.h"
-+#include "util/u_debug.h"
-+#include "util/u_math.h"
-+#include "vk_common_entrypoints.h"
- #include "vk_util.h"
- #include "wsi_common.h"
-+#include "wsi_common_entrypoints.h"
-+
-+#ifndef PANVK_KBASE_RELEASE
-+#define PANVK_KBASE_RELEASE "dev"
-+#endif
-+
-+static void panvk_fps_log_init(void);
- 
- static VKAPI_PTR PFN_vkVoidFunction
- panvk_wsi_proc_addr(VkPhysicalDevice physicalDevice, const char *pName)
-@@ -560,6 +581,9 @@ panvk_wsi_init(struct panvk_physical_device *physical_device)
-    physical_device->wsi_device.wsi[VK_ICD_WSI_PLATFORM_ANDROID] = &panvk_android_wsi_interface;
- #endif
- 
-+   /* csf-v11 233: PANVK_FPS_LOG is read here, once per process. */
-+   panvk_fps_log_init();
-+
-    return VK_SUCCESS;
- }
- 
-@@ -572,3 +596,241 @@ panvk_wsi_finish(struct panvk_physical_device *physical_device)
+@@ -572,3 +572,280 @@ panvk_wsi_finish(struct panvk_physical_device *physical_device)
     physical_device->vk.wsi_device = NULL;
     wsi_device_finish(&physical_device->wsi_device, &instance->vk.alloc);
  }
@@ -146,13 +98,39 @@ index e4850024..8b13502f 100644
 + * "# panvk-fps" line (driver version, pid, interval, wall clock of the
 + * first present). Counts are per process (all devices and swapchains).
 + *
-+ * The variables are read once, at physical device init. When PANVK_FPS_LOG
-+ * is unset the present path only reads one global.
++ * The variables are read once per process, at the first present (or
++ * swapchain destroy). After that, with PANVK_FPS_LOG unset, the present path
++ * reads one global and calls wsi_common as before.
++ *
++ * Only appended to this file (nothing above changes), so patches made
++ * without it still apply to it without an offset.
 + */
-+static int panvk_fps_on;
++#include <inttypes.h>
++#include <stdio.h>
++#include <time.h>
++#include <unistd.h>
++
++#include "git_sha1.h"
++#include "panvk_entrypoints.h"
++#include "util/log.h"
++#include "util/os_misc.h"
++#include "util/os_time.h"
++#include "util/simple_mtx.h"
++#include "util/u_atomic.h"
++#include "util/u_debug.h"
++#include "util/u_math.h"
++#include "vk_common_entrypoints.h"
++#include "wsi_common_entrypoints.h"
++
++#ifndef PANVK_KBASE_RELEASE
++#define PANVK_KBASE_RELEASE "dev"
++#endif
++
++/* 0 = not read yet, 1 = off, 2 = on. */
++static int panvk_fps_state;
 +static simple_mtx_t panvk_fps_lock = SIMPLE_MTX_INITIALIZER;
 +static struct {
-+   bool parsed, opened, done;
++   bool opened, done;
 +   FILE *fp;
 +   char tmpl[512];
 +   uint64_t interval_ns;
@@ -166,22 +144,36 @@ index e4850024..8b13502f 100644
 +panvk_fps_log_init(void)
 +{
 +   simple_mtx_lock(&panvk_fps_lock);
-+   if (!panvk_fps.parsed) {
++   if (!p_atomic_read(&panvk_fps_state)) {
 +      const char *path = os_get_option("PANVK_FPS_LOG");
++      int state = 1;
 +
-+      panvk_fps.parsed = true;
 +      if (path && path[0] && strlen(path) < sizeof(panvk_fps.tmpl)) {
 +         memcpy(panvk_fps.tmpl, path, strlen(path) + 1);
 +         panvk_fps.interval_ns =
 +            (uint64_t)MAX2(debug_get_num_option("PANVK_FPS_LOG_MS", 1000), 100) *
 +            1000000ull;
 +         atexit(panvk_fps_log_atexit);
-+         p_atomic_set(&panvk_fps_on, 1);
++         state = 2;
 +      } else if (path && path[0]) {
 +         mesa_logw("panvk: PANVK_FPS_LOG path too long, ignored");
 +      }
++      p_atomic_set(&panvk_fps_state, state);
 +   }
 +   simple_mtx_unlock(&panvk_fps_lock);
++}
++
++/* True when PANVK_FPS_LOG is set; reads the variables at the first call. */
++static inline bool
++panvk_fps_enabled(void)
++{
++   int state = p_atomic_read_relaxed(&panvk_fps_state);
++
++   if (unlikely(!state)) {
++      panvk_fps_log_init();
++      state = p_atomic_read(&panvk_fps_state);
++   }
++   return state == 2;
 +}
 +
 +/* Lock held. The pid is the presenting process's (expanded at open). */
@@ -313,7 +305,7 @@ index e4850024..8b13502f 100644
 +VKAPI_ATTR VkResult VKAPI_CALL
 +panvk_QueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPresentInfo)
 +{
-+   if (likely(!p_atomic_read_relaxed(&panvk_fps_on)))
++   if (likely(!panvk_fps_enabled()))
 +      return wsi_QueuePresentKHR(queue, pPresentInfo);
 +
 +   const uint64_t now = os_time_get_nano();
@@ -329,8 +321,7 @@ index e4850024..8b13502f 100644
 +panvk_DestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain,
 +                          const VkAllocationCallbacks *pAllocator)
 +{
-+   if (unlikely(p_atomic_read_relaxed(&panvk_fps_on)) &&
-+       swapchain != VK_NULL_HANDLE)
++   if (swapchain != VK_NULL_HANDLE && unlikely(panvk_fps_enabled()))
 +      panvk_fps_log_summary("swapchain", false);
 +
 +   wsi_DestroySwapchainKHR(device, swapchain, pAllocator);
@@ -343,7 +334,7 @@ index e4850024..8b13502f 100644
 +                                     const VkSemaphore *pWaitSemaphores,
 +                                     VkImage image, int *pNativeFenceFd)
 +{
-+   if (likely(!p_atomic_read_relaxed(&panvk_fps_on)))
++   if (likely(!panvk_fps_enabled()))
 +      return vk_common_QueueSignalReleaseImageANDROID(
 +         queue, waitSemaphoreCount, pWaitSemaphores, image, pNativeFenceFd);
 +
