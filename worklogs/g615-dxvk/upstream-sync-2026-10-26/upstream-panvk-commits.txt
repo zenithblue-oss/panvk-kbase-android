@@ -1,0 +1,64 @@
+8e3dba4f 2026-10-26 panvk: bump vulkan conformance version to 1.4.5.2
+ec7b2f32 2026-10-23 panvk: Fix incremental rendering for v14+
+8a971b01 2026-10-22 panvk: enable HW YUV texturing for packed YUV422 on v9 to v13
+0ac3efa9 2026-10-22 panvk: write_image_view_desc deals with images, not samplers
+83c3e5ad 2026-10-01 panvk: Advertise VK_KHR_extended_flags
+a45e34bd 2026-10-19 panvk: Implement VK_KHR_extended_flags
+41dc0af1 2026-10-19 panvk: Convert image flags to flags2
+ba3dacb9 2026-10-19 panvk: track heap budget across instances
+25e1e239 2026-10-14 panvk: properly ignore depth-stencil aspectMask
+a2b6d509 2026-10-10 panvk: Advertise VK_EXT_vertex_attribute_robustness
+fa9a434f 2026-10-13 panfrost: free correct handle
+42f5036e 2026-10-13 panvk: drop redundant descriptor-copy
+8e3e1a8e 2026-10-13 panfrost/csf: Emit register allocation for v14+ SPD
+bd1710b7 2026-09-25 panvk: Lower mediump on shader/function_temp immediately with Kraid
+cf98950a 2026-10-13 panvk: fix allow_merging_workgroups logic
+c3e210cb 2026-10-09 panvk: Use full texture handles instead of offsets on v9+
+7c648edb 2026-10-09 panfrost: correctly report immortalis
+5cc8e63b 2026-10-07 panfrost: add pan_model_device_name helper
+51d35874 2026-10-12 panvk: Consider non memory allocation failures as driver incompatibility
+9fbba397 2026-10-08 panvk: Advertise VK_KHR_maintenance11
+09db73e2 2026-10-08 panvk: Report optimal image transfer granularity
+7c3b6049 2026-10-08 pan/compiler: pass arch and model to compiler
+6b31d52b 2026-10-07 pan/compiler: base preprocessing on arch
+6860b959 2026-10-07 pan/compiler: base varying layout collection on arch
+88970558 2026-09-21 nir, vulkan: Use input attachment intrinsics
+514ebab0 2026-09-23 panvk/nir: Remove input attachment index from tex instrs
+64133541 2025-10-08 panfrost: Add VDRM backends
+9e872e24 2026-09-02 panvk: Move device compatibility checks to kmod
+ab1dc701 2026-09-02 panfrost/kmod: Add backend selection
+09eccf7f 2025-10-09 panvk/{jm,csf}: replace drmSyncobj operation with u_sync_provider.h
+712afcde 2025-10-08 pan/kmod: Abstract sync operations
+ae1c9155 2026-09-08 panfrost: Add prime_fd_to_handle to panfrost kmod ops
+37a1dcfb 2026-09-08 pan/kmod: Delegate more of the buffer import logic to backends
+b3843729 2025-06-20 panfrost/kmod: Add `submit_job` as a panfrost kmod operation
+3f05703b 2025-10-07 panfrost/panthor: Add `bo_export` operation to kmod.ops
+3395246b 2025-10-07 panfrost/panthor: Add `bo_map` operation to kmod.ops
+2b0e2b70 2025-10-13 panfrost/kmod: Adds `get_param` panfrost specialized function
+a1ab82b2 2025-10-11 panvk/jm: switch indirect varying bufs to poly_heap
+83504d84 2025-10-11 panvk: hook up poly_heap
+8feaff00 2026-10-02 panvk: Advertise VK_INTEL_shader_integer_functions2
+75917d5a 2026-10-06 panvk: fix invalid memcpy in nir_lower_descriptors
+35286d01 2026-10-05 panvk: fix null pointer dereference in GetInstanceProcAddr
+78f9b71d 2026-09-28 anv, panvk, pvr, radv, tu, v3dv, vn: use new device memory report function
+21365fba 2026-09-30 panvk: Advertise VK_KHR_maintenance10
+260ed1ba 2026-09-30 panvk: Honor resolve transfer function flags
+8b2d038e 2026-09-30 panvk: Move to CmdEndRendering2KHR(..)
+81db71cf 2026-09-27 panvk/csf: give compute jobs the TLS size of the shared allocation
+83cda621 2026-09-03 panvk: advertise VK_ANDROID_external_format_resolve on v10+
+842ff466 2026-09-03 panvk: patch null color attachment and format for efr
+6409a5b1 2026-09-09 panvk: Advertise VK_EXT_image_compression_control
+e3a315d6 2026-09-09 panvk: Honor VkImageCompressionControlEXT
+19f5cf79 2026-09-08 panvk: Report image compression properties
+90be04d4 2026-09-08 panvk: Zero images built for device-level queries
+fbb4993c 2026-09-23 panvk/csf: flush the FAU stores before indirect draws read them
+f333dd6d 2026-09-23 panvk: Don't force non-executable buffers to live in the first 4G
+4ecc4966 2026-09-24 panvk: Don't downcast CS func address to a 32-bit VA
+c4673eab 2026-09-23 panvk: Revisit the heap selection logic
+4487dd7b 2026-09-22 panvk/csf: check malloc return values in queue submit storage init
+d7d2cd7b 2026-09-22 panvk: validate descriptor counts in shader deserialization
+fa679747 2026-09-22 pan/kmod: Make sure all executables live in the same 4G VA range
+eef8db80 2026-07-03 panvk: Advertise VK_EXT_swapchain_colorspace
+fb385376 2026-07-03 panvk: Advertise VK_KHR_incremental_present
+50bda0b8 2026-08-05 panvk: Enable AFBC for WSI images by default
+98ed8110 2026-08-05 panvk: Query modifier capabilities for format property advertisement
