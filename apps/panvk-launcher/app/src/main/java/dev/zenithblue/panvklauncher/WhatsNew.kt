@@ -21,21 +21,15 @@ import androidx.compose.ui.unit.dp
 /** Release notes shown once per versionCode. Update these two lists each release. */
 object WhatsNew {
     val added = listOf(
-        "Game audio: ALSA (default), PulseAudio or Off, globally and per game",
-        "Physical controller support: remap every button, trigger, D-pad direction and stick half-axis to keys, mouse buttons, wheel or axes, or pad inputs",
-        "Two-step Type / Key dropdown editor for controls",
-        "In-game menu (Back, MENU or Start+Select) with live controls, FPS limit and Stop game",
-        "Gaming mode",
-        ".reg file import",
-        "Hide games that are not installed",
-        "More injectable keys: Pause, Win, Menu, F13-F24, lock keys, mouse back and forward",
+        "Mesa PanVK 26.3.0-devel driver, now also for Mali Bifrost GPUs (v6/v7)",
+        "OpenGL games through Mesa Zink 26.2.4",
+        "Render API per game: Auto, DXVK, VKD3D, WineD3D, OpenGL (Zink), Vulkan or cnc-ddraw",
+        "The launch sheet shows the detected graphics API (with Godot, Unity and Unreal hints) and the API of the last run",
     )
     val fixed = listOf(
-        "On-screen pad scaling on phones and tablets, with min and max limits",
-        "Less logging overhead during play: buffered logs, the xdump thread stops, no log write per keypress",
-        "White labels on pressed buttons",
-        "\"Show missing\" list order",
-        "\"Recording is off\" message",
+        "Fallout 4: launch fixes, less memory, no black heads",
+        "The launch sheet no longer saves stale values",
+        "Built-in X server: MIT-SHM requests check the segment owner and the image bounds",
     )
 
     private const val KEY = "changelog_seen"

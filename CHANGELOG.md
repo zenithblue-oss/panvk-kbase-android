@@ -17,7 +17,8 @@
   `Mesa-PanVK-<version>-<sha8>-EMULATOR.zip`. Release title `Mesa PanVK <tag>`. Tags keep the
   `panvk-kbase-v` prefix. Builds that still report the old string keep the old package names.
 - `validate-package.sh` no longer reads `-devel` as the `dev` tier.
-- PanPlay **1.2.9** (versionCode 41; the test builds were 1.2.9-rc5). The bundled driver's `packageVersion` is the
+- PanPlay **1.3.0** (versionCode 41; 1.2.7 was 33, the 1.2.9-rc5 test builds 35-40) and PanProbe **1.3.0**
+  (versionCode 16; 1.2.7 was 15). PanPlay's What's New lists the changes since 1.2.7. The bundled driver's `packageVersion` is the
   Mesa version, `26.3.0-devel` (was `0.1.0-rc5`), in PanPlay and PanProbe, so the update card shows
   `26.3.0-devel` instead of `rc5`. The update check offers only releases tagged above 26.3.0 to these builds
   (`docs/RELEASE.md`). Package ids and the PanProbe `rc4`/`rc5` driver slots are unchanged.
