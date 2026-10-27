@@ -1,5 +1,7 @@
 # Staging 115, fix: PanPlay on Pixel 8 (v11, coherency mode 31): D3D9 HUD text, D3D12 swapchain fault, diagnostics
 
+> **Promoted (2026-10-26):** these 4 patches (0001-0004) are now `patches/jm-v7-wip/0128-0131` (the same files, renumbered in apply order: patch 000N here is jm-v7-wip 127 + N). `scripts/prepare-rc5-tree.sh` applies them (default `--wip-max 0131`, the build 115 tree); see `patches/jm-v7-wip/README.md`, section "Build 115". The `patches/staging-115/...` paths and the apply/export commands below are from before the move.
+
 Source: the PanPlay problems seen on FTL shiba in `worklogs/g615-dxvk/device-runs/2026-10-26-ftl-v11-shiba-panplay-115pre/`,
 diagnosed in `../../../worklogs/g615-dxvk/device-runs/2026-10-26-ftl-v11-shiba-panplay-115fix-diag/results.md` and confirmed in
 `../../../worklogs/g615-dxvk/device-runs/2026-10-26-ftl-v11-shiba-panplay-115fix/results.md`.

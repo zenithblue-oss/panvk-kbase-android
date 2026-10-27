@@ -1,17 +1,19 @@
 #!/bin/sh
-# prepare-rc5-tree.sh — build the universal RC5 Mesa tree (v6/v7/v9/v10/v11 in one ICD)
+# prepare-rc5-tree.sh — build the universal Mesa PanVK tree (v6/v7/v9-v14 in one ICD)
 #
 # Mesa 5a07217 + the g615-v11-csf series in apply-patches.sh order (common android
 # kbase-common app-loader wsi csf csf-v11[<=CSF_MAX] jm-v9 jm-v7 001-005), one commit
 # per patch, then `git am` of patches/jm-v7-wip/0006..WIP_MAX in file order.
 # Strict: any offset, fuzz or conflict stops the script (same rule as apply-patches.sh).
+# The defaults (csf-v11 <= 233, jm-v7-wip <= 0131) give the build 115 release tree; older
+# builds name their limits in worklogs/g615-dxvk/builds/rc5-universal.md.
 #
 # Usage:
-#   git -C /home/flux/src/mesa worktree add -b rc5 /home/flux/src/mesa-rc5 5a07217f
-#   scripts/prepare-rc5-tree.sh --mesa /home/flux/src/mesa-rc5 [--csf-max 208] [--wip-max 0076] [--base-tag rc5-base]
+#   git -C /home/flux/src/mesa worktree add -b p115-rel /home/flux/src/mesa-115-rel 5a07217f
+#   scripts/prepare-rc5-tree.sh --mesa /home/flux/src/mesa-115-rel [--csf-max 233] [--wip-max 0131] [--base-tag <tag>]
 set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MESA=""; CSF_MAX=208; WIP_MAX=0076; BASE_TAG=""
+MESA=""; CSF_MAX=233; WIP_MAX=0131; BASE_TAG=""
 while [ $# -gt 0 ]; do case "$1" in
   --mesa) MESA="$2"; shift 2;;
   --csf-max) CSF_MAX="$2"; shift 2;;

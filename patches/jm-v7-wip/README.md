@@ -412,3 +412,28 @@ Base: rc5g-114 + 233 (worktree `/home/flux/src/mesa-rc5-fps`, branch `fps-log`, 
 
 - 233 (all archs, JM and CSF; the hooks sit above the per-arch code): `PANVK_FPS_LOG=<path>` (appended, `%p` = pid) and `PANVK_FPS_LOG_MS` (default 1000, minimum 100), both read once per process at the first present (or swapchain destroy), so nothing runs at instance or device init. It counts the presents that queued an image: `vkQueuePresentKHR` through wsi_common (X11 swapchain of PanPlay's Wine games, Wayland, the PanVK Android surface swapchain of PanProbe) and `vkQueueSignalReleaseImageANDROID` (the Android loader's swapchain). Per interval: `fps t_ms=<ms since first present> frames=<n> fps=<x.x> avg_ms=<x.xx> max_ms=<x.xx> total=<N>`. At `vkDestroySwapchainKHR` and at exit / driver unload (atexit): `fps-summary ... reason=swapchain|exit` over the whole run, after the interval in progress has been flushed. The file is opened at the first present, header `# panvk-fps <driverInfo> pid= interval_ms= first_present_unix_ms=`. If the open fails, the lines go to mesa_log. Unset = after that first read, the present path reads one int (relaxed atomic) and calls wsi_common (no getenv in hot paths). Set = one clock read and one mutex per present. Hooks: strong `panvk_QueuePresentKHR` / `panvk_DestroySwapchainKHR` / `panvk_QueueSignalReleaseImageANDROID`, which fill those dispatch slots before `wsi_device_entrypoints` and vk_common (`panvk_device_entrypoints` is added first without overwrite). In the build, the table slots point at the hooks. Device destroy is not hooked (that needs `panvk_vX_device.c`); the exit summary covers it.
 - Validation: a host unit test of the counter (gcc, fake clock: 60, 30 and 45 fps, a 100 ms stall, failed presents not counted, two swapchains, the Android path, exit summary; with the variable unset: no file and no state). The `fps` lines add up to the summary. Private build **RC5-universal-114-fps** (not a release): `/home/flux/build-out/2026-10-26-rc5-universal-114-fps-private/libvulkan_panfrost.so`, 30674016 bytes, sha256 `51f6fdbe2a34237b6a765981bf3c17f7f645e5a85752b8053dce3ad0c4b1fd27`, `PanVK-kbase RC5-universal-114-fps (Mesa 26.3.0-devel (git-3071c6dfa2))`, with the same toolchain and flags as 114 and no new warnings. No device run. Harness and fps method: `worklogs/g615-dxvk/panplay-firebase-cubes.md`.
+
+## Build 115 (2026-10-26): 0093-0131, staging-115 promoted
+
+The six `patches/staging-115` packages are now part of this queue, unchanged (`git mv`, same bytes), in their apply
+order. So `scripts/prepare-rc5-tree.sh`, whose defaults are now `--csf-max 233 --wip-max 0131`, builds the build 115
+release tree, which is the `p115-fix` tree (`213079bc`). The design notes stay in `patches/staging-115/<pkg>/NOTES.md`
+(knob tables, 114 values, risks); each one now starts with its new numbers.
+
+| jm-v7-wip | was staging-115 | what |
+|---|---|---|
+| 0093-0102 | pa 0001-0010 | P-A: CSF CPU record/submit (FS idle clean, descriptor dirty per stage, VB dirty compare, gpu_prerast fast skip, indirect re-emit fix), depth bounds FS, kbase device clock, descriptor pool hint |
+| 0103-0112 | pb 0001-0010 | P-B: memory (eager retired-heap TERM, 8 MiB tess VS region, zero only what must be zero, CS chunk flush and 4 KiB chunks, JM pool auto-trim, pressure-aware budget, slab caches; opt-in evictable slabs and heap slots) |
+| 0113-0119 | pc 0001-0007 | P-C: present paths (cached sw readback, deferred MIT-SHM reply, Android present fence and thread), INTERSECT ZS preload on v9/v10, preload barrier tracking |
+| 0120 | int 0001 | driverInfo like upstream Mesa, `Mesa 26.3.0-devel (git-<sha>)` |
+| 0121-0127 | pd 0001-0007 | P-D: JM v6/v7/v9 (FS copy job once, one pool clean per resubmit, tess batches, v9 lazy prerast arenas, JM warm-up off, TLS/WLS no CPU clear) |
+| 0128-0131 | fix 0001-0004 | PanPlay on Pixel 8: HOST_COHERENT dma-heap BOs from `system-uncached` on coherency mode 31 (`PANVK_KBASE_UNCACHED_HEAP`), no RandR on an X server without RANDR and no present timing on the CPU copy path, two opt-in diagnostics (`MESA_VK_X11_SW_TIMING`, `PANVK_KBASE_WAIT_STATS`, `MESA_VK_WSI_CREATE_LOG`) |
+
+Every default-on behaviour change has a knob that restores 114 (the NOTES tables); PanProbe's `assets/env-ab.json`
+pass `114-knobs` sets them (27 keys; `PANVK_ZS_PRELOAD_ALWAYS=1`, the 114 value on v9/v10 only, is left out, see that file).
+
+Strict check on a fresh 5a07217f worktree (`/home/flux/src/mesa-115-rel`, branch `p115-rel`):
+`sh scripts/prepare-rc5-tree.sh --mesa /home/flux/src/mesa-115-rel --csf-max 233 --wip-max 0131` printed
+`BASE-OK applied=228 csf-v11<=233 head=6f7117ff` and `OK base=228 jm-v7-wip=126 head=9dde9e7a`, with no PATCH-DRIFT, WIP-DRIFT, offset or fuzz lines (only the old jm-v9/002 trailing-whitespace
+warning). Its tree `213079bc` equals `p115-fix`'s (`git diff p115-fix HEAD` is empty). Build 115 is built from this tree:
+driverInfo `Mesa 26.3.0-devel (git-9dde9e7a18)`.

@@ -1,5 +1,7 @@
 # Staging 115, integration (p115-int): P-A + P-B + P-C on the 233 base, upstream-style driver name
 
+> **Promoted (2026-10-26):** these 1 patch (0001) are now `patches/jm-v7-wip/0120` (the same files, renumbered in apply order: patch 000N here is jm-v7-wip 119 + N). `scripts/prepare-rc5-tree.sh` applies them (default `--wip-max 0131`, the build 115 tree); see `patches/jm-v7-wip/README.md`, section "Build 115". The `patches/staging-115/...` paths and the apply/export commands below are from before the move.
+
 The build-115 integration branch. It carries no package of its own: it is the series with csf-v11 233,
 then the three finished packages unchanged, then the commits in this directory.
 

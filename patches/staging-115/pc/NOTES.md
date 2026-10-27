@@ -1,5 +1,7 @@
 # Staging 115, package P-C: present paths, GPU-side passes and barriers
 
+> **Promoted (2026-10-26):** these 7 patches (0001-0007) are now `patches/jm-v7-wip/0113-0119` (the same files, renumbered in apply order: patch 000N here is jm-v7-wip 112 + N). `scripts/prepare-rc5-tree.sh` applies them (default `--wip-max 0131`, the build 115 tree); see `patches/jm-v7-wip/README.md`, section "Build 115". The `patches/staging-115/...` paths and the apply/export commands below are from before the move.
+
 Source: `worklogs/g615-dxvk/perf-review-2026-10-26/c-gpu.md` (C2, C4, C6, C7, C8, C10),
 `d-jm.md` (D13, which is the 2026-10-22 review's K1), `a-csf-cpu.md` (M8), and the
 correctness items in `README.md` of the same directory (unnamed `wsi_device_options` field,

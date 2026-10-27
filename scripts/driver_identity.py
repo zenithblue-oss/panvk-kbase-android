@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """driver_identity.py: the identity a libvulkan_panfrost.so reports, for packaging and release names.
 
-Trees with patches/staging-115/int 0001 (p115-int and later) report driverInfo like an upstream Mesa
+Trees with patches/jm-v7-wip 0120 (was staging-115/int 0001; p115-int and later) report driverInfo like an upstream Mesa
 development build, "Mesa <VERSION> (git-<sha10>)", e.g. "Mesa 26.3.0-devel (git-6a5d4e2756)"
 (PACKAGE_VERSION of the Mesa base, MESA_GIT_SHA1 of the patched tree). RC4 up to rc5g-114 reported
 "PanVK-kbase <release> (Mesa <VERSION> (git-<sha10>))" (csf-v11/099, PANVK_KBASE_RELEASE).

@@ -1,5 +1,7 @@
 # Staging 115, package P-D: JM path (v6 G72, v7 G52, v9 G78)
 
+> **Promoted (2026-10-26):** these 7 patches (0001-0007) are now `patches/jm-v7-wip/0121-0127` (the same files, renumbered in apply order: patch 000N here is jm-v7-wip 120 + N). `scripts/prepare-rc5-tree.sh` applies them (default `--wip-max 0131`, the build 115 tree); see `patches/jm-v7-wip/README.md`, section "Build 115". The `patches/staging-115/...` paths and the apply/export commands below are from before the move.
+
 Source: `worklogs/g615-dxvk/perf-review-2026-10-26/d-jm.md` (findings D1-D14, anomalies A1/A2) and the
 consolidated plan `README.md` in the same directory.
 

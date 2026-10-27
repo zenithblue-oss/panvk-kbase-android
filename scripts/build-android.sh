@@ -48,7 +48,7 @@ fi
 export PKG_CONFIG_PATH="$DEPS_PCDIR:${PKG_CONFIG_PATH:-}"
 mkdir -p "$DDIR"
 # Legacy opt-in: PANVK_KBASE_RELEASE=<name> sets the release string reported in driverInfo on trees up to
-# rc5g-114 (patch csf-v11/099: "PanVK-kbase <name> (Mesa ...)"). Trees with staging-115/int 0001 report
+# rc5g-114 (patch csf-v11/099: "PanVK-kbase <name> (Mesa ...)"). Trees with jm-v7-wip 0120 report
 # driverInfo like upstream Mesa ("Mesa <VERSION> (git-<sha>)") and ignore the define.
 if [ -n "${PANVK_KBASE_RELEASE:-}" ]; then
   printf "\n[built-in options]\nc_args = ['-DPANVK_KBASE_RELEASE=\"%s\"']\ncpp_args = ['-DPANVK_KBASE_RELEASE=\"%s\"']\n" "$PANVK_KBASE_RELEASE" "$PANVK_KBASE_RELEASE" >> "$BDIR.cross.ini"

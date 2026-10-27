@@ -1,5 +1,7 @@
 # Staging 115, package P-B: memory footprint, budget, command pools, CS chunks
 
+> **Promoted (2026-10-26):** these 10 patches (0001-0010) are now `patches/jm-v7-wip/0103-0112` (the same files, renumbered in apply order: patch 000N here is jm-v7-wip 102 + N). `scripts/prepare-rc5-tree.sh` applies them (default `--wip-max 0131`, the build 115 tree); see `patches/jm-v7-wip/README.md`, section "Build 115". The `patches/staging-115/...` paths and the apply/export commands below are from before the move.
+
 Source: `worklogs/g615-dxvk/perf-review-2026-10-26/b-memory.md` (Q*, B*, J1), A3 from
 `a-csf-cpu.md` and the JM auto-trim half of D2's quick part from `d-jm.md`, with the consolidated plan
 `README.md` in the same directory.
