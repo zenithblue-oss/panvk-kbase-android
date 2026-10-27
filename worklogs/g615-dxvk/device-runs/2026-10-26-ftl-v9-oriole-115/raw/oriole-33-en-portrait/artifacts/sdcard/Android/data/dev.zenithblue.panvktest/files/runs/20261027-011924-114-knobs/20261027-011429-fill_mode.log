@@ -1,0 +1,42 @@
+MESA: info: panvk: 114 behaviour restored for: PANVK_CSF_FS_IDLE_CLEAN PANVK_DB_ALT PANVK_CSF_INDIRECT_REEMIT PANVK_CSF_DESC_DIRTY PANVK_VB_DIRTY_CMP PANVK_PRERAST_FAST_SKIP PANVK_DESC_POOL_HINT PANVK_WSI_SW_CACHED PANVK_WSI_SW_DEFER_REPLY PANVK_ANDROID_PRESENT_FENCE PANVK_ANDROID_PRESENT_THREAD PANVK_PRELOAD_BARRIER_TRACK
+MESA: info: kbase: JM driver, uAPI version 11.35, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up 2000 ms (first JM open in this process)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: 24575307 Hz, keeping cntfrq 24576000 Hz
+MESA: info: panvk: gpu_id 0x92020010 variant 0 arch v9 model Mali-G78 texture_features 0xf7fe007e 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe007e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+ICD device=Mali-G78 MC20 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+MESA: info: kbase: JM driver, uAPI version 11.35, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up skipped (done once in this process; PANVK_KBASE_JM_WARMUP=2 = every open)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: 24576672 Hz, keeping cntfrq 24576000 Hz
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: panvk: gpu_prerast draw arena committed (64 MiB)
+MESA: info: panvk: v9 tiler heaps 2 x 512 MiB (GROW_ON_GPF)
+FPS 3081.4 frames=3082 ms=1000
+CASE list_line_cull_none tris=3 kept=3 ref_red=266 red=266 mismatch=0 PASS
+CASE list_line_cull_back tris=3 kept=1 ref_red=84 red=84 mismatch=0 PASS
+CASE list_line_cull_front tris=3 kept=2 ref_red=182 red=182 mismatch=0 PASS
+CASE list_line_cull_both tris=3 kept=0 ref_red=0 red=0 mismatch=0 PASS
+CASE list_line_cull_back_flipy tris=3 kept=2 ref_red=182 red=182 mismatch=0 PASS
+CASE strip_line_cull_none tris=3 kept=3 ref_red=146 red=146 mismatch=0 PASS
+CASE strip_line_cull_back tris=3 kept=3 ref_red=146 red=146 mismatch=0 PASS
+CASE fan_line_cull_none tris=5 kept=5 ref_red=241 red=241 mismatch=0 PASS
+CASE fan_line_cull_front tris=5 kept=4 ref_red=198 red=198 mismatch=0 PASS
+CASE strip_restart_line tris=4 kept=4 ref_red=204 red=204 mismatch=0 PASS
+CASE fan_restart_line_cull_front tris=4 kept=4 ref_red=152 red=152 mismatch=0 PASS
+CASE fan_restart_line_cull_back tris=4 kept=0 ref_red=0 red=0 mismatch=0 PASS
+CASE list_point_cull_none tris=3 kept=3 ref_red=9 red=9 mismatch=0 PASS
+CASE fan_point_cull_back tris=5 kept=1 ref_red=3 red=3 mismatch=0 PASS
+CASE strip_point_flipy_cull_front tris=3 kept=3 ref_red=5 red=5 mismatch=0 PASS
+MESA: warning: panvk: v9 indirect gpu_prerast draws (GS, transform feedback, polygon mode, viewport select, VS stores) are drawn in at most 8 chunks of 65536 vertices; the rest of a larger draw is dropped
+MESA: info: panvk: v9 batch WLS 368 KiB, half 0, shared per half
+CASE indirect_list_line_cull_back tris=3 kept=1 ref_red=84 red=84 mismatch=0 PASS
+MESA: info: panvk: v9 batch WLS 368 KiB, half 0, shared per half
+CASE indirect_indexed_strip_restart_line tris=4 kept=4 ref_red=204 red=204 mismatch=0 PASS
+FILL_MODE_FAILS=0

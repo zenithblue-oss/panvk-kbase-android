@@ -1,0 +1,110 @@
+MESA: info: kbase: JM driver, uAPI version 11.35, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: 24576968 Hz, keeping cntfrq 24576000 Hz
+MESA: info: panvk: gpu_id 0x92020010 variant 0 arch v9 model Mali-G78 texture_features 0xf7fe007e 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe007e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+INFO device Mali-G78 MC20
+INFO apiVersion 1.3.363
+HARD ok apiVersion >= 1.3
+HARD ok graphics+compute queue
+HARD ok maxPushConstantsSize >= 256
+HARD ok VK_KHR_swapchain
+HARD ok VK_KHR_load_store_op_none
+HARD ok VK_KHR_maintenance5
+HARD ok VK_KHR_maintenance6
+HARD ok VK_EXT_depth_clip_enable.depthClipEnable
+HARD ok VK_EXT_robustness2.robustBufferAccess2
+HARD ok VK_EXT_robustness2.nullDescriptor
+HARD ok depthBiasClamp
+HARD ok depthClamp
+HARD ok dualSrcBlend
+HARD ok fillModeNonSolid
+HARD ok fragmentStoresAndAtomics
+HARD ok fullDrawIndexUint32
+HARD ok geometryShader
+HARD ok imageCubeArray
+HARD ok independentBlend
+HARD ok multiDrawIndirect
+HARD ok multiViewport
+HARD ok occlusionQueryPrecise
+HARD ok robustBufferAccess
+HARD ok sampleRateShading
+HARD ok samplerAnisotropy
+HARD ok shaderClipDistance
+HARD ok shaderCullDistance
+HARD ok shaderImageGatherExtended
+HARD ok shaderInt16
+HARD ok shaderInt64
+HARD ok shaderSampledImageArrayDynamicIndexing
+HARD ok textureCompressionBC
+HARD ok shaderDrawParameters
+HARD ok storageBuffer16BitAccess
+HARD ok bufferDeviceAddress
+HARD ok descriptorIndexing
+HARD ok storageBuffer8BitAccess
+HARD ok descriptorBindingSampledImageUpdateAfterBind
+HARD ok descriptorBindingUpdateUnusedWhilePending
+HARD ok descriptorBindingPartiallyBound
+HARD ok hostQueryReset
+HARD ok runtimeDescriptorArray
+HARD ok samplerMirrorClampToEdge
+HARD ok scalarBlockLayout
+HARD ok shaderInt8
+HARD ok timelineSemaphore
+HARD ok uniformBufferStandardLayout
+HARD ok vulkanMemoryModel
+HARD ok inlineUniformBlock
+HARD ok computeFullSubgroups
+HARD ok dynamicRendering
+HARD ok maintenance4
+HARD ok shaderDemoteToHelperInvocation
+HARD ok shaderZeroInitializeWorkgroupMemory
+HARD ok subgroupSizeControl
+HARD ok synchronization2
+SOFT ok drawIndirectFirstInstance (FL11_0)
+SOFT ok tessellationShader (FL11_0)
+SOFT ok logicOp (FL11_1)
+SOFT ok vertexPipelineStoresAndAtomics (FL11_1)
+SOFT missing tiled resources tier 2 (FL12_0) -- D3D11 capped at FL11_1
+INFO typed_uav_load 18/18
+SOFT ok typed UAV load, 18 formats (FL12_0)
+SOFT missing VK_EXT_conservative_rasterization (FL12_1) -- D3D11 capped at FL12_0
+SOFT missing fragmentShaderPixelInterlock (FL12_1) -- D3D11 capped at FL12_0
+INFO d3d11_max_feature_level 11_1
+SOFT ok D24_UNORM_S8_UINT or D32_SFLOAT_S8_UINT
+SOFT missing D16_UNORM_S8_UINT (D3D9) -- D3D9 D16S8 emulated
+SOFT ok A8_UNORM
+SOFT ok depthBounds
+SOFT ok pipelineStatisticsQuery
+SOFT ok variableMultisampleRate
+SOFT ok wideLines
+SOFT ok largePoints
+SOFT missing shaderFloat64 -- no D3D11 double-precision shader ops
+SOFT missing shaderFloat16 -- fp16 math in fp32
+SOFT ok drawIndirectCount
+SOFT ok shaderOutputViewportIndex
+SOFT missing shaderOutputLayer -- VS/DS render target array index not exposed
+SOFT missing samplerFilterMinmax -- min/max filtering samplers unsupported
+SOFT ok robustImageAccess / robustImageAccess2
+SOFT ok VK_EXT_transform_feedback
+SOFT ok VK_EXT_vertex_attribute_divisor
+SOFT ok VK_EXT_custom_border_color
+SOFT ok VK_EXT_border_color_swizzle
+SOFT ok VK_EXT_extended_dynamic_state3
+SOFT ok VK_EXT_graphics_pipeline_library
+SOFT ok VK_EXT_line_rasterization
+SOFT ok VK_EXT_depth_bias_control
+SOFT ok VK_EXT_non_seamless_cube_map
+SOFT missing VK_EXT_memory_priority -- no allocation priorities
+SOFT ok VK_EXT_memory_budget
+SOFT missing VK_EXT_multi_draw -- multi-draw batching off
+SOFT ok VK_EXT_attachment_feedback_loop_layout
+SOFT ok VK_EXT_shader_stencil_export
+SOFT missing VK_EXT_sample_locations -- custom sample positions ignored
+INFO hard 56/56 available, soft 27/38 available
+RESULT PASS

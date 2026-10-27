@@ -1,0 +1,124 @@
+MESA: info: panvk: 114 behaviour restored for: PANVK_CSF_FS_IDLE_CLEAN PANVK_DB_ALT PANVK_CSF_INDIRECT_REEMIT PANVK_CSF_DESC_DIRTY PANVK_VB_DIRTY_CMP PANVK_PRERAST_FAST_SKIP PANVK_DESC_POOL_HINT PANVK_WSI_SW_CACHED PANVK_WSI_SW_DEFER_REPLY PANVK_ANDROID_PRESENT_FENCE PANVK_ANDROID_PRESENT_THREAD PANVK_PRELOAD_BARRIER_TRACK
+MESA: info: kbase: JM driver, uAPI version 11.35, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up 2000 ms (first JM open in this process)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: 24575698 Hz, keeping cntfrq 24576000 Hz
+MESA: info: panvk: gpu_id 0x92020010 variant 0 arch v9 model Mali-G78 texture_features 0xf7fe007e 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe007e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+ICD device=Mali-G78 MC20 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+MESA: info: kbase: JM driver, uAPI version 11.35, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up skipped (done once in this process; PANVK_KBASE_JM_WARMUP=2 = every open)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: 24576394 Hz, keeping cntfrq 24576000 Hz
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: panvk: gpu_prerast draw arena committed (64 MiB)
+MESA: info: panvk: gpu_prerast tessellation arena committed (96 MiB)
+MESA: info: panvk: v9 tiler heaps 2 x 512 MiB (GROW_ON_GPF)
+variant 0 opt=default device=Mali-G78 MC20 gs=1
+MEM device avail_kb=4029980 rss_kb=184000
+MEM recorded opt=default gs=0 L=ref avail_kb=4029728 rss_kb=185064
+MEM first frame avail_kb=4029728 rss_kb=185064
+BENCH tess_perf opt=default gs=0 L=ref draws=256 patches=4096 ms=1.96 us_draw=7.6 frames=358 hash=4807f3f5
+MEM opt=default gs=0 L=ref avail_kb=4028720 rss_kb=185064
+MESA: info: panvk: v9 batch TLS 94208 KiB (stack 2336 B/thread), half 1, shared per half
+MEM recorded opt=default gs=0 L=1 avail_kb=3929660 rss_kb=283748
+MEM first frame avail_kb=3930716 rss_kb=283748
+BENCH tess_perf opt=default gs=0 L=1 draws=256 patches=4096 ms=69.70 us_draw=272.3 frames=11 hash=a03404c5
+MEM opt=default gs=0 L=1 avail_kb=3928028 rss_kb=283748
+MESA: info: panvk: v9 batch TLS 94208 KiB (stack 2336 B/thread), half 0, shared per half
+MEM recorded opt=default gs=0 L=4 avail_kb=3928012 rss_kb=283768
+MEM first frame avail_kb=3920136 rss_kb=291976
+BENCH tess_perf opt=default gs=0 L=4 draws=256 patches=4096 ms=194.48 us_draw=759.7 frames=4 hash=cec55885
+MEM opt=default gs=0 L=4 avail_kb=3921012 rss_kb=291976
+MESA: info: panvk: v9 batch TLS 94208 KiB (stack 2336 B/thread), half 1, shared per half
+MEM recorded opt=default gs=0 L=16 avail_kb=3920680 rss_kb=291976
+MEM first frame avail_kb=3834708 rss_kb=378160
+BENCH tess_perf opt=default gs=0 L=16 draws=256 patches=4096 ms=897.72 us_draw=3506.7 frames=3 hash=d4463b35
+MEM opt=default gs=0 L=16 avail_kb=3830060 rss_kb=378160
+MESA: info: panvk: v9 batch TLS 94208 KiB (stack 2336 B/thread), half 0, shared per half
+MEM recorded opt=default gs=0 L=mix avail_kb=3830076 rss_kb=378160
+MEM first frame avail_kb=3802552 rss_kb=402784
+BENCH tess_perf opt=default gs=0 L=mix draws=256 patches=4096 ms=902.86 us_draw=3526.8 frames=3 hash=b34a251c
+MEM opt=default gs=0 L=mix avail_kb=3804952 rss_kb=402784
+MEM recorded opt=default gs=1 L=1 avail_kb=3790264 rss_kb=418876
+MEM first frame avail_kb=3790924 rss_kb=418876
+BENCH tess_perf opt=default gs=1 L=1 draws=256 patches=4096 ms=163.34 us_draw=638.0 frames=5 hash=a03404c5
+MEM opt=default gs=1 L=1 avail_kb=3789512 rss_kb=418876
+MEM recorded opt=default gs=1 L=4 avail_kb=3789512 rss_kb=418828
+MEM first frame avail_kb=3764484 rss_kb=443452
+BENCH tess_perf opt=default gs=1 L=4 draws=256 patches=4096 ms=518.75 us_draw=2026.4 frames=3 hash=cec55885
+MEM opt=default gs=1 L=4 avail_kb=3764236 rss_kb=443452
+MEM recorded opt=default gs=1 L=16 avail_kb=3763756 rss_kb=443472
+MEM first frame avail_kb=3599940 rss_kb=603528
+BENCH tess_perf opt=default gs=1 L=16 draws=256 patches=4096 ms=3794.97 us_draw=14824.1 frames=3 hash=d4463b35
+MEM opt=default gs=1 L=16 avail_kb=3608476 rss_kb=603528
+MEM recorded opt=default gs=1 L=mix avail_kb=3607492 rss_kb=603528
+MEM first frame avail_kb=3519668 rss_kb=691764
+BENCH tess_perf opt=default gs=1 L=mix draws=256 patches=4096 ms=2002.70 us_draw=7823.0 frames=3 hash=b34a251c
+MEM opt=default gs=1 L=mix avail_kb=3509760 rss_kb=691764
+MEM teardown avail_kb=3941408 rss_kb=12060
+MESA: info: kbase: JM driver, uAPI version 11.35, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up skipped (done once in this process; PANVK_KBASE_JM_WARMUP=2 = every open)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: 24576973 Hz, keeping cntfrq 24576000 Hz
+MESA: info: panvk: gpu_id 0x92020010 variant 0 arch v9 model Mali-G78 texture_features 0xf7fe007e 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe007e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+ICD device=Mali-G78 MC20 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+MESA: info: kbase: JM driver, uAPI version 11.35, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up skipped (done once in this process; PANVK_KBASE_JM_WARMUP=2 = every open)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: 24576299 Hz, keeping cntfrq 24576000 Hz
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: panvk: gpu_prerast draw arena committed (64 MiB)
+MESA: info: panvk: gpu_prerast tessellation arena committed (96 MiB)
+MESA: info: panvk: v9 tiler heaps 2 x 512 MiB (GROW_ON_GPF)
+variant 1 opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 device=Mali-G78 MC20 gs=1
+MEM device avail_kb=3834436 rss_kb=185548
+MEM recorded opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_I avail_kb=3833932 rss_kb=186040
+MEM first frame avail_kb=3833932 rss_kb=186040
+BENCH tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=ref draws=256 patches=4096 ms=1.93 us_draw=7.5 frames=363 hash=4807f3f5
+MEM opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 g avail_kb=3834212 rss_kb=186040
+MEM recorded opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_I avail_kb=3736304 rss_kb=284320
+MEM first frame avail_kb=3736684 rss_kb=284320
+BENCH tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=1 draws=256 patches=4096 ms=67.55 us_draw=263.9 frames=11 hash=a03404c5
+MEM opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 g avail_kb=3735264 rss_kb=284320
+MEM recorded opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_I avail_kb=3736016 rss_kb=284340
+MEM first frame avail_kb=3727388 rss_kb=292548
+BENCH tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=4 draws=256 patches=4096 ms=193.91 us_draw=757.4 frames=4 hash=cec55885
+MEM opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 g avail_kb=3726528 rss_kb=292548
+MEM recorded opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_I avail_kb=3726528 rss_kb=292548
+MEM first frame avail_kb=3641420 rss_kb=378732
+BENCH tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=16 draws=256 patches=4096 ms=892.64 us_draw=3486.9 frames=3 hash=d4463b35
+MEM opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 g avail_kb=3635416 rss_kb=378732
+MEM recorded opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_I avail_kb=3634908 rss_kb=378732
+MEM first frame avail_kb=3610336 rss_kb=403356
+BENCH tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=mix draws=256 patches=4096 ms=902.79 us_draw=3526.5 frames=3 hash=b34a251c
+MEM opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 g avail_kb=3610076 rss_kb=403356
+MEM recorded opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_I avail_kb=3593796 rss_kb=419380
+MEM first frame avail_kb=3594556 rss_kb=419380
+BENCH tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=1 draws=256 patches=4096 ms=171.95 us_draw=671.7 frames=5 hash=a03404c5
+MEM opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 g avail_kb=3594160 rss_kb=419380
+MEM recorded opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_I avail_kb=3593316 rss_kb=419332
+MEM first frame avail_kb=3567888 rss_kb=443956
+BENCH tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=4 draws=256 patches=4096 ms=522.24 us_draw=2040.0 frames=3 hash=cec55885
+MEM opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 g avail_kb=3568372 rss_kb=443956
+MEM recorded opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_I avail_kb=3568048 rss_kb=443976
+MEM first frame avail_kb=3422520 rss_kb=604032
+BENCH tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=16 draws=256 patches=4096 ms=3822.52 us_draw=14931.7 frames=3 hash=d4463b35
+MEM opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 g avail_kb=3412008 rss_kb=604032
+MEM recorded opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_I avail_kb=3413068 rss_kb=604032
+MEM first frame avail_kb=3329232 rss_kb=692268
+BENCH tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=mix draws=256 patches=4096 ms=1998.45 us_draw=7806.4 frames=3 hash=b34a251c
+MEM opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 g avail_kb=3402256 rss_kb=692268
+MEM teardown avail_kb=3835112 rss_kb=12504
+FPS 1.1 (opt=default gs=0 L=mix frame)
+TESS_PERF_FAILS=0
+PASS tess_perf
