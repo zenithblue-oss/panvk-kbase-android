@@ -1,0 +1,14 @@
+PanPlay game loop, scenario 2 (a31-diag9g), run 20261027-055634-s2
+Device: samsung SM-A315N (a31), SDK 31, SoC MT6768V/CA
+Driver: Mesa 26.3.0-devel (git-2b703a0863), sha256 73709644d8f01783
+App: dev.zenithblue.panvklauncher 1.3.0 (41)
+Window: 5 s warm-up, 10 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d9     dg2       fail         -       -       -       -        -        -      -      -      -        -  test failed: CUBE: FAIL VB hr=0x8876086c
+02  d3d9     r114      fail         -       -       -       -        -        -      -      -      -        -  test failed: CUBE: FAIL VB hr=0x8876086c
+03  d3d12gears dg2       ok       104.9    94.2   110.5    36.6        -        -      -      -      -     45.2  DX12: PASS test=vkd3d-gears frames=1885 secs=18.0 fps=104.6 startup=5.2
+04  d3d12gears r114      fail         -       -       -       -        -        -      -      -      -        -  no pass line (^DX12: PASS)
+
+A/B d3d9: dg2 - fps, r114 - fps (change vs dg2)
+A/B d3d12gears: dg2 104.9 fps, r114 - fps (change vs dg2)

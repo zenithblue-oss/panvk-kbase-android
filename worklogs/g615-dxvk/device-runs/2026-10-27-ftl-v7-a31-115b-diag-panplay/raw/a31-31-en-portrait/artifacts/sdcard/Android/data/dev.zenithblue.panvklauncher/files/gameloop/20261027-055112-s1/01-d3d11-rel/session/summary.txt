@@ -1,0 +1,28 @@
+Game: Cube · D3D11 · ARM64EC
+Exe: /data/user/0/dev.zenithblue.panvklauncher/files/games/builtin/dxcube-arm64ec.exe
+Exit reason: Abnormal exit (code 1) + driver failure: VK_ERROR_DEVICE_LOST seen in logs
+Wine exit code: 1
+Duration: 7s
+Tombstone: none seen in logcat (apps cannot read /data/tombstones)
+Errors found: 21
+  [wine-run.log] 004c:err:ntoskrnl:ZwLoadDriver failed to create driver L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\nsiproxy": c0000142
+  [wine-run.log] 00d4:err:wgl:X11DRV_OpenGLInit OpenGL support is disabled.
+  [wine-run.log] info:  OpenVR: Failed to locate module
+  [wine-run.log] err:   DXGI: Failed to parse display metadata + colorimetry info, using blank.
+  [wine-run.log] err:   DxvkSubmissionQueue: Command submission failed: VK_ERROR_DEVICE_LOST
+  [launcher.log] 004c:err:ntoskrnl:ZwLoadDriver failed to create driver L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\nsiproxy": c0000142
+  [launcher.log] 00b4:err:setupapi:do_file_copyW Unsupported style(s) 0x10
+  [launcher.log] 00d4:err:wgl:X11DRV_OpenGLInit OpenGL support is disabled.
+  [launcher.log] info:  OpenVR: Failed to locate module
+  [launcher.log] err:   DXGI: Failed to parse display metadata + colorimetry info, using blank.
+  [launcher.log] err:   DxvkSubmissionQueue: Command submission failed: VK_ERROR_DEVICE_LOST
+  [dxvk-dxcube-arm64ec_dxgi.log] info:  OpenVR: Failed to locate module
+  [dxvk-dxcube-arm64ec_dxgi.log] err:   DXGI: Failed to parse display metadata + colorimetry info, using blank.
+  [dxvk-dxcube-arm64ec_d3d11.log] err:   DxvkSubmissionQueue: Command submission failed: VK_ERROR_DEVICE_LOST
+  [logcat] 10-27 05:55:18.585 15304 15451 E MESA    : kbase: JM atom 14 failed: event=0x4 core_req=0x16
+  [logcat] 10-27 05:55:18.585 15304 15451 E MESA    : kbase: JM atom 15 failed: event=0x4 core_req=0x1
+  [logcat] 10-27 05:55:18.595 15304 15467 E MESA    : kbase: JM atom 16 failed: event=0x4 core_req=0x16
+  [mesa-panvk.txt] err:   DxvkSubmissionQueue: Command submission failed: VK_ERROR_DEVICE_LOST
+  [mesa-panvk.txt] 10-27 05:55:18.585 15304 15451 E MESA    : kbase: JM atom 14 failed: event=0x4 core_req=0x16
+  [mesa-panvk.txt] 10-27 05:55:18.585 15304 15451 E MESA    : kbase: JM atom 15 failed: event=0x4 core_req=0x1
+  [mesa-panvk.txt] 10-27 05:55:18.595 15304 15467 E MESA    : kbase: JM atom 16 failed: event=0x4 core_req=0x16

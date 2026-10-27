@@ -1,0 +1,21 @@
+{
+  "#": "2026-10-27 panther diag3 (115b): D3D11 cube GPU hang on v10 (also in 114). diag3 driver = 115 + wait trace with 32-bit SYNC_SETs (diag's SYNC_SET64 was CS fatal 0x49), desc ringbuf wait traced, heap state + CSF event drain + CS_EVENT_SIGNAL nudge at the 10 s queue timeout. Candidates: v10 FRAG iterator restore, heap renewal cadence, heap max chunks. Deep-merged over assets/gameloop.json.",
+  "warmupSec": 5,
+  "measureSec": 12,
+  "tailSec": 3,
+  "gapSec": 3,
+  "startTimeoutSec": 120,
+  "screenshotAtSec": 6,
+  "installDrivers": { "d3": "panvk-diag3.so" },
+  "envSets": {
+    "d3-plain": { "note": "diag3 driver, defaults (no trace): timeout-time dumps only", "driver": "d3", "env": {} },
+    "d3": { "note": "diag3 driver, wait trace", "driver": "d3", "env": { "PANVK_KBASE_WAIT_TRACE": "1" } },
+    "d3-iter": { "note": "diag3, wait trace, v10 FRAG iterator restore", "driver": "d3", "env": { "PANVK_KBASE_WAIT_TRACE": "1", "PANVK_KBASE_V10_ITER_SYNC": "1" } },
+    "d3-rn16": { "note": "diag3, wait trace, heap renewal every 16 tiler submits", "driver": "d3", "env": { "PANVK_KBASE_WAIT_TRACE": "1", "PANVK_KBASE_HEAP_RENEW_INTERVAL": "16" } },
+    "d3-norn": { "note": "diag3, wait trace, heap renewal off", "driver": "d3", "env": { "PANVK_KBASE_WAIT_TRACE": "1", "PANVK_KBASE_HEAP_RENEW_INTERVAL": "0" } },
+    "d3-ch1600": { "note": "diag3, wait trace, heap max 1600 chunks", "driver": "d3", "env": { "PANVK_KBASE_WAIT_TRACE": "1", "PANVK_KBASE_HEAP_CHUNKS": "4,1600" } }
+  },
+  "scenarios": {
+    "1": { "name": "diag3-11", "tasks": ["d3d11"], "envSets": ["d3-plain", "d3", "d3-iter", "d3-rn16", "d3-norn", "d3-ch1600"] }
+  }
+}
