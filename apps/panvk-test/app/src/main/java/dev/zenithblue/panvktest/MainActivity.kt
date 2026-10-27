@@ -158,6 +158,11 @@ class MainActivity : ComponentActivity() {
         TestCase("swapchain_lifecycle", isDraw = true)
     )
 
+    // Sparse-on-kbase S0 probe (tests/kbase-probe/sparse_kbase.c): own /dev/mali0 context, no GPU jobs. Not a suite
+    // test: once per autorun / game loop (first env pass or phase), reported apart, never counted in pass/fail.
+    private val sparseKbaseTest = TestCase("sparse_kbase", isDraw = false, timeoutMs = 90_000)
+    @Volatile private var sparseKbase: TestResult? = null
+
     private var driverTypeState = mutableStateOf(DriverType.RC5)
     private var mesaDebugEnabledState = mutableStateOf(false)
     private var mesaDebugStrState = mutableStateOf("MESA_DEBUG=1 PANVK_DEBUG=trace")
@@ -550,6 +555,7 @@ class MainActivity : ComponentActivity() {
             File(filesDir, "logs").listFiles { f -> f.name.endsWith("-compliance-$test.log") }?.maxByOrNull { it.lastModified() }
                 ?.let { try { it.copyTo(File(runFolder, "compliance-$test.log"), overwrite = true) } catch (_: Exception) {} }
         }
+        sparseKbase?.logFile?.let { try { it.copyTo(File(runFolder, it.name), overwrite = true) } catch (_: Exception) {} }
 
         val summaryObj = JSONObject().apply {
             put("timestamp", timestamp)
@@ -588,6 +594,7 @@ class MainActivity : ComponentActivity() {
                     .put("durationMs", res.durationMs).put("log", res.logFile?.name ?: JSONObject.NULL))
             })
             if (compliance != null) put("compliance", complianceSummary(compliance))
+            sparseKbase?.let { put("sparse_kbase", sparseJson(it)) }
         }
         File(runFolder, "summary.json").writeText(summaryObj.toString(2))
         runFolder
@@ -1210,6 +1217,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** S0 sparse-kbase probe: its lines + VERDICT to the autorun log; the result goes to summary.json and the game loop. */
+    private suspend fun runSparseKbase() {
+        val r = executeTest(sparseKbaseTest)
+        sparseKbase = r
+        val lines = try { r.logFile?.readLines() } catch (_: Exception) { null } ?: r.lastLines
+        lines.filter { it.isNotBlank() }.take(80).forEach { say("SPARSE_KBASE ${it.trim()}") }
+        say("SPARSE_KBASE status=${r.status} ms=${r.durationMs} informational (not in pass/fail)")
+        Log.i("PanProbe", "PANPROBE_SPARSE status=${r.status} ${sparseVerdict(r)}")
+    }
+
+    private fun sparseVerdict(r: TestResult) = r.lastLines.lastOrNull { it.trimStart().startsWith("VERDICT ") }?.trim() ?: "VERDICT none"
+
+    private fun sparseJson(r: TestResult): JSONObject = JSONObject().put("status", r.status).put("verdict", sparseVerdict(r))
+        .put("ms", r.durationMs).put("bench", r.extra ?: JSONObject.NULL).put("log", r.logFile?.name ?: JSONObject.NULL)
+        .put("informational", true)
+
     private suspend fun runHeadlessAutorun(which: String, final: Boolean = true, first: Boolean = true) {
         if (!gameLoop) {
             java.io.File(filesDir, "autorun.txt").delete()
@@ -1254,6 +1277,8 @@ class MainActivity : ComponentActivity() {
                 writeGameLoopResult(runResults, null) // partial, survives a Test Lab timeout
             }
         }
+        // After the suite, so a misbehaving kernel cannot cost the suite its results.
+        if (first && (gameLoop || which == "all" || "sparse_kbase" in wanted)) runSparseKbase()
         val passCount = runResults.count { it.status == "PASS" }
         val failCount = runResults.count { it.status in listOf("FAIL", "CRASH", "TIMEOUT") }
         val skipCount = runResults.count { it.status == "SKIP" }
@@ -1280,6 +1305,7 @@ class MainActivity : ComponentActivity() {
             writeGameLoopResult(runResults, savedRun)
             if (final) withContext(Dispatchers.Main) { finish() }
         }
+        sparseKbase = null // reported with this run only, not again with later passes
     }
 
     private suspend fun writeGameLoopResult(results: List<TestResult>, run: File?) {
@@ -1309,6 +1335,7 @@ class MainActivity : ComponentActivity() {
         out.put("complete", run != null)
         out.put("driverSlot", driverTypeState.value.name)
         envPass?.let { out.put("envPass", EnvPasses.toJson(it, envPassSource)) }
+        sparseKbase?.let { out.put("sparse_kbase", sparseJson(it)) }
         if (glPrev.length() > 0) out.put("previousPhases", glPrev)
         val text = out.toString(2)
         if (run != null) {

@@ -305,3 +305,119 @@ Note: this implementation needs
 `tests/dxvk-vkd3d/test_p22_kbase_sparse_feasibility.py` (which currently asserts
 the sparse bits stay false) and `docs/KBASE-SPARSE-FEASIBILITY.md` (the earlier
 NO-GO) to be updated when S1+ lands.
+
+---
+
+## S0 PanProbe test (`sparse_kbase`)
+
+The prototype's T1-T11 ported into PanProbe as an unattended device test.
+Sources: `tests/kbase-probe/sparse_kbase.c` (the test),
+`tests/kbase-probe/sparse_kbase.h` (verdict logic and gpuprops parser, pure),
+`tests/kbase-probe/sparse_kbase_test.c` (host unit test of the verdict:
+`cc -O1 -o /tmp/sparse_kbase_test tests/kbase-probe/sparse_kbase_test.c && /tmp/sparse_kbase_test`).
+Built as `libt_sparse_kbase.so` (`add_vk_test` in `apps/panvk-test/app/src/main/cpp/CMakeLists.txt`)
+and run out of process through `libpt_runner.so` (`Native.run`), like every suite test.
+
+**Wiring.** It is not a suite test. `runHeadlessAutorun` runs it once per
+autorun, after the suite: once in scenario 2 (rc5 only), only in the first env
+pass of scenario 3, only in the rc5 phase of scenario 1, and in an adb
+`--es autorun all` (or `--es autorun sparse_kbase` alone). It is informational
+like the compliance checkers, so its SKIP/FAIL/CRASH/TIMEOUT never counts toward
+the run's pass/fail. The 90 s outer timeout is a backstop. The test bounds itself
+far below that.
+
+**Safety model.** The test opens `/dev/mali0` itself, so it gets its own kbase
+context. The test process never loads the Vulkan driver. It uses CPU-side
+ioctls only (VERSION_CHECK, SET_FLAGS, GET_GPUPROPS, MEM_ALLOC, MEM_ALLOC_EX,
+MEM_QUERY, MEM_COMMIT, MEM_ALIAS, MEM_FREE). It submits **no GPU job**, so it
+cannot provoke a GPU fault. This README marks no GPU step as safe. Other bounds:
+- At most 16 MiB is committed at once, and every allocation is freed. `close()`
+  frees anything a step left behind.
+- Every CPU touch of kbase memory is guarded against SIGSEGV/SIGBUS.
+- Each step has a 6 s SIGALRM watchdog. On expiry or an unguarded signal, the step
+  FAILs and the later steps SKIP. Loops also stop on their own 1.5-3 s deadlines.
+- If an ioctl is missing (ENOTTY/ENOSYS/EOPNOTSUPP), the step SKIPs with the reason.
+
+**Prototype bugs fixed in the port.** The prototype never ran on a device. These
+fixes follow the r38p1 source:
+- `BASE_MEM_NEED_MMAP` is an output-only flag. Passed as input it fails
+  `kbase_check_alloc_flags` with EINVAL, so the port uses the backend's BO flags
+  (`CPU_RD|CPU_WR|GPU_RD|GPU_WR|COHERENT_LOCAL|SAME_VA`).
+- The prototype's T9 never mmapped its cookie, so its commit/query hit a cookie
+  instead of a VA.
+- The prototype's T3 munmapped (and so freed) the alias before T4. A per-entry
+  ("dumping") map also needs the alias **VA** as the offset, not cookie+N.
+  `get_aliased_alloc`, `mem_linux.c:2410`.
+- The prototype's T6 resized a non-growable source, which is refused for being
+  non-growable. The port aliases a growable H1, and checks that the commit is
+  refused while aliased and accepted after the alias is freed.
+- The port skips EXEC_INIT and JIT_INIT (no step needs them). It keeps the
+  tracking page, because kbase refuses allocations until that page is mapped.
+- No `CACHED_CPU`: CPU views are write-combined, so an alias reads what its
+  source BO's own mapping wrote.
+
+### What each step checks, and the expected result per arch
+
+The expectations come from the kbase sources and are **not yet device-verified**.
+
+| Step | Checks | v10-v13 (CSF >= 1.9) | v6/v7/v9 (JM) | v14 (CSF, no ALLOC_EX) |
+|------|--------|----------------------|---------------|------------------------|
+| setup | open, VERSION_CHECK (CSF nr 52, else JM nr 0), SET_FLAGS, tracking page, gpu_id/va_bits | PASS CSF 1.x | PASS JM 11.x | PASS CSF 1.x |
+| T1 | SAME_VA BO H0 (64 KiB) CPU write/readback; growable H1 (GROW_ON_GPF, 64 of 128 KiB) | PASS x2 | PASS x2 | PASS x2 |
+| T2 | MEM_ALIAS [H0, sink, H1, sink], stride 16 pages | PASS | PASS | PASS |
+| T3 | cookie mmap of the alias; entry 0 reads H0's pages | PASS | PASS | PASS |
+| T4 | per-entry mmap (offset = alias VA + 2 tiles) reads H1's pages | PASS | PASS | PASS |
+| T5 | per-entry mmap of a sink entry is refused (sink is GPU-only) | PASS | PASS | PASS |
+| T6 | MEM_COMMIT on an aliased source refused, accepted after the alias is freed | PASS | PASS | PASS |
+| T7 | alias with BASE_MEM_FIXED: rejected or FIXED dropped | PASS | SKIP (CSF flag) | PASS |
+| T8 | 64x SAME_VA alloc+munmap, VA reuse count | PASS (+count) | PASS (+count) | PASS (+count) |
+| T9 | eager arena: SAME_VA GROW_ON_GPF 16 MiB VA, commit grows 16->1024 pages one tile at a time and shrinks back | PASS + BENCH | PASS + BENCH | PASS + BENCH |
+| T10a | MEM_ALLOC_EX FIXED at R=0x800400000000 lands at R (INFO: CPU RW via mmap(offset=VA)) | PASS | SKIP (JM) | SKIP (ALLOC_EX ENOTTY) |
+| T10b | overlapping FIXED alloc refused | PASS | - | - |
+| T10c | free + re-alloc at the same FIXED VA | PASS | - | - |
+| T10d | growable FIXED tile commit 0->16->0->16 takes effect (MEM_QUERY), recommitted page reads 0 | PASS | - | - |
+| T10e | FIXABLE refused while FIXED is live (INFO if a vendor kernel allows it) | PASS/INFO | - | - |
+| T10f | 256 contiguous FIXED tiles x 8 bind/unbind cycles, no commit errors, all back at floor | PASS + BENCH | SKIP | SKIP |
+| T11 | 24-entry alias rebuilt 256x (cost of the rejected re-point design) | PASS + BENCH | PASS + BENCH | PASS + BENCH |
+| VERDICT | | **lazy-tile possible** | **eager-only** | **eager-only** |
+
+**Verdict rules** (`sk_verdict`, unit-tested):
+- *lazy-tile possible* = T10a and T10c and T10d all proven.
+- Otherwise *eager-only* = T1 proved a SAME_VA BO.
+- Otherwise *not possible*. This includes no `/dev/mali0` and an unusable handshake.
+
+T9 does not decide the verdict. The verdict line only says whether the arena can
+grow from the end; if not, eager falls back to fixed-size arenas. If T10d's
+commit 0 is refused, the port retries with commit 1, so an unbound tile keeps 1
+page (`16->1->16` in the log). If the uncommit is ignored (a
+`CONFIG_MALI_MEMORY_FULLY_BACKED` kernel), the result is eager-only.
+
+**Not covered by S0 here.** The plan's S0 items 2-5 need GPU access (GPU
+store/load at a FIXED VA, read-0 from an uncommitted tile, neighbour isolation,
+arena copy bit-exactness). They wait for a driver-side test once the S1 bind
+engine exists. Item 9 (16384 tiles, 10k cycles) runs bounded here: 256 tiles x 8
+cycles within 3 s.
+
+### How to read the log
+
+- `files/autorun.txt` and logcat tag `PanVKTest` carry every test line, prefixed
+  `SPARSE_KBASE `, then `SPARSE_KBASE status=<PASS|FAIL|SKIP|CRASH|TIMEOUT> ms=<n>`.
+  Logcat tag `PanProbe` also gets `PANPROBE_SPARSE status=... VERDICT ...`.
+- The run folder (in the zip and the upload) has `<time>-sparse_kbase.log`, the
+  full test output. `summary.json` gets `"sparse_kbase": {status, verdict, ms,
+  bench, log, informational: true}`, and so does the game-loop results JSON
+  (`results_scenario_N.json`).
+- Line format:
+  - `PASS|FAIL|SKIP <step> ...` per check, and `INFO ...`.
+  - `BENCH sparse_arena_commit=..us sparse_arena_uncommit=..us`: T9, per 64 KiB tile.
+  - `BENCH sparse_tile_bind=..us sparse_tile_unbind=..us sparse_tile_reserve=..us sparse_tile_free=..us`:
+    T10f. Bind = commit 0->16 and unbind = commit 16->0 of one FIXED tile.
+    Reserve and free are the FIXED alloc and free.
+  - `BENCH sparse_alias_rebuild24=..us`: T11.
+  - `VERDICT v<arch> <lazy-tile possible|eager-only|not possible> -- <why>`.
+  - `SUMMARY pass= fail= skip=`.
+- Status `SKIP` means `/dev/mali0` was unusable (`RESULT SKIP <reason>`). `FAIL`
+  means at least one check failed. Read the FAIL lines, not just the status: the
+  verdict can still be correct, for example a FAIL on T5 does not affect it.
+- Compare the BENCH numbers with the cost table above (MEM_COMMIT per tile:
+  estimate 15-40 us). A realistic bind batch of 16 tiles is about 16 x `sparse_tile_bind`.

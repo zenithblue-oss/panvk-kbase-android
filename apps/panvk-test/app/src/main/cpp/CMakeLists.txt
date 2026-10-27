@@ -66,6 +66,8 @@ add_vk_test(d3d_fl tests/vkd3d/d3d_fl.c)
 # vkd3d execution tests (suite).
 add_vk_test(vkd3d_heap tests/vkd3d/heap/vkd3d_heap.c)
 add_vk_test(vkd3d_timeline tests/vkd3d/timeline/vkd3d_timeline.c)
+# Sparse-on-kbase S0 probe (own /dev/mali0 context, no Vulkan): once per autorun, informational, not in pass/fail.
+add_vk_test(sparse_kbase tests/kbase-probe/sparse_kbase.c)
 
 # SHARED lib t_vkinfo from vkinfo.c
 add_library(t_vkinfo SHARED "${CMAKE_CURRENT_SOURCE_DIR}/vkinfo.c")
