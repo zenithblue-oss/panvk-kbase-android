@@ -1,0 +1,99 @@
+GAMELOOP scenario=3
+GAMELOOP envab passes=2 source=assets/env-ab.json sha256=bbb3c2eddccd35c5a65595e065c6877e9d2458e1c88b8140495aedf2b5756abf
+GAMELOOP pass=1/2 name=defaults tests=all env=(none)
+INFO devices=1 exts=188 formats=196
+DRIVER slot=RC5 driverInfo=Mesa 26.3.0-devel (git-9dde9e7a18)
+COMPLIANCE DXVK compliance PASS items=94 missingHard=[] missingSoft=["tiled resources tier 2 (FL12_0)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","VK_EXT_sample_locations"]
+COMPLIANCE Bachata S4 compliance PASS items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","subgroup_wave64"]
+COMPLIANCE vkd3d compliance PASS items=100 missingHard=[] missingSoft=["viewportSubPixelBits >= 8","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","shaderFloat64","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: ROVs (pixel+sample interlock)","proton: VK_EXT_descriptor_buffer path","proton: VK_KHR_fragment_shading_rate","proton: VK_EXT_mesh_shader","proton: VK_KHR_ray_query + acceleration_structure"]
+RESULT gpu_prerast_slice PASS mismatch=0 fps=0 ms=267 pass=defaults
+RESULT clip_cull PASS mismatch=0 fps=2359.9 ms=1226 pass=defaults
+RESULT multi_viewport PASS mismatch=0 fps=3317.2 ms=1080 pass=defaults
+RESULT fill_mode PASS mismatch=0 fps=3307.8 ms=1440 pass=defaults
+RESULT bc_decode PASS mismatch=0 fps=0 ms=13313 pass=defaults
+RESULT bc_perf PASS mismatch=0 fps=0 ms=67577 pass=defaults
+RESULT tess_perf PASS mismatch=0 fps=1.6 ms=46683 extra=tess_perf opt=default gs=0 L=ref draws=256 patches=4096 ms=0.57 us_draw=2.2 frames=1233 hash=4807f3f5 | tess_perf opt=default gs=0 L=1 draws=256 patches=4096 ms=43.64 us_draw=170.5 frames=17 hash=a03404c5 | tess_perf opt=default gs=0 L=4 draws=256 patches=4096 ms=141.42 us_draw=552.4 frames=5 hash=cec55885 | tess_perf opt=default gs=0 L=16 draws=256 patches=4096 ms=599.89 us_draw=2343.3 frames=3 hash=d4463b35 | tess_perf opt=default gs=0 L=mix draws=256 patches=4096 ms=606.22 us_draw=2368.0 frames=3 hash=b34a251c | tess_perf opt=default gs=1 L=1 draws=256 patches=4096 ms=61.57 us_draw=240.5 frames=12 hash=a03404c5 | tess_perf opt=default gs=1 L=4 draws=256 patches=4096 ms=269.13 us_draw=1051.3 frames=3 hash=cec55885 | tess_perf opt=default gs=1 L=16 draws=256 patches=4096 ms=1047.81 us_draw=4093.0 frames=3 hash=d4463b35 | tess_perf opt=default gs=1 L=mix draws=256 patches=4096 ms=802.77 us_draw=3135.8 frames=3 hash=b34a251c | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=ref draws=256 patches=4096 ms=0.51 us_draw=2.0 frames=1367 hash=4807f3f5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=1 draws=256 patches=4096 ms=57.64 us_draw=225.2 frames=13 hash=a03404c5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=4 draws=256 patches=4096 ms=187.38 us_draw=731.9 frames=4 hash=cec55885 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=16 draws=256 patches=4096 ms=685.97 us_draw=2679.6 frames=3 hash=d4463b35 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=mix draws=256 patches=4096 ms=676.60 us_draw=2643.0 frames=3 hash=b34a251c | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=1 draws=256 patches=4096 ms=71.80 us_draw=280.5 frames=10 hash=a03404c5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=4 draws=256 patches=4096 ms=282.36 us_draw=1103.0 frames=3 hash=cec55885 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=16 draws=256 patches=4096 ms=1224.27 us_draw=4782.3 frames=3 hash=d4463b35 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=mix draws=256 patches=4096 ms=1069.61 us_draw=4178.2 frames=3 hash=b34a251c pass=defaults
+RESULT geometry PASS mismatch=0 fps=2974.3 ms=1685 pass=defaults
+RESULT tessellation PASS mismatch=0 fps=2790.8 ms=2459 pass=defaults
+RESULT xfb PASS mismatch=0 fps=0 ms=362 pass=defaults
+RESULT pipeline_stats PASS mismatch=0 fps=2518.2 ms=1270 pass=defaults
+RESULT vertex_stores PASS mismatch=0 fps=0 ms=134 pass=defaults
+RESULT gs_viewport_depth PASS mismatch=0 fps=0 ms=190 pass=defaults
+RESULT vs_viewport_index PASS mismatch=0 fps=0 ms=241 pass=defaults
+RESULT depth_bounds PASS mismatch=0 fps=0 ms=168 pass=defaults
+RESULT large_draw PASS mismatch=0 fps=0 ms=6416 pass=defaults
+RESULT vmr_secondary PASS mismatch=0 fps=0 ms=87 pass=defaults
+RESULT tess_cond_state PASS mismatch=0 fps=0 ms=281 pass=defaults
+RESULT bachata_reqs PASS mismatch=0 fps=0 ms=99 pass=defaults
+RESULT bachata_exec PASS mismatch=0 fps=0 ms=100 pass=defaults
+RESULT robustness2 PASS mismatch=0 fps=0 ms=113 pass=defaults
+RESULT robust_image_access2 PASS mismatch=0 fps=0 ms=647 extra=4096x4096x16 rgba8 loads ria2=24.92ms ria1=24.79ms delta=+0.5% stats(ria2/ria1): Instructions=187/187 Code size=1536/1536 Constant data size=0/0 Threads=2/2 Loops=0/0 Spills=0/0 Fills=0/0 Spill cost=0/0 Registers used=12/12 Uniforms used=3/3 pass=defaults
+RESULT blend PASS mismatch=0 fps=0 ms=92 pass=defaults
+RESULT occlusion_query PASS mismatch=0 fps=0 ms=98 pass=defaults
+RESULT descriptor_model PASS mismatch=0 fps=0 ms=83 pass=defaults
+RESULT shader_arith PASS mismatch=0 fps=0 ms=148 pass=defaults
+RESULT depth_stencil PASS mismatch=0 fps=0 ms=122 pass=defaults
+RESULT sampler PASS mismatch=0 fps=0 ms=129 pass=defaults
+RESULT draw_params PASS mismatch=0 fps=0 ms=118 pass=defaults
+RESULT submit_stress PASS mismatch=0 fps=0 ms=30112 pass=defaults
+RESULT csf_event PASS mismatch=0 fps=0 ms=340 pass=defaults
+RESULT gs_tess_primitive_id PASS mismatch=0 fps=0 ms=205 pass=defaults
+RESULT bachata_storage_fmtless PASS mismatch=0 fps=0 ms=72 pass=defaults
+RESULT bachata_dynamic_render PASS mismatch=0 fps=0 ms=85 pass=defaults
+RESULT dxvk_reqs PASS mismatch=0 fps=0 ms=61 pass=defaults
+RESULT vkd3d_reqs PASS mismatch=0 fps=0 ms=48 pass=defaults
+RESULT vkd3d_heap PASS mismatch=0 fps=0 ms=311 pass=defaults
+RESULT vkd3d_timeline PASS mismatch=0 fps=0 ms=286 pass=defaults
+RESULT swapchain_lifecycle PASS mismatch=0 fps=61.4 ms=9265 extra=resized FPS 61.7 | present_main 4889ms, resize 55ms, present_resized 1944ms, destroy 52ms, cycle 1660ms, teardown 17ms pass=defaults
+AUTORUN DONE pass=39 fail=0 skip=0 total=39 (39 pass / 0 fail / 0 skip)
+EXTERNAL READY run=20261027-013507-defaults
+AUTOUPLOAD OK id=708e76eb size=189880 sha256=708e76eb0b02cc4b7a89048f97ca1c34a782fd1b98b67a03606f5ac25a2d6467
+GAMELOOP pass=2/2 name=114-knobs tests=all env=PANVK_ANDROID_PRESENT_FENCE=0;PANVK_ANDROID_PRESENT_THREAD=0;PANVK_CMD_SLAB_CACHE=0;PANVK_CSF_DESC_DIRTY=0;PANVK_CSF_FS_IDLE_CLEAN=0;PANVK_CSF_INDIRECT_REEMIT=0;PANVK_CS_CHUNK_KB=64;PANVK_CS_FLUSH_USED=0;PANVK_DB_ALT=0;PANVK_DESC_POOL_HINT=0;PANVK_JM_CMD_POOL_AUTOTRIM=0;PANVK_JM_RESET_FLUSH=batch;PANVK_KBASE_HEAP_EAGER_TERM=0;PANVK_KBASE_JM_WARMUP=1;PANVK_KBASE_STRICT_DEVICE_CLOCK=0;PANVK_KBASE_UNCACHED_HEAP=0;PANVK_KBASE_ZERO_ALL=1;PANVK_MEM_BUDGET_PRESSURE=0;PANVK_PRELOAD_BARRIER_TRACK=0;PANVK_PRERAST_FAST_SKIP=0;PANVK_TESS_VS_REGION_MB=32;PANVK_V7_FS_COPY_ONCE=0;PANVK_V7_TESS_BATCH_DRAWS=0;PANVK_V9_PRERAST_ARENA_LAZY=0;PANVK_VB_DIRTY_CMP=0;PANVK_WSI_SW_CACHED=0;PANVK_WSI_SW_DEFER_REPLY=0
+GAMELOOP phase 2 driver=RC5
+INFO devices=1 exts=188 formats=196
+DRIVER slot=RC5 driverInfo=Mesa 26.3.0-devel (git-9dde9e7a18)
+COMPLIANCE DXVK compliance PASS items=94 missingHard=[] missingSoft=["tiled resources tier 2 (FL12_0)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","VK_EXT_sample_locations"]
+COMPLIANCE Bachata S4 compliance PASS items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","subgroup_wave64"]
+COMPLIANCE vkd3d compliance PASS items=100 missingHard=[] missingSoft=["viewportSubPixelBits >= 8","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","shaderFloat64","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: ROVs (pixel+sample interlock)","proton: VK_EXT_descriptor_buffer path","proton: VK_KHR_fragment_shading_rate","proton: VK_EXT_mesh_shader","proton: VK_KHR_ray_query + acceleration_structure"]
+RESULT gpu_prerast_slice PASS mismatch=0 fps=0 ms=95 pass=114-knobs
+RESULT clip_cull PASS mismatch=0 fps=2931.9 ms=1190 pass=114-knobs
+RESULT multi_viewport PASS mismatch=0 fps=2739.4 ms=1130 pass=114-knobs
+RESULT fill_mode PASS mismatch=0 fps=2758.1 ms=1532 pass=114-knobs
+RESULT bc_decode PASS mismatch=0 fps=0 ms=191 pass=114-knobs
+RESULT bc_perf PASS mismatch=0 fps=0 ms=56917 pass=114-knobs
+RESULT tess_perf PASS mismatch=0 fps=1.7 ms=47899 extra=tess_perf opt=default gs=0 L=ref draws=256 patches=4096 ms=0.51 us_draw=2.0 frames=1363 hash=4807f3f5 | tess_perf opt=default gs=0 L=1 draws=256 patches=4096 ms=48.46 us_draw=189.3 frames=15 hash=a03404c5 | tess_perf opt=default gs=0 L=4 draws=256 patches=4096 ms=173.68 us_draw=678.4 frames=5 hash=cec55885 | tess_perf opt=default gs=0 L=16 draws=256 patches=4096 ms=598.89 us_draw=2339.4 frames=3 hash=d4463b35 | tess_perf opt=default gs=0 L=mix draws=256 patches=4096 ms=605.34 us_draw=2364.6 frames=3 hash=b34a251c | tess_perf opt=default gs=1 L=1 draws=256 patches=4096 ms=64.60 us_draw=252.3 frames=11 hash=a03404c5 | tess_perf opt=default gs=1 L=4 draws=256 patches=4096 ms=277.59 us_draw=1084.3 frames=3 hash=cec55885 | tess_perf opt=default gs=1 L=16 draws=256 patches=4096 ms=1255.78 us_draw=4905.4 frames=3 hash=d4463b35 | tess_perf opt=default gs=1 L=mix draws=256 patches=4096 ms=976.08 us_draw=3812.8 frames=3 hash=b34a251c | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=ref draws=256 patches=4096 ms=0.50 us_draw=1.9 frames=1403 hash=4807f3f5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=1 draws=256 patches=4096 ms=51.69 us_draw=201.9 frames=14 hash=a03404c5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=4 draws=256 patches=4096 ms=187.85 us_draw=733.8 frames=4 hash=cec55885 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=16 draws=256 patches=4096 ms=732.29 us_draw=2860.5 frames=3 hash=d4463b35 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=mix draws=256 patches=4096 ms=679.53 us_draw=2654.4 frames=3 hash=b34a251c | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=1 draws=256 patches=4096 ms=66.68 us_draw=260.5 frames=11 hash=a03404c5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=4 draws=256 patches=4096 ms=285.82 us_draw=1116.5 frames=3 hash=cec55885 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=16 draws=256 patches=4096 ms=1104.92 us_draw=4316.1 frames=3 hash=d4463b35 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=mix draws=256 patches=4096 ms=953.64 us_draw=3725.2 frames=3 hash=b34a251c pass=114-knobs
+RESULT geometry PASS mismatch=0 fps=2926.9 ms=1426 pass=114-knobs
+RESULT tessellation PASS mismatch=0 fps=2737.0 ms=2285 pass=114-knobs
+RESULT xfb PASS mismatch=0 fps=0 ms=253 pass=114-knobs
+RESULT pipeline_stats PASS mismatch=0 fps=2628.4 ms=1217 pass=114-knobs
+RESULT vertex_stores PASS mismatch=0 fps=0 ms=269 pass=114-knobs
+RESULT gs_viewport_depth PASS mismatch=0 fps=0 ms=223 pass=114-knobs
+RESULT vs_viewport_index PASS mismatch=0 fps=0 ms=229 pass=114-knobs
+RESULT depth_bounds PASS mismatch=0 fps=0 ms=171 pass=114-knobs
+RESULT large_draw PASS mismatch=0 fps=0 ms=6189 pass=114-knobs
+RESULT vmr_secondary PASS mismatch=0 fps=0 ms=100 pass=114-knobs
+RESULT tess_cond_state PASS mismatch=0 fps=0 ms=244 pass=114-knobs
+RESULT bachata_reqs PASS mismatch=0 fps=0 ms=91 pass=114-knobs
+RESULT bachata_exec PASS mismatch=0 fps=0 ms=122 pass=114-knobs
+RESULT robustness2 PASS mismatch=0 fps=0 ms=66 pass=114-knobs
+RESULT robust_image_access2 PASS mismatch=0 fps=0 ms=611 extra=4096x4096x16 rgba8 loads ria2=25.23ms ria1=24.97ms delta=+1.1% stats(ria2/ria1): Instructions=187/187 Code size=1536/1536 Constant data size=0/0 Threads=2/2 Loops=0/0 Spills=0/0 Fills=0/0 Spill cost=0/0 Registers used=12/12 Uniforms used=3/3 pass=114-knobs
+RESULT blend PASS mismatch=0 fps=0 ms=122 pass=114-knobs
+RESULT occlusion_query PASS mismatch=0 fps=0 ms=65 pass=114-knobs
+RESULT descriptor_model PASS mismatch=0 fps=0 ms=70 pass=114-knobs
+RESULT shader_arith PASS mismatch=0 fps=0 ms=100 pass=114-knobs
+RESULT depth_stencil PASS mismatch=0 fps=0 ms=109 pass=114-knobs
+RESULT sampler PASS mismatch=0 fps=0 ms=105 pass=114-knobs
+RESULT draw_params PASS mismatch=0 fps=0 ms=140 pass=114-knobs
+RESULT submit_stress PASS mismatch=0 fps=0 ms=30078 pass=114-knobs
+RESULT csf_event PASS mismatch=0 fps=0 ms=353 pass=114-knobs
+RESULT gs_tess_primitive_id PASS mismatch=0 fps=0 ms=209 pass=114-knobs
+RESULT bachata_storage_fmtless PASS mismatch=0 fps=0 ms=113 pass=114-knobs
+RESULT bachata_dynamic_render PASS mismatch=0 fps=0 ms=91 pass=114-knobs
+RESULT dxvk_reqs PASS mismatch=0 fps=0 ms=69 pass=114-knobs
+RESULT vkd3d_reqs PASS mismatch=0 fps=0 ms=67 pass=114-knobs
+RESULT vkd3d_heap PASS mismatch=0 fps=0 ms=274 pass=114-knobs
+RESULT vkd3d_timeline PASS mismatch=0 fps=0 ms=366 pass=114-knobs
+RESULT swapchain_lifecycle PASS mismatch=0 fps=61.2 ms=9235 extra=resized FPS 61.8 | present_main 4902ms, resize 55ms, present_resized 1943ms, destroy 53ms, cycle 1655ms, teardown 14ms pass=114-knobs
+AUTORUN DONE pass=39 fail=0 skip=0 total=39 (39 pass / 0 fail / 0 skip)
+EXTERNAL READY run=20261027-013800-114-knobs
+AUTOUPLOAD OK id=dbe871e8 size=211738 sha256=dbe871e8a41c7ee5fb2555989debc899e6a9f722316a6fdb505c59e8f812d9e5

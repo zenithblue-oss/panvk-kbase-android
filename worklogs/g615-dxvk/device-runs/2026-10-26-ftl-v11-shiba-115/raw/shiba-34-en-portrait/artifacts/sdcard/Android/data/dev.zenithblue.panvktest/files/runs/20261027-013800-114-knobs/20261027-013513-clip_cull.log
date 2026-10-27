@@ -1,0 +1,32 @@
+MESA: info: panvk: 114 behaviour restored for: PANVK_CSF_FS_IDLE_CLEAN PANVK_DB_ALT PANVK_CSF_INDIRECT_REEMIT PANVK_CSF_DESC_DIRTY PANVK_VB_DIRTY_CMP PANVK_PRERAST_FAST_SKIP PANVK_DESC_POOL_HINT PANVK_WSI_SW_CACHED PANVK_WSI_SW_DEFER_REPLY PANVK_ANDROID_PRESENT_FENCE PANVK_ANDROID_PRESENT_THREAD PANVK_PRELOAD_BARRIER_TRACK
+MESA: info: kbase: CSF driver, uAPI version 1.24, page_size=4096
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 24576000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: info: panvk: gpu_id 0xb8a21020 variant 0x4 arch v11 model Mali-G715 texture_features 0xc3fe001e 0 0 0
+MESA: info: panvk: BC emulation on, lowmem (native compressed mask 0xc3fe001e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+ICD device=Mali-G715 MC7 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+MESA: info: kbase: CSF driver, uAPI version 1.24, page_size=4096
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 24576000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: info: kbase: mem_alloc via ALLOC_EX
+MESA: info: kbase: queue_group_create layout=32 bytes
+MESA: info: kbase: tiler heaps 4 initial / 400 max chunks of 1024 KiB
+MESA: info: kbase: tiler_heap_init layout=16 bytes
+FPS 2931.9 frames=2932 ms=1000
+CASE none red=4096 mismatch=0 PASS
+CASE none_cullgeo red=4096 mismatch=0 PASS
+CASE clip1_x red=2048 mismatch=0 PASS
+CASE clip2_xy red=1024 mismatch=0 PASS
+CASE clip6_x5 red=2048 mismatch=0 PASS
+CASE clip8_y7 red=2048 mismatch=0 PASS
+CASE clip1_fs_read red=2048 mismatch=0 PASS
+CASE cull1 red=2048 mismatch=0 PASS
+CASE cull5_i4 red=2048 mismatch=0 PASS
+CASE cull8_i7 red=2048 mismatch=0 PASS
+CASE clip4y3_cull4i2 red=1024 mismatch=0 PASS
+CASE clip1_x_lines red=64 mismatch=0 PASS
+CASE cull1_lines red=64 mismatch=0 PASS
+CLIP_CULL_FAILS=0
