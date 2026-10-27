@@ -43,7 +43,8 @@ object Native {
 val COMPLIANCE_CHECKERS = listOf(
     Triple("dxvk", "DXVK compliance", "dxvk_reqs"),
     Triple("bachata_s4", "Bachata S4 compliance", "bachata_reqs"),
-    Triple("vkd3d", "vkd3d compliance", "vkd3d_reqs")
+    Triple("vkd3d", "vkd3d compliance", "vkd3d_reqs"),
+    Triple("d3d_fl", "D3D feature levels", "d3d_fl")
 )
 
 /**

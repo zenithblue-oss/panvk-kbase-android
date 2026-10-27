@@ -152,6 +152,7 @@ class MainActivity : ComponentActivity() {
         // Requirement checkers: FAIL only when a hard requirement is missing (soft gaps still PASS).
         TestCase("dxvk_reqs", isDraw = false),
         TestCase("vkd3d_reqs", isDraw = false),
+        TestCase("d3d_fl", isDraw = false),
         TestCase("vkd3d_heap", isDraw = false),
         TestCase("vkd3d_timeline", isDraw = false),
         TestCase("swapchain_lifecycle", isDraw = true)
@@ -391,7 +392,7 @@ class MainActivity : ComponentActivity() {
                                 fail = (total - pass - skip).coerceAtLeast(0)
                             }
                             json.optJSONObject("compliance")?.let { c ->
-                                compliance = listOf("dxvk" to "DXVK", "bachata_s4" to "S4", "vkd3d" to "vkd3d").mapNotNull { (k, label) ->
+                                compliance = listOf("dxvk" to "DXVK", "bachata_s4" to "S4", "vkd3d" to "vkd3d", "d3d_fl" to "FL").mapNotNull { (k, label) ->
                                     c.optJSONObject(k)?.let { "$label ${if (it.optBoolean("pass")) "PASS" else "FAIL"}" }
                                 }.joinToString(" · ")
                             }
@@ -2781,6 +2782,7 @@ private val TARGET_TAGS: Map<String, List<String>> = run {
     t(listOf(s), "bachata_reqs")
     t(listOf(s, v), "bachata_exec", "bachata_storage_fmtless", "bachata_dynamic_render")
     t(listOf(v), "vkd3d_reqs", "vkd3d_heap", "vkd3d_timeline")
+    t(listOf(d, v), "d3d_fl")
     m
 }
 

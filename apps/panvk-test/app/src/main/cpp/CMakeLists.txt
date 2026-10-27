@@ -62,6 +62,7 @@ add_vk_test(bachata_dynamic_render tests/bachata/dynamic_render.c)
 # Requirement checkers: run with the Info page (compliance) and as suite tests (FAIL only on hard missing).
 add_vk_test(dxvk_reqs tests/dxvk/vulkan/dxvk-reqs/dxvk_reqs.c)
 add_vk_test(vkd3d_reqs tests/vkd3d/vkd3d_reqs.c)
+add_vk_test(d3d_fl tests/vkd3d/d3d_fl.c)
 # vkd3d execution tests (suite).
 add_vk_test(vkd3d_heap tests/vkd3d/heap/vkd3d_heap.c)
 add_vk_test(vkd3d_timeline tests/vkd3d/timeline/vkd3d_timeline.c)
