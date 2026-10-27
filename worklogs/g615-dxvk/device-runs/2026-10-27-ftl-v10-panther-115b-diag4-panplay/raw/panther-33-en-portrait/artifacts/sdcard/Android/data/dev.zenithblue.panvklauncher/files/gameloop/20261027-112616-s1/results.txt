@@ -1,0 +1,14 @@
+PanPlay game loop, scenario 1 (diag4-11), run 20261027-112616-s1
+Device: Google Pixel 7 (panther), SDK 33, SoC GS201
+Driver: Mesa 26.3.0-devel (git-3d82a1787c), sha256 73709644d8f01783
+App: dev.zenithblue.panvklauncher 1.3.0 (41)
+Window: 5 s warm-up, 12 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d11    d4-plain  fail     589.6   590.7   590.7     3.8        -        -      -      -      -      1.0  test failed: CUBE: FAIL Present hr=0x887a0007
+02  d3d11    d4-iter   fail         -       -       -       -        -        -      -      -      -      0.0  test failed: CUBE: FAIL Present hr=0x887a0007
+03  d3d11    d4        fail         -       -       -       -        -        -      -      -      -      0.0  test failed: CUBE: FAIL Present hr=0x887a0007
+04  d3d11    d4-norn   fail         -       -       -       -        -        -      -      -      -      0.0  test failed: CUBE: FAIL Present hr=0x887a0007
+05  d3d11    d4-iter2  fail         -       -       -       -        -        -      -      -      -      0.0  test failed: CUBE: FAIL Present hr=0x887a0007
+
+A/B d3d11: d4-plain - fps, d4-iter - fps, d4 - fps, d4-norn - fps, d4-iter2 - fps (change vs d4-plain)

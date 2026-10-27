@@ -1,0 +1,17 @@
+{
+  "#": "2026-10-27 a31 (v7 JM) diag6 (115b): diag6 driver = diag4 (IDVS local dependency, gralloc BLOB dma-buf fallback) + decode of the descriptor copy jobs of a failed JM atom (every address they read or write checked against /proc/self/maps) + gralloc handle log and MEM_IMPORT retries with fewer flags / other fds / a CPU-only BLOB. Deep-merged over assets/gameloop.json.",
+  "warmupSec": 5,
+  "measureSec": 10,
+  "tailSec": 3,
+  "gapSec": 3,
+  "startTimeoutSec": 150,
+  "screenshotAtSec": 6,
+  "installDrivers": { "d6": "panvk-diag6.so" },
+  "envSets": {
+    "d6": { "note": "diag6 driver, defaults", "driver": "d6", "env": {} }
+  },
+  "scenarios": {
+    "1": { "name": "a31-diag6-11", "tasks": ["d3d11"], "envSets": ["d6"] },
+    "2": { "name": "a31-diag6-9", "tasks": ["d3d9"], "envSets": ["d6"] }
+  }
+}

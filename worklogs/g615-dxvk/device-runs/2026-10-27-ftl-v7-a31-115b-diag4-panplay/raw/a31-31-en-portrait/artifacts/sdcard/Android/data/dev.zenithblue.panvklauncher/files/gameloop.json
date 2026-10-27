@@ -1,0 +1,18 @@
+{
+  "#": "2026-10-27 a31 (v7 JM) diag4 (115b): diag4 driver = 115 diag + IDVS job local dependency (pan_jc_add_job() replaced the IDVS job's global dependency on its descriptor-copy / indexed-indirect helper job with the previous tiler job) + gralloc BLOB AHardwareBuffer dma-buf fallback for placed maps (no /dev/dma_heap, MTK ION_IOC_HEAP_QUERY EINVAL) + raw descriptor of the first unfinished job of a failed atom. Deep-merged over assets/gameloop.json.",
+  "warmupSec": 5,
+  "measureSec": 10,
+  "tailSec": 3,
+  "gapSec": 3,
+  "startTimeoutSec": 150,
+  "screenshotAtSec": 6,
+  "installDrivers": { "d4": "panvk-diag4.so" },
+  "envSets": {
+    "d4": { "note": "diag4 driver, defaults", "driver": "d4", "env": {} },
+    "d4-noidvs": { "note": "diag4, PANVK_V7_IDVS=0 (vertex + tiler jobs, control)", "driver": "d4", "env": { "PANVK_V7_IDVS": "0" } }
+  },
+  "scenarios": {
+    "1": { "name": "a31-diag4-11", "tasks": ["d3d11"], "envSets": ["d4", "d4-noidvs"] },
+    "2": { "name": "a31-diag4-9g12", "tasks": ["d3d9", "d3d12gears", "d3d12"], "envSets": ["d4"] }
+  }
+}

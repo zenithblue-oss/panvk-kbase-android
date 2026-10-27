@@ -1,0 +1,14 @@
+PanPlay game loop, scenario 1 (diag5-11), run 20261027-115033-s1
+Device: Google Pixel 7 (panther), SDK 33, SoC GS201
+Driver: Mesa 26.3.0-devel (git-c5cfb070f6), sha256 73709644d8f01783
+App: dev.zenithblue.panvklauncher 1.3.0 (41)
+Window: 5 s warm-up, 12 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d11    d5-drain  ok       585.8   569.6   593.0     5.8    586.9    255.0    1.6    2.8    3.5     63.0  CUBE: PASS api=d3d11 frames=11655 (check pixels)
+02  d3d11    d5-drain-iter ok       594.9   582.9   612.7     7.1    593.9    260.6    1.6    2.7    3.4     57.3  CUBE: PASS api=d3d11 frames=11815 (check pixels)
+03  d3d11    d5-iter-trace fail         -       -       -       -        -        -      -      -      -      0.0  test failed: CUBE: FAIL Present hr=0x887a0007
+04  d3d11    d5-trace  fail         -       -       -       -        -        -      -      -      -      0.0  test failed: CUBE: FAIL Present hr=0x887a0007
+05  d3d11    d5-drain-iter2 ok       573.8   564.5   591.6     7.4    573.6    248.0    1.7    2.9    3.5     62.2  CUBE: PASS api=d3d11 frames=11415 (check pixels)
+
+A/B d3d11: d5-drain 585.8 fps, d5-drain-iter 594.9 fps (+1.5%), d5-iter-trace - fps, d5-trace - fps, d5-drain-iter2 573.8 fps (-2.0%) (change vs d5-drain)

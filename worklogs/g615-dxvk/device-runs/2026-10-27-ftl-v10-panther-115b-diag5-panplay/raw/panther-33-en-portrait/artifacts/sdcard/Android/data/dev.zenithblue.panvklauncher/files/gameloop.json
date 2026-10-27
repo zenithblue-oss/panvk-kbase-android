@@ -1,0 +1,21 @@
+{
+  "#": "2026-10-27 panther diag5 (115b): diag4's trace put the v10 hang in a cycle: VT and COMPUTE in a barrier SYNC_WAIT on FRAG's syncobj, FRAG in wait_finish_tiling on VT's tiling-done signal (a deferred SYNC_ADD left pending in VT). PANVK_KBASE_V10_ITER_SYNC=1 hangs within ~100 submits. Candidate: PANVK_KBASE_DRAIN_BEFORE_WAIT=1 (wait own DEFERRED_SYNC before a cross-subqueue SYNC_WAIT); diag5 also dumps the stuck streams at the timeout. Deep-merged over assets/gameloop.json.",
+  "warmupSec": 5,
+  "measureSec": 12,
+  "tailSec": 3,
+  "gapSec": 3,
+  "startTimeoutSec": 120,
+  "screenshotAtSec": 6,
+  "installDrivers": { "d5": "panvk-diag5.so" },
+  "envSets": {
+    "d5-drain": { "note": "diag5, drain before wait", "driver": "d5", "env": { "PANVK_KBASE_DRAIN_BEFORE_WAIT": "1" } },
+    "d5-drain-iter": { "note": "diag5, drain before wait + v10 FRAG iterator restore", "driver": "d5", "env": { "PANVK_KBASE_DRAIN_BEFORE_WAIT": "1", "PANVK_KBASE_V10_ITER_SYNC": "1" } },
+    "d5-iter-trace": { "note": "diag5, v10 FRAG iterator restore + wait trace + stream dump (fast hang)", "driver": "d5", "env": { "PANVK_KBASE_V10_ITER_SYNC": "1", "PANVK_KBASE_WAIT_TRACE": "1" } },
+    "d5-trace": { "note": "diag5, wait trace + stream dump", "driver": "d5", "env": { "PANVK_KBASE_WAIT_TRACE": "1" } },
+    "d5-drain-iter2": { "note": "diag5, drain before wait + v10 FRAG iterator restore (repeat)", "driver": "d5", "env": { "PANVK_KBASE_DRAIN_BEFORE_WAIT": "1", "PANVK_KBASE_V10_ITER_SYNC": "1" } }
+  },
+  "scenarios": {
+    "1": { "name": "diag5-11", "tasks": ["d3d11"], "envSets": ["d5-drain", "d5-drain-iter", "d5-iter-trace", "d5-trace", "d5-drain-iter2"] },
+    "2": { "name": "diag5-gears", "tasks": ["d3d12gears"], "envSets": ["d5-drain-iter"] }
+  }
+}

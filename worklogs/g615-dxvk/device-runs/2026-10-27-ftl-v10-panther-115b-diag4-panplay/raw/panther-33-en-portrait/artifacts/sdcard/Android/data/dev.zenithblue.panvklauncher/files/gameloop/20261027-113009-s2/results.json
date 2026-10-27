@@ -1,0 +1,236 @@
+{
+  "harness": "panplay-gameloop",
+  "version": 1,
+  "scenario": 2,
+  "runId": "20261027-113009-s2",
+  "startedUnixMs": 1793125809254,
+  "app": {
+    "package": "dev.zenithblue.panvklauncher",
+    "versionName": "1.3.0",
+    "versionCode": 41
+  },
+  "device": {
+    "manufacturer": "Google",
+    "model": "Pixel 7",
+    "device": "panther",
+    "product": "panther",
+    "hardware": "panther",
+    "board": "panther",
+    "sdk": 33,
+    "release": "13",
+    "fingerprint": "google\/panther\/panther:13\/TQ3A.230605.012\/10204971:user\/release-keys",
+    "socManufacturer": "Google",
+    "socModel": "GS201",
+    "maliNode": true,
+    "display": "1080x2201",
+    "refreshHz": 90,
+    "xScreen": "1280x720"
+  },
+  "passes": [
+    {
+      "index": 1,
+      "task": "d3d12gears",
+      "title": "D3D12 gears, vkd3d-proton demo (ARM64EC)",
+      "envSet": "d4-plain",
+      "dir": "01-d3d12gears-d4-plain",
+      "shortcut": "builtin-d3d12gears-arm64ec",
+      "exe": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/games\/builtin\/vkd3d-gears-arm64ec.exe",
+      "env": {
+        "VKD3D_DEBUG": "warn",
+        "VKD3D_SHADER_DEBUG": "warn",
+        "PANVK_FPS_LOG": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/gameloop\/20261027-113009-s2\/01-d3d12gears-d4-plain\/panvk-fps-%p.log",
+        "PANVK_FPS_LOG_MS": "1000",
+        "DX12TEST_SECS": "20"
+      },
+      "driver": {
+        "id": "d4",
+        "libPath": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/drivers\/d4\/libvulkan_panfrost.so",
+        "sha256": "691459164666734dfb1ef7e084f4a30640b0c0422483187a6f3e3ff98fabb094"
+      },
+      "exit": 0,
+      "wallSec": 48.879,
+      "firstFrameSec": 4.871,
+      "sessionReason": "Game exited normally (exit 0)",
+      "perfSummary": {
+        "startMs": 1793125809463,
+        "game": "D3D12 · Gears · ARM64EC",
+        "exe": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/games\/builtin\/vkd3d-gears-arm64ec.exe",
+        "driverId": "mesa-panvk-26.3.0-devel-git-9dde9e7a18",
+        "driver": "Mesa PanVK",
+        "driverVersion": "26.3.0-devel (git-9dde9e7a18)",
+        "driverInfo": "Mesa 26.3.0-devel (git-9dde9e7a18)",
+        "driverBuildId": "Mesa 5a07217f",
+        "dxvk": "3.1.1-4-arm64ec",
+        "emulator": "FEX Intermediate",
+        "resolution": "1280x720",
+        "fpsLimit": 0,
+        "device": "Google Pixel 7",
+        "id": "20261027-113009_D3D12_Gears_ARM64EC",
+        "endMs": 1793125858330,
+        "dxvkStats": false,
+        "gameCpuAvg": 4.7042553191489365,
+        "gameCpuMax": 20.3,
+        "gameCoresAvg": 0.3574468085106383,
+        "gameCoresMax": 1.6,
+        "ramAvgMb": 246.98541666666696,
+        "ramPeakMb": 321.8,
+        "battTempAvgC": 33.039583333333304,
+        "battTempMaxC": 33.3,
+        "cpuFreqAvgMhz": 1752.9791666666667,
+        "cpuFreqMaxMhz": 2850,
+        "powerAvgMw": 28.49166666666665,
+        "powerMaxMw": 375.2,
+        "memAvailMinMb": 3032.7
+      },
+      "fpsLog": "panvk-fps-8190.log",
+      "driverPresents": 1411,
+      "driverInfo": "Mesa 26.3.0-devel (git-3d82a1787c)",
+      "compositor": {
+        "drawnFps": 0,
+        "contentFps": 0
+      },
+      "test": {
+        "ok": true,
+        "line": "DX12: PASS test=vkd3d-gears frames=6848 secs=20.0 fps=342.3 startup=2.1",
+        "frames": 6848,
+        "fps": 342.3,
+        "startupSec": 2.1
+      },
+      "status": "fail",
+      "reason": "no fps data in the window (no frames 5-17 s after the first)"
+    },
+    {
+      "index": 2,
+      "task": "d3d12gears",
+      "title": "D3D12 gears, vkd3d-proton demo (ARM64EC)",
+      "envSet": "d4-iter",
+      "dir": "02-d3d12gears-d4-iter",
+      "shortcut": "builtin-d3d12gears-arm64ec",
+      "exe": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/games\/builtin\/vkd3d-gears-arm64ec.exe",
+      "env": {
+        "VKD3D_DEBUG": "warn",
+        "VKD3D_SHADER_DEBUG": "warn",
+        "PANVK_KBASE_V10_ITER_SYNC": "1",
+        "PANVK_FPS_LOG": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/gameloop\/20261027-113009-s2\/02-d3d12gears-d4-iter\/panvk-fps-%p.log",
+        "PANVK_FPS_LOG_MS": "1000",
+        "DX12TEST_SECS": "20"
+      },
+      "driver": {
+        "id": "d4",
+        "libPath": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/drivers\/d4\/libvulkan_panfrost.so",
+        "sha256": "691459164666734dfb1ef7e084f4a30640b0c0422483187a6f3e3ff98fabb094"
+      },
+      "exit": 0,
+      "wallSec": 50.294,
+      "firstFrameSec": 4.003,
+      "sessionReason": "Game exited normally (exit 0)",
+      "perfSummary": {
+        "startMs": 1793125861809,
+        "game": "D3D12 · Gears · ARM64EC",
+        "exe": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/games\/builtin\/vkd3d-gears-arm64ec.exe",
+        "driverId": "mesa-panvk-26.3.0-devel-git-9dde9e7a18",
+        "driver": "Mesa PanVK",
+        "driverVersion": "26.3.0-devel (git-9dde9e7a18)",
+        "driverInfo": "Mesa 26.3.0-devel (git-9dde9e7a18)",
+        "driverBuildId": "Mesa 5a07217f",
+        "dxvk": "3.1.1-4-arm64ec",
+        "emulator": "FEX Intermediate",
+        "resolution": "1280x720",
+        "fpsLimit": 0,
+        "device": "Google Pixel 7",
+        "id": "20261027-113101_D3D12_Gears_ARM64EC",
+        "endMs": 1793125912095,
+        "dxvkStats": false,
+        "gameCpuAvg": 4.908333333333334,
+        "gameCpuMax": 17.8,
+        "gameCoresAvg": 0.3729166666666668,
+        "gameCoresMax": 1.4,
+        "ramAvgMb": 223.16734693877535,
+        "ramPeakMb": 272.9,
+        "battTempAvgC": 33.43877551020409,
+        "battTempMaxC": 33.7,
+        "cpuFreqAvgMhz": 1878.0408163265306,
+        "cpuFreqMaxMhz": 2850,
+        "powerAvgMw": 40.44693877551018,
+        "powerMaxMw": 739.7,
+        "memAvailMinMb": 2963.5
+      },
+      "fpsLog": "panvk-fps-8715.log",
+      "driverPresents": 4797,
+      "driverInfo": "Mesa 26.3.0-devel (git-3d82a1787c)",
+      "driverFps": {
+        "fps": 428.57142857142856,
+        "frames": 2682,
+        "spanMs": 6258,
+        "intervals": 7,
+        "minIntervalFps": 370.1,
+        "maxIntervalFps": 457.9,
+        "maxFrameMs": 23.8
+      },
+      "compositor": {
+        "drawnFps": 45.88581711107476,
+        "contentFps": 219.20497300834285
+      },
+      "screenshot": "screen.png",
+      "fps": 428.57142857142856,
+      "fpsSource": "driver",
+      "test": {
+        "ok": true,
+        "line": "DX12: PASS test=vkd3d-gears frames=4797 secs=22.3 fps=215.2 startup=1.3",
+        "frames": 4797,
+        "fps": 215.2,
+        "startupSec": 1.3
+      },
+      "status": "ok"
+    }
+  ],
+  "configSource": [
+    "assets\/gameloop.json",
+    "\/storage\/emulated\/0\/Android\/data\/dev.zenithblue.panvklauncher\/files\/gameloop.json sha256=54a020f143938a577ab421d7830afd103468e0d0c8cc95697b6b613f49a5828c"
+  ],
+  "scenarioName": "diag4-gears",
+  "tasks": [
+    "d3d12gears"
+  ],
+  "envSets": [
+    "d4-plain",
+    "d4-iter"
+  ],
+  "window": {
+    "warmupSec": 5,
+    "measureSec": 12,
+    "tailSec": 3,
+    "fpsLogMs": 1000,
+    "from": "first frame"
+  },
+  "envSetNotes": {
+    "d4-plain": "diag4 driver, defaults (no trace)",
+    "d4-iter": "diag4, v10 FRAG iterator restore, no trace"
+  },
+  "updatedUnixMs": 1793125912470,
+  "driver": {
+    "id": "mesa-panvk-26.3.0-devel-git-9dde9e7a18",
+    "name": "Mesa PanVK",
+    "version": "26.3.0-devel (git-9dde9e7a18)",
+    "bundled": true,
+    "libPath": "\/data\/app\/~~HFPXzuwniOOLOYa0BAxfZw==\/dev.zenithblue.panvklauncher-ros93RsSA7UfpDGDpE_jBQ==\/lib\/arm64\/libvulkan_panfrost.so",
+    "size": 29909088,
+    "sha256": "73709644d8f0178369da2fbb95573730b47920f78dab0b9421d4417781488394"
+  },
+  "driverInfo": "Mesa 26.3.0-devel (git-3d82a1787c)",
+  "ab": [
+    {
+      "task": "d3d12gears",
+      "baseline": "d4-plain",
+      "fps": {
+        "d4-plain": null,
+        "d4-iter": 428.57142857142856
+      },
+      "deltaPct": {
+        "d4-iter": null
+      }
+    }
+  ],
+  "ok": false,
+  "endedUnixMs": 1793125912470
+}
