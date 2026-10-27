@@ -29,6 +29,43 @@
   IO coherency, no RandR on an X server without RANDR). Each default-on change has a knob that restores 114
   (`patches/staging-115/*/NOTES.md`).
 
+### Validation (Firebase Test Lab, 2026-10-27)
+
+Galaxy S9 (Mali-G72 MC18, v6), Galaxy A31 (Mali-G52 MC2, v7), Pixel 6 (Mali-G78 MC20, v9), Pixel 7 (Mali-G710 MC7,
+v10) and Pixel 8 (Mali-G715 MC7, v11), one run each. Results and screenshots are in
+`worklogs/g615-dxvk/device-runs/2026-10-26-ftl-<arch>-<model>-115[-panplay]/`.
+
+- PanProbe 1.3.0: 39/39 on all five phones, in both `defaults` and `114-knobs`. The test times show no regression
+  against 114/115pre: the A31's +12.6 % is the FTL phone (see its run). `tess_perf` images match 114.
+- PanPlay 1.3.0, D3D11 cube / D3D9 cube / SquidRoom / gears:
+  - Pixel 8: 395 / 118 (vsync) / 74.3 / 166 fps. The D3D9 HUD is clean.
+  - Pixel 6: 168 / 90 (vsync) / 27.0 / 233 fps. The D3D9 HUD is clean.
+  - Pixel 7: only SquidRoom passes (85.8 fps); see Known issues.
+  - Galaxy A31: first DXVK and vkd3d-proton run on v7; see Known issues.
+  - Galaxy S9: no D3D test ran (Wine setup on Android 10); see Known issues.
+- D3D12 (vkd3d-proton 2230755) creates its device at the requested FL 11_0 on every arch.
+  - Max feature level: 11_1 on v9-v11, 11_0 on v6/v7 (`maxPerStageDescriptorStorageImages` is 32, 11_1 needs 64).
+  - Shader model: 6.8 on v9-v11, 6.5 on v6/v7 (SM 6.6 needs `VK_KHR_compute_shader_derivatives`).
+  - 12_0 is blocked everywhere by tiled resources tier 2 (sparse binding and residency).
+  - 12_1 is blocked by ROVs (`VK_EXT_fragment_shader_interlock`) and, except on v11, by conservative rasterization.
+
+### Known issues (115)
+
+- **Pixel 7 (G710, v10):** PanPlay's D3D11 cube, D3D9 cube and vkd3d-proton gears hang the GPU queue 1.5-18 s after their
+  first present: `kbase: timeout on subqueue 0`, all three subqueues stopped at one seqno, no fault. DEVICE_LOST follows.
+  PanProbe passes on the same phone and the Pixel 8 does not hang, but there is no PanPlay knob A/B yet.
+- **Galaxy A31 (G52, v7):**
+  - D3D11 cube: the first frame's JM atoms are terminated (`event=0x4`), then DEVICE_LOST.
+  - D3D9 cube (32-bit): the WoW64 placed map (`vkMapMemory2EXT`) of a 4 MiB buffer fails with
+    VK_ERROR_MEMORY_MAP_FAILED.
+  - D3D12 SquidRoom: correct picture but 0.9 fps (1.1 s per frame, GPU side).
+  - D3D12 gears: 102 fps, but only the red gear is drawn.
+  - No vkd3d-proton error is logged for either D3D12 problem.
+- **Galaxy S9 (G72, v6, Android 10):** PanPlay's Wine prefix setup fails before any Direct3D call. `wineboot -u`
+  times out and Wine reports `could not load kernel32.dll, status c0000135`. Before that, SELinux denies
+  `ioctl` 0x7201 (VFAT_IOCTL_READDIR_BOTH) on the prefix directories for `untrusted_app_27`. D3D on v6 is
+  still untested.
+
 ## panvk-kbase-v0.1.0-rc3-lowmem (release candidate)
 
 RC3 plus one patch (csf-v11/185), 173 patches on Mesa `5a07217f034b`. Not faster; it trades some BCn

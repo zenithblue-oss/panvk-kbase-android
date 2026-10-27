@@ -83,6 +83,54 @@ Both apps are tested on the Mali-G615. PanProbe also runs on the other devices i
 
 ## Tested devices
 
+### Build 115 on Firebase Test Lab (2026-10-27)
+
+The current build (`driverInfo` `Mesa 26.3.0-devel (git-9dde9e7a18)`, Android `.so` sha256 `73709644...`) ran on five
+Firebase Test Lab phones, one run at a time. Each phone ran PanProbe 1.3.0 and then PanPlay 1.3.0:
+- PanProbe runs its 39 tests twice in one session: `defaults`, then `114-knobs` (the 114 value of every default-on 115
+  change).
+- PanPlay runs the game-loop scenarios 3 (D3D11 and D3D9 cubes, DXVK), 5 (D3D12 Multithreading "SquidRoom",
+  vkd3d-proton) and 6 (vkd3d-proton gears). It measures 60 s after a 20 s warm-up.
+
+Per-run data is in
+`worklogs/g615-dxvk/device-runs/2026-10-26-ftl-<arch>-<model>-115[-panplay]/results.md`. Screenshots are in the same folders.
+
+| Device | GPU | Arch | Android | PanProbe `defaults` | PanProbe `114-knobs` | D3D11 cube | D3D9 cube | D3D12 SquidRoom | D3D12 gears | D3D12 max FL / SM |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Galaxy S9 (starlte) | Mali-G72 MC18 | v6 (JM) | 10 | 39/39, 216.5 s | 39/39, 292.5 s | not run: Wine prefix setup fails on Android 10 | not run | not run | not run | 11_0 / 6.5 |
+| Galaxy A31 | Mali-G52 r1 MC2 | v7 (JM) | 12 | 39/39, 323.1 s | 39/39, 431.9 s | **FAIL**: first frame's JM atoms terminated, DEVICE_LOST | **FAIL**: WoW64 placed map `VK_ERROR_MEMORY_MAP_FAILED` | PASS, **0.9 fps** | PASS line, 101.9 fps, **wrong picture** | 11_0 / 6.5 |
+| Pixel 6 (oriole) | Mali-G78 MC20 | v9 (JM) | 13 | 39/39, 214.0 s | 39/39, 302.1 s | 168.1 fps | 90.0 fps (vsync) | 27.0 fps | 232.7 fps | 11_1 / 6.8 |
+| Pixel 7 (panther) | Mali-G710 MC7 | v10 (CSF) | 13 | 39/39, 167.5 s | 39/39, 136.6 s | **FAIL**: GPU queue hang after 1.5 s | **FAIL**: GPU queue hang after 17.7 s | 85.8 fps | **FAIL**: GPU queue hang after 1.5 s | 11_1 / 6.8 |
+| Pixel 8 (shiba) | Mali-G715 MC7 | v11 (CSF) | 14 | 39/39, 187.4 s | 39/39, 164.0 s | 395.0 fps | 117.9 fps (vsync) | 74.3 fps | 166.4 fps | 11_1 / 6.8 |
+
+Cube fps is the driver's present rate over the 60 s window. D3D12 fps is the test's own number. On panther and a31 the
+D3D12 PASS lines count presents, not correct frames.
+
+- **PanProbe:** every phone passes 39/39 in both passes. The `defaults` times are within 3 % of the previous build, except
+  on the A31 (+12.6 %). There `114-knobs` is slower by the same amount and matches build 112, so the FTL A31 itself ran
+  slower that day.
+- **Pixel 7 (v10):** the D3D11 cube, the D3D9 cube and gears hang the GPU queue: `kbase: timeout on subqueue 0`, all three
+  subqueues stopped at one seqno, `error 0x0`, no fault. DEVICE_LOST follows. SquidRoom passes. PanProbe passes on the
+  same phone, and the Pixel 8 runs the same tests without a hang. Open.
+- **v7 (first DXVK and vkd3d-proton run, Galaxy A31):** D3D12 device creation (FL 11_0, SM 6.5), the swapchain and
+  presentation work. The failures are listed in the table and in the run folder's `results.md`.
+- **v6 (Galaxy S9, Android 10):** PanPlay never reached a D3D test. `wineboot -u` times out and Wine reports
+  `could not load kernel32.dll` after SELinux denies its directory ioctl (0x7201) on the prefix. This is a
+  Wine/Android 10 problem; the driver was not loaded.
+- **D3D12 feature levels** (vkd3d-proton 2230755's own rules applied to each phone's Vulkan caps; its release build does
+  not log the level):
+  - 11_1 on v9-v11. 11_0 on v6/v7, because 11_1 needs `maxPerStageDescriptorStorageImages` >= 64 and the v6/v7 driver
+    reports 32.
+  - 12_0 needs tiled resources tier 2, which means sparse residency. No arch has it. Needed: `sparseBinding`,
+    `sparseResidencyBuffer`, `sparseResidencyImage2D`, `sparseResidencyAliased`, a queue with
+    `VK_QUEUE_SPARSE_BINDING_BIT`, `shaderResourceResidency`, `shaderResourceMinLod`, `residencyNonResidentStrict` and
+    `filterMinmaxSingleComponentFormats`. Typed UAV loads (all 18 formats) and resource binding tier 3 are already there.
+  - 12_1 also needs ROVs (`VK_EXT_fragment_shader_interlock`, pixel and sample interlock) and conservative rasterization
+    tier 1 (`VK_EXT_conservative_rasterization`, which only the v11 Pixel 8 exposes).
+  - v6/v7 stop at SM 6.5: SM 6.6 needs `VK_KHR_compute_shader_derivatives`.
+
+### RC3 and RC4
+
 The latest release is **0.1.0 RC4** (release candidate, 2026-10-20). RC4 adds
 experimental Mali v7 Bifrost support (`jm-v7` 001-005). Only the G615 was
 retested on RC4 (Poco X6 Pro, PanProbe 39/39); v7 was tested on the Mali-G52
