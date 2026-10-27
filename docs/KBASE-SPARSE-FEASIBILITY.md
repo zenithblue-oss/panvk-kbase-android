@@ -1,5 +1,17 @@
 # Kbase UAPI 1.21 sparse / VM feasibility
 
+## TODO (2026-10-27): full sparse implementation, deferred
+
+Newer research supersedes the NO-GO below for the non-aliased case:
+[worklogs/g615-dxvk/sparse-kbase-2026-10-27/README.md](../worklogs/g615-dxvk/sparse-kbase-2026-10-27/README.md)
+("shadow-tile sparse", prototype in `tools/sparse-kbase-proto/`).
+
+- v10-v13 (CSF uAPI >= 1.9): lazy per-64 KiB tile backing via `MEM_ALLOC_EX` FIXED + `GROW_ON_GPF` + `MEM_COMMIT`.
+- v6/v7/v9 (JM) and v14: works with eager backing (one SAME_VA `GROW_ON_GPF` arena).
+- All arches: `sparseResidencyAliased` stays false (kbase `MEM_ALIAS` is immutable), so D3D12 FL 12_0 also needs the `VKD3D_FEATURE_LEVEL=12_0` override in PanPlay.
+
+Status: not started. Plan S0-S6, about 8-11 weeks; S0 is the PanProbe `sparse_kbase` device gate (2-3 days). Until then the NO-GO caps below stay in force.
+
 ## Decision
 
 **NO-GO.** Do not enable PanVK sparse on the custom `mali_kbase` backend.
