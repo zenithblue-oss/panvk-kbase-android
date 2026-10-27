@@ -18,8 +18,8 @@ GPU/MMU fault, CS_FATAL, Fatal signal, ANR, FATAL EXCEPTION or lowmemorykiller k
 
 Against 115pre-d on the same device (same `env-ab.json` passes): `defaults` 216.5 s vs 215.0 s (+0.7 %),
 `114-knobs` 292.5 s vs 292.1 s (+0.1 %); no test moved by more than 1 s and 20 %; `tess_perf` image hashes equal (18 of 18).
-Knob lines as in 115pre-d: `JM warm-up off` 93 (115pre-d 92) in `defaults`; `JM warm-up 2000 ms` 48 (47) and
-`114 behaviour restored` 47 (46) only in `114-knobs`. **No regression.**
+Knob lines per pass (device opens, the JSON echoes left out) equal 115pre-d: `JM warm-up off` 92 in `defaults`, 0 in
+`114-knobs`; `JM warm-up 2000 ms` 0 / 47 and `skipped` 0 / 45; `114 behaviour restored` 0 / 46; `kbase: coherency mode` 92 / 92. **No regression.**
 
 ## Summary (`an115f.py`)
 

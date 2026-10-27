@@ -1,0 +1,42 @@
+MESA: info: kbase: JM driver, uAPI version 11.27, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: warning: kbase: GPU timestamp counter measured at 25999808 Hz (26000004 / 25999613), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)
+MESA: info: kbase: no usable ION system heap
+MESA: info: panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: warning: panvk: v7 (Bifrost) support is experimental
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe03fe)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+PHYS 0 Mali-G52 r1 MC2 vendor=0x13b5 device=0x74021000
+FEATURE depthBounds=1
+MESA: info: kbase: JM driver, uAPI version 11.27, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: warning: kbase: GPU timestamp counter measured at 26000584 Hz (26001555 / 25999612), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)
+MESA: info: kbase: no usable ION system heap
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 70313 pages committed
+ALLOC image fmt=37 type=0 bits=0x7 flags=0x1
+ALLOC image fmt=126 type=0 bits=0x7 flags=0x1
+PASS case A_static bounds=[0.30,0.60] checkedIn=288 checkedOut=672 partial=0 skipped=64 badColor=0 badDepth=0
+PASS case B_dynamic bounds=[0.30,0.60] checkedIn=288 checkedOut=672 partial=0 skipped=64 badColor=0 badDepth=0
+PASS case C_dynamic_low bounds=[0.10,0.20] checkedIn=64 checkedOut=896 partial=0 skipped=64 badColor=0 badDepth=0
+PASS case D_dyn_enable_off bounds=[0.30,0.60] checkedIn=1024 checkedOut=0 partial=0 skipped=0 badColor=0 badDepth=0
+PASS case E_dyn_enable_on bounds=[0.30,0.60] checkedIn=288 checkedOut=672 partial=0 skipped=64 badColor=0 badDepth=0
+PASS case G_no_fs_static bounds=[0.30,0.60] checkedIn=288 checkedOut=672 partial=0 skipped=64 badColor=0 badDepth=0
+PASS case H_eft_depth_write bounds=[0.30,0.60] checkedIn=288 checkedOut=672 partial=0 skipped=64 badColor=0 badDepth=0
+PASS case I_perf_dyn_off plain=11.475ms dyn_off=14.755ms ratio=1.29
+ALLOC image fmt=37 type=0 bits=0x7 flags=0x1
+ALLOC image fmt=126 type=0 bits=0x7 flags=0x1
+PASS case F_msaa4_static bounds=[0.30,0.60] checkedIn=288 checkedOut=672 partial=64 skipped=0 badColor=0 badDepth=0
+RESULT PASS
