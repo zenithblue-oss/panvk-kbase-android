@@ -27,4 +27,10 @@ class DriverUpdateTagTest {
         assertNotNull(n)
         assertEquals("panvk-kbase-v0.1.0-rc4", n!!.first.tag)
     }
+    @Test fun mesaStyleInstalledVersion() {
+        // bundled-driver.json packageVersion from build 115 on: shown as is; the RC releases are not offered as updates.
+        assertEquals("26.3.0-devel", DriverUpdate.label("26.3.0-devel"))
+        assertFalse(DriverUpdate.isNewer("0.1.0-rc4-lowmem", "26.3.0-devel"))
+        assertTrue(DriverUpdate.isNewer("26.4.0-devel", "26.3.0-devel"))
+    }
 }

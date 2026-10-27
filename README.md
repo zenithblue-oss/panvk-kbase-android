@@ -6,8 +6,8 @@
 
 <p align="center">
   <a href="https://t.me/+E-NhUATmkqE5ODg1"><img src="https://img.shields.io/badge/Telegram-Join%20testers-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Join the Telegram testers group"></a>
-  <a href="https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc4"><img src="https://img.shields.io/badge/driver-0.1.0%20RC4-orange?style=for-the-badge" alt="Driver 0.1.0 RC4"></a>
-  <a href="https://github.com/zenithblue-oss/panplay/releases/tag/panplay-v1.2.7"><img src="https://img.shields.io/badge/PanPlay-1.2.7-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanPlay 1.2.7"></a>
+  <a href="https://github.com/zenithblue-oss/panvk-kbase-android/releases"><img src="https://img.shields.io/badge/driver-Mesa%20PanVK%2026.3.0--devel-orange?style=for-the-badge" alt="Driver: Mesa PanVK 26.3.0-devel"></a>
+  <a href="https://github.com/zenithblue-oss/panplay/releases"><img src="https://img.shields.io/badge/PanPlay-1.2.9-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanPlay 1.2.9"></a>
   <a href="https://github.com/zenithblue-oss/panprobe/releases/tag/panprobe-v1.2.7"><img src="https://img.shields.io/badge/PanProbe-1.2.7-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanProbe 1.2.7"></a>
 </p>
 
@@ -232,7 +232,12 @@ change creates a new release even if the Mesa SHA is unchanged.
 
 ### Current status
 
-Latest: **[`panvk-kbase-v0.1.0-rc4`](https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc4)**
+Current build: **Mesa PanVK 26.3.0-devel** (build 115), the build for the project's first official GitHub release. One
+Android `.so` covers v6/v7 (Bifrost JM), v9 (Valhall JM) and v10-v14 (CSF). Its source is the patch series plus
+`patches/jm-v7-wip` 0006-0131, as `scripts/prepare-rc5-tree.sh` applies them on Mesa `5a07217f`. Changes are in
+[`CHANGELOG.md`](CHANGELOG.md), test results under [Tested devices](#tested-devices). PanPlay 1.2.9 bundles it.
+
+Previous releases: **[`panvk-kbase-v0.1.0-rc4`](https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc4)**
 and **[`panvk-kbase-v0.1.0-rc4-lowmem`](https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc4-lowmem)**
 (release candidates: experimental v7 Bifrost; only the G615 was retested, 39/39). The RC4 binaries were
 recovered from the reference device; their exact source was not committed. The last release tested on every GPU is

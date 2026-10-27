@@ -19,6 +19,12 @@ Releases up to RC4 used `PanVK-Kbase-Android-<version>-<mesa8>...` with
 `Mesa PanVK <tag>`; tags keep the `panvk-kbase-v` prefix.
 `minApi` is 35 until an API 29 Bionic rebuild is proven. Do not advertise 29.
 
+App update check: PanPlay and PanProbe compare a release's tag version (after
+`panvk-kbase-v`) with the bundled driver's `packageVersion`, which is the Mesa
+version from build 115 on (`26.3.0-devel`, was `0.1.0-rc5`). `DriverUpdate.isNewer`
+compares major.minor.patch, then beta/rc, so only a tag above 26.3.0 (for example
+`panvk-kbase-v26.3.1`) is offered as an update to these builds; a `0.1.x` tag is not.
+
 Every release: `SHA256SUMS.txt + SOURCE.json + VALIDATION.json` with Mesa
 commit, patch hash, compiler/NDK/Meson, host, API, Build ID, SHAs, device,
 GPU ID, UAPI, all gate results. CI builds `dev` only; beta/rc/stable require
@@ -42,3 +48,7 @@ After severe fault: save logs + kernel evidence, stop, reboot if needed.
   images as release assets.
 - Build assets from a clean worktree of the release commit, not the dirty
   working tree; confirm the patch series applies on the pinned Mesa base.
+  The universal driver's tree is `scripts/prepare-rc5-tree.sh --mesa <fresh
+  5a07217f worktree>` (strict; its defaults, csf-v11 <= 233 and jm-v7-wip
+  <= 0131, are build 115), built with `MESA=<that tree>
+  scripts/build-android.sh --profile g615-v11-csf --api 29`.

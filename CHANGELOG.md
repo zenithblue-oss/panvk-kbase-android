@@ -4,7 +4,7 @@
 
 ### Changed
 
-- **Upstream-style driver identity** (`patches/staging-115/int` 0001): `driverInfo` is now
+- **Upstream-style driver identity** (`patches/jm-v7-wip` 0120): `driverInfo` is now
   `Mesa 26.3.0-devel (git-<sha>)`, as an upstream Mesa PanVK development build reports it (`driverName`
   `panvk`; `deviceName` unchanged, it already matches upstream). The `PANVK_FPS_LOG` header reads
   `# panvk-fps Mesa 26.3.0-devel (git-<sha>) pid=...`. Earlier builds reported
@@ -17,6 +17,16 @@
   `Mesa-PanVK-<version>-<sha8>-EMULATOR.zip`. Release title `Mesa PanVK <tag>`. Tags keep the
   `panvk-kbase-v` prefix. Builds that still report the old string keep the old package names.
 - `validate-package.sh` no longer reads `-devel` as the `dev` tier.
+- PanPlay **1.2.9** (versionCode 41; the test builds were 1.2.9-rc5). The bundled driver's `packageVersion` is the
+  Mesa version, `26.3.0-devel` (was `0.1.0-rc5`), in PanPlay and PanProbe, so the update card shows
+  `26.3.0-devel` instead of `rc5`. The update check offers only releases tagged above 26.3.0 to these builds
+  (`docs/RELEASE.md`). Package ids and the PanProbe `rc4`/`rc5` driver slots are unchanged.
+- Source: the series plus `patches/jm-v7-wip` 0006-0131 (`scripts/prepare-rc5-tree.sh`, whose defaults are now this
+  tree). The 115 work is jm-v7-wip 0093-0131: the staging-115 packages P-A (CSF CPU record/submit, 0093-0102),
+  P-B (memory, 0103-0112), P-C (present paths, 0113-0119), the driver identity (0120), P-D (JM v6/v7/v9,
+  0121-0127) and the PanPlay fixes (0128-0131: HOST_COHERENT dma-heap memory from `system-uncached` on GPUs without
+  IO coherency, no RandR on an X server without RANDR). Each default-on change has a knob that restores 114
+  (`patches/staging-115/*/NOTES.md`).
 
 ## panvk-kbase-v0.1.0-rc3-lowmem (release candidate)
 
