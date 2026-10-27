@@ -437,10 +437,13 @@ object BuiltinTests {
     // D3D12 (vkd3d-proton, 64-bit only, so no i686 exe): the Microsoft D3D12 Multithreading sample (SquidRoom
     // scene; SquidRoom.bin and the two .cso files sit next to the exe) and vkd3d-proton's gears demo. Sources,
     // patches and build scripts: tests/dx12. Both print "DX12: Present frame=", "DX12: fps=", "DX12: PASS|FAIL".
+    // Feature levels (tests/dfl, own code): D3D12 11_0-12_2 and D3D11 10_0-11_1, every level by default
+    // (D3DFL_LEVEL picks one); they print "D3DFL: feature ...", "D3DFL: level ...", "D3DFL: PASS|FAIL|UNSUPPORTED|DONE".
     private val APIS = listOf(
         listOf("d3d8", "Cube · D3D8", "dxcube8", ""), listOf("d3d9", "Cube · D3D9", "dxcube", "d3d9"),
         listOf("d3d10", "Cube · D3D10", "dxcube", "d3d10"), listOf("d3d11", "Cube · D3D11", "dxcube", "d3d11"),
-        listOf("d3d12", "D3D12 · SquidRoom", "d3d12-multithreading", ""), listOf("d3d12gears", "D3D12 · Gears", "vkd3d-gears", "")
+        listOf("d3d12", "D3D12 · SquidRoom", "d3d12-multithreading", ""), listOf("d3d12gears", "D3D12 · Gears", "vkd3d-gears", ""),
+        listOf("d3d12fl", "D3D12 · Feature levels", "d3d12fl", ""), listOf("d3d11fl", "D3D11 · Feature levels", "d3d11fl", "")
     )
 
     fun isBuiltin(s: Shortcut) = s.id.startsWith("builtin-")

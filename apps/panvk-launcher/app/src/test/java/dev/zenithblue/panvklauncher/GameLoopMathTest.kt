@@ -17,7 +17,7 @@ class GameLoopMathTest {
 
     @Test fun shippedConfigScenarios() {
         val c = cfg()
-        assertEquals(listOf(1, 2, 3, 4, 5, 6), c.scenarios.keys.sorted())
+        assertEquals((1..9).toList(), c.scenarios.keys.sorted())
         assertEquals(20, c.warmupSec); assertEquals(60, c.measureSec); assertEquals(88, c.testSecs)
         assertEquals("bundled", c.driver)
         fun labels(n: Int) = GameLoopMath.passes(c, n).map { it.label }
@@ -33,6 +33,14 @@ class GameLoopMathTest {
         assertEquals(listOf("01-d3d12gears-default"), labels(6))
         assertEquals("builtin-d3d12-arm64ec", c.tasks.getValue("d3d12").shortcut)
         assertEquals("builtin-d3d12gears-arm64ec", c.tasks.getValue("d3d12gears").shortcut)
+        // Feature levels: one pass per D3D12 level; D3D11 levels, then the D3D10 and D3D9 cubes; both exes at all levels.
+        assertEquals(listOf("11_0", "11_1", "12_0", "12_1", "12_2").mapIndexed { i, l -> "0${i + 1}-d3d12fl_$l-default" }, labels(7))
+        assertEquals(listOf("01-d3d11fl_10_0-default", "02-d3d11fl_10_1-default", "03-d3d11fl_11_0-default",
+            "04-d3d11fl_11_1-default", "05-d3d10-default", "06-d3d9-default"), labels(8))
+        assertEquals(listOf("01-d3d12fl_all-default", "02-d3d11fl_all-default"), labels(9))
+        assertEquals("12_0", c.tasks.getValue("d3d12fl_12_0").env["D3DFL_LEVEL"])
+        assertEquals("builtin-d3d11fl-arm64ec", c.tasks.getValue("d3d11fl_11_1").shortcut)
+        assertEquals("builtin-d3d10-arm64ec", c.tasks.getValue("d3d10").shortcut)
         // 'old' restores 114 for every default-on knob of staging-115 pa, pb and pc; 'default' sets nothing.
         val old = c.envSets.getValue("old").env
         assertEquals(21, old.size)
@@ -57,6 +65,26 @@ class GameLoopMathTest {
         // The cube's PASS line has no fps or startup field.
         val cube = GameLoopMath.parseTest(cfg().tasks.getValue("d3d11"), sequenceOf("CUBE: PASS api=d3d11 frames=3912"))
         assertNull(cube.fps); assertNull(cube.startupSec)
+    }
+
+    @Test fun featureLevelPatterns() {
+        val t = cfg().tasks.getValue("d3d12fl_12_1")
+        assertEquals("D3DFL_SECS", t.secsEnv)
+        assertTrue(t.firstFramePattern!!.containsMatchIn("D3DFL: Present frame=1 hr=0x00000000"))
+        assertFalse(t.firstFramePattern.containsMatchIn("D3DFL: first frame startup=4.2"))
+        // A level without a device is UNSUPPORTED, which passes; feature and level lines never decide.
+        val unsup = GameLoopMath.parseTest(t, sequenceOf("D3DFL: feature level=12_1 rov UNSUPPORTED ROVsSupported=0",
+            "D3DFL: level 12_1 UNSUPPORTED pass=1 fail=0 unsupported=1 reported=0 D3D12CreateDevice(12_1) failed, highest 11_1",
+            "D3DFL: UNSUPPORTED api=d3d12 level=12_1 not_created rov:UNSUPPORTED,conservative:PASS frames=5100 secs=88.0 fps=57.9 startup=4.2"))
+        assertEquals(true, unsup.ok); assertEquals(5100L, unsup.frames)
+        assertEquals(57.9, unsup.fps!!, 1e-9); assertEquals(4.2, unsup.startupSec!!, 1e-9)
+        val failed = GameLoopMath.parseTest(t, sequenceOf("D3DFL: feature level=12_1 conservative FAIL 0 invocations",
+            "D3DFL: level 12_1 FAIL pass=0 fail=1 unsupported=1 reported=0 x",
+            "D3DFL: FAIL api=d3d12 level=12_1 not_created rov:UNSUPPORTED,conservative:FAIL frames=9 secs=88.0 fps=0.1 startup=4.0"))
+        assertEquals(false, failed.ok)
+        val all = GameLoopMath.parseTest(cfg().tasks.getValue("d3d11fl_all"),
+            sequenceOf("D3DFL: DONE api=d3d11 level=all 10_0=PASS 10_1=PASS 11_0=PASS 11_1=PASS frames=5000 secs=88.0 fps=56.8 startup=3.0"))
+        assertEquals(true, all.ok); assertEquals(56.8, all.fps!!, 1e-9)
     }
 
     @Test fun cubePatterns() {
@@ -111,7 +139,7 @@ class GameLoopMathTest {
         bad("""{"tasks":{"a":{"shortcut":"x"}},"scenarios":{"1":{"tasks":["a"],"envSets":["nope"]}}}""")
         bad("""{"tasks":{"a":{}},"scenarios":{"1":{"tasks":["a"]}}}""")
         bad("""{"tasks":{"a":{"shortcut":"x"}},"scenarios":{}}""")
-        try { GameLoopMath.passes(cfg(), 9); fail() } catch (_: IllegalArgumentException) {}
+        try { GameLoopMath.passes(cfg(), 10); fail() } catch (_: IllegalArgumentException) {}
     }
 
     // Lines written by the csf-v11 233 counter in its host test (60, 30 and 45 fps, a 100 ms stall, two swapchains).

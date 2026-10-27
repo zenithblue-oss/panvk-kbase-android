@@ -82,7 +82,7 @@ android {
         minSdk = 28
         // targetSdk 28: W^X (targetSdk>=29) blocks execve of wine/wineserver from app data; linker64 fails ("could not exec the wine loader"). Same as Winlator/GameNative legacy.
         targetSdk = 28
-        versionCode = 41
+        versionCode = 42
         versionName = "1.3.0"
         // Firebase game loop (GameLoop.kt): com.google.test.loops = number of scenarios in assets/gameloop.json.
         manifestPlaceholders["gameLoopScenarios"] = gameLoopScenarios.toString()

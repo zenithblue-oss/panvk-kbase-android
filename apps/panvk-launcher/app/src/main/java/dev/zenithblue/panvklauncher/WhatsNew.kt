@@ -25,6 +25,7 @@ object WhatsNew {
         "OpenGL games through Mesa Zink 26.2.4",
         "Render API per game: Auto, DXVK, VKD3D, WineD3D, OpenGL (Zink), Vulkan or cnc-ddraw",
         "The launch sheet shows the detected graphics API (with Godot, Unity and Unreal hints) and the API of the last run",
+        "Built-in Direct3D feature level tests: D3D12 11_0 to 12_2 and D3D11 10_0 to 11_1",
     )
     val fixed = listOf(
         "Fallout 4: launch fixes, less memory, no black heads",
