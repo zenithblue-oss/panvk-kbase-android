@@ -1,0 +1,125 @@
+MESA: info: panvk: 114 behaviour restored for: PANVK_CSF_FS_IDLE_CLEAN PANVK_DB_ALT PANVK_CSF_INDIRECT_REEMIT PANVK_CSF_DESC_DIRTY PANVK_VB_DIRTY_CMP PANVK_PRERAST_FAST_SKIP PANVK_DESC_POOL_HINT PANVK_WSI_SW_CACHED PANVK_WSI_SW_DEFER_REPLY PANVK_ANDROID_PRESENT_FENCE PANVK_ANDROID_PRESENT_THREAD PANVK_PRELOAD_BARRIER_TRACK
+MESA: info: kbase: CSF driver, uAPI version 1.14, page_size=4096
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 24576000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: info: panvk: gpu_id 0xa8620004 variant 0 arch v10 model Mali-G710 texture_features 0xc1fe001e 0 0 0
+MESA: info: panvk: BC emulation on, lowmem (native compressed mask 0xc1fe001e)
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+INFO device Mali-G710 MC7
+INFO apiVersion 1.4.363
+INFO variant wine-vkd3d-1.18 (PanPlay Proton 11.0-2 d3d12.dll); proton items = vkd3d-proton 2230755
+HARD ok VK_KHR_maintenance1
+HARD ok VK_KHR_maintenance2
+HARD ok VK_KHR_shader_draw_parameters
+HARD ok graphics+compute queue
+HARD ok shaderStorageImageWriteWithoutFormat (UAV clear pipelines)
+HARD ok nullDescriptor or RGBA8 sampled+storage (null resources)
+SOFT ok depthBiasClamp (FL11_0 checklist)
+SOFT ok depthClamp (FL11_0 checklist)
+SOFT ok drawIndirectFirstInstance (FL11_0 checklist)
+SOFT ok dualSrcBlend (FL11_0 checklist)
+SOFT ok fragmentStoresAndAtomics (FL11_0 checklist)
+SOFT ok fullDrawIndexUint32 (FL11_0 checklist)
+SOFT ok geometryShader (FL11_0 checklist)
+SOFT ok imageCubeArray (FL11_0 checklist)
+SOFT ok independentBlend (FL11_0 checklist)
+SOFT ok multiDrawIndirect (FL11_0 checklist)
+SOFT ok multiViewport (FL11_0 checklist)
+SOFT ok occlusionQueryPrecise (FL11_0 checklist)
+SOFT ok pipelineStatisticsQuery (FL11_0 checklist)
+SOFT ok samplerAnisotropy (FL11_0 checklist)
+SOFT ok sampleRateShading (FL11_0 checklist)
+SOFT ok shaderClipDistance (FL11_0 checklist)
+SOFT ok shaderCullDistance (FL11_0 checklist)
+SOFT ok shaderImageGatherExtended (FL11_0 checklist)
+SOFT ok tessellationShader (FL11_0 checklist)
+SOFT ok maxPushConstantsSize >= 256
+SOFT ok maxComputeSharedMemorySize >= 32768
+SOFT ok viewportBoundsRange +-32768
+SOFT missing viewportSubPixelBits >= 8 -- warning only
+SOFT ok maxPerStageDescriptorUniformBuffers >= 15
+SOFT ok logicOp (FL11_1)
+SOFT ok vertexPipelineStoresAndAtomics (FL11_1)
+SOFT ok 64 per-stage storage buffers+images (FL11_1)
+INFO typed_uav_load 18/18
+SOFT ok TypedUAVLoadAdditionalFormats (ReadWithoutFormat + 15 storage formats)
+SOFT ok ResourceBindingTier 3 (samplers > 16, UBOs > 14)
+SOFT ok VK_EXT_descriptor_indexing
+SOFT ok update-after-bind UBO/sampled/storage image/texel buffers (Vulkan heaps)
+SOFT ok robustBufferAccessUpdateAfterBind
+SOFT ok VK_EXT_mutable_descriptor_type
+SOFT ok VK_KHR_push_descriptor
+SOFT ok VK_EXT_robustness2.nullDescriptor
+SOFT ok VK_KHR_timeline_semaphore
+SOFT ok VK_EXT_transform_feedback
+SOFT ok VK_EXT_conditional_rendering
+SOFT ok VK_EXT_vertex_attribute_divisor (spec >= 3)
+SOFT missing VK_EXT_fragment_shader_interlock pixel+sample (ROVs) -- ROVsSupported false; FL12_1 blocked
+SOFT ok VK_EXT_depth_clip_enable
+SOFT ok VK_EXT_shader_stencil_export
+SOFT missing VK_EXT_shader_viewport_index_layer -- VS viewport/RT index needs GS emulation
+SOFT ok VK_EXT_shader_demote_to_helper_invocation
+SOFT ok VK_KHR_zero_initialize_workgroup_memory
+SOFT ok VK_EXT_texel_buffer_alignment
+SOFT ok VK_KHR_draw_indirect_count
+SOFT ok VK_KHR_sampler_mirror_clamp_to_edge
+SOFT ok VK_EXT_4444_formats
+SOFT ok VK_EXT_calibrated_timestamps
+SOFT ok depthBounds
+SOFT ok shaderInt64
+SOFT missing shaderFloat64 -- DoublePrecisionFloatShaderOps false
+SOFT ok D24_UNORM_S8_UINT depth-stencil
+SOFT ok WaveOps (subgroup basic/vote/arith/ballot/shuffle/quad in CS+FS)
+INFO wine_feature_level 11_1 (12_0+ only via VKD3D_CAPS_OVERRIDE; tiled tier forced 0)
+INFO wine_shader_model 6_0 (fixed cap, device.c:3637-3647)
+INFO wine_binding_tier 3
+INFO wine_descriptor_heaps vulkan (update-after-bind)
+HARD ok proton: apiVersion >= 1.3
+HARD ok proton: shaderDrawParameters
+HARD ok proton: samplerMirrorClampToEdge
+HARD ok proton: robustBufferAccess2
+HARD ok proton: robustImageAccess2
+HARD ok proton: nullDescriptor
+HARD ok proton: VK_KHR_push_descriptor
+HARD ok proton: maintenance5
+HARD ok proton: maintenance6
+HARD ok proton: EXT_vertex_attribute_divisor rate+zero divisor
+HARD ok proton: transformFeedbackQueries
+HARD ok proton: storage texel buffer single-texel alignment
+HARD ok proton: uniform texel buffer single-texel alignment
+HARD ok proton: descriptorIndexing
+HARD ok proton: shaderStorageTexelBufferArrayNonUniformIndexing
+HARD ok proton: shaderStorageImageArrayNonUniformIndexing
+HARD ok proton: descriptorBindingVariableDescriptorCount
+INFO uab_per_stage sampled=1048576 storage_img=1048576 ssbo=1048576 ubo=1048576 samplers=1048576
+HARD ok proton: 1M per-stage UAB sampled/storage images + SSBOs (or descriptor buffer)
+SOFT ok proton: graphics+compute queue (used, unchecked)
+SOFT ok proton: timelineSemaphore (used, unchecked)
+SOFT ok proton: bufferDeviceAddress (used, unchecked)
+SOFT ok proton: synchronization2 (used, unchecked)
+SOFT ok proton: dynamicRendering (used, unchecked)
+SOFT missing proton: tiled resources tier 2 (sparse residency + sparse queue) -- vkd3d-proton FL12_0 blocked
+SOFT ok proton: typed UAV load on 18 formats (STORAGE_READ_WITHOUT_FORMAT)
+SOFT missing proton: VK_EXT_conservative_rasterization -- vkd3d-proton FL12_1 blocked
+SOFT missing proton: ROVs (pixel+sample interlock) -- vkd3d-proton FL12_1 blocked
+SOFT ok proton: SM6.0 (wave ops + scalar/std UBO layout + shaderInt16)
+SOFT ok proton: SM6.2 (denorm independence + FP32 FTZ/preserve)
+SOFT ok proton: SM6.6 (compute derivatives linear + int64 buffer atomics + int8 + fixed wave)
+SOFT ok proton: SM6.7 (maximal reconvergence + quad control)
+SOFT ok proton: VK_EXT_mutable_descriptor_type
+SOFT missing proton: VK_EXT_descriptor_buffer path -- descriptor-set heap path (slower copies)
+SOFT ok proton: depthBounds
+SOFT ok proton: shaderOutputViewportIndex+Layer
+SOFT missing proton: VK_KHR_fragment_shading_rate -- VRS tier 0
+SOFT missing proton: VK_EXT_mesh_shader -- mesh shader tier 0 (FL12_2 gate)
+SOFT missing proton: VK_KHR_ray_query + acceleration_structure -- DXR tier 0 (FL12_2 gate)
+SOFT ok proton: shaderImageInt64Atomics (sampler feedback 0.9)
+INFO proton_device_create ok (0 hard gaps)
+INFO proton_feature_level 11_1
+INFO proton_shader_model 6_8
+INFO proton_binding_tier 3
+INFO proton_tiled_tier 0 conservative_tier 0
+INFO proton_descriptor_model mutable_sets
+INFO hard 24/24 available, soft 65/76 available
+RESULT PASS
