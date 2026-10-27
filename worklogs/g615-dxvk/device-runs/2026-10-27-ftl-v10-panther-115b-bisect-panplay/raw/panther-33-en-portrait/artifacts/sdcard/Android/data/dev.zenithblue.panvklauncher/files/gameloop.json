@@ -1,0 +1,38 @@
+{
+  "#": "2026-10-27 panther bisect (115b): D3D11 cube GPU hang on v10. Release 115 vs diag driver (115 + PANVK_KBASE_WAIT_TRACE wait trace, CSF event drain and CS_EVENT_SIGNAL nudge at the 10 s queue timeout, PANVK_KBASE_V10_ITER_SYNC candidate fix) under single 115 knobs at 114 values, and the 114 driver. Deep-merged over assets/gameloop.json.",
+  "warmupSec": 5,
+  "measureSec": 12,
+  "tailSec": 3,
+  "gapSec": 3,
+  "startTimeoutSec": 120,
+  "screenshotAtSec": 6,
+  "installDrivers": { "dg": "panvk-diag.so", "r114": "panvk-114.so" },
+  "envSets": {
+    "rel": { "note": "build 115 release driver (bundled), defaults", "env": {} },
+    "dg": { "note": "diag driver, defaults, wait trace", "driver": "dg", "env": { "PANVK_KBASE_WAIT_TRACE": "1" } },
+    "dg-iter": { "note": "diag driver, v10 FRAG iterator restore", "driver": "dg", "env": { "PANVK_KBASE_V10_ITER_SYNC": "1", "PANVK_KBASE_WAIT_TRACE": "1" } },
+    "dg-old": {
+      "note": "diag driver, the 21 'old' 115 knobs at 114 plus PANVK_ZS_PRELOAD_ALWAYS=1 (full 114 set on v10)",
+      "driver": "dg",
+      "env": {
+        "PANVK_CSF_FS_IDLE_CLEAN": "0", "PANVK_DB_ALT": "0", "PANVK_CSF_INDIRECT_REEMIT": "0", "PANVK_CSF_DESC_DIRTY": "0",
+        "PANVK_VB_DIRTY_CMP": "0", "PANVK_PRERAST_FAST_SKIP": "0", "PANVK_KBASE_STRICT_DEVICE_CLOCK": "0", "PANVK_DESC_POOL_HINT": "0",
+        "PANVK_KBASE_HEAP_EAGER_TERM": "0", "PANVK_TESS_VS_REGION_MB": "32", "PANVK_KBASE_ZERO_ALL": "1", "PANVK_CS_FLUSH_USED": "0",
+        "PANVK_JM_CMD_POOL_AUTOTRIM": "0", "PANVK_MEM_BUDGET_PRESSURE": "0", "PANVK_CS_CHUNK_KB": "64", "PANVK_CMD_SLAB_CACHE": "0",
+        "PANVK_WSI_SW_CACHED": "0", "PANVK_WSI_SW_DEFER_REPLY": "0", "PANVK_ANDROID_PRESENT_FENCE": "0", "PANVK_ANDROID_PRESENT_THREAD": "0",
+        "PANVK_PRELOAD_BARRIER_TRACK": "0", "PANVK_ZS_PRELOAD_ALWAYS": "1", "PANVK_KBASE_WAIT_TRACE": "1"
+      }
+    },
+    "dg-zs": { "note": "diag driver, PANVK_ZS_PRELOAD_ALWAYS=1", "driver": "dg", "env": { "PANVK_ZS_PRELOAD_ALWAYS": "1", "PANVK_KBASE_WAIT_TRACE": "1" } },
+    "dg-pbt": { "note": "diag driver, PANVK_PRELOAD_BARRIER_TRACK=0", "driver": "dg", "env": { "PANVK_PRELOAD_BARRIER_TRACK": "0", "PANVK_KBASE_WAIT_TRACE": "1" } },
+    "dg-nocrc": { "note": "diag driver, PANVK_DEBUG=no_crc", "driver": "dg", "env": { "PANVK_DEBUG": "no_crc", "PANVK_KBASE_WAIT_TRACE": "1" } },
+    "dg-flush": { "note": "diag driver, whole CS pool flush, 64 KiB chunks", "driver": "dg", "env": { "PANVK_CS_FLUSH_USED": "0", "PANVK_CS_CHUNK_KB": "64", "PANVK_KBASE_WAIT_TRACE": "1" } },
+    "dg-eager": { "note": "diag driver, PANVK_KBASE_HEAP_EAGER_TERM=0", "driver": "dg", "env": { "PANVK_KBASE_HEAP_EAGER_TERM": "0", "PANVK_KBASE_WAIT_TRACE": "1" } },
+    "dg-nowb": { "note": "diag driver, PANVK_DEBUG=no_wb_mmap (uncached CPU maps)", "driver": "dg", "env": { "PANVK_DEBUG": "no_wb_mmap", "PANVK_KBASE_WAIT_TRACE": "1" } },
+    "dg-semw": { "note": "diag driver, PANVK_KBASE_GPU_SEMAPHORE_WAITS=0 (CPU waits)", "driver": "dg", "env": { "PANVK_KBASE_GPU_SEMAPHORE_WAITS": "0", "PANVK_KBASE_WAIT_TRACE": "1" } },
+    "r114": { "note": "build 114 driver (114 + fps log)", "driver": "r114", "env": {} }
+  },
+  "scenarios": {
+    "1": { "name": "bisect11", "tasks": ["d3d11"], "envSets": ["rel", "dg", "dg-iter", "dg-old", "dg-zs", "dg-pbt", "dg-nocrc", "dg-flush", "dg-eager", "dg-nowb", "dg-semw", "r114"] }
+  }
+}
