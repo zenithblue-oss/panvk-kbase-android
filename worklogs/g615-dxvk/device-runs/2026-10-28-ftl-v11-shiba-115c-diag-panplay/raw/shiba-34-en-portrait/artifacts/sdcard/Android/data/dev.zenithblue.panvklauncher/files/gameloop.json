@@ -1,0 +1,19 @@
+{
+  "#": "2026-10-28 shiba (v11) 115c diag: D3D12 FL 11_1 tir and 12_1 conservative DEVICE_LOST (CSF tiler heap OOM). Driver c1 = 115b + 0136 (tiler bin budget divided by the layers of a tiler context, PANVK_TILER_LAYER_BUDGET=0 = 115b) + diag knobs (PANVK_DIAG_TILER_LOG=1 logs each new tiler config, PANVK_KBASE_TILER_CHUNK_KB overrides the 1 MiB kbase chunk). A/B: fix, 115b budget (expect OOM), 115b budget with 2 MiB chunks (expect no OOM if the bins of all 8 layers of a context must fit in one chunk). Deep-merged over assets/gameloop.json.",
+  "warmupSec": 5,
+  "measureSec": 10,
+  "tailSec": 3,
+  "gapSec": 3,
+  "startTimeoutSec": 120,
+  "screenshotAtSec": 6,
+  "installDrivers": { "c1": "panvk-115c-diag.so" },
+  "envSets": {
+    "fix-log": { "note": "115c diag: layer budget (default) + tiler log", "driver": "c1", "env": { "PANVK_DIAG_TILER_LOG": "1" } },
+    "old-log": { "note": "115c diag: 115b one-layer budget + tiler log", "driver": "c1", "env": { "PANVK_DIAG_TILER_LOG": "1", "PANVK_TILER_LAYER_BUDGET": "0" } },
+    "old-2m-log": { "note": "115c diag: 115b budget, 2 MiB chunks + tiler log", "driver": "c1", "env": { "PANVK_DIAG_TILER_LOG": "1", "PANVK_TILER_LAYER_BUDGET": "0", "PANVK_KBASE_TILER_CHUNK_KB": "2048" } }
+  },
+  "scenarios": {
+    "1": { "name": "diag-fl11_1", "tasks": ["d3d12fl_11_1"], "envSets": ["fix-log", "old-log", "old-2m-log"] },
+    "2": { "name": "diag-fl12_1-d3d11", "tasks": ["d3d12fl_12_1", "d3d11fl_11_1"], "envSets": ["fix-log"] }
+  }
+}
