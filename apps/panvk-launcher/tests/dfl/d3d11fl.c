@@ -11,7 +11,7 @@
 #define COBJMACROS
 #define WIDL_C_INLINE_WRAPPERS
 #include <initguid.h>
-#include <d3d11_1.h>
+#include <d3d11_3.h>
 #include "dfl_common.h"
 #include "dfl_shaders.h"
 
@@ -395,32 +395,44 @@ static int t_logic_op(char *d)
 }
 
 /* A band y in [10.05, 10.45] px covers the 4x sample rows 10.125 and 10.375 but no pixel centre: only with the
- * forced sample count (target-independent rasterization, UAV-only rendering) does the pixel shader run. */
+ * forced sample count (target-independent rasterization, UAV-only rendering) does the pixel shader run.
+ * The forced count is set through D3D11_RASTERIZER_DESC2 (ID3D11Device3::CreateRasterizerState2): DXVK 3.1.1
+ * promotes a D3D11_RASTERIZER_DESC1 with ForcedSampleCount = 0 (D3D11RasterizerState::PromoteDesc), so the DESC1
+ * state never reaches Vulkan with 4 samples on any GPU. Its count is reported, not checked. */
 static int t_tir(char *d)
 {
     const float y0 = 1 - 10.05f / 32, y1 = 1 - 10.45f / 32;
     const float c[16] = { -1, y0, 0, 0, 1, y0, 0, 0, -1, y1, 0, 0, 1, y1, 0, 0 };
-    D3D11_RASTERIZER_DESC1 rd;
+    D3D11_RASTERIZER_DESC2 rd;
     ID3D11Device1 *dev1 = NULL;
-    ID3D11RasterizerState1 *r[2] = { NULL, NULL };
+    ID3D11Device3 *dev3 = NULL;
+    ID3D11RasterizerState *r[3] = { NULL, NULL, NULL };
     ID3D11Buffer *b;
     ID3D11UnorderedAccessView *u = mkuav(1, &b);
     ID3D11VertexShader *v = vs(SHB(vs_cb));
     ID3D11PixelShader *p = ps(SHB(ps_count));
-    unsigned n[2] = { 0, 0 };
+    unsigned n[3] = { 0, 0, 0 };
     if (FAILED(ID3D11Device_QueryInterface(dev, &IID_ID3D11Device1, (void **)&dev1))) RET(DFL_FAIL, "no ID3D11Device1");
     keep(dev1);
+    if (FAILED(ID3D11Device_QueryInterface(dev, &IID_ID3D11Device3, (void **)&dev3))) dev3 = NULL;
+    else keep(dev3);
     memset(&rd, 0, sizeof(rd));
     rd.FillMode = D3D11_FILL_SOLID;
     rd.CullMode = D3D11_CULL_NONE;
     rd.DepthClipEnable = TRUE;
+    /* r[0]: no forced count, r[1]: 4 through DESC1, r[2]: 4 through DESC2. */
     for (int i = 0; i < 2; i++) {
         rd.ForcedSampleCount = i ? 4 : 0;
-        ID3D11Device1_CreateRasterizerState1(dev1, &rd, &r[i]);
+        ID3D11Device1_CreateRasterizerState1(dev1, (const D3D11_RASTERIZER_DESC1 *)&rd,
+                                             (ID3D11RasterizerState1 **)&r[i]);
         keep(r[i]);
     }
+    if (dev3) {
+        ID3D11Device3_CreateRasterizerState2(dev3, &rd, (ID3D11RasterizerState2 **)&r[2]);
+        keep(r[2]);
+    }
     if (!r[0] || !r[1] || !u || !v || !p) RET(DFL_FAIL, "ForcedSampleCount=4 rasterizer state or resources");
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 3 && r[i]; i++) {
         static const unsigned zero[4];
         draw_state(c, W, W, v, p, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
         ID3D11DeviceContext_RSSetState(ctx, (ID3D11RasterizerState *)r[i]);
@@ -430,8 +442,10 @@ static int t_tir(char *d)
         ID3D11DeviceContext_ClearState(ctx);
         if (read_buf(b, &n[i], 4)) RET(DFL_FAIL, "readback failed");
     }
-    RET(n[1] >= 32 && n[1] > n[0] ? DFL_PASS : DFL_FAIL,
-        "UAV-only band between pixel centres: %u PS invocations with ForcedSampleCount=4 (want >= 32), %u with 0", n[1], n[0]);
+    if (!r[2]) RET(DFL_FAIL, "no ID3D11Device3::CreateRasterizerState2 (DESC1 ForcedSampleCount=4: %u, 0: %u)", n[1], n[0]);
+    RET(n[2] >= 32 && n[2] > n[0] ? DFL_PASS : DFL_FAIL,
+        "UAV-only band between pixel centres: %u PS invocations with ForcedSampleCount=4 (DESC2, want >= 32), %u with 0; "
+        "DESC1 ForcedSampleCount=4: %u (DXVK drops it)", n[2], n[0], n[1]);
 }
 
 typedef int (*test_fn)(char *d);
