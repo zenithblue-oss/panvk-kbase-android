@@ -12,3 +12,4 @@
 - [Release signing later](release-signing-later.md) — 115 APKs debug-signed; user signs with release key before release
 - [DX12 FL target](dx12-fl-target.md) — FL 12_0/12_1 must work on all arches incl. v6/v7; only 12_2 out of scope
 - [Fix hangs at root](fix-hangs-root-cause.md) — GPU hang / DEVICE_LOST = release blocker, fix root cause, never regress
+- [Git email: global](git-email-global.md) — plain git commit, never -c user.email

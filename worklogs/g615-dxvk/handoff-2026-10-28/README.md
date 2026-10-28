@@ -122,7 +122,7 @@ A negative % in the perf tables means less time, i.e. faster. Most of the gain c
 - No tags or releases except under the goal's conditions.
 - driverInfo is upstream style: `Mesa 26.3.0-devel (git-<sha>)`.
 - Commit and push to main after every change:
-  - commit with `git -c user.email=zenithblue.dev@gmail.com commit`;
+  - commit with plain `git commit`; the global git email is already set, so never override it;
   - end the message with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`;
   - run `git pull --rebase` before push.
 - New patches go at the end of the series. Check them with a strict prepare (no offset or fuzz) on a fresh `5a07217f` worktree, then update the `prepare-rc5-tree.sh` defaults.
