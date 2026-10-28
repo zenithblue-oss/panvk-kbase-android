@@ -83,6 +83,24 @@ Both apps are tested on the Mali-G615. PanProbe also runs on the other devices i
 
 ## Tested devices
 
+### Build 115b on Firebase Test Lab (2026-10-28)
+
+Build 115b (`driverInfo` `Mesa 26.3.0-devel (git-ad5cd69141)`, `.so` sha256 `d72e3059...`) fixes the build 115 GPU
+queue hang on the Pixel 7 and the first-frame DEVICE_LOST and D3D9 placed-map failure on the Galaxy A31
+(`patches/jm-v7-wip/README.md`, Build 115b). PanPlay 1.3.0 (vc 43) ran game-loop scenarios 3, 5, 6, 7 and 8 with a 30 s
+window (a31: 3, 6, 7, 8); PanProbe 1.3.0 (vc 18) ran once on the Pixel 7.
+
+| Device | Arch | D3D11 cube | D3D9 cube | SquidRoom | gears | D3D12 FL 11_0 / 11_1 / 12_0 / 12_1 | D3D11 FL 10_0-11_0 / 11_1 |
+|---|---|---|---|---|---|---|---|
+| Galaxy A31 | v7 (JM) | 65.8 fps | 35.7 fps | not run | 109 fps, **red gear twice** | PASS / FAIL (logic_op) / **DEVICE_LOST** (typed UAV load, JM `event=0x51`) / unsupported | PASS / FAIL (tir) |
+| Pixel 6 (oriole) | v9 (JM) | 170.4 fps | 89.8 fps | 27.2 fps | 323.0 fps | PASS / FAIL (logic_op) / unsupported / unsupported | PASS / FAIL (tir) |
+| Pixel 7 (panther) | v10 (CSF) | 572.1 fps | 90.0 fps | 85.0 fps | 431.1 fps | PASS / **DEVICE_LOST** (tir: CSF tiler heap OOM) / unsupported / unsupported | PASS / FAIL (tir) |
+| Pixel 8 (shiba) | v11 (CSF) | 414.3 fps | 119.2 fps | 78.6 fps | 187.2 fps | PASS / **DEVICE_LOST** (tir) / unsupported / **DEVICE_LOST** (conservative) | PASS / FAIL (tir) |
+
+PanProbe on the Pixel 7: 40/40 PASS; sparse_kbase `VERDICT v10 lazy-tile possible`. The D3D12 feature level device
+losts are open: on v10/v11 a draw without a render target ends in a kbase tiler heap OOM that terminates the queue
+group. Per-run data: `worklogs/g615-dxvk/device-runs/2026-10-28-ftl-<arch>-<model>-115b[-panplay]/results.md`.
+
 ### Build 115 on Firebase Test Lab (2026-10-27)
 
 The current build (`driverInfo` `Mesa 26.3.0-devel (git-9dde9e7a18)`, Android `.so` sha256 `73709644...`) ran on five
