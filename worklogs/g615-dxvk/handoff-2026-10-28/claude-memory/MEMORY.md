@@ -1,0 +1,14 @@
+- [Orchestrator + continuous push](orchestrator-and-continuous-push.md) — delegate all work to subagents, push to main always, simple PRoot commands
+- [Notify when device needed](notify-when-device-needed.md) — one push notification only when driver+APKs are all ready for device test
+- [Kill stopped subagents](kill-stopped-subagents.md) — TaskStop every subagent right after its final report; no lingering loops
+- [Never touch Chrome](never-touch-chrome.md) — no killing/relaunching/reconfiguring the user's Chrome; tell subagents
+- [Device session: loop to full pass](device-session-loop-to-full-pass.md) — next device connect: fix/build/rerun until RC5 passes all PanProbe tests
+- [Firebase serial, Firebase-first](firebase-one-device-x6-always-on.md) — one device per run under firebase.lock; since 2026-10-25 test on Firebase devices, not the X6 Pro
+- [Screenshots with results](screenshots-with-results.md) — every device run captures screencaps and pushes them in screenshots/ with results.md
+- [RC5 release plan](rc5-release-plan.md) — v6 pass → unified RC5 .so → update PanPlay/PanProbe + cube on X6 → all-arch regression → release on user go
+- [Subagents one at a time](subagents-one-at-a-time.md) — run subagents sequentially, no parallel fan-out; finish all parts, then test
+- [Upstream-style driver naming](driver-naming-upstream-style.md) — driverInfo "Mesa 26.3.0-devel (git-sha)" everywhere, no RC5-universal names; first official GitHub release
+- [Upstream sync on hold](upstream-sync-on-hold.md) — upstream rebase plan exists; do nothing until user says go
+- [Release signing later](release-signing-later.md) — 115 APKs debug-signed; user signs with release key before release
+- [DX12 FL target](dx12-fl-target.md) — FL 12_0/12_1 must work on all arches incl. v6/v7; only 12_2 out of scope
+- [Fix hangs at root](fix-hangs-root-cause.md) — GPU hang / DEVICE_LOST = release blocker, fix root cause, never regress
