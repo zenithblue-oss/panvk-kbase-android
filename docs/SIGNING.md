@@ -9,12 +9,12 @@ signed with that key. An APK signed with another key installs only after an unin
 
 ## Inputs
 
-`/home/flux/build-out/release-115/` (build 115 driver, `Mesa 26.3.0-devel (git-9dde9e7a18)`):
+`/home/flux/build-out/release-115/` (build 115b driver, `Mesa 26.3.0-devel (git-ad5cd69141)`):
 
 | file | package | version |
 |---|---|---|
-| `PanPlay-1.3.0-unsigned.apk` | `dev.zenithblue.panvklauncher` | 1.3.0, versionCode 42 |
-| `PanProbe-1.3.0-unsigned.apk` | `dev.zenithblue.panvktest` | 1.3.0, versionCode 17 |
+| `PanPlay-1.3.0-unsigned.apk` | `dev.zenithblue.panvklauncher` | 1.3.0, versionCode 43 |
+| `PanProbe-1.3.0-unsigned.apk` | `dev.zenithblue.panvktest` | 1.3.0, versionCode 18 |
 | `SHA256SUMS` | sha256 of both unsigned APKs | |
 
 They are `assembleRelease` outputs: release build type with the projects' release settings (neither app has a

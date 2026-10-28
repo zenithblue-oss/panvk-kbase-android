@@ -118,7 +118,7 @@ android {
         providers.gradleProperty("panprobeSuffix").orNull?.let { applicationIdSuffix = "." + it.lowercase().replace(Regex("[^a-z0-9_]"), "_") }
         minSdk = 29
         targetSdk = 36
-        versionCode = 17
+        versionCode = 18
         versionName = "1.3.0"
 
         ndk {
