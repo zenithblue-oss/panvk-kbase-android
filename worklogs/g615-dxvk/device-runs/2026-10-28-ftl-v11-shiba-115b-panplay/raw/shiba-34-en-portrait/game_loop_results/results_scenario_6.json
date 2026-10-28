@@ -1,0 +1,144 @@
+{
+  "harness": "panplay-gameloop",
+  "version": 1,
+  "scenario": 6,
+  "runId": "20261027-203225-s6",
+  "startedUnixMs": 1793158345789,
+  "app": {
+    "package": "dev.zenithblue.panvklauncher",
+    "versionName": "1.3.0",
+    "versionCode": 43
+  },
+  "device": {
+    "manufacturer": "Google",
+    "model": "Pixel 8",
+    "device": "shiba",
+    "product": "shiba",
+    "hardware": "shiba",
+    "board": "shiba",
+    "sdk": 34,
+    "release": "14",
+    "fingerprint": "google\/shiba\/shiba:14\/AP2A.240605.024\/11860263:user\/release-keys",
+    "socManufacturer": "Google",
+    "socModel": "Tensor G3",
+    "maliNode": true,
+    "display": "1080x2205",
+    "refreshHz": 60,
+    "xScreen": "1280x720"
+  },
+  "passes": [
+    {
+      "index": 1,
+      "task": "d3d12gears",
+      "title": "D3D12 gears, vkd3d-proton demo (ARM64EC)",
+      "envSet": "default",
+      "dir": "01-d3d12gears-default",
+      "shortcut": "builtin-d3d12gears-arm64ec",
+      "exe": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/games\/builtin\/vkd3d-gears-arm64ec.exe",
+      "env": {
+        "VKD3D_DEBUG": "warn",
+        "VKD3D_SHADER_DEBUG": "warn",
+        "PANVK_FPS_LOG": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/gameloop\/20261027-203225-s6\/01-d3d12gears-default\/panvk-fps-%p.log",
+        "PANVK_FPS_LOG_MS": "1000",
+        "DX12TEST_SECS": "48"
+      },
+      "exit": 0,
+      "wallSec": 53.742,
+      "firstFrameSec": 4.859,
+      "sessionReason": "Game exited normally (exit 0)",
+      "perfSummary": {
+        "startMs": 1793158345891,
+        "game": "D3D12 · Gears · ARM64EC",
+        "exe": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/games\/builtin\/vkd3d-gears-arm64ec.exe",
+        "driverId": "mesa-panvk-26.3.0-devel-git-ad5cd69141",
+        "driver": "Mesa PanVK",
+        "driverVersion": "26.3.0-devel (git-ad5cd69141)",
+        "driverInfo": "Mesa 26.3.0-devel (git-ad5cd69141)",
+        "driverBuildId": "Mesa 5a07217f",
+        "dxvk": "3.1.1-4-arm64ec",
+        "emulator": "FEX Intermediate",
+        "resolution": "1280x720",
+        "fpsLimit": 0,
+        "device": "Google Pixel 8",
+        "id": "20261027-203225_D3D12_Gears_ARM64EC",
+        "endMs": 1793158399597,
+        "dxvkStats": false,
+        "gameCpuAvg": 12.386000000000003,
+        "gameCpuMax": 13.7,
+        "gameCoresAvg": 1.1100000000000008,
+        "gameCoresMax": 1.2,
+        "ramAvgMb": 259.0196078431372,
+        "ramPeakMb": 277,
+        "battTempAvgC": 27.623529411764682,
+        "battTempMaxC": 27.8,
+        "cpuFreqAvgMhz": 1268.5294117647059,
+        "cpuFreqMaxMhz": 2367,
+        "powerAvgMw": 19.596078431372547,
+        "powerMaxMw": 57,
+        "memAvailMinMb": 2866.7
+      },
+      "fpsLog": "panvk-fps-27520.log",
+      "driverPresents": 8986,
+      "driverInfo": "Mesa 26.3.0-devel (git-ad5cd69141)",
+      "driverFps": {
+        "fps": 187.6974859183954,
+        "frames": 5465,
+        "spanMs": 29116,
+        "intervals": 29,
+        "minIntervalFps": 163.7,
+        "maxIntervalFps": 234.5,
+        "maxFrameMs": 50.43
+      },
+      "compositor": {
+        "drawnFps": 60.02460842672342,
+        "contentFps": 187.09055235941605
+      },
+      "screenshot": "screen.png",
+      "fps": 187.6974859183954,
+      "fpsSource": "driver",
+      "test": {
+        "ok": true,
+        "line": "DX12: PASS test=vkd3d-gears frames=8986 secs=48.0 fps=187.2 startup=1.8",
+        "frames": 8986,
+        "fps": 187.2,
+        "startupSec": 1.8
+      },
+      "status": "ok"
+    }
+  ],
+  "configSource": [
+    "assets\/gameloop.json",
+    "\/storage\/emulated\/0\/Android\/data\/dev.zenithblue.panvklauncher\/files\/gameloop.json sha256=cf64750dd854c4cd1cd645788e0b0ccde418a917342a0118890e8b1fa5251837"
+  ],
+  "scenarioName": "d3d12gears",
+  "tasks": [
+    "d3d12gears"
+  ],
+  "envSets": [
+    "default"
+  ],
+  "window": {
+    "warmupSec": 10,
+    "measureSec": 30,
+    "tailSec": 8,
+    "fpsLogMs": 1000,
+    "from": "first frame"
+  },
+  "envSetNotes": {
+    "default": "driver defaults"
+  },
+  "updatedUnixMs": 1793158400142,
+  "driver": {
+    "id": "mesa-panvk-26.3.0-devel-git-ad5cd69141",
+    "name": "Mesa PanVK",
+    "version": "26.3.0-devel (git-ad5cd69141)",
+    "bundled": true,
+    "libPath": "\/data\/app\/~~wmxqmvDVzq5MUJPO4YnNTw==\/dev.zenithblue.panvklauncher-ICl9o-faOslwwaqLLBbUOQ==\/lib\/arm64\/libvulkan_panfrost.so",
+    "size": 29918288,
+    "sha256": "d72e3059f659d1172119adb5c695a04b301b2e7a31408f546263256f5e1697e9"
+  },
+  "driverInfo": "Mesa 26.3.0-devel (git-ad5cd69141)",
+  "ab": [],
+  "ok": true,
+  "endedUnixMs": 1793158400142
+}
