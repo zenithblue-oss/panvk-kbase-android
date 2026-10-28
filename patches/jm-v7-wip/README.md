@@ -437,3 +437,19 @@ Strict check on a fresh 5a07217f worktree (`/home/flux/src/mesa-115-rel`, branch
 `BASE-OK applied=228 csf-v11<=233 head=6f7117ff` and `OK base=228 jm-v7-wip=126 head=9dde9e7a`, with no PATCH-DRIFT, WIP-DRIFT, offset or fuzz lines (only the old jm-v9/002 trailing-whitespace
 warning). Its tree `213079bc` equals `p115-fix`'s (`git diff p115-fix HEAD` is empty). Build 115 is built from this tree:
 driverInfo `Mesa 26.3.0-devel (git-9dde9e7a18)`.
+
+## Build 115b (2026-10-27): 0132-0135, Pixel 7 (v10) hang, a31 (v7) device lost and placed map
+
+| jm-v7-wip | what |
+|---|---|
+| 0132 | JM: a tiling (IDVS) job depends on its descriptor copy / indirect draw helper job. `pan_jc_add_job()` replaces a tiling job's global dependency with the previous tiler job, so the producer goes in as the local dependency |
+| 0133 | kbase: without a dma-heap or ION heap (a31, MediaTek 4.14), host-visible BOs come from gralloc (BLOB AHardwareBuffer; the handle fd that is a dma-buf, fd 1 there), so placed maps (WoW64 32-bit, D3D9) work |
+| 0134 | CSF on kbase: a stream lets its own deferred syncs land (`cs_wait_slot(DEFERRED_SYNC)`) before it waits on another subqueue. Pixel 7 D3D11 hang: VT and COMPUTE waited in a barrier on FRAG while FRAG waited for VT's deferred tiling-done signal (each subqueue is its own CSG on kbase) |
+| 0135 | JM: a draw without vertex buffers is not out of memory. The zero-size helper info allocation (NULL) made `panvk_draw_prepare_vs_attribs()` return before it set the VS image attribute table, and the descriptor copy job wrote to GPU address 0 (a31 D3D11/D3D9 `event=0x4`, DEVICE_LOST) |
+
+Evidence: `worklogs/g615-dxvk/device-runs/2026-10-27-ftl-v10-panther-115b-diag{4,5}-panplay/` and
+`2026-10-27-ftl-v7-a31-115b-diag{,4,6}-panplay/`. `scripts/prepare-rc5-tree.sh` defaults are now `--csf-max 233
+--wip-max 0135`. Strict check on a fresh 5a07217f worktree (`/home/flux/src/mesa-115b-final`, branch
+`p115b-final`): `BASE-OK applied=228 csf-v11<=233 head=c2c80109` and `OK base=228 jm-v7-wip=130 head=ad5cd691`, with
+no drift, offset or fuzz lines (only the jm-v9/002 trailing-whitespace warning). Its tree `927190bb` equals the fix
+branch `p115b-fix2`'s. driverInfo `Mesa 26.3.0-devel (git-ad5cd69141)`.

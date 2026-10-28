@@ -1,0 +1,74 @@
+From 54eb6b2d41f95dd165cdd988a8fa21c70c3ed82f Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Tue, 27 Oct 2026 18:23:49 +0000
+Subject: [PATCH 132/135] panvk/jm: a tiling job depends on its descriptor copy
+ / indirect helper job
+
+pan_jc_add_job() replaces the global dependency (dependency_2) of a tiling
+job with the previous tiler job of the chain. INDEXED_VERTEX (v6/v7 IDVS)
+and MALLOC_VERTEX (v9) are tiling jobs, and their draws passed the
+producer as the global dependency, so whenever the batch already had a
+tiler job it was lost:
+
+- v6/v7 direct draws: the vertex descriptor copy job (copy_desc_job_id),
+- v6/v7 indexed / indirect draws: the helper job that patches the IDVS
+  job's draw parameters (jm-v7 096 folds the min/max index search in it),
+- v9 indirect draws: the indirect patch job.
+
+The job manager then ran the draw alongside the job that writes its
+descriptors and draw parameters. On a31 (Mali-G52, v7) the D3D11 cube's
+first frame was killed (atom 14 event 0x4 TERMINATED, then DEVICE_LOST;
+the chain dump shows IDVS job index 6 with deps 0/2 while its helper is
+job 5), and D3D12 gears drew only the red gear, twice and offset.
+
+Pass the producer as dependency_1, like add_tiler_jobs() does for tiler
+jobs; dependency_2 keeps the tiler chain.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index 72c3d091..b599d4d4 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -3214,8 +3214,10 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
+          return;
+ 
+       if (vs->info.vs.idvs) {
++         /* Local dependency: pan_jc_add_job() replaces the global one of a
++          * tiling job with the previous tiler job. */
+          pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_INDEXED_VERTEX, false,
+-                        false, 0, copy_desc_job_id, &draw->jobs.idvs, false);
++                        false, copy_desc_job_id, 0, &draw->jobs.idvs, false);
+       } else {
+          unsigned vjob_id =
+             vs_job ? pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_VERTEX,
+@@ -3584,8 +3586,10 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
+       uint32_t prev_job = batch->vtc_jc.job_index;
+ 
+       if (vs->info.vs.idvs) {
++         /* Local dependency, as in the direct path: the helper patches
++          * this job, which must not start before it. */
+          pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_INDEXED_VERTEX, false,
+-                        false, 0, prev_job, &draw->jobs.idvs, false);
++                        false, prev_job, 0, &draw->jobs.idvs, false);
+       } else {
+          unsigned vjob_id =
+             vs_job ? pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_VERTEX,
+@@ -4993,8 +4997,10 @@ v9_emit_malloc_vertex_job(struct panvk_cmd_buffer *cmdbuf,
+    /* A gpu_prerast generated draw reads the records and indices the
+     * producer jobs just wrote: wait for them. */
+    const bool barrier = draw_barrier || info->gpu_prerast_generated;
++   /* Local dependency: pan_jc_add_job() replaces the global one of a
++    * tiling job with the previous tiler job. */
+    pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_MALLOC_VERTEX, barrier,
+-                  draw_barrier != 0, 0, indirect_dep, &job, false);
++                  draw_barrier != 0, indirect_dep, 0, &job, false);
+    return VK_SUCCESS;
+ }
+ 
+-- 
+2.55.0
+

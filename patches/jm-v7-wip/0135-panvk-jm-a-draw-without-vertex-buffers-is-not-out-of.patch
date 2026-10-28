@@ -1,0 +1,47 @@
+From 6c894f7a9ec5cee1fb155027996cf7f8c5643831 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Tue, 27 Oct 2026 20:02:48 +0000
+Subject: [PATCH 135/135] panvk/jm: a draw without vertex buffers is not out of
+ memory
+
+panvk_draw_prepare_vs_attribs() allocates the indirect draw helper's
+per-vertex-buffer info array, num_vbs entries. With no vertex buffer (the
+vertex shader pulls its vertices) that is a zero-size allocation, which
+panvk_cmd_alloc_from_pool() returns as NULL, and the function returned
+VK_ERROR_OUT_OF_DEVICE_MEMORY (ignored by its caller) before it set up the
+attribute tables. A vertex shader with a texel buffer or storage image then
+kept a NULL image attribute table, and its descriptor copy job wrote the
+attribute descriptor to GPU address 0: an MMU fault, kbase kills the
+context and every atom completes with event 0x4 (TERMINATED).
+
+Galaxy A31 (Mali-G52, v7), DXVK D3D11 and D3D9 cubes: VK_ERROR_DEVICE_LOST
+on the first frame with every driver back to 114. The descriptor copy job
+of the first such draw had tables[IMG] set, img_attrib_table 0 and
+attrib_buf_idx_offset 0 (no vertex buffer), and the draw was an indirect
+one (helper job ahead of the IDVS job).
+
+Only a non-empty allocation that fails is out of memory.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index b599d4d4..c3e102b2 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -1151,7 +1151,9 @@ panvk_draw_prepare_vs_attribs(struct panvk_cmd_buffer *cmdbuf,
+          cmdbuf, desc,
+          num_vs_attribs * sizeof(struct libpan_draw_helper_attrib_info), 8);
+ 
+-      if (!bufs_infos_storage.gpu ||
++      /* A zero-size allocation is NULL: a draw without vertex buffers (the
++       * VS pulls its vertices) is not out of memory. */
++      if ((num_vbs && !bufs_infos_storage.gpu) ||
+           (num_vs_attribs && !attribs_infos_storage.gpu))
+          return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+ 
+-- 
+2.55.0
+

@@ -1,0 +1,96 @@
+From 7e706f07a7c8cbd474f0477f0def21d4e6a964c5 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Tue, 27 Oct 2026 19:15:27 +0000
+Subject: [PATCH 134/135] panvk/csf/kbase: let a stream's deferred syncs land
+ before it waits on another subqueue
+
+On kbase every subqueue runs in its own CSG. A deferred signal still
+pending in a command stream (the VT tiling-done signal, the FRAG
+fragment-done signal, a desc ringbuf release) when that stream blocks in a
+SYNC_WAIT on another subqueue is not sent, and the other subqueue can be
+waiting for exactly that signal.
+
+Pixel 7 (Mali-G710, v10), DXVK D3D11 cube: hang after 1400-2800 frames,
+queue timeout with no CS error. Wait trace at the timeout: VT and COMPUTE
+in a barrier wait for FRAG's syncobj > 19688 (memory 19687), FRAG in
+wait_finish_tiling for VT's syncobj > 14761 (memory 14761); VT's
+tiling-done signal for that seqno was deferred before VT entered the
+barrier wait.
+
+Wait for the stream's DEFERRED_SYNC scoreboard slot before every
+cross-subqueue SYNC_WAIT (the instrumented sync waits, the desc ringbuf
+reservation and the prerast arena / tessellation token waits), kbase only.
+With that, three 20 s passes ran 11400-11800 frames each at 571-591 fps
+(the hang reproduced in the same run without it at ~1460 frames); D3D12
+gears ran its full pass.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/csf/panvk_instr.h       | 15 +++++++++++++++
+ src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c |  3 +++
+ 2 files changed, 18 insertions(+)
+
+diff --git a/src/panfrost/vulkan/csf/panvk_instr.h b/src/panfrost/vulkan/csf/panvk_instr.h
+index 34d20705..37892d60 100644
+--- a/src/panfrost/vulkan/csf/panvk_instr.h
++++ b/src/panfrost/vulkan/csf/panvk_instr.h
+@@ -101,6 +101,20 @@ panvk_cs_signal_scope(const struct panvk_cmd_buffer *cmdbuf)
+    return MALI_CS_SYNC_SCOPE_CSG;
+ }
+ 
++/* kbase runs each subqueue in its own CSG. A deferred signal (tiling done,
++ * fragment done, ringbuf release) still pending when its stream blocks in a
++ * SYNC_WAIT on another subqueue is not sent: on a Pixel 7 (G710) VT and
++ * COMPUTE sat in a barrier wait on FRAG while FRAG waited for VT's tiling
++ * signal. Let the stream's own deferred syncs land before such a wait. */
++static inline void
++panvk_kbase_wait_deferred_syncs(const struct panvk_cmd_buffer *cmdbuf,
++                                struct cs_builder *b)
++{
++   if (to_panvk_physical_device(cmdbuf->vk.base.device->physical)
++          ->kbase_node_path[0])
++      cs_wait_slot(b, SB_ID(DEFERRED_SYNC));
++}
++
+ #define PANVK_INSTR_SYNC_OPS(__cnt_width)                                      \
+    static inline void panvk_instr_sync##__cnt_width##_add(                     \
+       struct panvk_cmd_buffer *cmdbuf, enum panvk_subqueue_id id,              \
+@@ -130,6 +144,7 @@ panvk_cs_signal_scope(const struct panvk_cmd_buffer *cmdbuf)
+       struct cs_builder *b = panvk_get_cs_builder(cmdbuf, id);                 \
+       panvk_per_arch(panvk_instr_begin_work)(                                  \
+          id, cmdbuf, PANVK_INSTR_WORK_TYPE_SYNC##__cnt_width##_WAIT);          \
++      panvk_kbase_wait_deferred_syncs(cmdbuf, b);                              \
+       cs_sync##__cnt_width##_wait(b, reject_error, cond, ref, addr);           \
+       struct panvk_instr_end_args instr_info = {                               \
+          .sync = {.addr_regs = addr, .val_regs = ref, .cond = cond},           \
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+index a4bf71d9..d40eaf36 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+@@ -1295,6 +1295,7 @@ cs_render_desc_ringbuf_reserve(struct panvk_cmd_buffer *cmdbuf,
+ 
+    /* Wait for the other end to release memory. */
+    cs_move32_to(b, sz_reg, size - 1);
++   panvk_kbase_wait_deferred_syncs(cmdbuf, b);
+    cs_sync32_wait(b, false, MALI_CS_CONDITION_GREATER, sz_reg, ringbuf_sync);
+ 
+    /* Decrement the syncobj to reflect the fact we're reserving memory.
+@@ -4041,6 +4042,7 @@ gpu_prerast_acquire_arena(struct panvk_cmd_buffer *cmdbuf, uint64_t arena)
+ 
+    cs_move64_to(b, addr, gpu_prerast_arena_sync(dev, arena));
+    cs_move32_to(b, value, 0);
++   panvk_kbase_wait_deferred_syncs(cmdbuf, b);
+    cs_sync32_wait(b, false, MALI_CS_CONDITION_GREATER, value, addr);
+    cs_move32_to(b, value, -1);
+    cs_sync32_add(b, true, panvk_cs_signal_scope(cmdbuf), value, addr, cs_now());
+@@ -4759,6 +4761,7 @@ gpu_prerast_sync32_take(struct panvk_cmd_buffer *cmdbuf,
+    struct cs_index value = cs_scratch_reg32(b, 2);
+ 
+    cs_move32_to(b, value, 0);
++   panvk_kbase_wait_deferred_syncs(cmdbuf, b);
+    cs_sync32_wait(b, false, MALI_CS_CONDITION_GREATER, value, addr);
+    cs_move32_to(b, value, -1);
+    cs_sync32_add(b, true, panvk_cs_signal_scope(cmdbuf), value, addr, cs_now());
+-- 
+2.55.0
+
