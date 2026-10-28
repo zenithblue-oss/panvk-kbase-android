@@ -1,0 +1,68 @@
+MESA: info: kbase: JM driver, uAPI version 11.16, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+MESA: info: kbase: v6 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 (base_jd_atom_v2 without renderpass_id)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: cntfrq_el0 is 0 and the 5 ms measurement failed (TIMEINFO failed, 0 / 0 Hz), retrying with 20 ms
+MESA: warning: kbase: timestamp calibration: cntfrq_el0 is 0 and the GPU counter rate is unknown (TIMEINFO failed: Not a typewriter, 0 / 0 Hz): timestamps not advertised
+MESA: info: kbase: no usable ION system heap
+MESA: info: panvk: gpu_id 0x62210010 variant 0 arch v6 model Mali-G72 texture_features 0xfffe007e 0xff0fff 0xfe3fffff 0
+MESA: warning: panvk: v6 (Bifrost) support is experimental
+MESA: info: panvk: BC emulation on (native compressed mask 0xfffe007e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+ICD device=Mali-G72 MC18 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+MESA: info: kbase: JM driver, uAPI version 11.16, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+MESA: info: kbase: v6 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 (base_jd_atom_v2 without renderpass_id)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: cntfrq_el0 is 0 and the 5 ms measurement failed (TIMEINFO failed, 0 / 0 Hz), retrying with 20 ms
+MESA: warning: kbase: timestamp calibration: cntfrq_el0 is 0 and the GPU counter rate is unknown (TIMEINFO failed: Not a typewriter, 0 / 0 Hz): timestamps not advertised
+MESA: info: kbase: no usable ION system heap
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 70313 pages committed
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 40960 pages committed
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 70313 pages committed
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 65536 pages committed
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 65536 pages committed
+features tess=1 geom=1 point_size=1 pstats=1 has_eds2=1 maxGenLevel=64 maxPatchSize=32
+FPS 2948.8 frames=2950 ms=1000
+MESA: info: panvk: v6 batch TLS 41472 KiB (stack 2064 B/thread), half 1, shared per half
+MESA: info: panvk: v6 batch WLS 432 KiB, half 1, shared per half
+CASE quad_equal_l4 ref_px=1536 px=1536 mismatch=0 PASS
+MESA: info: panvk: v6 batch TLS 20736 KiB (stack 1780 B/thread), half 1, shared per half
+MESA: info: panvk: v6 batch WLS 432 KiB, half 1, shared per half
+CASE tri_equal_l3 ref_px=1128 px=1128 mismatch=0 PASS
+MESA: info: panvk: v6 batch TLS 41472 KiB (stack 2064 B/thread), half 1, shared per half
+MESA: info: panvk: v6 batch WLS 432 KiB, half 1, shared per half
+CASE quad_frac_odd_l3.5 ref_px=1536 px=1536 mismatch=0 PASS
+MESA: info: panvk: v6 batch TLS 41472 KiB (stack 2064 B/thread), half 1, shared per half
+MESA: info: panvk: v6 batch WLS 432 KiB, half 1, shared per half
+CASE quad_frac_even_l2.5 ref_px=1536 px=1536 mismatch=0 PASS
+CASE isolines_4x4 ref_px=192 px=192 mismatch=0 PASS
+CASE point_mode_l4 ref_px=25 px=25 mismatch=0 PASS
+CASE winding_ccw_cull_back ref_px=1128 px=1128 mismatch=0 PASS
+CASE winding_cw_cull_back ref_px=0 px=0 mismatch=0 PASS
+CASE patch_cp1_expand ref_px=1536 px=1536 mismatch=0 PASS
+CASE patch_cp32 ref_px=1536 px=1536 mismatch=0 PASS
+CASE dynamic_cp_3_then_4 ref_px=1152 px=1152 mismatch=0 PASS
+CASE indexed_vertex_offset ref_px=1280 px=1280 mismatch=0 PASS
+CASE indirect ref_px=1280 px=1280 mismatch=0 PASS
+CASE indexed_indirect ref_px=1280 px=1280 mismatch=0 PASS
+CASE instanced2 ref_px=1280 px=1280 mismatch=0 PASS
+CASE grid_64x48_l16 ref_px=3072 px=3072 mismatch=0 PASS
+CASE quad_l64 ref_px=1536 px=1536 mismatch=0 PASS
+CASE quad_unequal ref_px=1536 px=1536 mismatch=0 PASS
+CASE grid_inst3_indirect_first1 ref_px=384 px=384 mismatch=0 PASS
+CASE grid_indexed_inst2_direct_first1 ref_px=960 px=960 mismatch=0 PASS
+CASE grid_indexed_inst2_indirect_first1 ref_px=960 px=960 mismatch=0 PASS
+CASE grid_tes_to_gs_l16 ref_px=3072 px=3072 mismatch=0 PASS
+CASE tes_to_gs ref_px=1536 px=1536 mismatch=0 PASS
+CASE stats_quad_equal_l4 ref_px=1536 px=1536 mismatch=0 patches=1 tes_inv=96 avail=1 PASS
+TESSELLATION_FAILS=0
