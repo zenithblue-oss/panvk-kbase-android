@@ -1,6 +1,6 @@
 --- orig/D3D12Multithreading.cpp
 +++ src/D3D12Multithreading.cpp
-@@ -32,7 +32,14 @@
+@@ -32,9 +32,18 @@
  
      m_keyboardInput.animate = true;
  
@@ -15,21 +15,18 @@
 +    }
  }
  
++static volatile LONG g_panplayTerminating = 0;
++
  D3D12Multithreading::~D3D12Multithreading()
-@@ -213,19 +220,14 @@
+ {
+     s_app = nullptr;
+@@ -213,18 +222,13 @@
  
      // Create the pipeline state, which includes loading shaders.
      {
 -        ComPtr<ID3DBlob> vertexShader;
 -        ComPtr<ID3DBlob> pixelShader;
-+        // PanPlay build: vs_5_0 / ps_5_0 DXBC compiled from shaders.hlsl at build time (vkd3d-compiler).
-+        UINT8* pVertexShaderData = nullptr;
-+        UINT8* pPixelShaderData = nullptr;
-+        UINT vertexShaderDataLength = 0;
-+        UINT pixelShaderDataLength = 0;
-+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_VSMain.cso").c_str(), &pVertexShaderData, &vertexShaderDataLength));
-+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_PSMain.cso").c_str(), &pPixelShaderData, &pixelShaderDataLength));
- 
+-
 -#if defined(_DEBUG)
 -        // Enable better shader debugging with the graphics debugging tools.
 -        UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
@@ -39,11 +36,17 @@
 -
 -        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
 -        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
--
++        // PanPlay build: vs_5_0 / ps_5_0 DXBC compiled from shaders.hlsl at build time (vkd3d-compiler).
++        UINT8* pVertexShaderData = nullptr;
++        UINT8* pPixelShaderData = nullptr;
++        UINT vertexShaderDataLength = 0;
++        UINT pixelShaderDataLength = 0;
++        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_VSMain.cso").c_str(), &pVertexShaderData, &vertexShaderDataLength));
++        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_PSMain.cso").c_str(), &pPixelShaderData, &pixelShaderDataLength));
+ 
          D3D12_INPUT_LAYOUT_DESC inputLayoutDesc;
          inputLayoutDesc.pInputElementDescs = SampleAssets::StandardVertexDescription;
-         inputLayoutDesc.NumElements = _countof(SampleAssets::StandardVertexDescription);
-@@ -240,8 +242,8 @@
+@@ -240,8 +244,8 @@
          D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
          psoDesc.InputLayout = inputLayoutDesc;
          psoDesc.pRootSignature = m_rootSignature.Get();
@@ -54,7 +57,7 @@
          psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
          psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
          psoDesc.DepthStencilState = depthStencilDesc;
-@@ -264,6 +266,8 @@
+@@ -264,6 +268,8 @@
  
          ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineStateShadowMap)));
          NAME_D3D12_OBJECT(m_pipelineStateShadowMap);
@@ -63,7 +66,7 @@
      }
  
      // Create temporary command list for initial GPU setup.
-@@ -755,7 +759,7 @@
+@@ -755,7 +761,7 @@
          if (m_titleCount == TitleThrottle)
          {
              WCHAR cpu[64];
@@ -72,7 +75,7 @@
              SetCustomWindowText(cpu);
  
              m_titleCount = 0;
-@@ -770,7 +774,8 @@
+@@ -770,7 +776,8 @@
  
          // Present and update the frame index for the next frame.
          PIXBeginEvent(m_commandQueue.Get(), 0, L"Presenting to screen");
@@ -82,7 +85,7 @@
          PIXEndEvent(m_commandQueue.Get());
          m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
  
-@@ -778,6 +783,12 @@
+@@ -778,6 +785,12 @@
          m_pCurrentFrameResource->m_fenceValue = m_fenceValue;
          ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_fenceValue));
          m_fenceValue++;
@@ -95,6 +98,37 @@
      }
      catch (HrException& e)
      {
+@@ -831,6 +844,16 @@
+ 
+ void D3D12Multithreading::OnDestroy()
+ {
++    // PanPlay build: stop the idle workers and join them before their events and command lists go away.
++#if !SINGLETHREADED
++    InterlockedExchange(&g_panplayTerminating, 1);
++    for (int i = 0; i < NumContexts; i++)
++    {
++        SetEvent(m_workerBeginRenderFrame[i]);
++    }
++    WaitForMultipleObjects(NumContexts, m_threadHandles, TRUE, INFINITE);
++#endif
++
+     // Ensure that the GPU is no longer referencing resources that are about to be
+     // cleaned up by the destructor.
+     {
+@@ -957,6 +980,13 @@
+ 
+         WaitForSingleObject(m_workerBeginRenderFrame[threadIndex], INFINITE);
+ 
++        // PanPlay build: upstream never stops the workers, OnDestroy closes the events and the workers then record
++        // into command lists that are already closed (SetDescriptorHeaps on a closed list: crash at exit).
++        if (g_panplayTerminating)
++        {
++            return;
++        }
++
+ #endif
+         ID3D12GraphicsCommandList* pShadowCommandList = m_pCurrentFrameResource->m_shadowCommandLists[threadIndex].Get();
+         ID3D12GraphicsCommandList* pSceneCommandList = m_pCurrentFrameResource->m_sceneCommandLists[threadIndex].Get();
 --- orig/DXSample.cpp
 +++ src/DXSample.cpp
 @@ -118,8 +118,9 @@

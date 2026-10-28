@@ -63,6 +63,10 @@ MODIFICATIONS (all in source/d3d12multithreading-panplay.patch)
     which mingw-w64 does not have. NAME_D3D12_OBJECT uses L"" #x so clang accepts it.
   - Main.cpp: pph_init("d3d12-multithreading", argv, 1280x720). Exceptions are caught and printed as
     "DX12: FAIL ..." with exit code 1.
+  - D3D12Multithreading.cpp (2026-10-29): OnDestroy now stops and joins the worker threads before closing their
+    events. Upstream closes the begin-frame events while the workers wait on them, WaitForSingleObject then fails
+    at once and the workers record into command lists that are already closed (vkd3d-proton: list->allocator is
+    NULL after Close, SetDescriptorHeaps faults at d3d12core.dll+0x329F0, read of 0x70, after the PASS line).
   - DXSample.cpp: -warp and /warp must match exactly. Upstream compared only wcslen(arg) characters, so an
     empty argument or "-" also took the WARP path.
   The rendering code, scene, camera path, lights and threading are unchanged.
@@ -73,8 +77,8 @@ RUNTIME IMPORTS (llvm-readobj)
   x86_64: machine AMD64. arm64ec: ARM64EC with CHPE metadata, the same layout as the PanPlay dxcube-arm64ec.exe.
 
 FILES (sha256)
-  1c79bae4bd3148d5e908d00873b1346154cdbf237b6af33d60a0f87e8441c430  d3d12-multithreading-x86_64.exe  (432640 B)
-  d4dde5b49e6200493933886157809ea589e60a7bd617f89a80201fb42cf402d9  d3d12-multithreading-arm64ec.exe (450048 B)
+  843414e2639003f9bd208103e70ee6ae8400087acfca6fcc78c927e4dbb54e94  d3d12-multithreading-x86_64.exe  (432640 B)
+  1727c3e6ce997bb924b554fe97173a8b8a56e84f9dca3114cd814a54501ce7f2  d3d12-multithreading-arm64ec.exe (450048 B)
   02c3d5421b4d4714971bd34e5416e9de619f993510da4c66192b15653858e0aa  SquidRoom.bin                    (43020292 B)
   8226faa84def7a71dbabc1ce37aca9d64205dbe181aef62c68521d5e5a069128  shaders_VSMain.cso               (4596 B)
   e1e9f4abf97683e51810fd87c7b786d3e70585053d698865c54e3a51ff4c4765  shaders_PSMain.cso               (7332 B)
