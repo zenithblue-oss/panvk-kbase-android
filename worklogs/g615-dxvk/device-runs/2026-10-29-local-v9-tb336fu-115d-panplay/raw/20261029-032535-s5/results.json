@@ -1,0 +1,144 @@
+{
+  "harness": "panplay-gameloop",
+  "version": 1,
+  "scenario": 5,
+  "runId": "20261029-032535-s5",
+  "startedUnixMs": 1793224535314,
+  "app": {
+    "package": "dev.zenithblue.panvklauncher",
+    "versionName": "1.3.0",
+    "versionCode": 44
+  },
+  "device": {
+    "manufacturer": "LENOVO",
+    "model": "TB336FU",
+    "device": "TB336FU",
+    "product": "TB336FU",
+    "hardware": "mt8755",
+    "board": "sycamore_row_wifi",
+    "sdk": 36,
+    "release": "16",
+    "fingerprint": "Lenovo\/TB336FU\/TB336FU:16\/BP2A.250605.031.A3\/260616_271:user\/release-keys",
+    "socManufacturer": "Mediatek",
+    "socModel": "MT8755",
+    "maliNode": true,
+    "display": "1600x2559",
+    "refreshHz": 90,
+    "xScreen": "1280x720"
+  },
+  "passes": [
+    {
+      "index": 1,
+      "task": "d3d12",
+      "title": "D3D12 Multithreading, SquidRoom (ARM64EC)",
+      "envSet": "default",
+      "dir": "01-d3d12-default",
+      "shortcut": "builtin-d3d12-arm64ec",
+      "exe": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/games\/builtin\/d3d12-multithreading-arm64ec.exe",
+      "env": {
+        "VKD3D_DEBUG": "warn",
+        "VKD3D_SHADER_DEBUG": "warn",
+        "PANVK_FPS_LOG": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/gameloop\/20261029-032535-s5\/01-d3d12-default\/panvk-fps-%p.log",
+        "PANVK_FPS_LOG_MS": "1000",
+        "DX12TEST_SECS": "48"
+      },
+      "exit": 0,
+      "wallSec": 54.715,
+      "firstFrameSec": 5.58,
+      "sessionReason": "Game exited normally (exit 0)",
+      "perfSummary": {
+        "startMs": 1793224535508,
+        "game": "D3D12 · SquidRoom · ARM64EC",
+        "exe": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/games\/builtin\/d3d12-multithreading-arm64ec.exe",
+        "driverId": "mesa-panvk-26.3.0-devel-git-b04b8ee36d",
+        "driver": "Mesa PanVK",
+        "driverVersion": "26.3.0-devel (git-b04b8ee36d)",
+        "driverInfo": "Mesa 26.3.0-devel (git-b04b8ee36d)",
+        "driverBuildId": "Mesa 5a07217f",
+        "dxvk": "3.1.1-4-arm64ec",
+        "emulator": "FEX Intermediate",
+        "resolution": "1280x720",
+        "fpsLimit": 0,
+        "device": "LENOVO TB336FU",
+        "id": "20261029-032535_D3D12_SquidRoom_ARM64EC",
+        "endMs": 1793224590185,
+        "dxvkStats": false,
+        "gameCpuAvg": 11.007692307692302,
+        "gameCpuMax": 13.2,
+        "gameCoresAvg": 0.8769230769230763,
+        "gameCoresMax": 1.1,
+        "ramAvgMb": 571.9000000000005,
+        "ramPeakMb": 619,
+        "battTempAvgC": 26,
+        "battTempMaxC": 26,
+        "cpuFreqAvgMhz": 1432.0754716981132,
+        "cpuFreqMaxMhz": 2600,
+        "powerAvgMw": 3947.6905660377365,
+        "powerMaxMw": 4483.4,
+        "memAvailMinMb": 3525.1
+      },
+      "fpsLog": "panvk-fps-23872.log",
+      "driverPresents": 1193,
+      "driverInfo": "Mesa 26.3.0-devel (git-b04b8ee36d)",
+      "driverFps": {
+        "fps": 24.79479004138118,
+        "frames": 731,
+        "spanMs": 29482,
+        "intervals": 29,
+        "minIntervalFps": 24.2,
+        "maxIntervalFps": 25.3,
+        "maxFrameMs": 47.08
+      },
+      "compositor": {
+        "drawnFps": 24.812734082397004,
+        "contentFps": 24.779293739967898
+      },
+      "screenshot": "screen.png",
+      "fps": 24.79479004138118,
+      "fpsSource": "driver",
+      "test": {
+        "ok": true,
+        "line": "DX12: PASS test=d3d12-multithreading frames=1193 secs=48.0 fps=24.8 startup=3.5",
+        "frames": 1193,
+        "fps": 24.8,
+        "startupSec": 3.5
+      },
+      "status": "ok"
+    }
+  ],
+  "configSource": [
+    "assets\/gameloop.json",
+    "\/sdcard\/Download\/gameloop-override-115d.json sha256=5c383865b34a204099b3e4137ec56b5cc587b6fd50d0512da5a44f59f7749df6"
+  ],
+  "scenarioName": "d3d12",
+  "tasks": [
+    "d3d12"
+  ],
+  "envSets": [
+    "default"
+  ],
+  "window": {
+    "warmupSec": 10,
+    "measureSec": 30,
+    "tailSec": 8,
+    "fpsLogMs": 1000,
+    "from": "first frame"
+  },
+  "envSetNotes": {
+    "default": "driver defaults"
+  },
+  "updatedUnixMs": 1793224590900,
+  "driver": {
+    "id": "mesa-panvk-26.3.0-devel-git-b04b8ee36d",
+    "name": "Mesa PanVK",
+    "version": "26.3.0-devel (git-b04b8ee36d)",
+    "bundled": true,
+    "libPath": "\/data\/app\/~~GVlbQ0oeAEXqsx5fwfKvnQ==\/dev.zenithblue.panvklauncher-tOFCLCqoSeeiZv23m9-VyQ==\/lib\/arm64\/libvulkan_panfrost.so",
+    "size": 30336936,
+    "sha256": "da6f9a0f8f6a3d97b1339e9aebea64baa7470cf912e373b4e9c23c71419e7976"
+  },
+  "driverInfo": "Mesa 26.3.0-devel (git-b04b8ee36d)",
+  "ab": [],
+  "ok": true,
+  "endedUnixMs": 1793224590900
+}
