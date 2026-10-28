@@ -1,0 +1,23 @@
+MESA: info: kbase: JM driver, uAPI version 11.38, page_size=4096
+MESA: info: kbase: MediaTek JM atom layout (frame_nr), stride 64, probe event 0x1
+MESA: info: panvk: gpu_id 0x90930010 variant 0 arch v9 model Mali-G57 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe03fe)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+Failed to create /data/.cache for shader cache (Permission denied)---disabling.
+ICD device=Mali-G57 MC2 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+INFO occlusionQueryPrecise=1 hostQueryReset=1
+MESA: info: kbase: JM driver, uAPI version 11.38, page_size=4096
+MESA: info: kbase: MediaTek JM atom layout (frame_nr), stride 64, probe event 0x1
+MESA: info: kbase: mem_alloc via ALLOC
+PASS case precise_quad got=1024 exp=1024
+PASS case precise_quad_pixels
+PASS case precise_two_draws got=2048 exp=2048
+PASS case precise_empty got=0 exp=0
+PASS case precise_partial got=1024 exp=1024
+PASS case nonprecise draw=1 empty=0
+PASS case copy_results val=1024 avail=1
+PASS case cmd_reset_reuse got=4096 exp=4096
+PASS case host_reset got=1024 exp=1024
+RESULT PASS
