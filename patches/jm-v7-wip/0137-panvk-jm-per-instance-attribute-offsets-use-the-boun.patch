@@ -1,0 +1,78 @@
+From dac7b7ddce4a29103974303c718b6b1c224a4227 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Wed, 28 Oct 2026 08:29:26 +0000
+Subject: [PATCH 137/139] panvk/jm: per-instance attribute offsets use the
+ bound vertex stride
+
+On v6/v7 the per-instance attribute offset folds in firstInstance
+(instance.base * stride), undoes the DCD vertex offset for instanced
+draws and gives the indirect draw helper its strides. All three used
+vk_vertex_binding_state::stride, the stride of the pipeline. With
+VK_DYNAMIC_STATE_VERTEX_INPUT_BINDING_STRIDE that one is not the stride
+in use: vkd3d-proton creates every pipeline with binding stride 0 and
+binds the real strides with vkCmdBindVertexBuffers2. The attribute
+buffer descriptor already used the dynamic stride
+(dyns->vi_binding_strides); the attribute descriptor did not, so every
+draw read the per-instance data of instance 0.
+
+Galaxy A31 (Mali-G52, v7), vkd3d-proton gears: the three gears are
+drawn with DrawIndexedInstanced(..., 1, ..., StartInstance = i) and take
+their colour and transform from a per-instance vertex buffer; all three
+got the red gear's colour and transform (only a red gear, "drawn
+twice"). v9 (v9_emit_vs_attrib) and CSF already use the bound stride.
+
+Pass dyns->vi_binding_strides[binding] to panvk_draw_emit_attrib().
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index c3e102b2..74449313 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -1043,6 +1043,7 @@ static void
+ panvk_draw_emit_attrib(const struct panvk_draw_data *draw,
+                        const struct vk_vertex_attribute_state *attrib_info,
+                        const struct vk_vertex_binding_state *buf_info,
++                       uint32_t stride,
+                        const struct panvk_attrib_buf *buf,
+                        struct mali_attribute_packed *desc,
+                        struct libpan_draw_helper_attrib_info *helper_attrib_info)
+@@ -1061,20 +1062,20 @@ panvk_draw_emit_attrib(const struct panvk_draw_data *draw,
+       /* In case of indirect draw, the descriptor will be patched at runtime */
+       if (helper_attrib_info != NULL) {
+          helper_attrib_info->base_offset = offset;
+-         helper_attrib_info->stride = per_instance ? buf_info->stride : 0;
++         helper_attrib_info->stride = per_instance ? stride : 0;
+          helper_attrib_info->start_stride =
+-            per_instance && buf_info->divisor ? buf_info->stride : 0;
++            per_instance && buf_info->divisor ? stride : 0;
+       } else {
+          cfg.offset = offset;
+          if (per_instance)
+-            cfg.offset += draw->info.instance.base * buf_info->stride;
++            cfg.offset += draw->info.instance.base * stride;
+          /* Bifrost adds the DCD offset_start (the raw vertex offset) to the
+           * index of instanced attributes as well: undo it, as gallium's
+           * panfrost_emit_vertex_data() does. Divisor 0 has a zero stride. */
+          if (per_instance && buf_info->divisor &&
+              draw->info.instance.count > 1)
+             cfg.offset -=
+-               (int32_t)(draw->info.vertex.raw_offset * buf_info->stride);
++               (int32_t)(draw->info.vertex.raw_offset * stride);
+       }
+    }
+ }
+@@ -1183,6 +1184,7 @@ panvk_draw_prepare_vs_attribs(struct panvk_cmd_buffer *cmdbuf,
+             attribs_infos ? &attribs_infos[i] : NULL;
+          panvk_draw_emit_attrib(draw, &vi->attributes[i],
+                                 &vi->bindings[buf_idx],
++                                dyns->vi_binding_strides[buf_idx],
+                                 &cmdbuf->state.gfx.vb.bufs[buf_idx],
+                                 &attrib_descs[i], helper_attrib_info);
+       } else {
+-- 
+2.55.0
+

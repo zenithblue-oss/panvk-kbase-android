@@ -453,3 +453,21 @@ Evidence: `worklogs/g615-dxvk/device-runs/2026-10-27-ftl-v10-panther-115b-diag{4
 `p115b-final`): `BASE-OK applied=228 csf-v11<=233 head=c2c80109` and `OK base=228 jm-v7-wip=130 head=ad5cd691`, with
 no drift, offset or fuzz lines (only the jm-v9/002 trailing-whitespace warning). Its tree `927190bb` equals the fix
 branch `p115b-fix2`'s. driverInfo `Mesa 26.3.0-devel (git-ad5cd69141)`.
+
+## Build 115c (2026-10-28): 0136-0139, D3D12 feature level device losts (Pixel 7, Pixel 8, a31), gears, logic ops
+
+| jm-v7-wip | what |
+|---|---|
+| 0136 | CSF: the tiler takes the bins of every layer of a tiler context from one heap chunk, and v10/v11 need twice `pan_calc_bins_pointer_size()` per layer. vkd3d-proton's passes without attachments (65536x65536 on v11, 32768x32768 on v10, 256 layers: D3D12 FL 11_1 `tir`, FL 12_1 `conservative`) kept mask `0x1fe0` (171 KiB per layer), the tiler OOMed on every new 1 MiB kbase chunk and kbase terminated the group (DEVICE_LOST). The budget is now (chunk - 64) / (2 x layers of the context) on v10/v11 (/ layers on v12+, not measured). Measured on the Pixel 8 with a chunk size override: `0x1fe0` OOMs with 1 and 2 MiB chunks, not 4 or 8 MiB; `0x1fc0` (43 KiB) OOMs with 512 KiB, not 1 MiB. `PANVK_TILER_LAYER_BUDGET=0` = 115b |
+| 0137 | JM: per-instance attribute offsets (firstInstance x stride, the raw vertex offset undo, the indirect draw helper strides) use the bound vertex stride (`dyns->vi_binding_strides`), not the pipeline's. vkd3d-proton creates pipelines with stride 0 and binds the strides dynamically: gears drew all three gears with instance 0's colour and transform (a31: "red gear twice") |
+| 0138 | A logic op reads the destination (gallium's `load_dest`): `any_dest_read`, so no forward pixel kill (and no v13 HSR cull). vkd3d-proton's logic op draw forward-killed the draw under it and INVERT read the clear value (D3D12 FL 11_1 `logic_op` `ffffffff` on every arch; DXVK's pixel shaders discard for cull distances, which already disabled FPK there) |
+| 0139 | Bifrost scheduler: the message descriptor of ST_CVT, ST_TILE and TEXC is IR src 3 (behind the staging source), not src 2; a same-tuple FMA result there (`t`, ISA mask `0xf7`) is not encodable. vkd3d-proton typed UAV stores compute the conversion descriptor at run time, the scheduler put that LSHIFT_OR in the FMA slot: `+ST_CVT.v4 t1, r0, r1, t(INVALID)`, INSTR_INVALID_ENC (a31 `event=0x51`, D3D12 FL 12_0 `typed_uav_load` DEVICE_LOST). src 3 is now excluded as for BLEND (src 2 stays excluded); test in `test-scheduler-predicates.cpp` |
+
+Evidence: `worklogs/g615-dxvk/device-runs/2026-10-28-ftl-v11-shiba-115c-diag{,3}-panplay/` (tiler budget A/B and
+chunk sizes) and `2026-10-28-ftl-v7-a31-115b-shaders-panplay/` (Bifrost disassembly of the failing shader, logic op
+and gears). Not a driver bug: D3D11 FL 11_1 `tir` (DXVK 3.1.1 hands the UAV-only draw to the driver with
+`rasterizationSamples` 1, diag3). `scripts/prepare-rc5-tree.sh` defaults are now `--csf-max 233 --wip-max 0139`.
+Strict check on a fresh 5a07217f worktree (`/home/flux/src/mesa-115c-final`, branch `p115c-final`): `BASE-OK
+applied=228 csf-v11<=233 head=02fe7ef8` and `OK base=228 jm-v7-wip=134 head=15fd70c7`, with no drift, offset or fuzz
+lines (only the jm-v9/002 trailing-whitespace warning). Its tree `e945011a` equals the fix branch `p115c-fix`'s
+(`/home/flux/src/mesa-115c-fix`). driverInfo `Mesa 26.3.0-devel (git-15fd70c7c4)`.

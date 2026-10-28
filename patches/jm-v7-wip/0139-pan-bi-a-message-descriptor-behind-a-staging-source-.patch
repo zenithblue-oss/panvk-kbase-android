@@ -1,0 +1,80 @@
+From 0bcf61d24ea61eb6a562b85892b929468b21ee78 Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Wed, 28 Oct 2026 08:48:32 +0000
+Subject: [PATCH 139/139] pan/bi: a message descriptor behind a staging source
+ is src 3
+
+bi_reads_t() keeps the descriptor of LD_CVT, LD_TILE, ST_CVT, ST_TILE,
+TEXC and TEXC_DUAL out of the same-tuple FMA passthrough with
+"src != 2". That is the descriptor of LD_CVT and LD_TILE, but ST_CVT,
+ST_TILE and TEXC read a staging register as IR src 0 and the packer
+shifts the encoded sources by one (bi_pack_tuple: sr_read + n), so
+their descriptor is src 3. ISA.xml masks that source with 0xf7: the
+value 3 ("t", the FMA result of the same tuple) is not encodable.
+
+The scheduler could put the instruction computing the descriptor in the
+FMA slot of the same tuple. vkd3d-proton typed UAV loads and stores
+(register format auto) compute the conversion descriptor at run time
+with LSHIFT_OR, which gave on G52 (v7):
+
+  *LSHIFT_OR.i32 t0, t0, 0x01000000, #0
+  +ST_CVT.v4 t1, r0, r1, t(INVALID), @r7
+
+and the job fails with INSTR_INVALID_ENC (JM event 0x51), the D3D12
+FL 12_0 typed UAV load check loses the device.
+
+Exclude src 3 as for BLEND, whose descriptor already is src 2 and 3.
+src 2 stays excluded, so no other schedule changes.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ .../compiler/bifrost/bifrost/bi_schedule.c       |  4 +++-
+ .../bifrost/test/test-scheduler-predicates.cpp   | 16 ++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/panfrost/compiler/bifrost/bifrost/bi_schedule.c b/src/panfrost/compiler/bifrost/bifrost/bi_schedule.c
+index 070179d8..a1a5238c 100644
+--- a/src/panfrost/compiler/bifrost/bifrost/bi_schedule.c
++++ b/src/panfrost/compiler/bifrost/bifrost/bi_schedule.c
+@@ -780,8 +780,10 @@ bi_reads_t(bi_instr *ins, unsigned src)
+    case BI_OPCODE_ST_TILE:
+    case BI_OPCODE_TEXC:
+    case BI_OPCODE_TEXC_DUAL:
+-      return src != 2;
+    case BI_OPCODE_BLEND:
++      /* The descriptor is src 3 behind a staging source (ST_CVT, ST_TILE,
++       * TEXC): a same-tuple FMA result there is an invalid encoding
++       * (INSTR_INVALID_ENC). src 2 stays excluded as before. */
+       return src != 2 && src != 3;
+ 
+    /* +JUMP can't read the offset from T */
+diff --git a/src/panfrost/compiler/bifrost/test/test-scheduler-predicates.cpp b/src/panfrost/compiler/bifrost/test/test-scheduler-predicates.cpp
+index 4b6954cd..eb05f6a0 100644
+--- a/src/panfrost/compiler/bifrost/test/test-scheduler-predicates.cpp
++++ b/src/panfrost/compiler/bifrost/test/test-scheduler-predicates.cpp
+@@ -81,6 +81,22 @@ TEST_F(SchedulerPredicates, BLEND)
+    ASSERT_FALSE(bi_reads_t(blend, 3));
+ }
+ 
++TEST_F(SchedulerPredicates, DescriptorNotFromPassthrough)
++{
++   bi_instr *ld = bi_ld_cvt_to(b, TMP(), TMP(), TMP(), TMP(),
++                               BI_REGISTER_FORMAT_F32, BI_VECSIZE_V4);
++   ASSERT_TRUE(bi_reads_t(ld, 0));
++   ASSERT_TRUE(bi_reads_t(ld, 1));
++   ASSERT_FALSE(bi_reads_t(ld, 2));
++
++   bi_instr *st = bi_st_cvt(b, TMP(), TMP(), TMP(), TMP(),
++                            BI_REGISTER_FORMAT_F32, BI_VECSIZE_V4);
++   ASSERT_FALSE(bi_reads_t(st, 0));
++   ASSERT_TRUE(bi_reads_t(st, 1));
++   ASSERT_FALSE(bi_reads_t(st, 2));
++   ASSERT_FALSE(bi_reads_t(st, 3));
++}
++
+ TEST_F(SchedulerPredicates, RestrictionsOnModifiersOfSameCycleTemporaries)
+ {
+    bi_instr *fadd = bi_fadd_f32_to(b, TMP(), TMP(), TMP());
+-- 
+2.55.0
+

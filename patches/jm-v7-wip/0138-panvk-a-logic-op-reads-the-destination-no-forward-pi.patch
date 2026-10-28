@@ -1,0 +1,45 @@
+From b2bf7aae759f5d5e94d2ddec3e1c01f0d5b7d50a Mon Sep 17 00:00:00 2001
+From: abhay-byte <zenithblue.dev@gmail.com>
+Date: Wed, 28 Oct 2026 08:32:49 +0000
+Subject: [PATCH 138/139] panvk: a logic op reads the destination, no forward
+ pixel kill
+
+panvk_per_arch(blend_emit_descs)() sets any_dest_read only from the
+blend equation, and a logic op keeps its equation at "replace". The draw
+then allows forward pixel kill (CSF and JM fragment DCDs, v13 HSR
+culling): its fragments may kill the earlier fragments of the same pixel
+still in flight, and the blend shader combines the logic op with what is
+left in the tile buffer instead of what the earlier draw wrote.
+
+D3D12 feature level 11_1 logic_op check, on every arch (Galaxy A31 v7,
+Pixel 6 v9, Pixel 7 v10, Pixel 8 v11): a plain draw writes aaf00fff to an
+R8G8B8A8_UINT target cleared to 0, an INVERT draw over it reads back
+ffffffff (= ~0, the clear value) instead of 550ff000.
+
+gallium's panfrost_create_blend_state() already sets load_dest for any
+logic op. Do the same.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_vX_blend.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/panfrost/vulkan/panvk_vX_blend.c b/src/panfrost/vulkan/panvk_vX_blend.c
+index 25ae0212..136efaf8 100644
+--- a/src/panfrost/vulkan/panvk_vX_blend.c
++++ b/src/panfrost/vulkan/panvk_vX_blend.c
+@@ -377,7 +377,10 @@ panvk_per_arch(blend_emit_descs)(struct panvk_cmd_buffer *cmdbuf,
+        */
+       pan_blend_optimize_equation(&rt->equation, rt->format, bs.constants);
+ 
+-      blend_info->any_dest_read |= pan_blend_reads_dest(rt->equation);
++      /* A logic op reads the destination (gallium's load_dest): forward
++       * pixel kill must not drop the fragments it combines with. */
++      blend_info->any_dest_read |=
++         bs.logicop_enable || pan_blend_reads_dest(rt->equation);
+ 
+       if (blend_needs_shader(&bs, i, &ff_blend_constant)) {
+          nir_alu_type src0_type = fs_info->bifrost.blend[loc].type;
+-- 
+2.55.0
+

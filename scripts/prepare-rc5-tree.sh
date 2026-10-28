@@ -5,15 +5,15 @@
 # kbase-common app-loader wsi csf csf-v11[<=CSF_MAX] jm-v9 jm-v7 001-005), one commit
 # per patch, then `git am` of patches/jm-v7-wip/0006..WIP_MAX in file order.
 # Strict: any offset, fuzz or conflict stops the script (same rule as apply-patches.sh).
-# The defaults (csf-v11 <= 233, jm-v7-wip <= 0135) give the build 115b release tree; older
+# The defaults (csf-v11 <= 233, jm-v7-wip <= 0139) give the build 115c release tree; older
 # builds name their limits in worklogs/g615-dxvk/builds/rc5-universal.md.
 #
 # Usage:
-#   git -C /home/flux/src/mesa worktree add -b p115b-final /home/flux/src/mesa-115b-final 5a07217f
-#   scripts/prepare-rc5-tree.sh --mesa /home/flux/src/mesa-115b-final [--csf-max 233] [--wip-max 0135] [--base-tag <tag>]
+#   git -C /home/flux/src/mesa worktree add -b p115c-final /home/flux/src/mesa-115c-final 5a07217f
+#   scripts/prepare-rc5-tree.sh --mesa /home/flux/src/mesa-115c-final [--csf-max 233] [--wip-max 0139] [--base-tag <tag>]
 set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MESA=""; CSF_MAX=233; WIP_MAX=0135; BASE_TAG=""
+MESA=""; CSF_MAX=233; WIP_MAX=0139; BASE_TAG=""
 while [ $# -gt 0 ]; do case "$1" in
   --mesa) MESA="$2"; shift 2;;
   --csf-max) CSF_MAX="$2"; shift 2;;
