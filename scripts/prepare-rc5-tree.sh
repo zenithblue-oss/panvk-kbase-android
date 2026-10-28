@@ -10,10 +10,10 @@
 #
 # Usage:
 #   git -C /home/flux/src/mesa worktree add -b p115c-final /home/flux/src/mesa-115c-final 5a07217f
-#   scripts/prepare-rc5-tree.sh --mesa /home/flux/src/mesa-115c-final [--csf-max 233] [--wip-max 0139] [--base-tag <tag>]
+#   scripts/prepare-rc5-tree.sh --mesa /home/flux/src/mesa-115c-final [--csf-max 233] [--wip-max 0140] [--base-tag <tag>]
 set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MESA=""; CSF_MAX=233; WIP_MAX=0139; BASE_TAG=""
+MESA=""; CSF_MAX=233; WIP_MAX=0140; BASE_TAG=""
 while [ $# -gt 0 ]; do case "$1" in
   --mesa) MESA="$2"; shift 2;;
   --csf-max) CSF_MAX="$2"; shift 2;;

@@ -471,3 +471,24 @@ Strict check on a fresh 5a07217f worktree (`/home/flux/src/mesa-115c-final`, bra
 applied=228 csf-v11<=233 head=02fe7ef8` and `OK base=228 jm-v7-wip=134 head=15fd70c7`, with no drift, offset or fuzz
 lines (only the jm-v9/002 trailing-whitespace warning). Its tree `e945011a` equals the fix branch `p115c-fix`'s
 (`/home/flux/src/mesa-115c-fix`). driverInfo `Mesa 26.3.0-devel (git-15fd70c7c4)`.
+
+## Build 115d (2026-10-29): 0140, BC lowmem transcoder compile time; D3D11 `tir` is a DXVK bug
+
+| jm-v7-wip | what |
+|---|---|
+| 0140 | `nir_opt_large_constants` (256-byte threshold) in `panvk_preprocess_nir()` before the first `nir_opt_copy_prop_vars`. The BC lowmem ETC2/EAC transcoder (csf-v11 197, grown by 200/203/206/218) has global const LUTs of 1152, 512 and 128 entries; `nir_lower_variable_initializers` makes them per-element stores and copy_prop_vars tracked each store against each load in every optimization loop (`nir_compare_deref_paths`): 1.4 s to 4.3 s of CPU per transcode pipeline on the G615. PanProbe `bc_decode` without a shader cache: rc4 0.7 s, 115c 15.3 s, 115d 5.0 s (16/16 PASS; warm cache 0.2 s). `bc_perf` upload GPU times unchanged within noise. Small tables stay for the existing pass in `panvk_lower_nir()` |
+
+D3D11 FL 11_1 `tir` is not a driver bug. DXVK (3.1.1 and master) `D3D11RasterizerState::PromoteDesc()` builds
+the DESC2 from a DESC1 with `ForcedSampleCount = 0`, so `CreateRasterizerState1` drops the forced count and the
+attachment-less draw reaches the driver with `rasterizationSamples` 1 (diag on the TB336FU v9: raster 1, mask
+0x1, no 4-sample pipeline created). Through `ID3D11Device3::CreateRasterizerState2` the count is kept and PanVK
+runs the draw at 4 samples: `tests/tir` (native Vulkan, primary and secondary command buffers, inheritance
+samples 0 and 4) passes 8/8 on v9 and v11, and the d3d11fl `tir` test now checks the DESC2 path (PASS on the
+TB336FU with 115c). The DESC1 drop is a DXVK fix for later (runtimes/dxvk).
+
+The rc4-lowmem `bc_decode raw=FAIL copy=FAIL` tester result is the readback bug that csf-v11 197 already fixes;
+115c and 115d pass 16/16. `scripts/prepare-rc5-tree.sh` defaults are now `--csf-max 233 --wip-max 0140`. Strict
+check on a fresh 5a07217f worktree (`/var/tmp/panvk/mesa-115d-final`, branch `p115d-final`): `BASE-OK applied=228
+csf-v11<=233 head=df97bdeb` and `OK base=228 jm-v7-wip=135 head=b04b8ee3`, with no drift, offset or fuzz lines (only
+the jm-v9/002 trailing-whitespace warning). Its tree equals the dev branch `p115c-final` + 0140. driverInfo
+`Mesa 26.3.0-devel (git-b04b8ee36d)`.

@@ -1,0 +1,51 @@
+From 08159d49140ec70f26e8b1bd48a2d4af739ccd41 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 29 Oct 2026 03:08:53 +0530
+Subject: [PATCH] panvk: big constant tables to constant data before
+ copy_prop_vars
+
+The BC lowmem ETC2/EAC transcoder (panvk_bc_etc2.comp) carries global
+const LUTs of 1152, 512 and 128 entries. nir_lower_variable_initializers
+turns each into per-element stores, and nir_opt_copy_prop_vars in
+panvk_preprocess_nir() then tracks every store against every load
+through all the optimization loops (nir_compare_deref_paths). That is
+1.4 s to 4.3 s of CPU per transcode pipeline on a Mali-G615 phone:
+PanProbe bc_decode without a shader cache went from 0.7 s (rc4) to
+15.3 s.
+
+Run nir_opt_large_constants with a 256-byte threshold before the first
+copy_prop_vars, so the big tables become constant data at once. Small
+tables stay for the existing pass in panvk_lower_nir(), which runs
+after unrolling made their accesses direct. The pass appends to any
+existing constant_data, so the second run is safe.
+
+bc_decode on G615 v11 without cache: 15.3 s to 4.99 s, 16/16 PASS.
+bc_perf warm upload GPU times unchanged within noise.
+---
+ src/panfrost/vulkan/panvk_vX_shader.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/src/panfrost/vulkan/panvk_vX_shader.c b/src/panfrost/vulkan/panvk_vX_shader.c
+index c1ae6aef2b4..d735f2dae26 100644
+--- a/src/panfrost/vulkan/panvk_vX_shader.c
++++ b/src/panfrost/vulkan/panvk_vX_shader.c
+@@ -748,6 +748,16 @@ panvk_preprocess_nir(struct vk_physical_device *vk_pdev,
+    NIR_PASS(_, nir, nir_lower_global_vars_to_local);
+    NIR_PASS(_, nir, nir_split_var_copies);
+ 
++   /* Big constant tables (the BC lowmem transcoder's EAC LUTs, 1152 + 512 +
++    * 128 entries) become constant data before the first copy_prop_vars:
++    * otherwise every one of their initializer stores is tracked against every
++    * load through all the optimization loops (nir_compare_deref_paths), 1.4 s
++    * to 4.3 s of CPU per transcode pipeline on a G615 phone. Small tables
++    * stay for panvk_lower_nir()'s pass, after unrolling made their accesses
++    * direct.
++    */
++   NIR_PASS(_, nir, nir_opt_large_constants, NULL, 256);
++
+    NIR_PASS(_, nir, nir_opt_copy_prop_vars);
+    NIR_PASS(_, nir, nir_opt_combine_stores, nir_var_all);
+    NIR_PASS(_, nir, nir_opt_loop);
+-- 
+2.56.0
+
