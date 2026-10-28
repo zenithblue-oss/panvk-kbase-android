@@ -1,0 +1,100 @@
+PID 22855
+Tgid:	22855
+Pid:	22855
+PPid:	22093
+READY
+T 686838.035767086 go
+MESA: info: kbase: JM driver, uAPI version 11.38, page_size=4096
+MESA: info: kbase: MediaTek JM atom layout (frame_nr), stride 64, probe event 0x1
+MESA: info: kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: 13000197 Hz, keeping cntfrq 13000000 Hz
+MESA: info: panvk: gpu_id 0x90930010 variant 0 arch v9 model Mali-G57 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe03fe)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+PHYS 0 Mali-G57 MC2 vendor=0x13b5 device=0x90930010
+FEATURE tess=1 geom=1 vpsa=1 sync2=1
+QFAM 0 flags=0x7 count=1
+MEM 0 flags=0x1
+MEM 1 flags=0x7
+MEM 2 flags=0xb
+MESA: info: kbase: JM driver, uAPI version 11.38, page_size=4096
+MESA: info: kbase: MediaTek JM atom layout (frame_nr), stride 64, probe event 0x1
+MESA: info: kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: 12999999 Hz, keeping cntfrq 13000000 Hz
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: panvk: v9 tiler heaps 2 x 512 MiB (GROW_ON_GPF)
+FEATURES enabled tess geom vpsa sync2
+ALLOC buf host=0 local=1 type=0 bits=0x7 flags=0x1
+ALLOC buf host=1 local=0 type=1 bits=0x7 flags=0x7
+ALLOC buf host=1 local=0 type=1 bits=0x7 flags=0x7
+ALLOC buf host=1 local=0 type=1 bits=0x7 flags=0x7
+ALLOC buf host=1 local=0 type=1 bits=0x7 flags=0x7
+ALLOC img type=1 bits=0x7 flags=0x7
+MESA: info: panvk: gpu_prerast tessellation arena committed (96 MiB)
+MESA: info: panvk: gpu_prerast draw arena committed (64 MiB)
+MESA: info: panvk: v9 batch TLS 6144 KiB (stack 1824 B/thread), half 0, shared per half
+MESA: warning: panvk: v9 indirect tessellated draws get at most 32 iterations of up to 4096 patches; the output past them is dropped
+MESA: info: panvk: v9 batch TLS 6144 KiB (stack 1824 B/thread), half 1, shared per half
+MESA: info: panvk: v9 batch TLS 6144 KiB (stack 1824 B/thread), half 0, shared per half
+MESA: info: panvk: v9 batch TLS 6144 KiB (stack 1824 B/thread), half 1, shared per half
+FENCE zero r=0 dt=0.000
+T 686838.164292548 direct
+FENCE direct r=0 dt=0.002
+FENCE copy r=0 dt=0.002
+RAW n=24 id0=0 id1=1 id2=1 id3=1
+CASE direct n=24 expect=24
+HIST direct 12 12
+CASE direct PASS
+FENCE zero r=0 dt=0.000
+T 686838.166389240 direct-replay
+FENCE direct-replay r=0 dt=0.001
+FENCE copy r=0 dt=0.001
+RAW n=24 id0=0 id1=1 id2=0 id3=1
+CASE direct-replay n=24 expect=24
+HIST direct-replay 12 12
+CASE direct-replay PASS
+FENCE zero r=0 dt=0.000
+T 686838.167423394 indirect
+FENCE indirect r=0 dt=0.001
+FENCE copy r=0 dt=0.001
+RAW n=24 id0=1 id1=1 id2=0 id3=0
+CASE indirect n=24 expect=24
+HIST indirect 12 12
+CASE indirect PASS
+FENCE zero r=0 dt=0.000
+T 686838.168930394 indirect-replay
+FENCE indirect-replay r=0 dt=0.001
+FENCE copy r=0 dt=0.001
+RAW n=24 id0=1 id1=1 id2=0 id3=1
+CASE indirect-replay n=24 expect=24
+HIST indirect-replay 12 12
+CASE indirect-replay PASS
+FENCE zero r=0 dt=0.000
+T 686838.170362471 chunk
+FENCE chunk r=0 dt=0.010
+FENCE copy r=0 dt=0.010
+RAW n=3600 id0=0 id1=0 id2=1 id3=0
+CASE chunk n=3600 expect=3600
+HIST chunk 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6
+CASE chunk PASS
+FENCE zero r=0 dt=0.000
+T 686838.182163932 chunk-replay
+FENCE chunk-replay r=0 dt=0.010
+FENCE copy r=0 dt=0.011
+RAW n=3600 id0=1 id1=0 id2=2 id3=0
+CASE chunk-replay n=3600 expect=3600
+HIST chunk-replay 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6
+CASE chunk-replay PASS
+FENCE zero r=0 dt=0.000
+T 686838.195754086 indirect-chunk
+FENCE indirect-chunk r=0 dt=0.005
+FENCE copy r=0 dt=0.006
+RAW n=3600 id0=3 id1=2 id2=0 id3=3
+CASE indirect-chunk n=3600 expect=3600
+HIST indirect-chunk 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6
+CASE indirect-chunk PASS
+RESULT PASS
