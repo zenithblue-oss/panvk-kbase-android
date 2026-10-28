@@ -1,0 +1,13 @@
+PanPlay game loop, scenario 8 (d3d11fl), run 20261027-200956-s8
+Device: Google Pixel 7 (panther), SDK 33, SoC GS201
+Driver: Mesa 26.3.0-devel (git-ad5cd69141), sha256 d72e3059f659d117
+App: dev.zenithblue.panvklauncher 1.3.0 (43)
+Window: 10 s warm-up, 30 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d11fl_10_0 default   ok       986.7   946.3  1041.5    13.3    986.3    365.9    0.9    1.8    2.4     85.2  D3DFL: PASS api=d3d11 level=10_0 created gs:PASS,stream_out:PASS frames=47594 secs=48.0 fps=991.5 startup=1.5
+02  d3d11fl_10_1 default   ok       956.4   863.0  1016.6    20.0    957.3    350.0    0.9    1.8    2.4     85.3  D3DFL: PASS api=d3d11 level=10_1 created cube_array:PASS,gather4:PASS frames=45966 secs=48.0 fps=957.6 startup=1.4
+03  d3d11fl_11_0 default   ok       948.7   880.7  1007.3    20.2    947.1    350.1    0.9    1.8    2.4     86.3  D3DFL: PASS api=d3d11 level=11_0 created tess:PASS,compute:PASS frames=45712 secs=48.0 fps=952.3 startup=1.6
+04  d3d11fl_11_1 default   fail     930.2   865.3  1013.0    11.8    929.7    340.5    1.0    1.9    2.5     86.9  test failed: D3DFL: FAIL api=d3d11 level=11_1 created uav_vs:PASS,logic_op:PASS,tir:FAIL frames=44624 secs=48.0 fps=929.6 startup=1.5
+05  d3d10    default   ok       566.2   536.6   581.5    23.8    566.0    217.8    1.7    3.0    3.7     77.5  CUBE: PASS api=d3d10 frames=27076 (check pixels)
+06  d3d9     default   ok        90.0    89.7    90.4    40.1     90.0     52.8   11.1   13.8   15.8     89.9  CUBE: PASS api=d3d9 frames=4311 (check pixels)
