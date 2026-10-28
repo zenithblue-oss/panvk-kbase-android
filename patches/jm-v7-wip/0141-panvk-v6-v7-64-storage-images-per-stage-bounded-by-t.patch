@@ -1,0 +1,83 @@
+From 6323bafce6a1e6ac9ab2c59244a34a7b1bd0e5fe Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 29 Oct 2026 04:13:53 +0530
+Subject: [PATCH] panvk: v6/v7 64 storage images per stage, bounded by the
+ image table
+
+D3D12 feature level 11_1 needs 64 UAV slots per stage, and vkd3d-proton
+only reports it with maxPerStageDescriptorStorageImages >= 64. Bifrost
+advertised 32.
+
+Non update-after-bind storage images, storage texel buffers and uniform
+texel buffers all go through the image attribute table, two
+ATTRIBUTE_BUFFER entries each, and the ATTRIBUTE "Buffer index" field is
+9 bits (512 entries). The copy job (panvk_vX_meta_desc_copy.c) ORs the
+index into the descriptor, so an overflow corrupts the format bits. A
+vertex shader puts up to 16 vertex buffers first, which leaves 240 image
+entries per stage. Uniform texel buffers count against the sampled image
+limit, so 256 sampled + 32 storage images could already overflow it.
+
+Raise storage images to 64 and lower sampled images to 176 so the sum is
+240 (D3D has 128 SRV slots, zink caps at the 128 samplers). Static
+asserts tie both to the 9-bit index. Update-after-bind bindings are
+bindless (jm-v7 050) and keep their 2^20 limits. v9+ is unchanged.
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c |  6 ++++++
+ src/panfrost/vulkan/panvk_shader.h         | 21 ++++++++++++++++++---
+ 2 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index 74449313532..d3f9544a259 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -1211,6 +1211,12 @@ panvk_draw_prepare_vs_attribs(struct panvk_cmd_buffer *cmdbuf,
+       cmdbuf->state.gfx.vs.attr_key.valid = true;
+    }
+ 
++   /* Image entries follow the vertex buffers in the attribute buffer table,
++    * whose ATTRIBUTE "Buffer index" is 9 bits (panvk_shader.h). */
++   static_assert((MAX_VBS + MAX_PER_STAGE_IMG_TABLE_ENTRIES) * 2 <= 512,
++                 "VS image attribute buffers overflow the buffer index");
++   assert(num_imgs <= MAX_PER_STAGE_IMG_TABLE_ENTRIES);
++
+    if (num_imgs) {
+       cmdbuf->state.gfx.vs.desc.img_attrib_table =
+          attribs.gpu + (MAX_VS_ATTRIBS * pan_size(ATTRIBUTE));
+diff --git a/src/panfrost/vulkan/panvk_shader.h b/src/panfrost/vulkan/panvk_shader.h
+index af4cfa672e5..c669985ccc7 100644
+--- a/src/panfrost/vulkan/panvk_shader.h
++++ b/src/panfrost/vulkan/panvk_shader.h
+@@ -42,12 +42,27 @@ VkResult panvk_per_arch(create_depth_bounds_fs)(struct panvk_device *dev);
+ /* We could theoretically use the MAX_PER_SET values here (except for UBOs
+  * where we're really limited to 256 on the shader side), but on Bifrost we
+  * have to copy some tables around, which comes at an extra memory/processing
+- * cost, so let's pick something smaller. */
+-#define MAX_PER_STAGE_SAMPLED_IMAGES 256
++ * cost, so let's pick something smaller.
++ *
++ * Storage images, storage texel buffers and uniform texel buffers that are
++ * not update-after-bind all live in the image attribute table, two
++ * ATTRIBUTE_BUFFER entries each, and the ATTRIBUTE "Buffer index" field is
++ * 9 bits wide (512 entries). A vertex shader puts its vertex buffers (up to
++ * 16, two entries each) first, so a stage has room for 240 image table
++ * entries. Uniform texel buffers count against the sampled image limit and
++ * storage texel buffers against the storage image limit, so their sum must
++ * stay within 240: 64 storage images (D3D11/D3D12 FL 11_1 UAV slots) and
++ * 176 sampled images (D3D has 128 SRV slots). Update-after-bind bindings
++ * are bindless (jm-v7 050) and do not use the table. */
++#define MAX_PER_STAGE_IMG_TABLE_ENTRIES 240
++#define MAX_PER_STAGE_SAMPLED_IMAGES 176
+ #define MAX_PER_STAGE_SAMPLERS 128
+ #define MAX_PER_STAGE_UNIFORM_BUFFERS MAX_PER_SET_UNIFORM_BUFFERS
+ #define MAX_PER_STAGE_STORAGE_BUFFERS 64
+-#define MAX_PER_STAGE_STORAGE_IMAGES 32
++#define MAX_PER_STAGE_STORAGE_IMAGES 64
++static_assert(MAX_PER_STAGE_SAMPLED_IMAGES + MAX_PER_STAGE_STORAGE_IMAGES <=
++                 MAX_PER_STAGE_IMG_TABLE_ENTRIES,
++              "image attribute table overflows the 9-bit buffer index");
+ #define MAX_PER_STAGE_INPUT_ATTACHMENTS MAX_PER_SET_INPUT_ATTACHMENTS
+ 
+ #else
+-- 
+2.56.0
+

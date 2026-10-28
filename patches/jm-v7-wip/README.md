@@ -492,3 +492,19 @@ check on a fresh 5a07217f worktree (`/var/tmp/panvk/mesa-115d-final`, branch `p1
 csf-v11<=233 head=df97bdeb` and `OK base=228 jm-v7-wip=135 head=b04b8ee3`, with no drift, offset or fuzz lines (only
 the jm-v9/002 trailing-whitespace warning). Its tree equals the dev branch `p115c-final` + 0140. driverInfo
 `Mesa 26.3.0-devel (git-b04b8ee36d)`.
+
+## Build 115e (2026-10-29): 0141, v6/v7 64 storage images per stage (D3D12 FL 11_1)
+
+| jm-v7-wip | what |
+|---|---|
+| 0141 | v6/v7 `maxPerStageDescriptorStorageImages` 32 to 64 (`panvk_shader.h`), the vkd3d-proton FL 11_1 requirement. The limit is bounded by the hardware: non update-after-bind storage images, storage texel buffers and uniform texel buffers share the image attribute table, two ATTRIBUTE_BUFFER entries each, and ATTRIBUTE "Buffer index" is 9 bits (512). The VS puts up to 16 vertex buffers first, so a stage holds 240 image entries. Uniform texel buffers count against the sampled image limit, so 256 sampled + 32 storage could already overflow (the copy job ORs the index into the format bits). `maxPerStageDescriptorSampledImages` 256 to 176 (D3D: 128 SRVs; zink caps at the 128 samplers), so 176 + 64 = 240; static asserts in `panvk_shader.h` and the VS table setup (`jm/panvk_vX_cmd_draw.c`). `maxPerStageResources` 712 to 664. UAB bindings are bindless (0050) and keep 2^20; v9+ unchanged |
+
+Nothing else capped at 32: per-stage tables are sized from the shader's counts (`cmd_prepare_shader_desc_tables`,
+VS `num_vbs + num_imgs`), the copy job indexes by count, and Bifrost image access takes the attribute index in a
+register (`LEA_ATTR_TEX`/`LD_ATTR_TEX`; only the `LEA_ATTR_IMM` vertex-attribute form is limited to 16). Push sets
+(32 descriptors) go through the same table. Not device-tested yet (v6/v7 via Firebase later); local v9/v11 devices
+do not use this path. Strict check on a fresh 5a07217f worktree (`/var/tmp/panvk/mesa-115e-final`, branch
+`p115e-final`): `BASE-OK applied=228 csf-v11<=233 head=a5178c1b` and `OK base=228 jm-v7-wip=136 head=e7d836d5`,
+no offset or fuzz (only the jm-v9/002 whitespace warning); tree equals `p115d-final` + 0141. Driver
+`/var/tmp/panvk/build-out/2026-10-29-115e/libvulkan_panfrost.so`, sha256 `8dea43cf...89d1d`, BuildID `aad440ce...`,
+driverInfo `Mesa 26.3.0-devel (git-e7d836d5a6)`. `scripts/prepare-rc5-tree.sh` defaults: `--wip-max 0141`.
