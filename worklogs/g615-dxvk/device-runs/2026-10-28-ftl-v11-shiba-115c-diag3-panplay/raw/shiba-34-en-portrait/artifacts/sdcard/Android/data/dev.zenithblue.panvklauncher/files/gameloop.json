@@ -1,0 +1,20 @@
+{
+  "#": "2026-10-28 shiba (v11) 115c diag3: which tiler chunk size the D3D12 FL 11_1 tir pass (65536x65536, 256 layers, 32 tiler contexts of 8 layers) needs. diag1: the 115b one-layer budget (mask 0x1fe0, 171 KiB of bins per layer at 8 B per bin) OOMs with 1 and 2 MiB chunks, the layer budget (mask 0x1fc0, 43 KiB per layer) passes with 1 MiB. Here: 115b budget with 4 and 8 MiB chunks, layer budget with 512 KiB chunks (8 x 43 KiB = 350 KiB fits, twice that does not). Driver c1 = 115c diag3 (diag knobs + a draw sample-state log for the D3D11 tir pass). Deep-merged over assets/gameloop.json.",
+  "warmupSec": 5,
+  "measureSec": 10,
+  "tailSec": 3,
+  "gapSec": 3,
+  "startTimeoutSec": 120,
+  "screenshotAtSec": 6,
+  "installDrivers": { "c1": "panvk-115c-diag3.so" },
+  "envSets": {
+    "old-4m": { "note": "115b one-layer budget, 4 MiB chunks", "driver": "c1", "env": { "PANVK_DIAG_TILER_LOG": "1", "PANVK_TILER_LAYER_BUDGET": "0", "PANVK_KBASE_TILER_CHUNK_KB": "4096" } },
+    "fix-512k": { "note": "layer budget, 512 KiB chunks", "driver": "c1", "env": { "PANVK_DIAG_TILER_LOG": "1", "PANVK_KBASE_TILER_CHUNK_KB": "512" } },
+    "old-8m": { "note": "115b one-layer budget, 8 MiB chunks", "driver": "c1", "env": { "PANVK_DIAG_TILER_LOG": "1", "PANVK_TILER_LAYER_BUDGET": "0", "PANVK_KBASE_TILER_CHUNK_KB": "8192" } },
+    "fix-log": { "note": "layer budget, 1 MiB chunks, logs", "driver": "c1", "env": { "PANVK_DIAG_TILER_LOG": "1" } }
+  },
+  "scenarios": {
+    "1": { "name": "diag3-fl11_1", "tasks": ["d3d12fl_11_1"], "envSets": ["old-4m", "fix-512k", "old-8m"] },
+    "2": { "name": "diag3-d3d11-tir", "tasks": ["d3d11fl_11_1"], "envSets": ["fix-log"] }
+  }
+}

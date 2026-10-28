@@ -1,0 +1,8 @@
+PanPlay game loop, scenario 2 (diag3-d3d11-tir), run 20261028-023332-s2
+Device: Google Pixel 8 (shiba), SDK 34, SoC Tensor G3
+Driver: Mesa 26.3.0-devel (git-361e1e9976), sha256 d72e3059f659d117
+App: dev.zenithblue.panvklauncher 1.3.0 (43)
+Window: 5 s warm-up, 10 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d11fl_11_1 fix-log   fail     504.3   434.7   570.1    30.0    513.3     79.1    1.7    3.7    7.0     59.1  test failed: D3DFL: FAIL api=d3d11 level=11_1 created uav_vs:PASS,logic_op:PASS,tir:FAIL frames=9260 secs=18.0 fps=514.4 startup=2.0
