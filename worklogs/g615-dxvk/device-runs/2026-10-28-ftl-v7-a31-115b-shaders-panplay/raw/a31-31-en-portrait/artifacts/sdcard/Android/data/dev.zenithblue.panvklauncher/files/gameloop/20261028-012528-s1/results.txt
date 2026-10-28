@@ -1,0 +1,11 @@
+PanPlay game loop, scenario 1 (a31-shaders), run 20261028-012528-s1
+Device: samsung SM-A315N (a31), SDK 31, SoC MT6768V/CA
+Driver: Mesa 26.3.0-devel (git-ad5cd69141), sha256 d72e3059f659d117
+App: dev.zenithblue.panvklauncher 1.3.0 (43)
+Window: 5 s warm-up, 10 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d12fl_12_0 shaders   fail         -       -       -       -        -        -      -      -      -        -  no first frame after 120 s
+02  d3d12fl_11_1 shaders   fail     167.7   156.9   178.3    20.9        -        -      -      -      -     59.0  test failed: D3DFL: FAIL api=d3d12 level=11_1 created uav_vs:PASS,logic_op:FAIL,tir:REPORTED frames=3026 secs=18.0 fps=168.0 startup=52.7
+03  d3d11fl_11_1 shaders   fail      82.1    76.4    85.3    25.2     82.5     45.6   11.8   16.4   20.2     59.5  test failed: D3DFL: FAIL api=d3d11 level=11_1 created uav_vs:PASS,logic_op:PASS,tir:FAIL frames=1460 secs=18.0 fps=81.0 startup=3.2
+04  d3d12gears shaders   ok       102.5    98.8   106.5    34.3        -        -      -      -      -     44.4  DX12: PASS test=vkd3d-gears frames=1821 secs=18.0 fps=101.1 startup=7.3

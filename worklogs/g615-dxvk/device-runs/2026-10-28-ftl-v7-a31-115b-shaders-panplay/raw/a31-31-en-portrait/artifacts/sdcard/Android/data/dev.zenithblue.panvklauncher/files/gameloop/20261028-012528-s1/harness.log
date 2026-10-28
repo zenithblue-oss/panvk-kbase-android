@@ -1,0 +1,72 @@
+[01:25:28] scenario 1, results in /storage/emulated/0/Android/data/dev.zenithblue.panvklauncher/files/gameloop/20261028-012528-s1, results file content://com.google.testing.platform.android.driver.testloop.companion/files/game_loop_results/results_scenario_1.json
+[01:25:28] installing bundled imagefs_bionic rootfs (GameNative-hosted, licence unclear)
+[01:26:06]   Rootfs: 25%
+[01:26:33]   Rootfs: 50%
+[01:27:00]   Rootfs: 75%
+[01:27:28] installed imagefs/bionic
+[01:27:28] installing bundled proton-11.0-2-arm64ec (GameNative bionic)
+[01:27:31]   Wine (Proton): 25%
+[01:27:34]   Wine (Proton): 50%
+[01:27:37]   Wine (Proton): 75%
+[01:27:37]   Wine (Proton): 100%
+[01:27:37] installed Proton/11.0-2-arm64ec
+[01:27:37] installing bundled FEX-2609.1 ARM64EC + WOW64 (built from FEX-Emu source)
+[01:27:37]   FEX: 28%
+[01:27:37]   FEX: 57%
+[01:27:37]   FEX: 76%
+[01:27:37]   FEX: 100%
+[01:27:38] installed FEXCore/2609.1
+[01:27:38] installing bundled DXVK v3.1.1 + clear fix, ARM64EC + i686 (built from doitsujin/dxvk source)
+[01:27:38]   DXVK: 26%
+[01:27:38]   DXVK: 50%
+[01:27:38]   DXVK: 75%
+[01:27:38]   DXVK: 100%
+[01:27:38] installed DXVK/3.1.1-4-arm64ec
+[01:27:38] installing bundled vkd3d-proton 3.0.1-452-g22307558, ARM64EC + i686 (built from HansKristian-Work/vkd3d-proton source)
+[01:27:38]   vkd3d-proton: 28%
+[01:27:38]   vkd3d-proton: 53%
+[01:27:38]   vkd3d-proton: 78%
+[01:27:38]   vkd3d-proton: 100%
+[01:27:38] installed VKD3D/3.0.1-452-g22307558
+[01:27:38] installing bundled Box64 v0.4.5 wowbox64.dll, ARM64 PE (built from ptitSeb/box64 source)
+[01:27:38]   WoW64 emulator (32-bit): 36%
+[01:27:38]   WoW64 emulator (32-bit): 61%
+[01:27:38]   WoW64 emulator (32-bit): 86%
+[01:27:38]   WoW64 emulator (32-bit): 100%
+[01:27:38] installed Box64/0.4.5-2f47bdf
+[01:27:38] installing bundled PulseAudio 17.0 + AAudio sink, aarch64 bionic (built from pulseaudio source)
+[01:27:38]   PulseAudio: 36%
+[01:27:38]   PulseAudio: 55%
+[01:27:38]   PulseAudio: 92%
+[01:27:38]   PulseAudio: 100%
+[01:27:38] installed PulseAudio/17.0-2
+[01:27:38] installing bundled alsa-lib 1.2.16.1 + PanPlay AAudio PCM plugin, aarch64 bionic (built from source)
+[01:27:38]   ALSA: 52%
+[01:27:39]   ALSA: 100%
+[01:27:39] installed ALSA/1.2.16.1-2
+[01:27:39] installing bundled Mesa 26.2.4 EGL + Zink (OpenGL on Vulkan), aarch64 bionic (built from mesa-26.2.4.tar.xz)
+[01:27:39]   OpenGL (Mesa Zink): 25%
+[01:27:39]   OpenGL (Mesa Zink): 51%
+[01:27:39]   OpenGL (Mesa Zink): 76%
+[01:27:39]   OpenGL (Mesa Zink): 100%
+[01:27:39] installed Mesa-Zink/26.2.4-1
+[01:27:39] setting up the Wine prefix (wineboot -u)
+[01:29:27] Wine prefix ready
+[01:29:28] pass 1/4: d3d12fl_12_0 (D3D12 feature level 12_0 (ARM64EC)), env set shaders
+[01:31:42] pass 1: fail no first frame after 120 s fps=n/a
+[01:31:45] pass 2/4: d3d12fl_11_1 (D3D12 feature level 11_1 (ARM64EC)), env set shaders
+[01:32:42] first frame after 57 s: D3DFL: Present frame=1 hr=0x00000000
+[01:32:49] screenshot screen.png
+[01:33:00] D3DFL: FAIL api=d3d12 level=11_1 created uav_vs:PASS,logic_op:FAIL,tir:REPORTED frames=3026 secs=18.0 fps=168.0 startup=52.7
+[01:33:14] pass 2: fail test failed: D3DFL: FAIL api=d3d12 level=11_1 created uav_vs:PASS,logic_op:FAIL,tir:REPORTED frames=3026 secs=18.0 fps=168.0 startup=52.7 fps=167.6832649439947
+[01:33:17] pass 3/4: d3d11fl_11_1 (D3D11 feature level 11_1, DXVK (ARM64EC)), env set shaders
+[01:33:25] first frame after 7 s: D3DFL: Present frame=1 hr=0x00000000
+[01:33:31] screenshot screen.png
+[01:33:43] D3DFL: FAIL api=d3d11 level=11_1 created uav_vs:PASS,logic_op:PASS,tir:FAIL frames=1460 secs=18.0 fps=81.0 startup=3.2
+[01:33:47] pass 3: fail test failed: D3DFL: FAIL api=d3d11 level=11_1 created uav_vs:PASS,logic_op:PASS,tir:FAIL frames=1460 secs=18.0 fps=81.0 startup=3.2 fps=82.10271104253913
+[01:33:50] pass 4/4: d3d12gears (D3D12 gears, vkd3d-proton demo (ARM64EC)), env set shaders
+[01:34:01] first frame after 11 s: DX12: Present frame=1 hr=0x00000000
+[01:34:08] screenshot screen.png
+[01:34:19] DX12: PASS test=vkd3d-gears frames=1821 secs=18.0 fps=101.1 startup=7.3
+[01:34:26] pass 4: ok  fps=102.5102289063364
+[01:34:26] done: ok=false

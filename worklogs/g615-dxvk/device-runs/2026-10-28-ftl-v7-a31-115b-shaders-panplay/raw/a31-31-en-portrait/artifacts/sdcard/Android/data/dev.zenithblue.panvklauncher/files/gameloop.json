@@ -1,0 +1,15 @@
+{
+  "#": "2026-10-28 a31 (v7) shader dump on build 115b (bundled driver, no new driver): BIFROST_MESA_DEBUG=shaders,internal prints NIR, MIR and the Bifrost disassembly of every shader (meta and blend shaders included) to stderr = wine-run.log, shader cache off so every pipeline compiles. Targets: D3D12 FL 12_0 typed_uav_load event 0x51 (INSTR_INVALID_ENC), D3D12 FL 11_1 logic_op (ffffffff) vs D3D11 FL 11_1 logic_op (passes), gears red gear twice. Deep-merged over assets/gameloop.json.",
+  "warmupSec": 5,
+  "measureSec": 10,
+  "tailSec": 3,
+  "gapSec": 3,
+  "startTimeoutSec": 120,
+  "screenshotAtSec": 6,
+  "envSets": {
+    "shaders": { "note": "115b, shader dump", "env": { "BIFROST_MESA_DEBUG": "shaders,internal", "MESA_SHADER_CACHE_DISABLE": "true" } }
+  },
+  "scenarios": {
+    "1": { "name": "a31-shaders", "tasks": ["d3d12fl_12_0", "d3d12fl_11_1", "d3d11fl_11_1", "d3d12gears"], "envSets": ["shaders"] }
+  }
+}

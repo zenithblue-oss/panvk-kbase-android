@@ -1,0 +1,38 @@
+Game: D3D12 · Feature levels · ARM64EC
+Exe: /data/user/0/dev.zenithblue.panvklauncher/files/games/builtin/d3d12fl-arm64ec.exe
+Exit reason: User exit (overlay EXIT or Stop) + driver failure: VK_ERROR_DEVICE_LOST seen in logs
+Wine exit code: 137
+Duration: 103s
+Tombstone: none seen in logcat (apps cannot read /data/tombstones)
+Errors found: 31
+  [wine-run.log] 004c:err:ntoskrnl:ZwLoadDriver failed to create driver L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\nsiproxy": c0000142
+  [wine-run.log] 00d4:err:wgl:X11DRV_OpenGLInit OpenGL support is disabled.
+  [wine-run.log] info:  OpenVR: Failed to locate module
+  [wine-run.log] D3DFL: feature level=12_0 typed_uav_load FAIL submit/readback failed
+  [wine-run.log] D3DFL: feature level=12_0 binding_tier2 FAIL skipped: device lost
+  [wine-run.log] D3DFL: feature level=12_0 tiled_tier2 FAIL skipped: device lost
+  [wine-run.log] D3DFL: level 12_0 FAIL pass=0 fail=3 unsupported=0 reported=0 D3D12CreateDevice(12_0) failed, highest 11_0
+  [launcher.log] 004c:err:ntoskrnl:ZwLoadDriver failed to create driver L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\nsiproxy": c0000142
+  [launcher.log] 00b8:err:setupapi:do_file_copyW Unsupported style(s) 0x10
+  [launcher.log] 00d4:err:wgl:X11DRV_OpenGLInit OpenGL support is disabled.
+  [launcher.log] info:  OpenVR: Failed to locate module
+  [launcher.log] D3DFL: feature level=12_0 typed_uav_load FAIL submit/readback failed
+  [launcher.log] D3DFL: feature level=12_0 binding_tier2 FAIL skipped: device lost
+  [launcher.log] D3DFL: feature level=12_0 tiled_tier2 FAIL skipped: device lost
+  [launcher.log] D3DFL: level 12_0 FAIL pass=0 fail=3 unsupported=0 reported=0 D3D12CreateDevice(12_0) failed, highest 11_0
+  [dxvk-d3d12fl-arm64ec_dxgi.log] info:  OpenVR: Failed to locate module
+  [vkd3d.log] 0024:warn:openvr_instance_extensions: Failed to open VR registry key, status 2.
+  [vkd3d.log] 0024:warn:openvr_device_extensions: Failed to open VR registry key, status 2.
+  [vkd3d.log] 012c:info:vkd3d_pipeline_library_disk_cache_initial_setup: Failed to map read-only cache: vkd3d-proton.cache.
+  [vkd3d.log] 0134:info:vkd3d_pipeline_library_disk_cache_initial_setup: Failed to map read-only cache: vkd3d-proton.cache.
+  [vkd3d.log] 013c:info:vkd3d_pipeline_library_disk_cache_initial_setup: Failed to map read-only cache: vkd3d-proton.cache.
+  [vkd3d.log] 0144:info:vkd3d_pipeline_library_disk_cache_initial_setup: Failed to map read-only cache: vkd3d-proton.cache.
+  [vkd3d.log] 014c:info:vkd3d_pipeline_library_disk_cache_initial_setup: Failed to map read-only cache: vkd3d-proton.cache.
+  [vkd3d.log] 0150:err:vkd3d_wait_for_gpu_timeline_semaphore: Failed to wait for Vulkan timeline semaphore, vr -4.
+  [vkd3d.log] 0150:warn:d3d12_device_mark_as_removed: Device 0000000001690080 is lost (reason 0x887a0005, "VK_ERROR_DEVICE_LOST").
+  [logcat] 10-28 01:30:16.884 15768 16131 E MESA    : kbase: JM atom 3 failed: event=0x51 core_req=0x16
+  [logcat] 10-28 01:30:17.023 15768 15768 E libc    : Access denied finding property "vendor.mesa.vk.abort.on.device.loss"
+  [mesa-panvk.txt] D3DFL: feature level=12_0 binding_tier2 FAIL skipped: device lost
+  [mesa-panvk.txt] D3DFL: feature level=12_0 tiled_tier2 FAIL skipped: device lost
+  [mesa-panvk.txt] 10-28 01:30:16.884 15768 16131 E MESA    : kbase: JM atom 3 failed: event=0x51 core_req=0x16
+  [mesa-panvk.txt] 10-28 01:30:17.023 15768 15768 E libc    : Access denied finding property "vendor.mesa.vk.abort.on.device.loss"
