@@ -482,6 +482,17 @@ private fun ShortcutEditorSheet(
                 textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                 minLines = 2, modifier = Modifier.fillMaxWidth()
             )
+            // D3D12 feature level cap (vkd3d-proton VKD3D_FEATURE_LEVEL): edits that line of the env text above.
+            DropdownField(
+                "D3D12 feature level",
+                listOf("" to "Default (auto)") + listOf("11_0", "11_1", "12_0", "12_1").map { it to it },
+                ShortcutStore.parseEnv(env)["VKD3D_FEATURE_LEVEL"] ?: "",
+                { fl ->
+                    val m = ShortcutStore.parseEnv(env).toMutableMap()
+                    if (fl.isEmpty()) m.remove("VKD3D_FEATURE_LEVEL") else m["VKD3D_FEATURE_LEVEL"] = fl
+                    env = ShortcutStore.envText(m)
+                }
+            )
             DropdownField("Architecture", ARCHES.map { it to it }, arch, { arch = it })
             ResolutionField("Resolution", res, { res = it }, defaultLabel = "Launcher default")
             FpsLimitField(fps) { fps = it }
