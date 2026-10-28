@@ -1,0 +1,12 @@
+PanPlay game loop, scenario 7 (d3d12fl), run 20261029-044517-s7
+Device: LENOVO TB336FU (TB336FU), SDK 36, SoC MT8755
+Driver: Mesa 26.3.0-devel (git-e7d836d5a6), sha256 8dea43cf61df8008
+App: dev.zenithblue.panvklauncher 1.3.0 (44)
+Window: 10 s warm-up, 30 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d12fl_11_0 default   ok       396.9   369.7   445.3    29.6        -        -      -      -      -     90.0  D3DFL: PASS api=d3d12 level=11_0 created tess:PASS,gs:PASS,compute:PASS,mrt:PASS,msaa4x:PASS frames=19080 secs=48.0 fps=397.5 startup=1.6
+02  d3d12fl_11_1 default   ok       419.3   392.5   442.0    26.2        -        -      -      -      -     90.0  D3DFL: PASS api=d3d12 level=11_1 created uav_vs:PASS,logic_op:PASS,tir:REPORTED frames=20133 secs=48.0 fps=419.4 startup=2.7
+03  d3d12fl_12_0 default   ok       422.2   401.9   449.8    27.8        -        -      -      -      -     90.0  D3DFL: UNSUPPORTED api=d3d12 level=12_0 not_created typed_uav_load:PASS,binding_tier2:PASS,tiled_tier2:UNSUPPORTED frames=20192 secs=48.0 fps=420.6 startup=1.5
+04  d3d12fl_12_1 default   ok       409.4   394.9   424.4    27.3        -        -      -      -      -     90.0  D3DFL: UNSUPPORTED api=d3d12 level=12_1 not_created rov:UNSUPPORTED,conservative:UNSUPPORTED frames=19605 secs=48.0 fps=408.4 startup=1.7
+05  d3d12fl_12_2 default   ok       433.5   418.5   460.9    26.4        -        -      -      -      -     90.0  D3DFL: UNSUPPORTED api=d3d12 level=12_2 not_created sm6_5:REPORTED,mesh_shader:UNSUPPORTED,dxr1_1:UNSUPPORTED,vrs_tier2:UNSUPPORTED,sampler_feedback:REPORTED frames=20925 secs=48.0 fps=435.9 startup=1.4

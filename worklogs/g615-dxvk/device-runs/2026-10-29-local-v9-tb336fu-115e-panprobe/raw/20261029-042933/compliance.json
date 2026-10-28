@@ -1,0 +1,2727 @@
+{
+  "dxvk": {
+    "title": "DXVK compliance",
+    "pass": true,
+    "status": "RESULT PASS",
+    "hardMissing": 0,
+    "softMissing": 11,
+    "info": [
+      "device Mali-G57 MC2",
+      "apiVersion 1.3.363",
+      "typed_uav_load 18\/18",
+      "d3d11_max_feature_level 11_1",
+      "hard 56\/56 available, soft 27\/38 available"
+    ],
+    "items": [
+      {
+        "name": "apiVersion >= 1.3",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "graphics+compute queue",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "gpu_prerast_slice",
+          "pipeline_stats"
+        ]
+      },
+      {
+        "name": "maxPushConstantsSize >= 256",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_KHR_swapchain",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "swapchain_lifecycle"
+        ]
+      },
+      {
+        "name": "VK_KHR_load_store_op_none",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "draw_params"
+        ]
+      },
+      {
+        "name": "VK_KHR_maintenance5",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "draw_params"
+        ]
+      },
+      {
+        "name": "VK_KHR_maintenance6",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "draw_params"
+        ]
+      },
+      {
+        "name": "VK_EXT_depth_clip_enable.depthClipEnable",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "gs_viewport_depth",
+          "vs_viewport_index"
+        ]
+      },
+      {
+        "name": "VK_EXT_robustness2.robustBufferAccess2",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "robustness2"
+        ]
+      },
+      {
+        "name": "VK_EXT_robustness2.nullDescriptor",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "robustness2",
+          "bachata_exec"
+        ]
+      },
+      {
+        "name": "depthBiasClamp",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "depth_stencil"
+        ]
+      },
+      {
+        "name": "depthClamp",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "gs_viewport_depth",
+          "vs_viewport_index"
+        ]
+      },
+      {
+        "name": "dualSrcBlend",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "blend"
+        ]
+      },
+      {
+        "name": "fillModeNonSolid",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "fill_mode"
+        ]
+      },
+      {
+        "name": "fragmentStoresAndAtomics",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "vmr_secondary"
+        ]
+      },
+      {
+        "name": "fullDrawIndexUint32",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "geometryShader",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "geometry",
+          "gs_viewport_depth",
+          "gs_tess_primitive_id"
+        ]
+      },
+      {
+        "name": "imageCubeArray",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "sampler"
+        ]
+      },
+      {
+        "name": "independentBlend",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "blend"
+        ]
+      },
+      {
+        "name": "multiDrawIndirect",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "large_draw"
+        ]
+      },
+      {
+        "name": "multiViewport",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "multi_viewport"
+        ]
+      },
+      {
+        "name": "occlusionQueryPrecise",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "occlusion_query"
+        ]
+      },
+      {
+        "name": "robustBufferAccess",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "robustness2"
+        ]
+      },
+      {
+        "name": "sampleRateShading",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "vmr_secondary"
+        ]
+      },
+      {
+        "name": "samplerAnisotropy",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "sampler"
+        ]
+      },
+      {
+        "name": "shaderClipDistance",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "clip_cull"
+        ]
+      },
+      {
+        "name": "shaderCullDistance",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "clip_cull"
+        ]
+      },
+      {
+        "name": "shaderImageGatherExtended",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "sampler"
+        ]
+      },
+      {
+        "name": "shaderInt16",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "shader_arith"
+        ]
+      },
+      {
+        "name": "shaderInt64",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "shader_arith",
+          "bachata_exec"
+        ]
+      },
+      {
+        "name": "shaderSampledImageArrayDynamicIndexing",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "textureCompressionBC",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "bc_decode",
+          "bc_perf"
+        ]
+      },
+      {
+        "name": "shaderDrawParameters",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "draw_params"
+        ]
+      },
+      {
+        "name": "storageBuffer16BitAccess",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "shader_arith"
+        ]
+      },
+      {
+        "name": "bufferDeviceAddress",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "descriptor_model"
+        ]
+      },
+      {
+        "name": "descriptorIndexing",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "descriptor_model"
+        ]
+      },
+      {
+        "name": "storageBuffer8BitAccess",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "shader_arith"
+        ]
+      },
+      {
+        "name": "descriptorBindingSampledImageUpdateAfterBind",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "descriptor_model"
+        ]
+      },
+      {
+        "name": "descriptorBindingUpdateUnusedWhilePending",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "descriptor_model"
+        ]
+      },
+      {
+        "name": "descriptorBindingPartiallyBound",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "descriptor_model"
+        ]
+      },
+      {
+        "name": "hostQueryReset",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "occlusion_query"
+        ]
+      },
+      {
+        "name": "runtimeDescriptorArray",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "descriptor_model"
+        ]
+      },
+      {
+        "name": "samplerMirrorClampToEdge",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "sampler"
+        ]
+      },
+      {
+        "name": "scalarBlockLayout",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "descriptor_model"
+        ]
+      },
+      {
+        "name": "shaderInt8",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "shader_arith"
+        ]
+      },
+      {
+        "name": "timelineSemaphore",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "vkd3d_timeline"
+        ]
+      },
+      {
+        "name": "uniformBufferStandardLayout",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "vulkanMemoryModel",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "inlineUniformBlock",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "descriptor_model"
+        ]
+      },
+      {
+        "name": "computeFullSubgroups",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "shader_arith"
+        ]
+      },
+      {
+        "name": "dynamicRendering",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "vmr_secondary",
+          "bachata_dynamic_render"
+        ]
+      },
+      {
+        "name": "maintenance4",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "shaderDemoteToHelperInvocation",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "shader_arith"
+        ]
+      },
+      {
+        "name": "shaderZeroInitializeWorkgroupMemory",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "shader_arith"
+        ]
+      },
+      {
+        "name": "subgroupSizeControl",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "shader_arith"
+        ]
+      },
+      {
+        "name": "synchronization2",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "csf_event",
+          "bachata_dynamic_render"
+        ]
+      },
+      {
+        "name": "drawIndirectFirstInstance (FL11_0)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "draw_params"
+        ]
+      },
+      {
+        "name": "tessellationShader (FL11_0)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "tessellation",
+          "tess_cond_state",
+          "gs_tess_primitive_id",
+          "tess_perf"
+        ]
+      },
+      {
+        "name": "logicOp (FL11_1)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "blend"
+        ]
+      },
+      {
+        "name": "vertexPipelineStoresAndAtomics (FL11_1)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "vertex_stores"
+        ]
+      },
+      {
+        "name": "tiled resources tier 2 (FL12_0)",
+        "category": "soft",
+        "status": "missing",
+        "note": "D3D11 capped at FL11_1",
+        "tested_by": []
+      },
+      {
+        "name": "typed UAV load, 18 formats (FL12_0)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_conservative_rasterization (FL12_1)",
+        "category": "soft",
+        "status": "missing",
+        "note": "D3D11 capped at FL12_0",
+        "tested_by": []
+      },
+      {
+        "name": "fragmentShaderPixelInterlock (FL12_1)",
+        "category": "soft",
+        "status": "missing",
+        "note": "D3D11 capped at FL12_0",
+        "tested_by": []
+      },
+      {
+        "name": "D24_UNORM_S8_UINT or D32_SFLOAT_S8_UINT",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "depth_stencil"
+        ]
+      },
+      {
+        "name": "D16_UNORM_S8_UINT (D3D9)",
+        "category": "soft",
+        "status": "missing",
+        "note": "D3D9 D16S8 emulated",
+        "tested_by": []
+      },
+      {
+        "name": "A8_UNORM",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "depthBounds",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "depth_bounds"
+        ]
+      },
+      {
+        "name": "pipelineStatisticsQuery",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "pipeline_stats"
+        ]
+      },
+      {
+        "name": "variableMultisampleRate",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "vmr_secondary"
+        ]
+      },
+      {
+        "name": "wideLines",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "largePoints",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "shaderFloat64",
+        "category": "soft",
+        "status": "missing",
+        "note": "no D3D11 double-precision shader ops",
+        "tested_by": []
+      },
+      {
+        "name": "shaderFloat16",
+        "category": "soft",
+        "status": "missing",
+        "note": "fp16 math in fp32",
+        "tested_by": []
+      },
+      {
+        "name": "drawIndirectCount",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "large_draw"
+        ]
+      },
+      {
+        "name": "shaderOutputViewportIndex",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "vs_viewport_index"
+        ]
+      },
+      {
+        "name": "shaderOutputLayer",
+        "category": "soft",
+        "status": "missing",
+        "note": "VS\/DS render target array index not exposed",
+        "tested_by": []
+      },
+      {
+        "name": "samplerFilterMinmax",
+        "category": "soft",
+        "status": "missing",
+        "note": "min\/max filtering samplers unsupported",
+        "tested_by": []
+      },
+      {
+        "name": "robustImageAccess \/ robustImageAccess2",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "robust_image_access2"
+        ]
+      },
+      {
+        "name": "VK_EXT_transform_feedback",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "xfb",
+          "large_draw"
+        ]
+      },
+      {
+        "name": "VK_EXT_vertex_attribute_divisor",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "draw_params"
+        ]
+      },
+      {
+        "name": "VK_EXT_custom_border_color",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "sampler",
+          "bachata_dynamic_render"
+        ]
+      },
+      {
+        "name": "VK_EXT_border_color_swizzle",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_extended_dynamic_state3",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_graphics_pipeline_library",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_line_rasterization",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_depth_bias_control",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "depth_stencil"
+        ]
+      },
+      {
+        "name": "VK_EXT_non_seamless_cube_map",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "sampler"
+        ]
+      },
+      {
+        "name": "VK_EXT_memory_priority",
+        "category": "soft",
+        "status": "missing",
+        "note": "no allocation priorities",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_memory_budget",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_multi_draw",
+        "category": "soft",
+        "status": "missing",
+        "note": "multi-draw batching off",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_attachment_feedback_loop_layout",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_shader_stencil_export",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_sample_locations",
+        "category": "soft",
+        "status": "missing",
+        "note": "custom sample positions ignored",
+        "tested_by": []
+      }
+    ]
+  },
+  "bachata_s4": {
+    "title": "Bachata S4 compliance",
+    "pass": true,
+    "status": "RESULT PASS",
+    "hardMissing": 0,
+    "softMissing": 9,
+    "info": [
+      "apiVersion=1.3.363 robustBufferAccess2=1 robustImageAccess2=1 nullDescriptor=1 robustImageAccess=1"
+    ],
+    "items": [
+      {
+        "name": "apiVersion",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_KHR_swapchain",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "swapchain_lifecycle"
+        ]
+      },
+      {
+        "name": "VK_EXT_robustness2",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "robustness2",
+          "bachata_exec"
+        ]
+      },
+      {
+        "name": "robustBufferAccess2",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "robustness2"
+        ]
+      },
+      {
+        "name": "nullDescriptor",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "robustness2",
+          "bachata_exec"
+        ]
+      },
+      {
+        "name": "robustImageAccess",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "robust_image_access2"
+        ]
+      },
+      {
+        "name": "graphics_queue",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "gpu_prerast_slice",
+          "pipeline_stats"
+        ]
+      },
+      {
+        "name": "timelineSemaphore",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "vkd3d_timeline"
+        ]
+      },
+      {
+        "name": "bufferDeviceAddress",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "descriptor_model"
+        ]
+      },
+      {
+        "name": "shaderInt8",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "shader_arith"
+        ]
+      },
+      {
+        "name": "storageBuffer8BitAccess",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "shader_arith"
+        ]
+      },
+      {
+        "name": "scalarBlockLayout",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "descriptor_model"
+        ]
+      },
+      {
+        "name": "uniformBufferStandardLayout",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "shaderBufferInt64Atomics",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "bachata_exec"
+        ]
+      },
+      {
+        "name": "shaderSharedInt64Atomics",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "bachata_exec"
+        ]
+      },
+      {
+        "name": "storageBuffer16BitAccess",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "shader_arith"
+        ]
+      },
+      {
+        "name": "shaderDrawParameters",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "draw_params"
+        ]
+      },
+      {
+        "name": "synchronization2",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "csf_event",
+          "bachata_dynamic_render"
+        ]
+      },
+      {
+        "name": "dynamicRendering",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "vmr_secondary",
+          "bachata_dynamic_render"
+        ]
+      },
+      {
+        "name": "maintenance4",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "shaderDemoteToHelperInvocation",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "shader_arith"
+        ]
+      },
+      {
+        "name": "subgroupSizeControl",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "shader_arith"
+        ]
+      },
+      {
+        "name": "shaderInt64",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "shader_arith",
+          "bachata_exec"
+        ]
+      },
+      {
+        "name": "shaderInt16",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "shader_arith"
+        ]
+      },
+      {
+        "name": "imageCubeArray",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "sampler"
+        ]
+      },
+      {
+        "name": "independentBlend",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "blend"
+        ]
+      },
+      {
+        "name": "geometryShader",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "geometry",
+          "gs_viewport_depth",
+          "gs_tess_primitive_id"
+        ]
+      },
+      {
+        "name": "tessellationShader",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "tessellation",
+          "tess_cond_state",
+          "gs_tess_primitive_id",
+          "tess_perf"
+        ]
+      },
+      {
+        "name": "dualSrcBlend",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "blend"
+        ]
+      },
+      {
+        "name": "depthClamp",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "gs_viewport_depth",
+          "vs_viewport_index"
+        ]
+      },
+      {
+        "name": "sampleRateShading",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "vmr_secondary"
+        ]
+      },
+      {
+        "name": "fillModeNonSolid",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "fill_mode"
+        ]
+      },
+      {
+        "name": "multiViewport",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "multi_viewport"
+        ]
+      },
+      {
+        "name": "fragmentStoresAndAtomics",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "vmr_secondary"
+        ]
+      },
+      {
+        "name": "vertexPipelineStoresAndAtomics",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "vertex_stores"
+        ]
+      },
+      {
+        "name": "shaderStorageImageExtendedFormats",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "shaderClipDistance",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "clip_cull"
+        ]
+      },
+      {
+        "name": "shaderStorageImageWriteWithoutFormat",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "bachata_storage_fmtless"
+        ]
+      },
+      {
+        "name": "shaderStorageImageReadWithoutFormat",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "bachata_storage_fmtless"
+        ]
+      },
+      {
+        "name": "customBorderColors",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "sampler",
+          "bachata_dynamic_render"
+        ]
+      },
+      {
+        "name": "customBorderColorWithoutFormat",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "sampler"
+        ]
+      },
+      {
+        "name": "depthClipControl",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "bachata_dynamic_render"
+        ]
+      },
+      {
+        "name": "depthClipEnable",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "gs_viewport_depth",
+          "vs_viewport_index"
+        ]
+      },
+      {
+        "name": "vertexInputDynamicState",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "provokingVertexLast",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "vertexAttributeInstanceRateDivisor",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "draw_params"
+        ]
+      },
+      {
+        "name": "maintenance8",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "attachmentFeedbackLoopLayout",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "attachmentFeedbackLoopDynamicState",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "minLod",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "maxPushConstantsSize",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "minStorageBufferOffsetAlignment",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "minUniformBufferOffsetAlignment",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "maxComputeSharedMemorySize",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "maxSamplerAllocationCount",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "maxPerStageDescriptorStorageBuffers",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "maxBoundDescriptorSets",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "format_B10G11R11_UFLOAT_PACK32_sampled_color",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "format_A2B10G10R10_UNORM_PACK32_sampled_color",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "format_A2R10G10B10_UNORM_PACK32_sampled_color",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "format_R16G16B16A16_SFLOAT_sampled_color",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "format_R32G32B32A32_SFLOAT_sampled_color",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "format_R8G8B8A8_UNORM_sampled_color",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "format_B8G8R8A8_UNORM_sampled_color",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "format_R32_UINT_storage",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "format_R32_SFLOAT_storage",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "bachata_storage_fmtless"
+        ]
+      },
+      {
+        "name": "format_R8G8B8A8_UNORM_storage",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "bachata_storage_fmtless"
+        ]
+      },
+      {
+        "name": "format_R16G16B16A16_SFLOAT_storage",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "bachata_storage_fmtless"
+        ]
+      },
+      {
+        "name": "format_R32G32B32A32_SFLOAT_storage",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "bachata_storage_fmtless"
+        ]
+      },
+      {
+        "name": "format_R32_UINT_storage_atomic",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "format_D32_SFLOAT_depth_stencil",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "depth_stencil"
+        ]
+      },
+      {
+        "name": "format_D16_UNORM_depth_stencil",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "format_D24S8_or_D32S8_depth_stencil",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "depth_stencil"
+        ]
+      },
+      {
+        "name": "VK_KHR_push_descriptor",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_vertex_attribute_divisor",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "draw_params"
+        ]
+      },
+      {
+        "name": "VK_EXT_extended_dynamic_state3",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_vertex_input_dynamic_state",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_custom_border_color",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "sampler",
+          "bachata_dynamic_render"
+        ]
+      },
+      {
+        "name": "VK_EXT_depth_clip_control",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "bachata_dynamic_render"
+        ]
+      },
+      {
+        "name": "VK_EXT_depth_clip_enable",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "gs_viewport_depth",
+          "vs_viewport_index"
+        ]
+      },
+      {
+        "name": "primitiveTopologyListRestart",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "primitiveTopologyPatchListRestart",
+        "category": "soft",
+        "status": "missing",
+        "note": "patch list restart disabled",
+        "tested_by": []
+      },
+      {
+        "name": "VK_KHR_fragment_shader_barycentric",
+        "category": "soft",
+        "status": "missing",
+        "note": "flat\/manual interpolation",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_provoking_vertex",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_shader_stencil_export",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_AMD_shader_image_load_store_lod",
+        "category": "soft",
+        "status": "missing",
+        "note": "per-mip descriptors; storage read with lod aborts",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_shader_atomic_float",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_shader_atomic_float2",
+        "category": "soft",
+        "status": "missing",
+        "note": "int atomic emulation",
+        "tested_by": []
+      },
+      {
+        "name": "VK_KHR_workgroup_memory_explicit_layout",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_image_2d_view_of_3d",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_image_view_min_lod",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_KHR_maintenance8",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_attachment_feedback_loop_layout+dynamic_state",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_depth_range_unrestricted",
+        "category": "soft",
+        "status": "missing",
+        "note": "depth clamped to 0..1",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_memory_budget",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_KHR_shader_clock",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "shaderFloat64",
+        "category": "soft",
+        "status": "missing",
+        "note": "fp64 lowered to fp32",
+        "tested_by": []
+      },
+      {
+        "name": "shaderFloat16",
+        "category": "soft",
+        "status": "missing",
+        "note": "fp16 via fp32",
+        "tested_by": []
+      },
+      {
+        "name": "depthBounds",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "depth_bounds"
+        ]
+      },
+      {
+        "name": "logicOp",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "blend"
+        ]
+      },
+      {
+        "name": "wideLines",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "depthBiasClamp",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "depth_stencil"
+        ]
+      },
+      {
+        "name": "samplerAnisotropy",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "sampler"
+        ]
+      },
+      {
+        "name": "pipelineStatisticsQuery",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "pipeline_stats"
+        ]
+      },
+      {
+        "name": "textureCompressionETC2",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "drawIndirectCount",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "large_draw"
+        ]
+      },
+      {
+        "name": "shaderOutputLayer",
+        "category": "soft",
+        "status": "missing",
+        "note": "layered rendering fallback",
+        "tested_by": []
+      },
+      {
+        "name": "separateDepthStencilLayouts",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "hostQueryReset",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "occlusion_query"
+        ]
+      },
+      {
+        "name": "samplerMirrorClampToEdge",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "sampler"
+        ]
+      },
+      {
+        "name": "multiDrawIndirect",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "large_draw"
+        ]
+      },
+      {
+        "name": "subgroup_wave64",
+        "category": "soft",
+        "status": "missing",
+        "note": "wave64 forced; else lane semantics may break",
+        "tested_by": []
+      },
+      {
+        "name": "subgroup_quad",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "bc_formats",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "bc_decode",
+          "bc_perf"
+        ]
+      }
+    ]
+  },
+  "vkd3d": {
+    "title": "vkd3d compliance",
+    "pass": true,
+    "status": "RESULT PASS",
+    "hardMissing": 0,
+    "softMissing": 12,
+    "info": [
+      "device Mali-G57 MC2",
+      "apiVersion 1.3.363",
+      "variant wine-vkd3d-1.18 (PanPlay Proton 11.0-2 d3d12.dll); proton items = vkd3d-proton 2230755",
+      "typed_uav_load 18\/18",
+      "wine_feature_level 11_1 (12_0+ only via VKD3D_CAPS_OVERRIDE; tiled tier forced 0)",
+      "wine_shader_model 6_0 (fixed cap, device.c:3637-3647)",
+      "wine_binding_tier 3",
+      "wine_descriptor_heaps vulkan (update-after-bind)",
+      "uab_per_stage sampled=1048576 storage_img=1048576 ssbo=1048576 ubo=1048576 samplers=1048576",
+      "proton_device_create ok (0 hard gaps)",
+      "proton_feature_level 11_1",
+      "proton_shader_model 6_8",
+      "proton_binding_tier 3",
+      "proton_tiled_tier 0 conservative_tier 0",
+      "proton_descriptor_model mutable_sets",
+      "hard 24\/24 available, soft 64\/76 available"
+    ],
+    "items": [
+      {
+        "name": "VK_KHR_maintenance1",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_KHR_maintenance2",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_KHR_shader_draw_parameters",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "draw_params"
+        ]
+      },
+      {
+        "name": "graphics+compute queue",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "gpu_prerast_slice",
+          "pipeline_stats"
+        ]
+      },
+      {
+        "name": "shaderStorageImageWriteWithoutFormat (UAV clear pipelines)",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "bachata_storage_fmtless"
+        ]
+      },
+      {
+        "name": "nullDescriptor or RGBA8 sampled+storage (null resources)",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "depthBiasClamp (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "depthClamp (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "drawIndirectFirstInstance (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "dualSrcBlend (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "fragmentStoresAndAtomics (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "fullDrawIndexUint32 (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "geometryShader (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "imageCubeArray (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "independentBlend (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "multiDrawIndirect (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "multiViewport (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "occlusionQueryPrecise (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "pipelineStatisticsQuery (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "samplerAnisotropy (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "sampleRateShading (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "shaderClipDistance (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "shaderCullDistance (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "shaderImageGatherExtended (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "tessellationShader (FL11_0 checklist)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "maxPushConstantsSize >= 256",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "maxComputeSharedMemorySize >= 32768",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "viewportBoundsRange +-32768",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "viewportSubPixelBits >= 8",
+        "category": "soft",
+        "status": "missing",
+        "note": "warning only",
+        "tested_by": []
+      },
+      {
+        "name": "maxPerStageDescriptorUniformBuffers >= 15",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "logicOp (FL11_1)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "blend"
+        ]
+      },
+      {
+        "name": "vertexPipelineStoresAndAtomics (FL11_1)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "vertex_stores"
+        ]
+      },
+      {
+        "name": "64 per-stage storage buffers+images (FL11_1)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "TypedUAVLoadAdditionalFormats (ReadWithoutFormat + 15 storage formats)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "ResourceBindingTier 3 (samplers > 16, UBOs > 14)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_descriptor_indexing",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "descriptor_model"
+        ]
+      },
+      {
+        "name": "update-after-bind UBO\/sampled\/storage image\/texel buffers (Vulkan heaps)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "robustBufferAccessUpdateAfterBind",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_mutable_descriptor_type",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "vkd3d_heap"
+        ]
+      },
+      {
+        "name": "VK_KHR_push_descriptor",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_robustness2.nullDescriptor",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "robustness2",
+          "bachata_exec"
+        ]
+      },
+      {
+        "name": "VK_KHR_timeline_semaphore",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "vkd3d_timeline"
+        ]
+      },
+      {
+        "name": "VK_EXT_transform_feedback",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "xfb",
+          "large_draw"
+        ]
+      },
+      {
+        "name": "VK_EXT_conditional_rendering",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "xfb",
+          "large_draw",
+          "tess_cond_state"
+        ]
+      },
+      {
+        "name": "VK_EXT_vertex_attribute_divisor (spec >= 3)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_fragment_shader_interlock pixel+sample (ROVs)",
+        "category": "soft",
+        "status": "missing",
+        "note": "ROVsSupported false; FL12_1 blocked",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_depth_clip_enable",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "gs_viewport_depth",
+          "vs_viewport_index"
+        ]
+      },
+      {
+        "name": "VK_EXT_shader_stencil_export",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_shader_viewport_index_layer",
+        "category": "soft",
+        "status": "missing",
+        "note": "VS viewport\/RT index needs GS emulation",
+        "tested_by": [
+          "vs_viewport_index"
+        ]
+      },
+      {
+        "name": "VK_EXT_shader_demote_to_helper_invocation",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_KHR_zero_initialize_workgroup_memory",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_texel_buffer_alignment",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_KHR_draw_indirect_count",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "large_draw"
+        ]
+      },
+      {
+        "name": "VK_KHR_sampler_mirror_clamp_to_edge",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "sampler"
+        ]
+      },
+      {
+        "name": "VK_EXT_4444_formats",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "VK_EXT_calibrated_timestamps",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "depthBounds",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "depth_bounds"
+        ]
+      },
+      {
+        "name": "shaderInt64",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "shader_arith",
+          "bachata_exec"
+        ]
+      },
+      {
+        "name": "shaderFloat64",
+        "category": "soft",
+        "status": "missing",
+        "note": "DoublePrecisionFloatShaderOps false",
+        "tested_by": []
+      },
+      {
+        "name": "D24_UNORM_S8_UINT depth-stencil",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "depth_stencil"
+        ]
+      },
+      {
+        "name": "WaveOps (subgroup basic\/vote\/arith\/ballot\/shuffle\/quad in CS+FS)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: apiVersion >= 1.3",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: shaderDrawParameters",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: samplerMirrorClampToEdge",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: robustBufferAccess2",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "robustness2"
+        ]
+      },
+      {
+        "name": "proton: robustImageAccess2",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "robust_image_access2"
+        ]
+      },
+      {
+        "name": "proton: nullDescriptor",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: VK_KHR_push_descriptor",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: maintenance5",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: maintenance6",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: EXT_vertex_attribute_divisor rate+zero divisor",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: transformFeedbackQueries",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: storage texel buffer single-texel alignment",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: uniform texel buffer single-texel alignment",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: descriptorIndexing",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: shaderStorageTexelBufferArrayNonUniformIndexing",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: shaderStorageImageArrayNonUniformIndexing",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: descriptorBindingVariableDescriptorCount",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: 1M per-stage UAB sampled\/storage images + SSBOs (or descriptor buffer)",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: graphics+compute queue (used, unchecked)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: timelineSemaphore (used, unchecked)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: bufferDeviceAddress (used, unchecked)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: synchronization2 (used, unchecked)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: dynamicRendering (used, unchecked)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: tiled resources tier 2 (sparse residency + sparse queue)",
+        "category": "soft",
+        "status": "missing",
+        "note": "vkd3d-proton FL12_0 blocked",
+        "tested_by": []
+      },
+      {
+        "name": "proton: typed UAV load on 18 formats (STORAGE_READ_WITHOUT_FORMAT)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: VK_EXT_conservative_rasterization",
+        "category": "soft",
+        "status": "missing",
+        "note": "vkd3d-proton FL12_1 blocked",
+        "tested_by": []
+      },
+      {
+        "name": "proton: ROVs (pixel+sample interlock)",
+        "category": "soft",
+        "status": "missing",
+        "note": "vkd3d-proton FL12_1 blocked",
+        "tested_by": []
+      },
+      {
+        "name": "proton: SM6.0 (wave ops + scalar\/std UBO layout + shaderInt16)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: SM6.2 (denorm independence + FP32 FTZ\/preserve)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: SM6.6 (compute derivatives linear + int64 buffer atomics + int8 + fixed wave)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: SM6.7 (maximal reconvergence + quad control)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: VK_EXT_mutable_descriptor_type",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "proton: VK_EXT_descriptor_buffer path",
+        "category": "soft",
+        "status": "missing",
+        "note": "descriptor-set heap path (slower copies)",
+        "tested_by": []
+      },
+      {
+        "name": "proton: depthBounds",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": [
+          "depth_bounds"
+        ]
+      },
+      {
+        "name": "proton: shaderOutputViewportIndex+Layer",
+        "category": "soft",
+        "status": "missing",
+        "note": "VPAndRTArrayIndex from VS unsupported (FL12_2 gate)",
+        "tested_by": [
+          "vs_viewport_index"
+        ]
+      },
+      {
+        "name": "proton: VK_KHR_fragment_shading_rate",
+        "category": "soft",
+        "status": "missing",
+        "note": "VRS tier 0",
+        "tested_by": []
+      },
+      {
+        "name": "proton: VK_EXT_mesh_shader",
+        "category": "soft",
+        "status": "missing",
+        "note": "mesh shader tier 0 (FL12_2 gate)",
+        "tested_by": []
+      },
+      {
+        "name": "proton: VK_KHR_ray_query + acceleration_structure",
+        "category": "soft",
+        "status": "missing",
+        "note": "DXR tier 0 (FL12_2 gate)",
+        "tested_by": []
+      },
+      {
+        "name": "proton: shaderImageInt64Atomics (sampler feedback 0.9)",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      }
+    ]
+  },
+  "d3d_fl": {
+    "title": "D3D feature levels",
+    "pass": true,
+    "status": "RESULT PASS",
+    "hardMissing": 0,
+    "softMissing": 17,
+    "info": [
+      "device Mali-G57 MC2, Mali v9, apiVersion 1.3.363",
+      "D3D12 (vkd3d-proton 2230755): 11_0 PASS, 11_1 PASS, 12_0 FAIL, 12_1 FAIL, 12_2 FAIL; max 11_1",
+      "D3D12 caps: shader model 6.8, resource binding tier 3, tiled resources tier 0, conservative raster tier 0, ROVs no, typed UAV loads 18\/18, wave ops yes, VP\/RT index without GS no, VRS tier 0, mesh tier 0, DXR none, sampler feedback 0.9",
+      "D3D11 (DXVK 3.1.1): 9_1-9_3 PASS, 10_0-10_1 PASS, 11_0 PASS, 11_1 PASS, 12_0 FAIL, 12_1 FAIL; max 11_1 (tiled tier 0, conservative tier 0, ROVs no)",
+      "target D3D12 11_0-12_1 on v9: not met, missing 12_0, 12_1; 12_2 out of scope",
+      "reach FL12_0 TiledResourcesTier >= 2 (have 0) on v9: needs kernel: the kbase uAPI has no map-pages-at-a-chosen-GPU-VA (bind\/unbind) ioctl (docs\/KBASE-SPARSE-FEASIBILITY.md, NO-GO); then driver work: sparseResidencyAliased (panfrost\/mesa#237), residencyNonResidentStrict, shaderResourceResidency\/MinLod (upstream PanVK on panthor is tier 0 too)",
+      "reach FL12_1 ROVsSupported on v9: possible with driver work: no Mali driver exposes fragment shader interlock, but the per-pixel ordering primitive exists (eldest-colour dependency slot 7: bifrost.h BIFROST_SLOT_ELDEST_COLOUR, Valhall flow 'wait' = slots 0,1,2,6,7); unproven for fragments that write no colour",
+      "reach FL12_1 ConservativeRasterizationTier >= 1 on v9: hardware cannot: no Conservative Rast Mode before v11 (first in genxml v11.xml); only emulation by triangle dilation (gpu_prerast), not planned",
+      "hard ok, 12 blocking caps listed"
+    ],
+    "items": [
+      {
+        "name": "D3D12 FL11_0",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "D3D12 FL11_1",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "D3D12 FL12_0",
+        "category": "soft",
+        "status": "missing",
+        "note": "TiledResourcesTier >= 2 (have 0)",
+        "tested_by": []
+      },
+      {
+        "name": "D3D12 FL12_1",
+        "category": "soft",
+        "status": "missing",
+        "note": "ROVsSupported, ConservativeRasterizationTier >= 1",
+        "tested_by": []
+      },
+      {
+        "name": "D3D12 FL12_2",
+        "category": "soft",
+        "status": "missing",
+        "note": "VPAndRTArrayIndexFromAnyShaderFeedingRasterizer, ConservativeRasterizationTier 3 (have 0), TiledResourcesTier >= 3 (have 0), RaytracingTier >= 1.1, VariableShadingRateTier 2, MeshShaderTier 1",
+        "tested_by": []
+      },
+      {
+        "name": "D3D11 FL9_1-9_3",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "D3D11 FL10_0-10_1",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "D3D11 FL11_0",
+        "category": "hard",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "D3D11 FL11_1",
+        "category": "soft",
+        "status": "available",
+        "note": "",
+        "tested_by": []
+      },
+      {
+        "name": "D3D11 FL12_0",
+        "category": "soft",
+        "status": "missing",
+        "note": "TiledResourcesTier >= 2 (have 0)",
+        "tested_by": []
+      },
+      {
+        "name": "D3D11 FL12_1",
+        "category": "soft",
+        "status": "missing",
+        "note": "ConservativeRasterizationTier >= 1, ROVsSupported",
+        "tested_by": []
+      },
+      {
+        "name": "D3D12 FL12_0 needs TiledResourcesTier >= 2 (have 0)",
+        "category": "soft",
+        "status": "missing",
+        "note": "sparse residency + residency queries [missing: sparseBinding, sparseResidencyAliased, sparseResidencyBuffer, sparseResidencyImage2D, sparse-binding queue] [missing: shaderResourceResidency, shaderResourceMinLod, residencyNonResidentStrict, filterMinmaxSingleComponentFormats] | v9: needs kernel: the kbase uAPI has no map-pages-at-a-chosen-GPU-VA (bind\/unbind) ioctl (docs\/KBASE-SPARSE-FEASIBILITY.md, NO-GO); then driver work: sparseResidencyAliased (panfrost\/mesa#237), residencyNonResidentStrict, shaderResourceResidency\/MinLod (upstream PanVK on panthor is tier 0 too)",
+        "tested_by": []
+      },
+      {
+        "name": "D3D12 FL12_1 needs ROVsSupported",
+        "category": "soft",
+        "status": "missing",
+        "note": "VK_EXT_fragment_shader_interlock pixel + sample [missing: fragmentShaderPixelInterlock, fragmentShaderSampleInterlock] | v9: possible with driver work: no Mali driver exposes fragment shader interlock, but the per-pixel ordering primitive exists (eldest-colour dependency slot 7: bifrost.h BIFROST_SLOT_ELDEST_COLOUR, Valhall flow 'wait' = slots 0,1,2,6,7); unproven for fragments that write no colour",
+        "tested_by": []
+      },
+      {
+        "name": "D3D12 FL12_1 needs ConservativeRasterizationTier >= 1",
+        "category": "soft",
+        "status": "missing",
+        "note": "VK_EXT_conservative_rasterization | v9: hardware cannot: no Conservative Rast Mode before v11 (first in genxml v11.xml); only emulation by triangle dilation (gpu_prerast), not planned",
+        "tested_by": []
+      },
+      {
+        "name": "D3D12 FL12_2 needs VPAndRTArrayIndexFromAnyShaderFeedingRasterizer",
+        "category": "soft",
+        "status": "missing",
+        "note": "shaderOutputViewportIndex + shaderOutputLayer | v9: possible with driver work: shaderOutputViewportIndex\/Layer from the VS (v10+ have both in build 115)",
+        "tested_by": []
+      },
+      {
+        "name": "D3D12 FL12_2 needs ConservativeRasterizationTier 3 (have 0)",
+        "category": "soft",
+        "status": "missing",
+        "note": "[missing: VK_EXT_conservative_rasterization, degenerateTrianglesRasterized, fullyCoveredFragmentShaderInputVariable] | v9: hardware cannot: no conservative rasterization before v11",
+        "tested_by": []
+      },
+      {
+        "name": "D3D12 FL12_2 needs TiledResourcesTier >= 3 (have 0)",
+        "category": "soft",
+        "status": "missing",
+        "note": "tier 2 + 3D sparse [missing: sparseResidencyImage3D, residencyStandard3DBlockShape] | v9: needs kernel: the kbase uAPI has no map-pages-at-a-chosen-GPU-VA (bind\/unbind) ioctl (docs\/KBASE-SPARSE-FEASIBILITY.md, NO-GO); then driver work: sparseResidencyAliased (panfrost\/mesa#237), residencyNonResidentStrict, shaderResourceResidency\/MinLod (upstream PanVK on panthor is tier 0 too)",
+        "tested_by": []
+      },
+      {
+        "name": "D3D12 FL12_2 needs RaytracingTier >= 1.1",
+        "category": "soft",
+        "status": "missing",
+        "note": "VK_KHR_acceleration_structure + ray_tracing_pipeline + ray_query + rayTraversalPrimitiveCulling | v9: hardware cannot: no ray tracing unit before Immortalis-G715 (v11)",
+        "tested_by": []
+      },
+      {
+        "name": "D3D12 FL12_2 needs VariableShadingRateTier 2",
+        "category": "soft",
+        "status": "missing",
+        "note": "VK_KHR_fragment_shading_rate pipeline + primitive + attachment rates | v9: hardware cannot: no variable rate shading before v11",
+        "tested_by": []
+      },
+      {
+        "name": "D3D12 FL12_2 needs MeshShaderTier 1",
+        "category": "soft",
+        "status": "missing",
+        "note": "VK_EXT_mesh_shader meshShader + taskShader | v9: hardware cannot natively (no mesh\/task stage known on v6-v14); compute emulation = very large driver work",
+        "tested_by": []
+      },
+      {
+        "name": "D3D11 FL12_0 needs TiledResourcesTier >= 2 (have 0)",
+        "category": "soft",
+        "status": "missing",
+        "note": "sparse residency [missing: sparseBinding, sparseResidencyBuffer, sparseResidencyImage2D, sparseResidencyAliased, shaderResourceResidency, shaderResourceMinLod, samplerFilterMinmax+filterMinmaxSingleComponentFormats, residencyNonResidentStrict] | v9: needs kernel: the kbase uAPI has no map-pages-at-a-chosen-GPU-VA (bind\/unbind) ioctl (docs\/KBASE-SPARSE-FEASIBILITY.md, NO-GO); then driver work: sparseResidencyAliased (panfrost\/mesa#237), residencyNonResidentStrict, shaderResourceResidency\/MinLod (upstream PanVK on panthor is tier 0 too)",
+        "tested_by": []
+      },
+      {
+        "name": "D3D11 FL12_1 needs ConservativeRasterizationTier >= 1",
+        "category": "soft",
+        "status": "missing",
+        "note": "VK_EXT_conservative_rasterization | v9: hardware cannot: no Conservative Rast Mode before v11 (first in genxml v11.xml); only emulation by triangle dilation (gpu_prerast), not planned",
+        "tested_by": []
+      },
+      {
+        "name": "D3D11 FL12_1 needs ROVsSupported",
+        "category": "soft",
+        "status": "missing",
+        "note": "VK_EXT_fragment_shader_interlock fragmentShaderPixelInterlock | v9: possible with driver work: no Mali driver exposes fragment shader interlock, but the per-pixel ordering primitive exists (eldest-colour dependency slot 7: bifrost.h BIFROST_SLOT_ELDEST_COLOUR, Valhall flow 'wait' = slots 0,1,2,6,7); unproven for fragments that write no colour",
+        "tested_by": []
+      }
+    ]
+  }
+}

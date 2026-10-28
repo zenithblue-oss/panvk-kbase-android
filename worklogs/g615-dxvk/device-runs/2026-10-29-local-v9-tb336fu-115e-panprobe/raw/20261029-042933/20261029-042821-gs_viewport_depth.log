@@ -1,0 +1,29 @@
+MESA: info: kbase: JM driver, uAPI version 11.38, page_size=4096
+MESA: info: kbase: MediaTek JM atom layout (frame_nr), stride 64, probe event 0x1
+MESA: info: kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: 13000000 Hz, keeping cntfrq 13000000 Hz
+MESA: info: panvk: gpu_id 0x90930010 variant 0 arch v9 model Mali-G57 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe03fe)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+PHYS 0 Mali-G57 MC2 vendor=0x13b5 device=0x90930010
+FEATURE geom=1 multiVp=1 depthClamp=1 clipExt=1 depthClipEnable=1
+MESA: info: kbase: JM driver, uAPI version 11.38, page_size=4096
+MESA: info: kbase: MediaTek JM atom layout (frame_nr), stride 64, probe event 0x1
+MESA: info: kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: 13000001 Hz, keeping cntfrq 13000000 Hz
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: panvk: v9 tiler heaps 2 x 512 MiB (GROW_ON_GPF)
+ALLOC image fmt=37 type=0 bits=0x7 flags=0x1
+ALLOC image fmt=126 type=0 bits=0x7 flags=0x1
+MESA: info: panvk: gpu_prerast draw arena committed (64 MiB)
+MESA: info: panvk: v9 batch TLS 768 KiB (stack 144 B/thread), half 0, shared per half
+PASS case A_clamp depthL=[0.250000..0.250000] expL=0.250000 depthR=[0.500000..0.500000] expR=0.500000 badDepth=0 badColor=0
+MESA: info: panvk: v9 batch TLS 768 KiB (stack 144 B/thread), half 1, shared per half
+PASS case B_clamp_clip depthL=[0.125000..0.125000] expL=0.125000 depthR=[0.750000..0.750000] expR=0.750000 badDepth=0 badColor=0
+MESA: info: panvk: v9 batch TLS 768 KiB (stack 144 B/thread), half 0, shared per half
+PASS case C_noclamp depthL=[0.125000..0.125000] expL=0.125000 depthR=[0.750000..0.750000] expR=0.750000 badDepth=0 badColor=0
+RESULT PASS
