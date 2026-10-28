@@ -1189,7 +1189,8 @@ object ContainerManager {
             File(vk.dir, "$d/d3d12core.dll").let { it.isFile && it.length() != File(win, "$d/d3d12core.dll").length() }
         }
         val missing = !File(win, "system32/dxgi.dll").exists() || vkMissing ||
-            (srcWow?.isFile == true && File(win, "syswow64/d3d11.dll").length() != srcWow.length())
+            (srcWow?.isFile == true && File(win, "syswow64/d3d11.dll").length() != srcWow.length()) ||
+            (dxvk != null && prefs.getString("dxvk_applied", null) != dxvk.dir.name) // same-size DLL updates (3.1.1-4 -> -5)
         if (!prefs.contains("dxvk_enabled") || (isDxvkEnabled(ctx) && (missing || force))) setDxvkEnabled(ctx, true)
     }
 
@@ -1228,6 +1229,7 @@ object ContainerManager {
             } catch (e: Exception) {
                 return "Failed to copy DXVK DLLs: ${e.message}"
             }
+            prefs.edit().putString("dxvk_applied", dxvk.dir.name).apply()
             prefs.edit().putBoolean("dxvk_enabled", true).apply()
             // Migration/restore: D3D12 dlls come from the separate VKD3D package.
             if (isVkd3dEnabled(ctx)) installed.firstOrNull { it.type == "VKD3D" && ContentManager.isComplete(it) }?.let {
