@@ -1,0 +1,12 @@
+diff --git a/src/d3d11/d3d11_rasterizer.cpp b/src/d3d11/d3d11_rasterizer.cpp
+--- a/src/d3d11/d3d11_rasterizer.cpp
++++ b/src/d3d11/d3d11_rasterizer.cpp
+@@ -163,7 +163,7 @@ namespace dxvk {
+     dstDesc.ScissorEnable         = pSrcDesc->ScissorEnable;
+     dstDesc.MultisampleEnable     = pSrcDesc->MultisampleEnable;
+     dstDesc.AntialiasedLineEnable = pSrcDesc->AntialiasedLineEnable;
+-    dstDesc.ForcedSampleCount     = 0;
++    dstDesc.ForcedSampleCount     = pSrcDesc->ForcedSampleCount;
+     dstDesc.ConservativeRaster    = D3D11_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+     return dstDesc;
+   }
