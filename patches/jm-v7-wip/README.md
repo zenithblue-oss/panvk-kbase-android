@@ -691,3 +691,31 @@ Tests (rc5 slot, upload dry run, scripts `/var/tmp/panvk/wsi-dev-loop.sh`, `wsi-
 D3D12 FL 11_0 `tess` flake (115g PanPlay s7, 1 FAIL in 12 on TB336FU): A/B with `gameloop-tess-repeat.json`
 (scenario 7, 24 x `d3d12fl_11_0` per run, `/var/tmp/panvk/wsi-dev-ab.sh`): 115f 24/24 PASS, 115g 24/24 PASS. Not
 reproduced (115g 1 FAIL in 36 counting the original 12); the one FAIL came in the first pass right after the app-side NPE crash. 0143 unchanged.
+
+## CSF tiler heap OOM on kbase (2026-10-29): investigation, no patch
+
+The 115e v14 `tess_perf` failure (`CSF group 0 tiler heap OOM notification`, then `timeout on subqueue 0`, at gs=1
+L=16 in the `PANVK_TESS_FUSE=0` opt) does not reproduce with 0145 in the tree: v14 RTL `tess_perf` PASS in 5 of 5
+runs (v14fix full run; `PANVK_TESS_FUSE=0` with the 400 max chunks, recycling on and off; two full runs below).
+115e had no 0145, and a TLS/WLS write that wraps 4 GiB down lands in unrelated memory, so 0145 is the likely fix.
+
+Why panvk cannot survive a pass that outgrows the heap (incremental rendering) on kbase:
+- kbase answers a tiler OOM at max_chunks with a NULL chunk only when the group has `BASE_CSF_TILER_OOM_EXCEPTION_FLAG`
+  (`handle_oom_event()`, kbase-src `mali_kbase_csf.c` ~2033); otherwise it terminates the group (DEVICE_LOST).
+- With the flag (uAPI >= 1.12, 1_6 create layout skipped), kbase no longer terminates, but panvk's TILER_OOM handler
+  never runs: the handler is registered on the FRAGMENT CS (`issue_fragment_jobs()`), and on kbase every subqueue is
+  its own queue group (`kbase_create_group()`, one CS per group). X6 Pro with `PANVK_KBASE_HEAP_CHUNKS=4,8`: the
+  IR counter stayed 0, the register dump area kept its 0xa5 fill, and subqueue 0 hung (timeout instead of OOM).
+- Real fix: VERTEX_TILER and FRAGMENT in one kbase group (upstream panthor layout), or an IR handler on the
+  VERTEX_TILER CS. Neither is small: 0134 (cross-subqueue waits) and CSG priority/rotation assume one group per
+  subqueue.
+- FINISH_FRAGMENT chunk recycling without the FRAGMENT_COMPLETED/FRAG_END counters (keeps kbase's `frag_end > vt_end`
+  check happy) was tried and is not added: on X6 Pro with 32 max chunks recycling on and off both fail at the same
+  pass (gs=0 L=16), with 128 both fail at gs=1 L=16 (single passes larger than the heap), and v14 passes without it.
+  Patch kept at `/var/tmp/panvk/oomfix-patch/0147-panvk-recycle-kbase-tiler-heap-chunks-at-FINISH_FRAG.patch`.
+  Earlier IR attempt diff: `/var/tmp/panvk/oomfix-wip-ir-attempt.diff`.
+
+Tested build (strict tree with that 0147 on top, recycling on by default; `prepare-rc5-tree.sh --wip-max 0147` on a
+fresh 5a07217f worktree `/var/tmp/panvk/mesa-oom-final`, `OK base=228 jm-v7-wip=142 head=2732f11e42d`): .so sha256
+`2ebe4e602032be77...`, BuildID `5e205faa85f81c3f...`, driverInfo `git-2732f11e42`. X6 Pro 40/40, TB336FU 40/40,
+v14 RTL 39/40 (`tessellation` mismatch=460, no DEVICE_LOST, same failure as the v14fix run). Not a release build.
