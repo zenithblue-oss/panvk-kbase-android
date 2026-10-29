@@ -1,0 +1,65 @@
+MESA: info: kbase: JM driver, uAPI version 11.27, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: warning: kbase: GPU timestamp counter measured at 26000017 Hz (26001591 / 25998444), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)
+MESA: info: kbase: no usable ION system heap
+MESA: info: panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6
+MESA: warning: panvk: v7 (Bifrost) support is experimental
+MESA: info: panvk: BC emulation on (native compressed mask 0xf7fe03fe)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+ICD device=Mali-G52 r1 MC2 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+MESA: info: kbase: JM driver, uAPI version 11.27, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+MESA: info: kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: warning: kbase: GPU timestamp counter measured at 25999994 Hz (26000378 / 25999609), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)
+MESA: info: kbase: no usable ION system heap
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 70313 pages committed
+limits invocations=32 in=64 out=128 outv=256 total=1024
+FPS 3058.2 frames=3059 ms=1000
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 16 of 512 pages committed
+CASE tri_list_pass outv=9 ref_red=1009 red=1009 mismatch=0 PASS
+CASE tri_strip_pass outv=9 ref_red=598 red=598 mismatch=0 PASS
+CASE tri_fan_pass outv=15 ref_red=903 red=903 mismatch=0 PASS
+MESA: info: panvk: v7 batch TLS 512 KiB (stack 232 B/thread), half 1, shared per half
+MESA: info: panvk: v7 batch WLS 4 KiB, half 1, shared per half
+CASE tri_strip_restart_pass outv=12 ref_red=771 red=771 mismatch=0 PASS
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 128 of 8192 pages committed
+MESA: info: panvk: v7 batch TLS 512 KiB (stack 224 B/thread), half 1, shared per half
+CASE tri_list_indirect outv=9 ref_red=1009 red=1009 mismatch=0 PASS
+MESA: info: kbase: v7 growable BO, GROW_ON_GPF, 256 of 16384 pages committed (later ones at debug level)
+MESA: info: panvk: v7 batch TLS 512 KiB (stack 232 B/thread), half 1, shared per half
+MESA: info: panvk: v7 batch WLS 128 KiB, half 1, shared per half
+CASE tri_strip_restart_indexed_indirect outv=12 ref_red=771 red=771 mismatch=0 PASS
+CASE tri_list_instanced3 outv=18 ref_red=439 red=439 mismatch=0 PASS
+MESA: info: panvk: v7 batch TLS 512 KiB (stack 224 B/thread), half 1, shared per half
+CASE tri_list_instanced3_indirect outv=18 ref_red=439 red=439 mismatch=0 PASS
+CASE line_list_pass outv=8 ref_red=176 red=176 mismatch=0 PASS
+CASE line_strip_pass outv=10 ref_red=208 red=208 mismatch=0 PASS
+CASE point_to_quad outv=30 ref_red=180 red=180 mismatch=0 PASS
+CASE tri_to_lines_endprim outv=18 ref_red=266 red=266 mismatch=0 PASS
+CASE two_tris_endprim outv=18 ref_red=1439 red=1439 mismatch=0 PASS
+CASE strip_out4 outv=18 ref_red=1283 red=1283 mismatch=0 PASS
+CASE invocations3 outv=18 ref_red=431 red=431 mismatch=0 PASS
+CASE primid_list outv=6 ref_red=684 red=684 mismatch=0 PASS
+MESA: info: panvk: v7 batch WLS 4 KiB, half 1, shared per half
+CASE primid_strip_restart outv=9 ref_red=382 red=382 mismatch=0 PASS
+CASE primid_instanced outv=6 ref_red=182 red=182 mismatch=0 PASS
+CASE adj_tri_list outv=6 ref_red=619 red=619 mismatch=0 PASS
+CASE adj_tri_strip outv=9 ref_red=598 red=598 mismatch=0 PASS
+CASE adj_line_list outv=4 ref_red=87 red=87 mismatch=0 PASS
+CASE adj_line_strip outv=6 ref_red=123 red=123 mismatch=0 PASS
+CASE layer_write outv=9 ref_red=1009 red=1009 mismatch=0 PASS
+GEOMETRY_FAILS=0
