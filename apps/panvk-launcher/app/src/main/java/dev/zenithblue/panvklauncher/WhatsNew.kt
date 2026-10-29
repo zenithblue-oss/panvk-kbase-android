@@ -31,11 +31,13 @@ object WhatsNew {
         "Built-in Direct3D feature level tests: D3D12 11_0 to 12_2 and D3D11 10_0 to 11_1",
         "Present path: Default or EGL (frames in AHardwareBuffers, no GL upload), in Settings > Display and per game",
         "WineD3D-Zink Render API, named clearly: D3D9-11 through OpenGL, Zink and PanVK (D3D12 stays on VKD3D)",
+        "Built-in Fallout 4 controller key config (Fallout 4 template), assigned to Fallout4.exe",
     )
     val fixed = listOf(
         "The DXVK HUD was always on with every item: the game's DXVK_HUD setting was ignored",
         "Fallout 4: launch fixes, less memory, no black heads",
         "The launch sheet no longer saves stale values",
+        "Browse for .exe: files picked from Downloads (msf: picker URIs) now resolve to the real path",
         "Built-in X server: MIT-SHM requests check the segment owner and the image bounds",
     )
 
