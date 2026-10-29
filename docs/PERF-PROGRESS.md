@@ -361,3 +361,64 @@ within noise of 120 (X6 Pro s7 D3D12 FL tasks swing -27 %..+39 %, other tasks wi
 Extra: X6 Pro D3D11 cube s1/s3, 3 alternating runs, default vs `PANVK_KBASE_TILER_IR=0`: 279.7 vs 277.2 and 277.2 vs
 278.3 fps, no difference, so the v13 cube drop is not the tiler IR path on v11. Details, screenshots and raw:
 `worklogs/g615-dxvk/device-runs/2026-10-29-local-121b-panplay/`.
+
+## Build 122 (2026-10-29): final perf build, rc4 vs 116 vs 121b vs 122
+
+122 = jm-v7-wip 0006-0165, `Mesa 26.3.0-devel (git-3506474d17, p0165, 2026-10-29)`: 121b plus **0164** (MangoHud
+GPU load on JM, item 23) and **0165** (v9 primitives-generated counted on the CPU, item 21). Strict prepare
+`OK base=228 jm-v7-wip=160 head=3506474d173`.
+- .so: `/var/tmp/panvk/build-out/2026-10-29-122/libvulkan_panfrost.so`, sha256
+  `acb4a0116987fd807163f438424cec9c6c3fbd0d0712d47d1a3115197cebc81e`, 29464696 bytes, BuildID
+  `2f61168ad05aa9204824eb58cd9a50de43e8c785`.
+- APKs: `build-out/apks/panprobe-122.apk` (`180f61a1...`, rc4 + 122), `panplay-122.apk` (`269fc98d...`, from main
+  3d7f9de6, includes the FO4 audio fix 0ae08d6a, `libglxstub.so`). Both APK labels are derived from the .so.
+- **Default bundled driver** (both pins, `prepare-rc5-tree.sh` `WIP_MAX=0165`).
+- Raw results, screenshots, memory samples: `worklogs/g615-dxvk/device-runs/2026-10-29-local-122/`.
+
+Local only (X6 Pro v11 on wireless adb, battery 36.5 C at the start; TB336FU v9). Firebase and RTL not run.
+
+**PanProbe** (sum of the 41 tests, ms; max TOTAL PSS / Graphics over 5 s samples, MB):
+
+| | rc4 | 116 | 121b | 122 cold | 122 warm |
+|---|---|---|---|---|---|
+| X6 Pro pass | 41/41 | 40/41 | 41/41 | 41/41 | 41/41 |
+| X6 Pro sum | 156188 | 132911 | 133946 | 140599 | **128997 (-17 % vs rc4)** |
+| X6 Pro PSS / Graphics | 198 / 65 | 162 / 61 | 178 / 61 | 198 / 65 | 198 / 65 |
+| TB336FU pass | 39/41 | - | 41/41 | 41/41 | 41/41 |
+| TB336FU sum | 331346 | - | 157912 | 160358 | **157737 (-52 % vs rc4)** |
+| TB336FU PSS / Graphics | 236 / 129 | - | 234 / 131 | 231 / 127 | 233 / 129 |
+
+116 is the earlier table (X6 Pro only). 0164/0165 are JM-only, so the X6 Pro differences against 121b are run
+noise (PSS swings 166-198 MB between runs of the same build, see Build 120).
+
+TB336FU `workload_perf` (us/draw, 3 alternating runs of 121b and 122a = 122 code): `pg_query` 18.6 to **12.2**
+(`ref` 6.2); `cond_true` 15 (item 19 not done), `ts_pair` - `ts_ref` about 0.1 ms per pair per frame (item 20
+closed). `bc_level` (cold BC level load) is 254 ms on 122 vs 109 ms on rc4 on v9: the BC transcoder compile cost of
+0155+, as on v11.
+
+**MangoHud GPU stats on JM (0164):** TB336FU under `workload_perf` `load=97..99`; PanPlay s1-s9 `load` 66-99.
+`vram` on JM reads about 1.35-1.68 GiB, against 54 MiB on CSF: it counts the full size of the JM growable private
+BOs (tess arena, varying and GS buffers), not the committed pages. Known overestimate, not fixed.
+
+**PanPlay 1-9 (122):** every task passes on both devices, no DEVICE_LOST, no GPU reset in dmesg. fps / 1 %-low,
+compared with the build 120 run above:
+
+| s | task | X6 120 | X6 122 | TB 120 | TB 122 |
+|---|---|---|---|---|---|
+| 1 | d3d11 cube | 287.9 | 272.0 / 237.3 | 159.8 | 160.8 / 110.0 |
+| 2 | d3d9 cube | 115.5 | 115.6 / 108.6 | 90.0 | 89.9 / 87.9 |
+| 5 | d3d12 SquidRoom | 59.0 | **78.8** / 61.6 | 24.8 | 23.0 / 22.4 |
+| 6 | d3d12 gears | 174.0 | **214.3** / 181.0 | 226.4 | 222.3 / 210.9 |
+| 7 | d3d12 FL 11_0 / 11_1 / 12_0 / 12_1 / 12_2 | 198 / 207 / 210 / 166 / 179 | 227 / 219 / 238 / 215 / 216 | 477 / 504 / 480 / 472 / 527 | 485 / 481 / 468 / 471 / 479 |
+| 8 | d3d11 FL 10_0 / 10_1 / 11_0 / 11_1 | 746 / 739 / 752 / 708 | 766 / 725 / 796 / 752 | 217 / 214 / 205 / 199 | 200 / 203 / 203 / 197 |
+| 8 | d3d10 cube | 271.7 | 274.0 | 157.0 | 165.5 |
+| 9 | d3d12 FL all / d3d11 FL all | 197.5 / 772.5 | 224.9 / 741.8 | 498.4 / 192.9 | 489.1 / 197.6 |
+
+PanPlay memory (max TOTAL PSS / Graphics, MB): X6 Pro s1 295 / 135, s3 367 / 123, s5 365 / 127, s7 344 / 121,
+s8 342 / 131, s9 301 / 121; TB336FU s1 340 / 190, s3 391 / 212, s5 385 / 212, s7 373 / 208, s8 376 / 214, s9
+369 / 208 (120: TB s1 356 / 206, s3 389 / 212). The X6 Pro `gpustats` sample is the same in every scenario
+(load 74, vram 54 MiB): the harness read a stale `gpustats.txt`, not checked further.
+
+**v13 single-scene cube** (RTL S11 Ultra, other agent, `2026-10-29-rtl-v13-sm-x930-cube-ab/`): 118 964 fps / 1 %-low
+116 vs 121b about 600 / 290, so 121b is smoother with a lower average; `PANVK_WSI_SW_CACHED=1` and
+`PANVK_KBASE_TILER_IR=0` change nothing; the 119 bisect is open.

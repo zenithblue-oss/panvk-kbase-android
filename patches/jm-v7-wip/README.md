@@ -870,7 +870,7 @@ PanProbe 40/40, `draw_params` and `bc_decode` PASS, no DEVICE_LOST
 | 0160 | the sw WSI (X11 present without DRI3 dma-buf, every PanPlay game) reads frames through the uncached buffer again: 0115's cached read + per-present DC CIVAC cost more (the rc4 vs 115c+ fps gap, FL 11_1 257 vs 831 fps on the X6 Pro) | `PANVK_WSI_SW_CACHED=1` = 0115 behaviour |
 | 0162 | item 7 fix: the BC prewarm compiles the XC_BATCH pipeline only for batchable images (one-layer 2D with mips). 0155 compiled it for every ETC2 mode, which doubled the cold `bc_decode` (9.3 s vs 5.0 s on the X6 Pro) | `PANVK_BC_PREWARM=0` |
 | 0163 | item 8 on v9: the pass-through GS skip in the JM `v9_cmd_draw()` (0157 hooked only CSF). TB336FU `strip_gs` 354 to 17.6 us/draw | `PANVK_GS_PT_SKIP=0` |
-| 0164 | item 23 on JM (v6/v7/v9): `PANVK_GPU_STATS` GPU load = CPU-observed time with at least one atom of the context in flight (kbase_kmod counts atoms from JOB_SUBMIT to their completion event), reported per submit on a shared busy-time axis; VRAM as 0158. JM chains have no cheap GPU timestamps (PERMON + write jobs). TB336FU `workload_perf` with the env: `load=97..99`, `vram=1.46 GB` (0158 left JM at 0) | env unset = no tracking |
+| 0164 | item 23 on JM (v6/v7/v9): `PANVK_GPU_STATS` GPU load = CPU-observed time with at least one atom of the context in flight (kbase_kmod counts atoms from JOB_SUBMIT to their completion event), reported per submit on a shared busy-time axis; VRAM as 0158. JM chains have no cheap GPU timestamps (PERMON + write jobs). TB336FU `workload_perf` with the env: `load=97..99`, `vram` reported (0158 left JM at 0). JM `vram` counts the full size of growable private BOs (1.35-1.68 GiB in PanPlay), an overestimate | env unset = no tracking |
 | 0165 | item 21: v9 primitives-generated query: a direct draw without primitive restart (no GS/tess) is counted on the CPU, one `update_pstats_draw` job at the query end instead of one per draw (sum kept within 32 bits, else the GPU counts). TB336FU `pg_query` 18.6 to 12.2 us/draw (3 alternating runs, `ref` 6.2) | - |
 
 Build 119 = 0006-0159 (`git-0146a719f6`, driverInfo `Mesa 26.3.0-devel (git-0146a719f6, p0159, 2026-10-29)`,
@@ -937,3 +937,11 @@ Next steps: RTL v13 SM-X930 (coordinator run `2026-10-29-rtl-v13-sm-x930-oom2fin
 with `tess_perf` x10 at the default heap and at 4,32, PanPlay 1-9. If the v13 hang persists at the default heap,
 look at (b): arm the handler before the fragment CS's cross-subqueue waits, or add a VT-side bound. If only tiny
 heaps hang, raise the minimum `max_chunks` clamp (8 today) and make 0161 the default.
+
+Build 122 = 0006-0165, `Mesa 26.3.0-devel (git-3506474d17, p0165, 2026-10-29)`.
+- .so: `/var/tmp/panvk/build-out/2026-10-29-122/libvulkan_panfrost.so`, sha256
+  `acb4a0116987fd807163f438424cec9c6c3fbd0d0712d47d1a3115197cebc81e`, BuildID
+  `2f61168ad05aa9204824eb58cd9a50de43e8c785`.
+- Strict prepare: `OK base=228 jm-v7-wip=160 head=3506474d173`.
+- PanProbe 41/41 cold and warm and PanPlay 1-9 on the X6 Pro and the TB336FU; v6/v7/v10/v12-v14 not run yet.
+- **122 is the default bundled driver** (`prepare-rc5-tree.sh` default `--wip-max 0165`).

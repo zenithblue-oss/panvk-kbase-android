@@ -1,0 +1,69 @@
+GAMELOOP scenario=2
+INFO devices=1 exts=175 formats=195
+DRIVER slot=RC4 driverInfo=PanVK-kbase RC4 (Mesa 26.3.0-devel (git-5a07217f03))
+COMPLIANCE DXVK compliance PASS items=94 missingHard=[] missingSoft=["tiled resources tier 2 (FL12_0)","VK_EXT_conservative_rasterization (FL12_1)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","shaderFloat16","shaderOutputLayer","samplerFilterMinmax","VK_EXT_memory_priority","VK_EXT_multi_draw","VK_EXT_sample_locations"]
+COMPLIANCE Bachata S4 compliance PASS items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","shaderFloat16","shaderOutputLayer","subgroup_wave64"]
+COMPLIANCE vkd3d compliance PASS items=100 missingHard=[] missingSoft=["viewportSubPixelBits >= 8","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","shaderFloat64","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: VK_EXT_conservative_rasterization","proton: ROVs (pixel+sample interlock)","proton: VK_EXT_descriptor_buffer path","proton: shaderOutputViewportIndex+Layer","proton: VK_KHR_fragment_shading_rate","proton: VK_EXT_mesh_shader","proton: VK_KHR_ray_query + acceleration_structure"]
+COMPLIANCE D3D feature levels PASS items=23 missingHard=[] missingSoft=["D3D12 FL12_0","D3D12 FL12_1","D3D12 FL12_2","D3D11 FL12_0","D3D11 FL12_1","D3D12 FL12_0 needs TiledResourcesTier >= 2 (have 0)","D3D12 FL12_1 needs ROVsSupported","D3D12 FL12_1 needs ConservativeRasterizationTier >= 1","D3D12 FL12_2 needs VPAndRTArrayIndexFromAnyShaderFeedingRasterizer","D3D12 FL12_2 needs ConservativeRasterizationTier 3 (have 0)","D3D12 FL12_2 needs TiledResourcesTier >= 3 (have 0)","D3D12 FL12_2 needs RaytracingTier >= 1.1","D3D12 FL12_2 needs VariableShadingRateTier 2","D3D12 FL12_2 needs MeshShaderTier 1","D3D11 FL12_0 needs TiledResourcesTier >= 2 (have 0)","D3D11 FL12_1 needs ConservativeRasterizationTier >= 1","D3D11 FL12_1 needs ROVsSupported"]
+RESULT gpu_prerast_slice PASS mismatch=0 fps=0 ms=4118
+RESULT clip_cull PASS mismatch=0 fps=1738.0 ms=5154
+RESULT multi_viewport PASS mismatch=0 fps=1758.6 ms=5120
+RESULT fill_mode PASS mismatch=0 fps=1818.3 ms=5393
+RESULT bc_decode PASS mismatch=0 fps=0 ms=4615
+RESULT bc_perf PASS mismatch=0 fps=0 ms=53661
+RESULT tess_perf FAIL mismatch=0 fps=0 ms=20705 extra=tess_perf opt=default gs=0 L=ref draws=256 patches=4096 ms=3.80 us_draw=14.8 frames=185 hash=4807f3f5 | tess_perf opt=default gs=0 L=1 draws=256 patches=4096 ms=52.71 us_draw=205.9 frames=14 hash=a03404c5 | tess_perf opt=default gs=0 L=4 draws=256 patches=4096 ms=185.20 us_draw=723.4 frames=4 hash=cec55885 | tess_perf opt=default gs=0 L=16 draws=256 patches=4096 ms=805.10 us_draw=3144.9 frames=3 hash=d4463b35 | tess_perf opt=default gs=0 L=mix draws=256 patches=4096 ms=751.60 us_draw=2936.0 frames=3 hash=b34a251c | tess_perf opt=default gs=1 L=1 draws=256 patches=4096 ms=145.74 us_draw=569.3 frames=5 hash=a03404c5 | tess_perf opt=default gs=1 L=4 draws=256 patches=4096 ms=516.63 us_draw=2018.1 frames=3 hash=cec55885
+RESULT workload_perf PASS mismatch=0 fps=2.3 ms=21986 extra=workload_perf case=bc_level ms=652.5 us_op=108755 fps=1.53 ops=6 device_ms=4026.6 create_ms=20.8 record_ms=477.1 gpu_wait_ms=154.6 | workload_perf case=ref ms=7.350 us_op=14.35 fps=136.1 ops=512 frames=55 | workload_perf case=gs_pass ms=28.620 us_op=55.90 fps=34.9 ops=512 frames=14 | workload_perf case=gs_layer ms=27.133 us_op=53.00 fps=36.9 ops=512 frames=15 | workload_perf case=xfb_vs ms=238.468 us_op=465.76 fps=4.2 ops=512 frames=3 | workload_perf case=xfb_gs ms=440.807 us_op=860.95 fps=2.3 ops=512 frames=3 | workload_perf case=strip_ref ms=4.464 us_op=17.44 fps=224.0 ops=256 frames=90 | workload_perf case=strip_gs ms=495.217 us_op=1934.44 fps=2.0 ops=256 frames=3 | workload_perf case=cond_true ms=9.338 us_op=18.24 fps=107.1 ops=512 frames=43 | workload_perf case=cond_false ms=4.059 us_op=7.93 fps=246.4 ops=512 frames=99 | workload_perf case=pg_query ms=11.109 us_op=21.70 fps=90.0 ops=512 frames=37 | workload_perf case=ts_ref ms=0.709 us_op=709.45 fps=1409.5 ops=1 frames=564 | workload_perf case=ts_pair ms=0.927 us_op=927.11 fps=1078.6 ops=1 frames=432 | workload_perf case=msaa_ref ms=4.158 us_op=259.87 fps=240.5 ops=16 frames=97 | workload_perf case=msaa_sshade ms=18.890 us_op=1180.63 fps=52.9 ops=16 frames=22 | workload_perf case=tex_rgba ms=3.944 us_op=246.52 fps=253.5 ops=16 frames=102 | workload_perf case=tex_bgra ms=4.349 us_op=271.82 fps=229.9 ops=16 frames=92
+RESULT geometry PASS mismatch=0 fps=1701.9 ms=5499
+RESULT tessellation PASS mismatch=0 fps=4668.6 ms=7741
+RESULT xfb PASS mismatch=0 fps=0 ms=4315
+RESULT pipeline_stats PASS mismatch=0 fps=1531.4 ms=5217
+RESULT vertex_stores PASS mismatch=0 fps=0 ms=4147
+RESULT gs_viewport_depth PASS mismatch=0 fps=0 ms=4230
+RESULT vs_viewport_index PASS mismatch=0 fps=0 ms=4229
+RESULT depth_bounds PASS mismatch=0 fps=0 ms=4257
+RESULT large_draw FAIL mismatch=0 fps=0 ms=28408
+RESULT vmr_secondary PASS mismatch=0 fps=0 ms=4088
+RESULT tess_cond_state PASS mismatch=0 fps=0 ms=4150
+RESULT bachata_reqs PASS mismatch=0 fps=0 ms=4171
+RESULT bachata_exec PASS mismatch=0 fps=0 ms=4104
+RESULT robustness2 PASS mismatch=0 fps=0 ms=4099
+RESULT robust_image_access2 PASS mismatch=0 fps=0 ms=10531 extra=4096x4096x16 rgba8 loads ria2=391.83ms ria1=386.72ms delta=+1.3% stats(ria2/ria1): Instructions=229/187 Code size=1920/1536 Constant data size=0/0 Threads=2/2 Loops=0/0 Spills=0/0 Fills=0/0 Spill cost=0/0 Registers used=16/12 Uniforms used=3/3
+RESULT blend PASS mismatch=0 fps=0 ms=4113
+RESULT occlusion_query PASS mismatch=0 fps=0 ms=4089
+RESULT descriptor_model PASS mismatch=0 fps=0 ms=4106
+RESULT shader_arith PASS mismatch=0 fps=0 ms=4132
+RESULT depth_stencil PASS mismatch=0 fps=0 ms=4129
+RESULT sampler PASS mismatch=0 fps=0 ms=4124
+RESULT draw_params PASS mismatch=0 fps=0 ms=4120
+RESULT submit_stress PASS mismatch=0 fps=0 ms=34100
+RESULT csf_event PASS mismatch=0 fps=0 ms=4508
+RESULT gs_tess_primitive_id PASS mismatch=0 fps=0 ms=4306
+RESULT bachata_storage_fmtless PASS mismatch=0 fps=0 ms=4090
+RESULT bachata_dynamic_render PASS mismatch=0 fps=0 ms=4110
+RESULT dxvk_reqs PASS mismatch=0 fps=0 ms=2062
+RESULT vkd3d_reqs PASS mismatch=0 fps=0 ms=2069
+RESULT d3d_fl PASS mismatch=0 fps=0 ms=2061
+RESULT vkd3d_heap PASS mismatch=0 fps=0 ms=10356
+RESULT vkd3d_timeline PASS mismatch=0 fps=0 ms=4233
+RESULT swapchain_lifecycle PASS mismatch=0 fps=92.4 ms=6299 extra=resized FPS 92.6 | present_main 3248ms, resize 38ms, present_resized 1295ms, destroy 37ms, cycle 1111ms, teardown 8ms
+SPARSE_KBASE INFO sparse_kbase S0: own /dev/mali0 context, CPU-side kbase ioctls only, no GPU jobs
+SPARSE_KBASE PASS setup JM uAPI 11.38 gpu_id=0x90930010 arch=v9 va_bits=48: own kbase context
+SPARSE_KBASE PASS T1 SAME_VA BO H0 at 0x79832e9000 (64 KiB), CPU write/readback ok
+SPARSE_KBASE PASS T1 growable SAME_VA BO H1 at 0x797fc0b000 (64 of 128 KiB committed)
+SPARSE_KBASE PASS T2 MEM_ALIAS [H0,sink,H1,sink] created (64 pages)
+SPARSE_KBASE PASS T3 alias at 0x797fa91000: entry 0 reads H0's pages
+SPARSE_KBASE PASS T4 per-entry mmap of alias entry 2 reads H1's pages
+SPARSE_KBASE PASS T5 sink entry CPU mmap refused (Invalid argument): sink contents are GPU-only
+SPARSE_KBASE PASS T6 MEM_COMMIT on an alias source refused while aliased (Invalid argument), accepted once the alias is freed
+SPARSE_KBASE SKIP T7 alias+FIXED: CSF only (BASE_MEM_FIXED is a CSF flag)
+SPARSE_KBASE PASS T8 SAME_VA alloc/munmap x64: first VA came back 63/63 times (quiet process; Wine/ART can take it)
+SPARSE_KBASE PASS T9 arena commit grew 16->1024 pages and shrank back from the end, newest tile CPU-writable
+SPARSE_KBASE BENCH sparse_arena_commit=7.8us sparse_arena_uncommit=20.9us (per 64KiB tile, n=63)
+SPARSE_KBASE SKIP T10 FIXED-VA tiles: JM kbase has no FIXED-VA allocations (JM 11.38)
+SPARSE_KBASE SKIP T10f tile bind/unbind timing: needs T10a and T10d
+SPARSE_KBASE BENCH sparse_alias_rebuild24=18.2us (n=256)
+SPARSE_KBASE PASS T11 rebuilt a 24-entry alias 256 times
+SPARSE_KBASE VERDICT v9 eager-only -- JM kbase has no FIXED-VA allocations; SAME_VA arena, grow-from-end ok
+SPARSE_KBASE SUMMARY pass=11 fail=0 skip=3
+SPARSE_KBASE status=PASS ms=89 informational (not in pass/fail)
+AUTORUN DONE pass=39 fail=2 skip=0 total=41 (39 pass / 2 fail / 0 skip)
