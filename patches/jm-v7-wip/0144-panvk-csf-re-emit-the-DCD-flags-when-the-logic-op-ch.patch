@@ -1,0 +1,53 @@
+From 082e2d08062e37b1d21ca9d6853761d81a83eb85 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 29 Oct 2026 07:10:34 +0530
+Subject: [PATCH 144/144] panvk/csf: re-emit the DCD flags when the logic op changes
+
+0138 made any_dest_read (and so allow_forward_pixel_to_kill, and v13
+hsr_can_cull) depend on the logic op, but prepare_dcd() only re-emits
+DCD_FLAGS_0 (and v13 DCD_FLAGS_2) for blend enables, equations and write
+masks. A pipeline that differs from the previous one only in
+logicOpEnable/logicOp keeps the previous draw's flags: forward pixel kill
+stays on, the logic op draw kills the fragments of the draw under it, and
+the blend shader combines with the clear value. JM emits the DCD on every
+draw, so v7 and v9 pass after 0138.
+
+D3D12 feature level 11_1 logic_op (vkd3d-proton) on Pixel 7 (v10) and
+Pixel 8 (v11): a plain draw of aaf00fff to an R8G8B8A8_UINT target cleared
+to 0, then an INVERT draw over it, reads back ffffffff instead of
+550ff000. Native repro tests/logic-op on X6 Pro (G615, v11): 20/20
+iterations ffffffff before, 550ff000 after.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+index 8a0303e7c9b..255f840ea9f 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+@@ -2901,7 +2901,9 @@ prepare_dcd(struct panvk_cmd_buffer *cmdbuf,
+                  dyn_gfx_state_dirty(cmdbuf, DS_STENCIL_WRITE_MASK) ||
+                  dyn_gfx_state_dirty(cmdbuf, CB_BLEND_ENABLES) ||
+                  dyn_gfx_state_dirty(cmdbuf, CB_BLEND_EQUATIONS) ||
+-                 dyn_gfx_state_dirty(cmdbuf, CB_WRITE_MASKS);
++                 dyn_gfx_state_dirty(cmdbuf, CB_WRITE_MASKS) ||
++                 dyn_gfx_state_dirty(cmdbuf, CB_LOGIC_OP_ENABLE) ||
++                 dyn_gfx_state_dirty(cmdbuf, CB_LOGIC_OP);
+ #endif
+    bool dcd0_dirty =
+       dyn_gfx_state_dirty(cmdbuf, RS_RASTERIZER_DISCARD_ENABLE) ||
+@@ -2927,6 +2929,9 @@ prepare_dcd(struct panvk_cmd_buffer *cmdbuf,
+       dyn_gfx_state_dirty(cmdbuf, CB_BLEND_ENABLES) ||
+       dyn_gfx_state_dirty(cmdbuf, CB_BLEND_EQUATIONS) ||
+       dyn_gfx_state_dirty(cmdbuf, CB_WRITE_MASKS) ||
++      /* and on any_dest_read, which a logic op sets */
++      dyn_gfx_state_dirty(cmdbuf, CB_LOGIC_OP_ENABLE) ||
++      dyn_gfx_state_dirty(cmdbuf, CB_LOGIC_OP) ||
+       /* line mode needs primitive topology */
+       dyn_gfx_state_dirty(cmdbuf, IA_PRIMITIVE_TOPOLOGY) ||
+       dyn_gfx_state_dirty(cmdbuf, INPUT_ATTACHMENT_MAP) ||
+-- 
+2.56.0
+

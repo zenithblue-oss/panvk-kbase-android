@@ -555,3 +555,19 @@ Ideas left, by expected gain:
    iterations' jobs (`panlib_patch_job_type_header`, as `panlib_patch_draw` does) would remove them.
 4. CSF: run the tess/GS compute steps on the vertex/tiler subqueue (one CS, no cross-CSG hand-off); needs the IDVS
    register state re-emitted after each compute and its own scoreboard slots.
+
+## logic_op CSF (2026-10-29): 0144, not yet in a numbered build
+
+| jm-v7-wip | what |
+|---|---|
+| 0144 | CSF `prepare_dcd()` re-emits DCD_FLAGS_0 (and v13 DCD_FLAGS_2) on `CB_LOGIC_OP_ENABLE` / `CB_LOGIC_OP`. 0138 made `any_dest_read` (so `allow_forward_pixel_to_kill`, v13 `hsr_can_cull`) depend on the logic op, but the CSF dirty check only watched blend enables/equations/write masks: vkd3d-proton's INVERT pipeline differs from the plain one only in the logic op, kept the plain draw's FPK, killed its fragments and inverted the clear (D3D12 FL 11_1 `logic_op` ffffffff, want 550ff000, Pixel 7 v10 / Pixel 8 v11 since 115b). JM emits the DCD every draw, so v7/v9 passed after 0138. |
+
+Repro `tests/logic-op` (native Vulkan, R8G8B8A8_UINT, dynamic rendering, plain draw then a logicOp INVERT pipeline,
+20 iterations per case): X6 Pro (G615 v11) 115f 2/4 (`loadop-clear`, `clearimage-load` 20/20 ffffffff), with 0144
+4/4; TB336FU (G57 v9) 4/4 on both. 0143 (tess, separate work) is independent: strict check =
+`prepare-rc5-tree.sh --wip-max 0142` on a fresh 5a07217f worktree (`/var/tmp/panvk/mesa-lop-strict`, `BASE-OK
+applied=228`, `OK base=228 jm-v7-wip=137`) then 0144 applied with no offset/fuzz; tree `90b1b2ef` equals the dev tree
+(`p115f-final` + 0144) the tested driver was built from. Driver `/var/tmp/panvk/bionic-lop-dist/libvulkan_panfrost.so`
+sha256 `b0d63069b5802da1...`, BuildID `8e82ce80783d63b815711ede0b90213520b79a65` (driverInfo still reads
+`git-0f038f9e96`: the build dir was configured before the commit). PanProbe 40/40, no DEVICE_LOST, on X6 Pro
+(156.2 s) and TB336FU (218.0 s): `worklogs/g615-dxvk/device-runs/2026-10-29-local-*-lop-panprobe`.
