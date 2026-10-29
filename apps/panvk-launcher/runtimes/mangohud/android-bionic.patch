@@ -1,0 +1,23 @@
+diff --git a/src/overlay_params.cpp b/src/overlay_params.cpp
+index b10a0ce..b4a9192 100644
+--- a/src/overlay_params.cpp
++++ b/src/overlay_params.cpp
+@@ -7,7 +7,9 @@
+ #include <stdlib.h>
+ #include <errno.h>
+ #ifdef __linux__
++#ifndef __ANDROID__
+ #include <wordexp.h>
++#endif
+ #include <unistd.h>
+ #endif
+ #include "imgui.h"
+@@ -389,7 +391,7 @@ parse_str(const char *str)
+ static std::string
+ parse_path(const char *str)
+ {
+-#ifdef _XOPEN_SOURCE
++#if defined(_XOPEN_SOURCE) && !defined(__ANDROID__)
+    // Expand ~/ to home dir
+    if (str[0] == '~') {
+       std::stringstream s;
