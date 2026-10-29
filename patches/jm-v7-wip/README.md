@@ -508,3 +508,50 @@ do not use this path. Strict check on a fresh 5a07217f worktree (`/var/tmp/panvk
 no offset or fuzz (only the jm-v9/002 whitespace warning); tree equals `p115d-final` + 0141. Driver
 `/var/tmp/panvk/build-out/2026-10-29-115e/libvulkan_panfrost.so`, sha256 `8dea43cf...89d1d`, BuildID `aad440ce...`,
 driverInfo `Mesa 26.3.0-devel (git-e7d836d5a6)`. `scripts/prepare-rc5-tree.sh` defaults: `--wip-max 0141`.
+
+## Build 115f (2026-10-29): 0142, v9 tess draws without empty iterations (GPU-emulation perf, handoff item 7)
+
+| jm-v7-wip | what |
+|---|---|
+| 0142 | v9 JM `v9_tess_draw()` planned every direct draw for the worst case: the chunks, plus 2 x patches / min_keep iterations for chunks that `panlib_tess_draw()` cuts at the index budget, plus one per nested range. Each iteration is about ten barrier jobs (step, VS indirect + VS, TCS grid + TCS, COUNT, draw, WITH_COUNTS, raster) and the extra ones ran empty. When min(max_patches, patches) patches at level 64 fit idx_limit no cut can happen, so the cut term is dropped; when that leaves one chunk, iterations after the first record only step + `panlib_tess_draw` + the raster (the next index range). `PANVK_V9_TESS_EXACT=0` = old. v9 only |
+
+Where the time goes (PanProbe `tess_perf`, 256 draws x 16 quad patches per frame):
+- v9 JM (TB336FU, G57): at L=1 the cost is the serialized JM job chain, about 3 us per empty barrier job and 30 us per
+  empty iteration; 115e ran 3 iterations per gs=0 draw and 9 per gs=1 draw where 1 is needed. At L>=4 the cost is
+  the tessellator: one thread per patch generates serially, and the libpan tessellate kernels use 1.3-2.1 KiB of
+  stack per thread (`panlib_tessellate` 2112 B, `panlib_tess_count_draw` up to 5648 B on v11), so 16 patches = one
+  warp, latency bound (L=16 is 1.8 us per generated index).
+- CSF (X6 Pro, G615): about 500 us per tess draw at L=1 and 0 extra at L=4, so the fixed chain dominates: compute
+  steps with full drains on the compute subqueue plus the READY/FREE hand-offs to the vertex/tiler subqueue, which
+  kbase runs as separate CSGs. A CS-side poll of the hand-off syncs before SYNC_WAIT (dev experiment) never saw the
+  other CSG's signal and cost about 2 us per poll; not shipped.
+
+| device | config (us per draw) | rc4 | 115e | 115f |
+|---|---|---|---|---|
+| TB336FU v9 | gs=0 L=1 | 213.8 | 217.5 | 155.6 (-28 %) |
+| TB336FU v9 | gs=1 L=1 | 562.2 | 532.3 | 368.3 (-31 %) |
+| TB336FU v9 | gs=1 L=4 | 1984.9 | 2027.0 | 1717.0 (-15 %) |
+| TB336FU v9 | gs=0 L=16 / gs=1 L=16 | 3042.4 / FAIL | 3013.7 / 12526.1 | 2899.8 / 12016.7 |
+| X6 Pro v11 | gs=0 L=1 / gs=1 L=1 | 544.3 / 688.3 | 504.1 / 700.5 | 497.4 / 686.7 (unchanged) |
+
+PanProbe 40/40 on both (TB336FU 202.9 s, 115e 206.0 s; X6 Pro 148.2 s, 115e 149.8 s), hashes equal to 115e, no
+DEVICE_LOST: `worklogs/g615-dxvk/device-runs/2026-10-29-local-*-115f-*`. v6/v7 (`panvk_tess_draw()`, one pass, no
+iteration loop) and CSF (GPU-side `cs_while`, no empty iterations) do not have this cost and are unchanged.
+
+Strict check on a fresh 5a07217f worktree (`/var/tmp/panvk/mesa-115f-final`, branch `p115f-final`):
+`BASE-OK applied=228 csf-v11<=233 head=625de24a` and `OK base=228 jm-v7-wip=137 head=0f038f9e`, no offset or fuzz
+(only the jm-v9/002 whitespace warning); tree equals `p115e-final` + 0142. Driver
+`/var/tmp/panvk/build-out/2026-10-29-115f/libvulkan_panfrost.so`, sha256 `6218671366aaf603...ecc3564`, 30337336
+bytes, BuildID `cc715635b38fa263d3cc62ecfa02d935230df189`, driverInfo `Mesa 26.3.0-devel (git-0f038f9e96)`.
+`scripts/prepare-rc5-tree.sh` defaults: `--wip-max 0142`. Test APKs (`build-115f.sh`, rc4 slot = `dl-rc4`):
+`panprobe-115f.apk` `4d6baf87...`, `panplay-115f.apk` `83cf214d...`; pins unchanged (no release-candidate APKs).
+
+Ideas left, by expected gain:
+1. Tessellator stack: keep `CHWTessellator` and its small per-edge/axis arrays in registers (no dynamic indexing, or
+   `nir_lower_indirect_derefs` for function_temp in `clc/pan_compile.c`, which needs host tools rebuilt from the
+   tree, not `tmp/rel9`). Hits L>=4 on every arch, the biggest part of tess_perf wall time.
+2. Parallel generation per patch (per ring/row) instead of one thread per patch (tess review #6).
+3. v9 nested (gs=1) draws: per-range iterations are still planned for level 64; a GPU-side NULL of the empty
+   iterations' jobs (`panlib_patch_job_type_header`, as `panlib_patch_draw` does) would remove them.
+4. CSF: run the tess/GS compute steps on the vertex/tiler subqueue (one CS, no cross-CSG hand-off); needs the IDVS
+   register state re-emitted after each compute and its own scoreboard slots.
