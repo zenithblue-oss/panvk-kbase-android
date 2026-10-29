@@ -1,0 +1,13 @@
+PanPlay game loop, scenario 8 (d3d11fl), run 20261029-061754-s8
+Device: LENOVO TB336FU (TB336FU), SDK 36, SoC MT8755
+Driver: Mesa 26.3.0-devel (git-0f038f9e96), sha256 6218671366aaf603
+App: dev.zenithblue.panvklauncher 1.3.0 (44)
+Window: 10 s warm-up, 30 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d11fl_10_0 default   ok       215.5   199.8   233.6    34.0    215.8    106.7    4.4    6.6    7.5     90.0  D3DFL: PASS api=d3d11 level=10_0 created gs:PASS,stream_out:PASS frames=10316 secs=48.0 fps=214.9 startup=1.0
+02  d3d11fl_10_1 default   ok       210.3   194.7   226.0    24.9    209.8    112.2    4.5    6.8    7.6     90.0  D3DFL: PASS api=d3d11 level=10_1 created cube_array:PASS,gather4:PASS frames=10379 secs=48.0 fps=216.2 startup=0.9
+03  d3d11fl_11_0 default   ok       211.0   195.9   224.2    32.6    210.7    106.0    4.5    6.7    7.7     90.0  D3DFL: PASS api=d3d11 level=11_0 created tess:PASS,compute:PASS frames=10448 secs=48.0 fps=217.6 startup=1.0
+04  d3d11fl_11_1 default   ok       202.8   189.8   217.4    35.4    202.3    105.2    4.7    7.0    7.9     90.0  D3DFL: PASS api=d3d11 level=11_1 created uav_vs:PASS,logic_op:PASS,tir:PASS frames=9694 secs=48.0 fps=201.9 startup=1.2
+05  d3d10    default   ok       161.2   147.5   169.5    31.3    161.2     87.2    6.0    7.8    9.4     90.0  CUBE: PASS api=d3d10 frames=7769 (check pixels)
+06  d3d9     default   ok        89.9    88.4    91.4    40.0     90.0     48.5   11.0   13.3   17.5     90.0  CUBE: PASS api=d3d9 frames=4310 (check pixels)
