@@ -660,3 +660,34 @@ Tests (rc5 slot, autorun all, upload dry run):
 - TB336FU (G57 v9): 15/15 PASS incl. `tess_perf`, `tessellation`, then the run was cut by a PanPlay session another
   agent started on the device (not a driver failure).
 - v14 RTL: UNTESTED (RTL link dropped repeatedly while queued on `rtl.lock`).
+
+## Android present format guard (2026-10-29): 0146, X6 Pro `swapchain_lifecycle` SIGSEGV, not yet in a numbered build
+
+| jm-v7-wip | what |
+|---|---|
+| 0146 | `panvk_android_swapchain_post()` (present thread, CPU copy into `ANativeWindow_lock()`) copies only when the locked window buffer is `WINDOW_FORMAT_RGBA_8888`/`RGBX_8888`; any other format posts the buffer uncopied (one `mesa_logw`). The copy writes `win_buf.stride * 4` bytes per row whatever the window format is |
+
+Root cause of the 115g X6 Pro SIGSEGV (write, `memcpy`, `panvk present` thread, first 115g PanProbe run): PanProbe
+`swapchain_lifecycle` `do_resize()` calls `ANativeWindow_setBuffersGeometry(win, W/2, H/2, 0)` and then recreates the
+swapchain. Format 0 resets the window to the Surface default, RGB_565 for PanProbe's `SurfaceView` (no `setFormat`).
+Frames the old swapchain queued before the resize are still posted by its present thread; when one is posted
+between the app's `setBuffersGeometry` and the new swapchain's `setBuffersGeometry(..., RGBA_8888)`, the locked
+buffer is 2 bytes per pixel and the 4-byte row stride writes past its end. Timing-dependent (the 115g rerun passed);
+the width/height were already clamped, only the bytes per pixel were assumed.
+
+Strict check: fresh 5a07217f worktree `/var/tmp/panvk/mesa-wsi-final` (branch `pwsi-final`), `prepare-rc5-tree.sh
+--wip-max 0146`: `BASE-OK applied=228`, `OK base=228 jm-v7-wip=141 head=f0d27f9a`, tree `f6a4dcc8` = dev worktree
+`/var/tmp/panvk/mesa-wsi-dev` (`d66d9347`). Driver `/var/tmp/panvk/build-out/2026-10-29-wsidev/libvulkan_panfrost.so`
+(`/var/tmp/panvk/wsi-dev-build.sh`, rel9 host tools, 4 jobs), sha256 `b13af1b99f7d2903...`, 29291240 bytes, BuildID
+`d301beb2fb19c334631b719002dfc4c7e87cfdb7`, driverInfo `git-d66d93471c`. APK
+`/var/tmp/panvk/build-out/apks/panprobe-wsidev.apk` (`build-wsidev.sh`, rc5 slot, sha256 `8f7259c229cddea4...`).
+
+Tests (rc5 slot, upload dry run, scripts `/var/tmp/panvk/wsi-dev-loop.sh`, `wsi-dev-full.sh`):
+- X6 Pro (G615 v11): `--es autorun swapchain_lifecycle` 30/30 PASS, no SIGSEGV; the guard's warning never fired
+  (the race was not hit in 30, so the loop shows no regression, not the fix itself). Full PanProbe 40/40, no SIGSEGV.
+- TB336FU (G57 v9): full PanProbe 40/40, no SIGSEGV.
+- 115g on X6 Pro, same loop: 6/6 PASS (the crash did not reproduce in 6).
+
+D3D12 FL 11_0 `tess` flake (115g PanPlay s7, 1 FAIL in 12 on TB336FU): A/B with `gameloop-tess-repeat.json`
+(scenario 7, 24 x `d3d12fl_11_0` per run, `/var/tmp/panvk/wsi-dev-ab.sh`): 115f 24/24 PASS, 115g 24/24 PASS. Not
+reproduced (115g 1 FAIL in 36 counting the original 12); the one FAIL came in the first pass right after the app-side NPE crash. 0143 unchanged.

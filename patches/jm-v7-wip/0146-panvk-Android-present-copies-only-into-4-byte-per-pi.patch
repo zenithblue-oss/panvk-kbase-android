@@ -1,0 +1,59 @@
+From d66d93471cf2ee554181cc27205665351aae8b23 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 29 Oct 2026 07:58:00 +0530
+Subject: [PATCH] panvk: Android present copies only into 4-byte-per-pixel
+ window buffers
+
+The CPU-copy present writes win_buf.stride * 4 bytes per row.  An app that
+calls ANativeWindow_setBuffersGeometry(window, w, h, 0) for a resize before
+it recreates the swapchain resets the window format to the Surface default
+(RGB_565 for a SurfaceView), and the present thread still posts the old
+swapchain's queued frames into it: the 4-byte row stride runs past the end
+of the 2-byte buffer (SIGSEGV write in memcpy, PanProbe swapchain_lifecycle
+on Mali-G615).  Post such a buffer without the copy.
+---
+ src/panfrost/vulkan/panvk_wsi.c | 21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_wsi.c b/src/panfrost/vulkan/panvk_wsi.c
+index fed59e9d9a8..b660d87cb8c 100644
+--- a/src/panfrost/vulkan/panvk_wsi.c
++++ b/src/panfrost/vulkan/panvk_wsi.c
+@@ -51,6 +51,7 @@ panvk_can_present_on_device(VkPhysicalDevice pdevice, int fd)
+ #ifdef VK_USE_PLATFORM_ANDROID_KHR
+ #include <android/native_window.h>
+ #include <android/hardware_buffer.h>
++#include "util/log.h"
+ #include "util/timespec.h"
+ #include "util/u_thread.h"
+ #include "wsi_common_private.h"
+@@ -326,8 +327,24 @@ panvk_android_swapchain_post(struct panvk_android_swapchain *chain,
+          void *ahb_data = NULL;
+          AHardwareBuffer_Desc desc;
+          AHardwareBuffer_describe(chain->images[image_index].ahb, &desc);
+-         if (AHardwareBuffer_lock(chain->images[image_index].ahb,
+-                                  AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN, -1, NULL, &ahb_data) == 0) {
++         /* The copy writes 4 bytes per pixel.  The window format is not
++          * ours: ANativeWindow_setBuffersGeometry(w, h, 0) from the app
++          * (a resize before it recreates the swapchain) resets it to the
++          * Surface default, e.g. RGB_565, while the present thread still
++          * posts the old swapchain's queued frames.  A 4-byte row stride
++          * then writes past the end of the 2-byte buffer.  Post such a
++          * buffer unchanged. */
++         const bool bpp4 = win_buf.format == WINDOW_FORMAT_RGBA_8888 ||
++                           win_buf.format == WINDOW_FORMAT_RGBX_8888;
++         if (!bpp4) {
++            static bool warned;
++            if (!warned) {
++               warned = true;
++               mesa_logw("panvk: window buffer format %d is not 4 bytes per "
++                         "pixel, frame not copied", win_buf.format);
++            }
++         } else if (AHardwareBuffer_lock(chain->images[image_index].ahb,
++                                         AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN, -1, NULL, &ahb_data) == 0) {
+             uint32_t copy_h = win_buf.height < (int)desc.height ? (uint32_t)win_buf.height : desc.height;
+             uint32_t copy_w = win_buf.width < (int)desc.width ? (uint32_t)win_buf.width : desc.width;
+             for (uint32_t y = 0; y < copy_h; y++) {
+-- 
+2.56.0
+
