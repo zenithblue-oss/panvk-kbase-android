@@ -46,8 +46,8 @@ Evidence. Output audio was captured with `scrcpy --audio-source=output` (levels 
   The user also reported that sound works in their next session.
 
 Run 4 used `panplay-121b-audio.apk` (stub) with `GST_PLUGIN_FEATURE_RANK` set in the shortcut env.
-`panplay-121b-audio2.apk` has both in the launcher. It was built after the X6 Pro was unplugged to cool down and is
-not yet run on the device.
+`panplay-121b-audio2.apk` (sha256 87fc2dfc..., `/var/tmp/panvk/build-out/apks/`) has both in the launcher and no
+shortcut env. Its run 5 recorded 240 s with menu music and then gameplay at rms -29 to -42 dB the whole time.
 
 ## 2. Black Nora face
 
@@ -58,9 +58,40 @@ as in the 110 run. With `MESA_LOG_FILE`, the driver logged no `BC image without 
 lazy-raw skip (black-head cause 1 in `fo4-memory-analysis-2026-10-23.md`) did not fire. The 225 stale guard is in
 this tree (csf-v11 <= 233).
 
-A/B status: one `PANVK_BC_MODE=exact` run reached gameplay, but Nora was not in view before the user quit (FO4
-shows its usual R6025 on exit). The device then had to cool down (46 C battery) and was unplugged, so the A/B
-(exact BC mode, `PANVK_BC_RAW=store`, rc4 / 120 drivers) is **not done**. See the update section below, if present.
+### A/B on the user's elevator save (Quicksave 20:47, facing Nora), wireless adb, battery <= 39 C
+
+Each run loaded the same save with the audio2 APK. Only the shortcut env, driver or render API changed:
+
+| Run | Change | Nora's face | Shot |
+|---|---|---|---|
+| base | 121b, DXVK, launcher defaults | black | `face-before-121b-elevator.jpg`, `nora-face-user-aligned-204729.png` |
+| exact | `PANVK_BC_MODE=exact` (BC lowmem/ETC2 transcode off) | black | `face-exact2-n.jpg` |
+| rc4 | driver ab-rc4 (Mesa 5a07217f rc4) | black | `face-rc4-3.jpg` |
+| mip0 | `iTexMipMapSkip=0` in Fallout4Prefs.ini (restored to 2) | black | `face-mip0-3.jpg` |
+| nocap | `DXVK_CONFIG` without `dxgi.maxDeviceMemory/maxSharedMemory` | black | `face-nocap-3.jpg` |
+| nan | `+ d3d11.enableRtOutputNanFixup = True` | black | `face-nan-3.jpg` |
+| amd | `+ dxgi.customVendorId = 1002, customDeviceId = 73bf` | black | `face-amd-3.jpg` |
+| **wd3d** | **Render API WineD3D-Zink** (`PANPLAY_RENDER_API=wined3d`), same 121b driver | **correct** | `face-wd3d-3.jpg` |
+
+Findings:
+- **This is not a regression.** rc4 shows it too, so the earlier "no black heads" WhatsNew entry (csf-v11 225) fixed
+  a different, later-in-session cause. 0153/0155/0162 are not the cause either.
+- **This is not the BC lowmem transcode**: exact mode is still black. The driver logged no lazy-raw skip.
+- It is not FO4's texture budget (memory cap removed), the mip skip, the vendor id, or NaN render-target outputs.
+- The same driver and the same BC emulation render the face correctly through WineD3D -> Zink. So the cause is in
+  something DXVK does that WineD3D does not, on the FaceGen face material only (hair, clothes, the baby and male NPC
+  faces render). Male NPCs use pre-baked FaceGen textures. Nora and the player have runtime-built FaceGen data.
+  Candidates still open: a DXVK-specific shader pattern in the face/skin pixel shader compiled by PanVK (float
+  controls, `SampleCmp`/`Gather`, min-LOD clamp), or a resource path DXVK uses for the runtime face textures (UAV /
+  typeless or mutable views, a `CopyResource` between compatible formats). The next step is a frame capture of the
+  face draw (DXVK shader dump `DXVK_SHADER_DUMP_PATH` + RenderDoc-style replay on desktop RADV vs PanVK).
+
+### UI flicker report (coordinator, 21:00)
+
+The "face fixed" session the user saw was the **wd3d A/B run** (WineD3D-Zink render API set through the shortcut
+env). It is not a shipped change. WineD3D-Zink is known to have Scaleform UI artifacts in FO4: subtitles garble
+in `face-wd3d-3.jpg`. The shortcut was restored to its original `{}` env and default driver (DXVK), so the flicker is
+gone and the black face is back. Nothing in the committed launcher changes affects rendering.
 
 ## Limits
 
