@@ -1,0 +1,278 @@
+From 59c41db51ce13bb7503bd7f85d78c128e15e9f47 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 29 Oct 2026 16:21:14 +0530
+Subject: [PATCH] panvk/csf/kbase: incremental rendering on tiler heap OOM (one
+ queue group, chunk recycling)
+
+On kbase every subqueue ran in its own queue group and no group asked for
+BASE_CSF_TILER_OOM_EXCEPTION_FLAG. When a tiler heap reached max_chunks,
+kbase terminated the vertex/tiler group ("CSF group 0 tiler heap OOM
+notification", all subqueues stuck at one seqno, DEVICE_LOST). PanProbe
+tess_perf on the Mali-G925 (v13) failed this way in ~75% of runs, and v14
+showed it before. Raising max_chunks did not help: chunks never came back
+to the heap within a heap generation (098 skips FINISH_FRAGMENT), so every
+pass until the next heap renewal shared one budget.
+
+- All subqueues now share one kbase group (CS i = subqueue i, the panthor
+  layout) created with BASE_CSF_TILER_OOM_EXCEPTION_FLAG. At max_chunks
+  kbase answers the OOM with a NULL chunk, and the firmware runs the
+  existing TILER_OOM handler on the fragment CS (incremental rendering:
+  flush the bins, FINISH_FRAGMENT the chunks back). The handler only
+  reaches CSs of the group that hit the OOM, so with one group per
+  subqueue it never ran. Group create tries the layouts that carry
+  csi_handlers before the 1_6 one (MediaTek 1.21 kernels).
+- The fragment subqueue issues FINISH_FRAGMENT at the end of each pass
+  again, without the FRAGMENT_COMPLETED increment and without
+  FRAGMENT_END, so vt_end/frag_end stay 0 and kbase's heap statistics
+  check (098) still holds. Without it the IR handler frees nothing once
+  earlier passes hold every chunk, and the tiler OOMs forever (X6 Pro,
+  8 max chunks: firmware hang and GPU reset).
+
+PANVK_KBASE_TILER_IR=0 restores the old layout and behaviour.
+
+X6 Pro (G615, v11), PanProbe tess_perf with PANVK_KBASE_HEAP_CHUNKS=4,32:
+10/10 PASS (build 119: OOM, DEVICE_LOST at gs=0 L=16). With 1,8 (below the
+working set of the tiler) runs still hang in the firmware 4 of 9 times.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/lib/kmod/kbase_kmod.c           | 40 ++++++++++++++------
+ src/panfrost/lib/kmod/kbase_kmod.h           |  4 +-
+ src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c  | 20 ++++++++--
+ src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c | 37 ++++++++++++++----
+ 4 files changed, 79 insertions(+), 22 deletions(-)
+
+diff --git a/src/panfrost/lib/kmod/kbase_kmod.c b/src/panfrost/lib/kmod/kbase_kmod.c
+index a5274891791..8ebed40389f 100644
+--- a/src/panfrost/lib/kmod/kbase_kmod.c
++++ b/src/panfrost/lib/kmod/kbase_kmod.c
+@@ -957,11 +957,12 @@ kbase_kmod_get_flush_id(const struct pan_kmod_dev *dev)
+  * tiler unit, all fragment/compute endpoints.  Priority 0 is
+  * BASE_QUEUE_GROUP_PRIORITY_HIGH: resist CSG rotation so the Pixel kbase
+  * off-slot heap-reclaim shrinker cannot empty our tiler heaps under memory
+- * pressure.  Tiler heap growth is serviced by the kernel OOM path, so no
+- * CSI exception handler is requested (BASE_CSF_TILER_OOM_EXCEPTION_FLAG was
+- * tried and is ineffective: the group is terminated on an unhandled OOM
+- * regardless).  csi_handlers/dvs_buf stay 0 in every layout, so the kernel
+- * compat handlers build the same request whichever layout is used. */
++ * pressure.  Tiler heap growth is serviced by the kernel OOM path.  At
++ * max_chunks kbase terminates the group, unless csi_handlers has
++ * BASE_CSF_TILER_OOM_EXCEPTION_FLAG: it then answers with a NULL chunk and
++ * the firmware raises TILER_OOM on the CS that registered the incremental
++ * rendering handler (jm-v7-wip 0161: the fragment CS, same group as the
++ * vertex/tiler CS).  The 1_6 layout has no csi_handlers. */
+ #define KBASE_GROUP_CREATE_IN(cs_count)                                        \
+    .tiler_mask = 1, .fragment_mask = ~0ull, .compute_mask = ~0ull,            \
+    .cs_min = (cs_count), .priority = 0, .tiler_max = 1, .fragment_max = 64,   \
+@@ -969,7 +970,8 @@ kbase_kmod_get_flush_id(const struct pan_kmod_dev *dev)
+ 
+ static int
+ kbase_csf_group_create_ioctl(int fd, unsigned layout, bool fault_report,
+-                             uint32_t cs_queue_count, uint32_t *group_handle)
++                             uint32_t cs_queue_count, uint8_t csi_handlers,
++                             uint32_t *group_handle)
+ {
+    STATIC_ASSERT(sizeof(union kbase_ioctl_cs_queue_group_create_1_6) == 32);
+    STATIC_ASSERT(sizeof(union kbase_ioctl_cs_queue_group_create_1_18) == 40);
+@@ -979,6 +981,7 @@ kbase_csf_group_create_ioctl(int fd, unsigned layout, bool fault_report,
+       /* uAPI 1.25+: ask for recoverable CS faults through read(). */
+       union kbase_ioctl_cs_queue_group_create req = {
+          .in = { KBASE_GROUP_CREATE_IN(cs_queue_count),
++                 .csi_handlers = csi_handlers,
+                  .cs_fault_report_enable = fault_report },
+       };
+       if (ioctl(fd, KBASE_IOCTL_CS_QUEUE_GROUP_CREATE, &req))
+@@ -986,7 +989,8 @@ kbase_csf_group_create_ioctl(int fd, unsigned layout, bool fault_report,
+       *group_handle = req.out.group_handle;
+    } else if (layout == 40) {
+       union kbase_ioctl_cs_queue_group_create_1_18 req = {
+-         .in = { KBASE_GROUP_CREATE_IN(cs_queue_count) },
++         .in = { KBASE_GROUP_CREATE_IN(cs_queue_count),
++                 .csi_handlers = csi_handlers },
+       };
+       if (ioctl(fd, KBASE_IOCTL_CS_QUEUE_GROUP_CREATE_1_18, &req))
+          return -1;
+@@ -1004,12 +1008,16 @@ kbase_csf_group_create_ioctl(int fd, unsigned layout, bool fault_report,
+ 
+ int
+ kbase_kmod_csf_group_create(struct pan_kmod_dev *dev, uint32_t cs_queue_count,
+-                            uint32_t *group_handle)
++                            bool tiler_oom_handler, uint32_t *group_handle)
+ {
+    struct kbase_kmod_dev *kbase_dev =
+       container_of(dev, struct kbase_kmod_dev, base);
+    const bool fault_report =
+       pan_kmod_driver_version_at_least(&dev->driver, 1, 25);
++   const uint8_t csi_handlers =
++      tiler_oom_handler && pan_kmod_driver_version_at_least(&dev->driver, 1, 12)
++         ? BASE_CSF_TILER_OOM_EXCEPTION_FLAG
++         : 0;
+    unsigned layouts[3], n;
+    int err = 0;
+ 
+@@ -1019,13 +1027,23 @@ kbase_kmod_csf_group_create(struct pan_kmod_dev *dev, uint32_t cs_queue_count,
+                                                    dev->driver.version.minor,
+                                                    layouts);
+ 
++   /* The kernel's 1_6 compat handler drops csi_handlers (CSF 1.19-1.24
++    * kernels such as MediaTek 1.21 try 32 bytes first): try the layouts that
++    * carry the flag first. */
++   if (csi_handlers && n > 1 && layouts[0] == 32) {
++      memmove(layouts, layouts + 1, (n - 1) * sizeof(layouts[0]));
++      layouts[n - 1] = 32;
++   }
++
+    for (unsigned i = 0; i < n; i++) {
+       if (kbase_csf_group_create_ioctl(dev->fd, layouts[i], fault_report,
+-                                       cs_queue_count, group_handle) == 0) {
++                                       cs_queue_count, csi_handlers,
++                                       group_handle) == 0) {
+          if (p_atomic_cmpxchg(&kbase_dev->group_create_layout, 0,
+                               layouts[i]) == 0)
+-            mesa_logi("kbase: queue_group_create layout=%u bytes",
+-                      layouts[i]);
++            mesa_logi("kbase: queue_group_create layout=%u bytes, %u CS, "
++                      "csi_handlers 0x%x",
++                      layouts[i], cs_queue_count, csi_handlers);
+          return 0;
+       }
+ 
+diff --git a/src/panfrost/lib/kmod/kbase_kmod.h b/src/panfrost/lib/kmod/kbase_kmod.h
+index 0a239048eee..15f03932785 100644
+--- a/src/panfrost/lib/kmod/kbase_kmod.h
++++ b/src/panfrost/lib/kmod/kbase_kmod.h
+@@ -79,8 +79,10 @@ bool kbase_kmod_supports_dmabuf(const struct pan_kmod_dev *dev);
+  * page and kick.  Progress is visible through CS_EXTRACT / CS_ACTIVE in
+  * the output page.
+  */
++/* tiler_oom_handler: request BASE_CSF_TILER_OOM_EXCEPTION_FLAG (uAPI 1.12+;
++ * ignored on older kernels). */
+ int kbase_kmod_csf_group_create(struct pan_kmod_dev *dev,
+-                                uint32_t cs_queue_count,
++                                uint32_t cs_queue_count, bool tiler_oom_handler,
+                                 uint32_t *group_handle);
+ 
+ /* kbase counts va_pages, alias lengths and mmap handle offsets in kernel
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+index a1f1671d66c..ab2ff59e8e6 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+@@ -73,6 +73,9 @@ cmdbuf_skips_gpu_heap_ops(const struct panvk_cmd_buffer *cmdbuf)
+    return phys_dev->kbase_node_path[0] != '\0';
+ }
+ 
++/* kbase incremental rendering (jm-v7-wip 0161, panvk_vX_gpu_queue.c). */
++DEBUG_GET_ONCE_BOOL_OPTION(kbase_tiler_ir, "PANVK_KBASE_TILER_IR", true)
++
+ static bool
+ render_needs_zs_crc_ext(struct panvk_cmd_buffer *cmdbuf)
+ {
+@@ -7551,11 +7554,21 @@ issue_fragment_jobs(struct panvk_cmd_buffer *cmdbuf)
+          cs_defer(SB_WAIT_ITER(sb_upd_ctx.cur_sb), SB_ITER(sb_upd_ctx.next_sb));
+ #endif
+ 
+-      if (cmdbuf_skips_gpu_heap_ops(cmdbuf)) {
++      /* On kbase, FINISH_FRAGMENT without the FRAGMENT_COMPLETED increment
++       * (and no FRAGMENT_END, see cmdbuf_skips_gpu_heap_ops()) still gives
++       * the pass's chunks back to the heap context.  Without it a heap
++       * generation only grows until the queue's heap renewal, and once
++       * earlier passes hold every chunk, the incremental rendering handler
++       * frees nothing and the tiler OOMs forever (firmware hang, X6 Pro
++       * with 8 max chunks).  PANVK_KBASE_TILER_IR=0: old behaviour. */
++      const bool heap_stats = !cmdbuf_skips_gpu_heap_ops(cmdbuf);
++
++      if (!heap_stats && !debug_get_option_kbase_tiler_ir()) {
+          /* Heap chunks are reclaimed by the queue's heap renewal. */
+       } else if (td_count == 1) {
+          cs_load_to(b, completed, cur_tiler, BITFIELD_MASK(4), 40);
+-         cs_finish_fragment(b, true, completed_top, completed_bottom, async);
++         cs_finish_fragment(b, heap_stats, completed_top, completed_bottom,
++                            async);
+       } else if (td_count > 1) {
+          cs_while(b, MALI_CS_CONDITION_GREATER, tiler_count) {
+             cs_load_to(b, completed, cur_tiler, BITFIELD_MASK(4), 40);
+@@ -7565,7 +7578,8 @@ issue_fragment_jobs(struct panvk_cmd_buffer *cmdbuf)
+                cs_add_imm64(b, cur_tiler, cur_tiler, pan_size(TILER_CONTEXT));
+             cs_add_imm32(b, tiler_count, tiler_count, -1);
+          }
+-         cs_frag_end(b, async);
++         if (heap_stats)
++            cs_frag_end(b, async);
+       }
+ 
+ #if PAN_ARCH >= 11
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+index c6a2abb2a05..c8a08c33e45 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+@@ -1108,6 +1108,15 @@ kbase_queue_wait_current(struct panvk_gpu_queue *queue,
+    return VK_SUCCESS;
+ }
+ 
++/* All subqueues in one kbase queue group (CS i = subqueue i, the panthor
++ * layout), with the tiler OOM exception flag.  At max_chunks kbase then
++ * answers a tiler OOM with a NULL chunk instead of terminating the group, and
++ * the firmware runs the fragment CS's TILER_OOM handler (incremental
++ * rendering, panvk_vX_exception_handler.c), which only reaches CSs of the
++ * group that hit the OOM.  One group per subqueue (PANVK_KBASE_TILER_IR=0,
++ * the old layout) turns every heap exhaustion into DEVICE_LOST. */
++DEBUG_GET_ONCE_BOOL_OPTION(kbase_one_group, "PANVK_KBASE_TILER_IR", true)
++
+ static void
+ kbase_destroy_group(struct panvk_gpu_queue *queue)
+ {
+@@ -1124,10 +1133,18 @@ kbase_destroy_group(struct panvk_gpu_queue *queue)
+       subq->kbase.ringbuf_bo = NULL;
+       subq->kbase.user_io = NULL;
+ 
+-      if (subq->kbase.group_handle != UINT32_MAX) {
+-         kbase_kmod_csf_group_destroy(dev->kmod.dev,
+-                                      subq->kbase.group_handle);
+-         subq->kbase.group_handle = UINT32_MAX;
++   }
++
++   /* In the one-group layout every subqueue holds the same handle. */
++   for (uint32_t i = 0; i < PANVK_SUBQUEUE_COUNT; i++) {
++      const uint32_t handle = queue->subqueues[i].kbase.group_handle;
++
++      if (handle == UINT32_MAX)
++         continue;
++      kbase_kmod_csf_group_destroy(dev->kmod.dev, handle);
++      for (uint32_t j = i; j < PANVK_SUBQUEUE_COUNT; j++) {
++         if (queue->subqueues[j].kbase.group_handle == handle)
++            queue->subqueues[j].kbase.group_handle = UINT32_MAX;
+       }
+    }
+ }
+@@ -1143,11 +1160,17 @@ kbase_create_group(struct panvk_gpu_queue *queue)
+    for (uint32_t i = 0; i < PANVK_SUBQUEUE_COUNT; i++)
+       queue->subqueues[i].kbase.group_handle = UINT32_MAX;
+ 
++   const bool one_group = debug_get_option_kbase_one_group();
++
+    for (uint32_t i = 0; i < PANVK_SUBQUEUE_COUNT; i++) {
+       struct panvk_subqueue *subq = &queue->subqueues[i];
+ 
+-      if (kbase_kmod_csf_group_create(dev->kmod.dev, 1,
+-                                      &subq->kbase.group_handle)) {
++      if (one_group && i > 0) {
++         subq->kbase.group_handle = queue->subqueues[0].kbase.group_handle;
++      } else if (kbase_kmod_csf_group_create(
++                    dev->kmod.dev, one_group ? PANVK_SUBQUEUE_COUNT : 1,
++                    one_group,
++                    &subq->kbase.group_handle)) {
+          result = panvk_errorf(dev, VK_ERROR_INITIALIZATION_FAILED,
+                                "Failed to create a kbase queue group");
+          goto err_destroy_group;
+@@ -1197,7 +1220,7 @@ kbase_create_group(struct panvk_gpu_queue *queue)
+       }
+ 
+       subq->kbase.user_io = kbase_kmod_csf_queue_bind(
+-         dev->kmod.dev, subq->kbase.group_handle, 0,
++         dev->kmod.dev, subq->kbase.group_handle, one_group ? i : 0,
+          subq->kbase.ringbuf_dev,
+          KBASE_RINGBUF_SIZE);
+       if (!subq->kbase.user_io) {
+-- 
+2.56.0
+
