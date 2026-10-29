@@ -178,6 +178,17 @@ fun SettingsScreen(
                 SwitchRow("Built-in X server", "Off uses Termux:X11", builtinDisplay, onToggleBuiltin, enabled = !isRunning)
                 if (builtinDisplay) {
                     SwitchRow("MIT-SHM present", "Shared-memory frame transfer", displayShm, onToggleShm, enabled = !isRunning)
+                    val ctx = androidx.compose.ui.platform.LocalContext.current
+                    var present by remember { mutableStateOf(DisplayServer.present(ctx)) }
+                    DropdownField(
+                        label = "Present path",
+                        options = DisplayServer.presentOptions,
+                        selected = present,
+                        onSelect = { present = it; DisplayServer.setPresent(ctx, it) },
+                        enabled = !isRunning
+                    )
+                    Text("EGL: game frames go into AHardwareBuffers the display samples directly (no per-frame GL upload). Games can override it.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     ResolutionField("Default resolution", displayRes, onSetRes, enabled = !isRunning)
                 }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

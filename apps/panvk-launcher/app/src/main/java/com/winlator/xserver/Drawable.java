@@ -57,6 +57,55 @@ public class Drawable extends XResource {
         return width;
     }
 
+    /** panvk-launcher "EGL" present path (BuiltinXServer.start): window contents in AHardwareBuffers, sampled via EGLImage. */
+    public static volatile boolean eglPresent = false;
+    private static final java.util.Set<Drawable> ahbDrawables = java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
+    private long ahb;
+
+    public long getAhb() {
+        return ahb;
+    }
+
+    /** Window content only (the compositor samples these); a failed allocation keeps the heap buffer. */
+    public void attachAhb() {
+        if (!eglPresent || ahb != 0 || width < 64 || height < 64) return;
+        long b = ahbAllocate(width, height);
+        if (b == 0) return;
+        ByteBuffer m = ahbLock(b);
+        if (m == null) { ahbRelease(b); return; }
+        ahb = b;
+        data = m.order(ByteOrder.LITTLE_ENDIAN);
+        ahbDrawables.add(this);
+    }
+
+    /** GL thread, under renderLock, before sampling: makes the CPU writes visible to the GPU. */
+    public void syncAhb() {
+        if (ahb == 0) return;
+        ByteBuffer moved = ahbSync(ahb, data);
+        // ponytail: an X-thread copy into the old mapping can race this swap; gralloc keeps the mapping, so never seen.
+        if (moved != null) data = moved.order(ByteOrder.LITTLE_ENDIAN);
+    }
+
+    /** After the texture (and its EGLImage) is gone, or when the X server stops. */
+    public void releaseAhb() {
+        synchronized (renderLock) {
+            if (ahb == 0) return;
+            ahbDrawables.remove(this);
+            data = null;
+            ahbRelease(ahb);
+            ahb = 0;
+        }
+    }
+
+    public static void releaseAllAhb() {
+        for (Drawable d : ahbDrawables.toArray(new Drawable[0])) d.releaseAhb();
+    }
+
+    private static native long ahbAllocate(int width, int height);
+    private static native ByteBuffer ahbLock(long ahb);
+    private static native ByteBuffer ahbSync(long ahb, ByteBuffer data);
+    private static native void ahbRelease(long ahb);
+
     public Runnable getOnDrawListener() {
         return onDrawListener;
     }

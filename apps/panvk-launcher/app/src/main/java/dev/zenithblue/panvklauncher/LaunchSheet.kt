@@ -75,6 +75,8 @@ fun LaunchSheet(
     var fexMode by remember(game.id) { mutableStateOf(Box64Presets.resolve(Box64Presets.modeFor(game))) }
     var audio by remember(game.id) { mutableStateOf(game.audio) }
     var renderApi by remember(game.id) { mutableStateOf(RenderApi.norm(game.renderApi)) }
+    var present by remember(game.id) { mutableStateOf(game.present) }
+    val presentGlobal = remember { DisplayServer.presentOptions.first { it.first == DisplayServer.present(ctx) }.second }
     // PE import scan + engine hint (Godot/Unity/Unreal) off the main thread; the exe can be tens of MB.
     val detected by produceState<RenderApi.Detected?>(null, info.exePath) {
         value = withContext(Dispatchers.IO) { RenderApi.detect(info.exePath) }
@@ -161,6 +163,12 @@ fun LaunchSheet(
                     )
                     if (apiWarn != null) Text(apiWarn, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                     DropdownField(
+                        label = "Present path",
+                        options = listOf("" to "Global ($presentGlobal)") + DisplayServer.presentOptions,
+                        selected = present,
+                        onSelect = { present = it }
+                    )
+                    DropdownField(
                         label = "32-bit emulator",
                         options = listOf("FEX" to "FEX (default)", "Box64" to "Box64"),
                         selected = if (box) "Box64" else "FEX",
@@ -193,7 +201,7 @@ fun LaunchSheet(
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 52.dp)) { Text("Cancel") }
                         Button(
-                            onClick = { onLaunch(game.copy(resolution = resolution, driver = driverId, fex = emuMode, fpsLimit = fps, audio = audio, renderApi = renderApi)) },
+                            onClick = { onLaunch(game.copy(resolution = resolution, driver = driverId, fex = emuMode, fpsLimit = fps, audio = audio, renderApi = renderApi, present = present)) },
                             enabled = problems.isEmpty(),
                             modifier = Modifier.weight(1f).heightIn(min = 52.dp)
                         ) {

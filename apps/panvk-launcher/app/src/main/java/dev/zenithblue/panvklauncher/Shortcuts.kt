@@ -28,6 +28,7 @@ data class Shortcut(
     val fpsLimit: Int = 0, // 0 = off, else 1..1000 (DXVK_FRAME_RATE / VKD3D_FRAME_RATE)
     val audio: String = "", // "" = launcher default, else GameAudio.PULSE | ALSA | OFF
     val renderApi: String = RenderApi.AUTO, // RenderApi.AUTO | DXVK | VKD3D | WINED3D | OPENGL | VULKAN | CNC
+    val present: String = "", // "" = global present path, else DisplayServer.PRESENT_DEFAULT | PRESENT_EGL
     val lastApi: String = "", // API the last run actually used (RenderApi.used), shown on the launch card
     val icon: String = "auto",
     val created: Long = System.currentTimeMillis(),
@@ -43,6 +44,7 @@ data class LaunchOptions(
     val fpsLimit: Int = 0,
     val audio: String = "",
     val renderApi: String = RenderApi.AUTO,
+    val present: String = "",
     val gameId: String = "" // shortcut id: per-game MangoHud settings
 )
 
@@ -139,7 +141,7 @@ object ShortcutStore {
     private fun toJson(s: Shortcut) = JSONObject().apply {
         put("id", s.id); put("name", s.name); put("exe", s.exe); put("args", s.args)
         put("env", JSONObject(s.env)); put("arch", s.arch); put("resolution", s.resolution)
-        put("driver", s.driver); put("fex", s.fex); put("fpsLimit", s.fpsLimit); put("audio", s.audio); put("renderApi", s.renderApi); put("lastApi", s.lastApi); put("icon", s.icon); put("created", s.created)
+        put("driver", s.driver); put("fex", s.fex); put("fpsLimit", s.fpsLimit); put("audio", s.audio); put("renderApi", s.renderApi); put("present", s.present);put("lastApi", s.lastApi); put("icon", s.icon); put("created", s.created)
         put("lastPlayed", s.lastPlayed); put("hudV", 1)
     }
 
@@ -154,7 +156,7 @@ object ShortcutStore {
             exe = j.getString("exe"), args = j.optString("args", ""), env = env,
             arch = j.optString("arch", "auto"), resolution = j.optString("resolution", ""),
             driver = j.optString("driver", ""), fex = j.optString("fex", ""), fpsLimit = j.optInt("fpsLimit", 0).takeIf { it in 1..1000 } ?: 0,
-            audio = j.optString("audio", "").takeIf { a -> GameAudio.drivers.any { it.first == a } } ?: "", renderApi = RenderApi.norm(j.optString("renderApi", RenderApi.AUTO)), lastApi = j.optString("lastApi", ""),
+            audio = j.optString("audio", "").takeIf { a -> GameAudio.drivers.any { it.first == a } } ?: "", renderApi = RenderApi.norm(j.optString("renderApi", RenderApi.AUTO)), present = j.optString("present", ""), lastApi = j.optString("lastApi", ""),
             icon = j.optString("icon", "auto"),
             created = j.optLong("created", 0), lastPlayed = j.optLong("lastPlayed", 0)
         )
@@ -252,7 +254,7 @@ object ShortcutStore {
 
     fun launchOptions(ctx: Context, s: Shortcut) = LaunchOptions(
         args = splitArgs(s.args), env = s.env, driverId = s.driver, fexMode = Box64Presets.modeFor(s), fpsLimit = s.fpsLimit,
-        audio = s.audio, renderApi = RenderApi.norm(s.renderApi), gameId = s.id
+        audio = s.audio, renderApi = RenderApi.norm(s.renderApi), present = s.present, gameId = s.id
     )
 
     /** Whitespace split honouring "double quotes". */

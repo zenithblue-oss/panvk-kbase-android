@@ -13,10 +13,11 @@ add_library(winlator SHARED
     winlator/drawable.c
     winlator/sysvshared_memory.c
     winlator/xconnector_epoll.c
+    winlator/ahb.c
 )
 target_compile_options(winlator PRIVATE -O2 -Wno-unused-function -Wimplicit-function-declaration)
 target_link_options(winlator PRIVATE "-Wl,-z,max-page-size=16384" "-Wl,--as-needed")
-target_link_libraries(winlator PRIVATE log android jnigraphics)
+target_link_libraries(winlator PRIVATE log android jnigraphics EGL GLESv2)
 
 add_library(VkLayer_fbread SHARED
     fbread_layer.c

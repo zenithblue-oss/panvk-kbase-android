@@ -706,7 +706,7 @@ object ContainerManager {
         var session: DisplayServer.Session? = null
         try {
             if (graphics) {
-                session = DisplayServer.prepare(ctx, onLine)
+                session = DisplayServer.prepare(ctx, onLine, launchOpts.get()?.let { it.env["PANPLAY_PRESENT"] ?: it.present } ?: "")
                 if (session == null || synchronized(lifecycleLock) {
                         LaunchGate.cancelled(stopRequested, state == State.STOPPING)
                     }

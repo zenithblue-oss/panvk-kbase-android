@@ -29,6 +29,8 @@ object WhatsNew {
         "Render API per game: Auto, DXVK, VKD3D, WineD3D, OpenGL (Zink), Vulkan or cnc-ddraw",
         "The launch sheet shows the detected graphics API (with Godot, Unity and Unreal hints) and the API of the last run",
         "Built-in Direct3D feature level tests: D3D12 11_0 to 12_2 and D3D11 10_0 to 11_1",
+        "Present path: Default or EGL (frames in AHardwareBuffers, no GL upload), in Settings > Display and per game",
+        "WineD3D-Zink Render API, named clearly: D3D9-11 through OpenGL, Zink and PanVK (D3D12 stays on VKD3D)",
     )
     val fixed = listOf(
         "The DXVK HUD was always on with every item: the game's DXVK_HUD setting was ignored",

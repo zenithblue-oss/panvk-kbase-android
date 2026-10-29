@@ -57,6 +57,28 @@ object DisplayServer {
         prefs(ctx).edit().putBoolean("display_shm", on).apply()
     }
 
+    /**
+     * Present path of the built-in X server. DEFAULT: window pixels in heap memory, uploaded with glTexSubImage2D per
+     * frame. EGL: window pixels in AHardwareBuffers the compositor samples through an EGLImage (no upload), like the
+     * "EGL renderer" of Winlator forks. Per game: Shortcut.present ("" = this global value) or env PANPLAY_PRESENT.
+     */
+    const val PRESENT_DEFAULT = "default"
+    const val PRESENT_EGL = "egl"
+    val presentOptions = listOf(PRESENT_DEFAULT to "Default (GL upload)", PRESENT_EGL to "EGL (AHardwareBuffer, zero-copy)")
+
+    fun present(ctx: Context): String = if (prefs(ctx).getString("display_present", PRESENT_DEFAULT) == PRESENT_EGL) PRESENT_EGL else PRESENT_DEFAULT
+
+    fun setPresent(ctx: Context, p: String) {
+        prefs(ctx).edit().putString("display_present", if (p == PRESENT_EGL) PRESENT_EGL else PRESENT_DEFAULT).apply()
+    }
+
+    /** [perGame]: "" / unknown = global setting. */
+    fun eglPresent(ctx: Context, perGame: String): Boolean = when (perGame) {
+        PRESENT_EGL -> true
+        PRESENT_DEFAULT -> false
+        else -> present(ctx) == PRESENT_EGL
+    }
+
     fun describe(ctx: Context): String {
         if (mode(ctx) == Mode.BUILTIN) {
             val state = if (BuiltinXServer.isRunning()) "running" else "idle"
@@ -97,9 +119,9 @@ object DisplayServer {
         }
     }
 
-    fun prepare(ctx: Context, onLine: (String) -> Unit): Session? {
+    fun prepare(ctx: Context, onLine: (String) -> Unit, present: String = ""): Session? {
         if (mode(ctx) == Mode.BUILTIN) {
-            val session = BuiltinXServer.start(ctx, effectiveResolution(ctx), useShm(ctx), onLine) ?: return null
+            val session = BuiltinXServer.start(ctx, effectiveResolution(ctx), useShm(ctx), eglPresent(ctx, present), onLine) ?: return null
             val err = openBuiltin(ctx)
             if (err != null) onLine(err) else onLine("Display activity opened (surface and input).")
             return session

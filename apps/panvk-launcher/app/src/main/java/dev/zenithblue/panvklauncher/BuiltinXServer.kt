@@ -69,9 +69,10 @@ object BuiltinXServer {
 
     fun usrDir(ctx: Context): File = File(ctx.filesDir, "contents/imagefs/bionic/usr")
 
-    fun start(ctx: Context, resolution: String, useShm: Boolean, onLine: (String) -> Unit): DisplayServer.Session? =
+    fun start(ctx: Context, resolution: String, useShm: Boolean, egl: Boolean, onLine: (String) -> Unit): DisplayServer.Session? =
         synchronized(lock) {
             stopLocked()
+            com.winlator.xserver.Drawable.eglPresent = egl
             killStaleTermuxX11(onLine)
             val usr = usrDir(ctx)
             if (!File(usr, "tmp").isDirectory && !File(usr, "tmp").mkdirs()) {
@@ -110,7 +111,7 @@ object BuiltinXServer {
                 GamepadBridge.start(ctx)
                 ControllerInput.start()
                 if (PerfRecorder.recording(ctx)) startDumpThread(ctx, xs)
-                onLine("Built-in X server $resolution on ${cfg.path}${if (useShm) " (MIT-SHM via SysV broker)" else ""}")
+                onLine("Built-in X server $resolution on ${cfg.path}${if (useShm) " (MIT-SHM via SysV broker)" else ""}; present path ${if (egl) "EGL (AHardwareBuffer + EGLImage)" else "default (GL upload)"}")
                 DisplayServer.Session(":0", cfg.path, env, true)
             } catch (t: Throwable) {
                 onLine("Built-in X server start failed: $t")
@@ -148,6 +149,7 @@ object BuiltinXServer {
         shmConnector = null
         shm?.deleteAll()
         shm = null
+        com.winlator.xserver.Drawable.releaseAllAhb() // no X client writes once the connectors are down
         xServer?.cursorLocker?.stop()
         if (xServer != null) { GamepadBridge.stop(); ControllerInput.stop() }
         xServer = null

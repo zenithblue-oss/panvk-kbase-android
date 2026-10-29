@@ -181,6 +181,7 @@ public class WindowManager extends XResourceManager {
         if (isInputOutput) {
             drawable = drawableManager.createDrawable(id, width, height, visual);
             if (drawable == null) throw new BadIdChoice(id);
+            drawable.attachAhb();
         }
 
         final Window window = new Window(id, drawable, x, y, width, height, client);
@@ -205,6 +206,7 @@ public class WindowManager extends XResourceManager {
             Drawable oldContent = window.getContent();
             drawableManager.removeDrawable(oldContent.id);
             Drawable newContent = drawableManager.createDrawable(oldContent.id, width, height, oldContent.visual);
+            newContent.attachAhb();
             newContent.setOnDrawListener(() -> triggerOnUpdateWindowContent(window));
             window.setContent(newContent);
         }

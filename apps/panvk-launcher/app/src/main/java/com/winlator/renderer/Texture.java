@@ -2,6 +2,7 @@ package com.winlator.renderer;
 
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
+import android.opengl.GLES30;
 
 import com.winlator.xserver.Drawable;
 
@@ -85,9 +86,36 @@ public class Texture {
         this.needsUpdate = needsUpdate;
     }
 
+    /** panvk-launcher EGL present path: EGLImage over the drawable's AHardwareBuffer; eglFailed falls back to uploads. */
+    private long eglImage = 0;
+    private boolean eglFailed = false;
+
     public void updateFromDrawable(Drawable drawable) {
         ByteBuffer data = drawable.getData();
         if (data == null) return;
+
+        if (drawable.getAhb() != 0 && !eglFailed) {
+            if (!isAllocated()) {
+                allocateTexture(drawable.width, drawable.height, null);
+                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId);
+                eglImage = bindAhb(drawable.getAhb());
+                if (eglImage != 0) {
+                    // X11 BGRA bytes in an RGBA8 buffer.
+                    GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES30.GL_TEXTURE_SWIZZLE_R, 0x1905 /* GL_BLUE */);
+                    GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES30.GL_TEXTURE_SWIZZLE_B, GLES30.GL_RED);
+                }
+                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
+                if (eglImage == 0) {
+                    eglFailed = true;
+                    destroy();
+                    updateFromDrawable(drawable);
+                    return;
+                }
+            }
+            if (needsUpdate) drawable.syncAhb();
+            needsUpdate = false;
+            return;
+        }
 
         if (!isAllocated()) {
             allocateTexture(drawable.width, drawable.height, data);
@@ -118,7 +146,14 @@ public class Texture {
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
     }
 
+    private static native long bindAhb(long ahb);
+    private static native void destroyImage(long image);
+
     public void destroy() {
+        if (eglImage != 0) {
+            destroyImage(eglImage);
+            eglImage = 0;
+        }
         if (textureId > 0) {
             int[] textureIds = new int[]{textureId};
             GLES20.glDeleteTextures(textureIds.length, textureIds, 0);

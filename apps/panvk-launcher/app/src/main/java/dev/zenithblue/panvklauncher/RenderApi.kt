@@ -25,7 +25,8 @@ object RenderApi {
         AUTO to "Auto (recommended)",
         DXVK to "DXVK (D3D8-11 on Vulkan)",
         VKD3D to "VKD3D (D3D12 on Vulkan)",
-        WINED3D to "WineD3D (D3D on OpenGL)",
+        // Zink path for DirectX: D3D9-11 via WineD3D -> OpenGL -> Zink -> PanVK. D3D12 has no GL path (vkd3d is Vulkan only).
+        WINED3D to "WineD3D-Zink (D3D9-11 → OpenGL → Zink → PanVK)",
         OPENGL to "OpenGL (Zink on Vulkan)",
         VULKAN to "Vulkan (native)",
         CNC to "cnc-ddraw (DirectDraw)"
@@ -146,6 +147,7 @@ object RenderApi {
     /** Why [api] cannot work for the detected game, or null. */
     fun warning(api: String, det: Detected, mesaInstalled: Boolean, vkd3dInstalled: Boolean): String? = when {
         wantsGl(api, det) && !mesaInstalled -> "OpenGL needs the Mesa-Zink component (Components)."
+        api == WINED3D && det.api == "d3d12" -> "D3D12 has no OpenGL path: vkd3d runs on Vulkan only, so WineD3D-Zink cannot run it. Use Auto or VKD3D."
         api == VKD3D && !vkd3dInstalled -> "vkd3d-proton is not installed (Components)."
         api == VULKAN && det.engine == "Godot 3" -> "Godot 3 has no Vulkan renderer: choose OpenGL."
         api == VULKAN && det.api != null && det.api != "vulkan" && det.engine != "Godot 4" -> "This game does not use Vulkan itself."
