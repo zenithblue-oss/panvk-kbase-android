@@ -156,11 +156,12 @@ object MangoHudSettings {
 
     // Options with no data source inside an Android app (tested on Mali-G615 kbase, Android 14): shown greyed out.
     // The MangoHud build also forces the switches among them off (runtimes/mangohud/android-bionic.patch).
-    private const val NO_GPU = "Not available on this device: Android blocks the Mali GPU load, clock and sensor files for apps"
+    private const val NO_GPU = "Not available on this device: Android blocks the Mali GPU clock and sensor files for apps"
     val NOT_AVAILABLE: Map<String, String> = buildMap {
-        listOf("gpu_stats", "gpu_temp", "gpu_junction_temp", "gpu_mem_temp", "gpu_core_clock", "gpu_mem_clock", "gpu_power",
-            "gpu_power_limit", "gpu_fan", "gpu_voltage", "gpu_efficiency", "vram", "proc_vram", "gpu_text", "gpu_load_change",
-            "gpu_load_value", "gpu_load_color", "gpu_list", "pci_dev", "throttling_status", "throttling_status_graph").forEach { put(it, NO_GPU) }
+        // GPU load and VRAM come from PanVK itself (PANVK_GPU_STATS, see env()); the rest has no source.
+        listOf("gpu_temp", "gpu_junction_temp", "gpu_mem_temp", "gpu_core_clock", "gpu_mem_clock", "gpu_power",
+            "gpu_power_limit", "gpu_fan", "gpu_voltage", "gpu_efficiency", "gpu_list", "pci_dev", "throttling_status",
+            "throttling_status_graph").forEach { put(it, NO_GPU) }
         listOf("core_load", "core_load_change", "core_bars").forEach { put(it, "Not available on this device: Android blocks /proc/stat for apps") }
         listOf("cpu_power", "cpu_efficiency", "flip_efficiency").forEach { put(it, "Not available on this device: no CPU power sensor readable by apps") }
         put("network", "Not available on this device: Android blocks /sys/class/net for apps")
@@ -236,6 +237,8 @@ object MangoHudSettings {
             mapOf(
                 "MANGOHUD" to "1",
                 "MANGOHUD_POWER_SUPPLY" to File(dir, "power_supply").absolutePath,
+                // PanVK writes GPU load % (from its GPU timestamps) and VRAM used here; MangoHud reads it.
+                "PANVK_GPU_STATS" to File(dir, "gpu_stats").absolutePath,
                 "MANGOHUD_CONFIGFILE" to conf.absolutePath,
                 "VK_ADD_IMPLICIT_LAYER_PATH" to layerDir.absolutePath,
                 "VK_LOADER_LAYERS_DISABLE" to STOCK_LAYER

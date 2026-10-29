@@ -166,6 +166,75 @@ index f46faba..b893b20 100644
  
          path = d.path();
          input = d / "temp";
+diff --git a/src/gpu.cpp b/src/gpu.cpp
+index 3c00a69..b3d1cb3 100644
+--- a/src/gpu.cpp
++++ b/src/gpu.cpp
+@@ -95,6 +95,13 @@ GPUS::GPUS(const overlay_params* early_params) {
+         }
+     }
+ 
++#ifdef __ANDROID__
++    // PanPlay: apps cannot read the Mali sysfs/devfreq nodes; PanVK writes its GPU load and VRAM to
++    // PANVK_GPU_STATS instead (the launcher sets it with MangoHud on).
++    if (available_gpus.empty() && getenv("PANVK_GPU_STATS"))
++        available_gpus.emplace_back(std::make_shared<GPU>("panvk", 0, 0, "", "panvk"));
++#endif
++
+     if (total_active < 2)
+         return;
+ 
+diff --git a/src/gpu.h b/src/gpu.h
+index 675d64f..7528879 100644
+--- a/src/gpu.h
++++ b/src/gpu.h
+@@ -12,6 +12,8 @@
+ #include <regex>
+ #include <iostream>
+ #include <array>
++#include <ctime>
++#include <sys/stat.h>
+ #include "amdgpu.h"
+ #include "nvidia.h"
+ #include "gpu_metrics_util.h"
+@@ -60,6 +62,11 @@ class GPU {
+             if (fdinfo)
+                 this->metrics = fdinfo->copy_metrics();
+ 
++#ifdef __ANDROID__
++            if (driver == "panvk")
++                read_panvk_stats();
++#endif
++
+             return metrics;
+         };
+ 
+@@ -113,6 +120,25 @@ class GPU {
+         std::string gpu_text();
+         std::string vram_text();
+ 
++#ifdef __ANDROID__
++        // "load=<%>\nvram=<bytes>\n", rewritten by PanVK at most every 500 ms while it submits work.
++        void read_panvk_stats() {
++            const char* path = getenv("PANVK_GPU_STATS");
++            FILE* f = path ? fopen(path, "r") : nullptr;
++            if (!f)
++                return;
++            unsigned load = 0;
++            unsigned long long vram = 0;
++            struct stat st;
++            if (fscanf(f, "load=%u vram=%llu", &load, &vram) == 2) {
++                // No update for 2 s: the game submits nothing, the GPU is idle.
++                metrics.load = fstat(fileno(f), &st) == 0 && time(nullptr) - st.st_mtime > 2 ? 0 : (int)load;
++                metrics.sys_vram_used = metrics.proc_vram_used = vram / (1024.f * 1024.f * 1024.f);
++            }
++            fclose(f);
++        }
++#endif
++
+     private:
+         std::thread thread;
+ 
 diff --git a/src/keybinds.h b/src/keybinds.h
 index cbf095b..dcb6e95 100644
 --- a/src/keybinds.h

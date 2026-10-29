@@ -864,5 +864,8 @@ PanProbe 40/40, `draw_params` and `bc_decode` PASS, no DEVICE_LOST
 | 0154 | driverInfo shows the patch level and build date: `bin/git_sha1_gen.py` appends `.panvk-patchlevel` (written by `prepare-rc5-tree.sh`, e.g. `p0157`) and the build date, `Mesa 26.3.0-devel (git-<sha>, p0157, 2026-10-29)` | - |
 | 0155 | item 7: the BC transcoder pipelines of a mode compile on 3 background threads from the first BC image of that mode; a recording that needs one waits for it | `PANVK_BC_PREWARM=0` |
 | 0156 | item 16 measurement: Android present thread post time (window dequeue, copy, queue) as running averages on the `PANVK_FPS_LOG` lines | - |
+| 0157 | item 8: pass-through GS skipped at draw time, the VS runs on the hardware (v9+; not with pipeline statistics queries). `PANVK_GPU_PRERAST_ABI_VERSION` 11 | `PANVK_GS_PT_SKIP=0` |
+| 0158 | item 23: `PANVK_GPU_STATS=<file>`: GPU load % from per ring entry GPU timestamps and VRAM bytes, rewritten at most every 500 ms (kbase CSF); PanPlay's MangoHud reads it | env unset = off |
+| 0159 | reverts 0147 (v14 per-chunk gpu_prerast cache flush): the v14 A/B on 116 passed `tessellation` 3/3 without it; 0148 (sparse device TLS) was the fix. Simpler than dropping 0147 from the middle of the series | - |
 
 Numbers: `docs/PERF-PROGRESS.md` "Round 2"; status per item: `docs/PERF-OPTIMIZATION-PLAN.md` section 5.

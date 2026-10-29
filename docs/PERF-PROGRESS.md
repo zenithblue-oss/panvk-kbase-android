@@ -178,27 +178,42 @@ prints `BENCH present` (CPU ms inside `vkQueuePresentKHR`; the Android copy runs
 item 16 times that with `PANVK_FPS_LOG`). Raw: `/var/tmp/panvk/perf119/{b116,b118,c118,d*}/`.
 
 Drivers: 116, 118 (default), and the dev builds on top of 118: `+0154` driverInfo, `+0155` item 7,
-`+0156` present timing, `+0157` item 8.
+`+0156` present timing, `+0157` item 8, `+0158` item 23, `+0159` revert of 0147.
 
 | workload_perf case | what | 116 | 118 | dev |
 |---|---|---|---|---|
-| ref | 512 draws x 48 tris, VS only (us/draw) | 4.00 | 4.19 | |
-| gs_pass | + pass-through GS (DXVK/emulator) | 107.4 | 97.7 | |
-| gs_layer | + GS writing gl_Layer | 108.4 | 104.8 | |
-| xfb_vs | VS + transform feedback | 182.9 | 202.4 | |
-| xfb_gs | GS + transform feedback (D3D11 SO) | 583.5 | 571.3 | |
-| strip_ref | 256 indexed strips with restart (us/draw) | 7.61 | 7.69 | |
-| strip_gs | + pass-through GS | 308.6 | 302.8 | |
-| cond_true | 512 draws, each predicated, predicate 1 | 3.95 | 2.90 | |
-| cond_false | predicate 0 | 2.76 | 2.76 | |
-| pg_query | 512 draws in a primitives-generated query | 3.15 | 3.82 | |
-| ts_ref / ts_pair | 64 draws, + timestamp pair read back (ms/frame) | 0.33 / 0.45 | 0.38 / 0.48 | |
-| msaa_ref | 4x MSAA 512^2, 16 blended full-screen draws (us/draw) | 75.6 | 79.1 | |
-| msaa_a2one | + alphaToOne | 255.9 | 252.2 | |
-| msaa_sshade | + sample shading 1.0 | 249.3 | 256.7 | |
-| tex_rgba / tex_bgra | 16 full-screen draws, 512^2 texture, custom border colour | 68.4 / 80.7 | 77.0 / 73.1 | |
+| ref | 512 draws x 48 tris, VS only (us/draw) | 4.00 | 4.19 || 3.12 |
+| gs_pass | + pass-through GS (DXVK/emulator) | 107.4 | 97.7 || **4.47** (+0157) |
+| gs_layer | + GS writing gl_Layer | 108.4 | 104.8 || 109.5 |
+| xfb_vs | VS + transform feedback | 182.9 | 202.4 || 145-317 (noise, 3 runs) |
+| xfb_gs | GS + transform feedback (D3D11 SO) | 583.5 | 571.3 || 579.2 |
+| strip_ref | 256 indexed strips with restart (us/draw) | 7.61 | 7.69 || 7.73 |
+| strip_gs | + pass-through GS | 308.6 | 302.8 || **7.52** (+0157) |
+| cond_true | 512 draws, each predicated, predicate 1 | 3.95 | 2.90 || 2.86 |
+| cond_false | predicate 0 | 2.76 | 2.76 || 2.68 |
+| pg_query | 512 draws in a primitives-generated query | 3.15 | 3.82 || 4.34 |
+| ts_ref / ts_pair | 64 draws, + timestamp pair read back (ms/frame) | 0.33 / 0.45 | 0.38 / 0.48 || 0.31 / 0.48 |
+| msaa_ref | 4x MSAA 512^2, 16 blended full-screen draws (us/draw) | 75.6 | 79.1 || 54-103 (noise) |
+| msaa_a2one | + alphaToOne | 255.9 | 252.2 || 254.4 |
+| msaa_sshade | + sample shading 1.0 | 249.3 | 256.7 || 251.2 |
+| tex_rgba / tex_bgra | 16 full-screen draws, 512^2 texture, custom border colour | 68.4 / 80.7 | 77.0 / 73.1 || 92.0 / 90.2 |
 | bc_level | cold device, 6 BC textures 1024^2 + mips (ms, total) | 4937 | 4927 | 2567 (+0155) |
 
 `bc_level` with `+0155`: device creation 6.3 ms (8.4 on 116), the recording that used to compile the 5
 transcoder pipelines (4.9 s) takes 2.55 s; `PANVK_BC_PREWARM=0` on the same build: 4.47 s.
 driverInfo with 0154: `Mesa 26.3.0-devel (git-33ae94dd8c, p0154, 2026-10-29)` (dev tree HEAD).
+
+Item 8 (0157), dev column = 118 + 0154-0157 (`d157`, same session as the 118 re-run `c118`): a pass-through GS
+(every input vertex copied to the output in order, no layer/viewport/primitive ID/XFB/memory writes) is dropped
+at draw time and the VS runs on the hardware: `gs_pass` 111.2 to 4.47 us/draw (25x, = `ref` + 1.3 us),
+`strip_gs` 421.5 to 7.52 (56x, = `strip_ref`). `gs_layer` and `xfb_gs` keep the emulation (layer write, XFB).
+Pipeline statistics queries keep the GS (its invocation counters). Images equal `ref`. Full PanProbe on
+`+0157` (`full-d157`): 41/41, no DEVICE_LOST. The other cases did not change; `xfb_vs`, `msaa_ref`, `tex_*`
+move by up to 2x between runs of the same build (400 ms windows, thermal state).
+
+Item 23 (0158): with `PANVK_GPU_STATS=<file>` the file read `load=83` / `vram=165822464` after `workload_perf`;
+`workload_perf` with and without the knob is the same within the noise above.
+
+0159 reverts 0147 (v14 per-chunk prerast cache flush; the v14 A/B on 116 passed `tessellation` 3/3 with
+`PANVK_PRERAST_CHUNK_FLUSH=0`, 0148 was the fix). X6 Pro `tessellation`, `geometry`, `workload_perf` PASS on
+`+0159`.

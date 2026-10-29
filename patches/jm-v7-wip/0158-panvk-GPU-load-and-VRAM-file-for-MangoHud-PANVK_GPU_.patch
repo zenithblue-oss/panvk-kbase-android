@@ -1,0 +1,277 @@
+From 43304adc6c85e73ba994ee501c9cb79c0ae94c34 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 29 Oct 2026 12:47:52 +0530
+Subject: [PATCH 158/159] panvk: GPU load and VRAM file for MangoHud
+ (PANVK_GPU_STATS)
+
+PANVK_GPU_STATS=<file> (PanPlay sets it only with MangoHud on): on the
+kbase CSF queue each ring entry stores GPU timestamps after its
+cross-subqueue waits and once its work retired (64-entry ring per
+subqueue in the seqno BO). At each submit the retired entries are
+reported, the busy intervals of all subqueues are merged, and at most
+every 500 ms the file is rewritten as load=<busy %> and vram=<bytes the
+driver allocated: device memory plus private BOs>. Unset: no cost.
+---
+ src/panfrost/vulkan/csf/panvk_queue.h        |  3 +
+ src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c | 69 ++++++++++++++
+ src/panfrost/vulkan/panvk_priv_bo.c          | 99 ++++++++++++++++++++
+ src/panfrost/vulkan/panvk_priv_bo.h          |  9 ++
+ 4 files changed, 180 insertions(+)
+
+diff --git a/src/panfrost/vulkan/csf/panvk_queue.h b/src/panfrost/vulkan/csf/panvk_queue.h
+index aa2c8f7a594..d1b4e0bdd30 100644
+--- a/src/panfrost/vulkan/csf/panvk_queue.h
++++ b/src/panfrost/vulkan/csf/panvk_queue.h
+@@ -90,6 +90,9 @@ struct panvk_subqueue {
+        * when it retires. */
+       uint64_t emitted_jobs;
+ 
++      /* PANVK_GPU_STATS: last job whose GPU timestamps were reported. */
++      uint64_t stats_done;
++
+       uint32_t last_last_job_offset;
+       uint32_t last_job_offset;
+       uint32_t last_job_size;
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+index 98839929081..c6a2abb2a05 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+@@ -67,6 +67,12 @@
+ #define KBASE_SEQNO_MARK_POST_CALL_OFFSET 32
+ #define KBASE_SEQNO_MARK_POST_WAIT_OFFSET 40
+ #define KBASE_SEQNO_STREAM_PROGRESS_OFFSET 48
++/* PANVK_GPU_STATS (jm-v7-wip 0158): per subqueue, a ring of 64 {start, end}
++ * GPU timestamps of its ring entries, in the seqno BO after the cells. */
++#define KBASE_STATS_TS_OFFSET(sq) (1024 + (sq) * 1024)
++#define KBASE_STATS_TS_JOBS       64
++static_assert(KBASE_STATS_TS_OFFSET(PANVK_SUBQUEUE_COUNT) <= 4096,
++              "GPU stats timestamps must fit in the seqno BO");
+ #define KBASE_SEQNO_MARK_PRE_CALL  0x100000000000ull
+ #define KBASE_SEQNO_MARK_POST_CALL 0x200000000000ull
+ #define KBASE_SEQNO_MARK_POST_WAIT 0x300000000000ull
+@@ -429,6 +435,38 @@ kbase_init_seqnos(struct panvk_gpu_queue *queue)
+  * into its kernel-owned rings.  Only the FW-unpreserved registers (the top
+  * 4 of the register file) are clobbered, which the rest of the driver
+  * stays away from. */
++/* PANVK_GPU_STATS: report the GPU busy intervals of the subqueue's retired
++ * ring entries (not yet overwritten by newer entries) and tick the window. */
++static void
++kbase_gpu_stats_collect(struct panvk_gpu_queue *queue, uint32_t subqueue)
++{
++   struct panvk_device *dev = to_panvk_device(queue->vk.base.device);
++   const struct panvk_physical_device *pdev =
++      to_panvk_physical_device(dev->vk.physical);
++   struct panvk_subqueue *subq = &queue->subqueues[subqueue];
++   volatile struct panvk_cs_sync64 *cell =
++      kbase_subqueue_seqno_cell(queue, subqueue);
++   const uint64_t freq = pdev->kmod.dev->props.timestamp_frequency;
++   const uint64_t devmem = p_atomic_read_relaxed(&pdev->memory.heap_used);
++   const uint64_t *ts = (const uint64_t *)((uint8_t *)queue->kbase_seqnos.cpu +
++                                           KBASE_STATS_TS_OFFSET(subqueue));
++
++   kbase_cache_invalidate_range((const void *)cell, kbase_seqno_stride());
++   const uint64_t done = MIN2(cell->seqno, subq->kbase.emitted_jobs);
++   uint64_t j = subq->kbase.stats_done + 1;
++   if (subq->kbase.emitted_jobs >= KBASE_STATS_TS_JOBS)
++      j = MAX2(j, subq->kbase.emitted_jobs - KBASE_STATS_TS_JOBS + 1);
++   if (j <= done) {
++      kbase_cache_invalidate_range(ts, KBASE_STATS_TS_JOBS * 16);
++      for (; j <= done; j++) {
++         const uint64_t *e = &ts[2 * (j % KBASE_STATS_TS_JOBS)];
++         panvk_gpu_stats_busy(freq, devmem, e[0], e[1]);
++      }
++   }
++   subq->kbase.stats_done = MAX2(subq->kbase.stats_done, done);
++   panvk_gpu_stats_busy(freq, devmem, 0, 0);
++}
++
+ static VkResult
+ kbase_subqueue_reserve_ring(struct panvk_gpu_queue *queue,
+                             uint32_t subqueue)
+@@ -489,6 +527,10 @@ kbase_subqueue_emit_job(struct panvk_gpu_queue *queue, uint32_t subqueue,
+    if (result != VK_SUCCESS)
+       return result;
+ 
++   const bool gpu_stats = panvk_gpu_stats_path() != NULL;
++   if (gpu_stats)
++      kbase_gpu_stats_collect(queue, subqueue);
++
+    uint32_t offset = subq->kbase.insert % KBASE_RINGBUF_SIZE;
+ 
+    /* If the entry would straddle the end of the ring, pad with NOPs
+@@ -571,6 +613,9 @@ kbase_subqueue_emit_job(struct panvk_gpu_queue *queue, uint32_t subqueue,
+    };
+    uint64_t seqno_addr = kbase_subqueue_seqno_dev_addr(queue, subqueue);
+    uint64_t target_seqno = subq->kbase.emitted_jobs + 1;
++   const uint64_t stats_ts_addr =
++      queue->kbase_seqnos.dev + KBASE_STATS_TS_OFFSET(subqueue) +
++      (target_seqno % KBASE_STATS_TS_JOBS) * 16;
+ 
+    for (uint32_t i = 0; wait_seqnos && i < PANVK_SUBQUEUE_COUNT; i++) {
+       if (!wait_seqnos[i])
+@@ -622,6 +667,15 @@ kbase_subqueue_emit_job(struct panvk_gpu_queue *queue, uint32_t subqueue,
+       cs_wait_slot(&b, SB_ID(LS));
+    }
+ 
++   /* GPU stats: the start timestamp after the cross-subqueue waits, so
++    * waiting on another subqueue does not count as busy. */
++   if (gpu_stats) {
++      cs_move64_to(&b, addr64, stats_ts_addr);
++      cs_store_state(&b, addr64, 0, MALI_CS_STATE_TIMESTAMP,
++                     cs_defer(0, SB_ID(LS)));
++      cs_wait_slot(&b, SB_ID(LS));
++   }
++
+    if (stream_size) {
+       /* Make CPU-written command-stream/descriptor memory visible to the
+        * GPU before calling into it (0x233 flush, same as the panthor
+@@ -657,6 +711,21 @@ kbase_subqueue_emit_job(struct panvk_gpu_queue *queue, uint32_t subqueue,
+     * system-scope SYNC_ADD64 below.  Nothing is emitted after that sync
+     * operation (except the register-less ERROR_BARRIER), so its operands
+     * cannot be clobbered while the deferred operation is in flight. */
++   /* GPU stats: the end timestamp once all work retired, cleaned out of the
++    * GPU L2 before the seqno bump makes the entry readable. */
++   if (gpu_stats) {
++      cs_wait_slots(&b, dev->csf.sb.all_mask);
++      cs_move64_to(&b, addr64, stats_ts_addr + 8);
++      cs_store_state(&b, addr64, 0, MALI_CS_STATE_TIMESTAMP,
++                     cs_defer(0, SB_ID(LS)));
++      cs_wait_slot(&b, SB_ID(LS));
++      cs_move32_to(&b, val32, 0);
++      cs_flush_caches(&b, MALI_CS_FLUSH_MODE_CLEAN, MALI_CS_FLUSH_MODE_CLEAN,
++                      MALI_CS_OTHER_FLUSH_MODE_NONE, val32,
++                      cs_defer(0, SB_ID(IMM_FLUSH)));
++      cs_wait_slot(&b, SB_ID(IMM_FLUSH));
++   }
++
+    cs_move64_to(&b, addr64, seqno_addr);
+    cs_wait_slots(&b, dev->csf.sb.all_mask);
+    if (PANVK_DEBUG(KBASE_DIAG)) {
+diff --git a/src/panfrost/vulkan/panvk_priv_bo.c b/src/panfrost/vulkan/panvk_priv_bo.c
+index ea48761d813..e02cd7c4ca2 100644
+--- a/src/panfrost/vulkan/panvk_priv_bo.c
++++ b/src/panfrost/vulkan/panvk_priv_bo.c
+@@ -444,3 +444,102 @@ panvk_mem_report(struct panvk_device *dev, bool final)
+       mesa_logi("%s", line);
+    simple_mtx_unlock(&panvk_mem_report_lock);
+ }
++
++/* jm-v7-wip 0158: PANVK_GPU_STATS (see panvk_priv_bo.h). */
++const char *
++panvk_gpu_stats_path(void)
++{
++   /* Racy first read is fine: every thread stores the same value. */
++   static const char *path;
++   static bool init;
++   if (!init) {
++      const char *p = os_get_option("PANVK_GPU_STATS");
++      path = p && *p ? p : NULL;
++      init = true;
++   }
++   return path;
++}
++
++static struct {
++   simple_mtx_t lock;
++   uint64_t win_ns, busy, n;
++   uint64_t iv[256][2];
++} panvk_gpu_stats = {.lock = SIMPLE_MTX_INITIALIZER};
++
++static int
++panvk_gpu_stats_cmp(const void *a, const void *b)
++{
++   const uint64_t *x = a, *y = b;
++   return x[0] < y[0] ? -1 : x[0] > y[0];
++}
++
++/* Busy ticks of the collected intervals (their union: the subqueues run in
++ * parallel), then empties the list. */
++static uint64_t
++panvk_gpu_stats_union(void)
++{
++   uint64_t sum = 0, s = 0, e = 0;
++   qsort(panvk_gpu_stats.iv, panvk_gpu_stats.n, sizeof(panvk_gpu_stats.iv[0]),
++         panvk_gpu_stats_cmp);
++   for (uint64_t i = 0; i < panvk_gpu_stats.n; i++) {
++      if (panvk_gpu_stats.iv[i][0] > e) {
++         sum += e - s;
++         s = panvk_gpu_stats.iv[i][0];
++         e = panvk_gpu_stats.iv[i][1];
++      } else {
++         e = MAX2(e, panvk_gpu_stats.iv[i][1]);
++      }
++   }
++   panvk_gpu_stats.n = 0;
++   return sum + (e - s);
++}
++
++void
++panvk_gpu_stats_busy(uint64_t freq, uint64_t devmem, uint64_t start,
++                     uint64_t end)
++{
++   const char *path = panvk_gpu_stats_path();
++   if (!path)
++      return;
++
++   const uint64_t now = os_time_get_nano();
++   simple_mtx_lock(&panvk_gpu_stats.lock);
++   if (!panvk_gpu_stats.win_ns)
++      panvk_gpu_stats.win_ns = now;
++   if (end > start) {
++      /* ponytail: a full list is folded early, so an overlap across the
++       * fold counts twice; 256 intervals per 500 ms is ~170 submits/s on
++       * three subqueues before that happens. */
++      if (panvk_gpu_stats.n == ARRAY_SIZE(panvk_gpu_stats.iv))
++         panvk_gpu_stats.busy += panvk_gpu_stats_union();
++      panvk_gpu_stats.iv[panvk_gpu_stats.n][0] = start;
++      panvk_gpu_stats.iv[panvk_gpu_stats.n][1] = end;
++      panvk_gpu_stats.n++;
++   }
++   const uint64_t win = now - panvk_gpu_stats.win_ns;
++   if (win < 500000000ull || !freq) {
++      simple_mtx_unlock(&panvk_gpu_stats.lock);
++      return;
++   }
++   const uint64_t busy = panvk_gpu_stats.busy + panvk_gpu_stats_union();
++   panvk_gpu_stats.busy = 0;
++   panvk_gpu_stats.win_ns = now;
++   simple_mtx_unlock(&panvk_gpu_stats.lock);
++
++   /* Intervals that started in the previous window can push it past 100. */
++   const unsigned load =
++      MIN2((unsigned)((double)busy * 1e11 / ((double)freq * (double)win)),
++           100u);
++   uint64_t vram = devmem;
++   for (unsigned k = 0; k < PANVK_MEM_KIND_COUNT; k++)
++      vram += p_atomic_read_relaxed(&panvk_mem_stats.bytes[k]);
++
++   char tmp[4096];
++   snprintf(tmp, sizeof(tmp), "%s.tmp", path);
++   FILE *f = fopen(tmp, "w");
++   if (!f)
++      return;
++   fprintf(f, "load=%u\nvram=%" PRIu64 "\n", load, vram);
++   fclose(f);
++   rename(tmp, path);
++}
+diff --git a/src/panfrost/vulkan/panvk_priv_bo.h b/src/panfrost/vulkan/panvk_priv_bo.h
+index 399f5b088a9..0d643bb63e2 100644
+--- a/src/panfrost/vulkan/panvk_priv_bo.h
++++ b/src/panfrost/vulkan/panvk_priv_bo.h
+@@ -122,4 +122,13 @@ void panvk_priv_bo_invalidate(struct panvk_priv_bo *bo, size_t offset, size_t si
+ 
+ void panvk_priv_bo_unref(struct panvk_priv_bo *bo);
+ 
++/* jm-v7-wip 0158: GPU stats for MangoHud. PANVK_GPU_STATS=<file> (PanPlay
++ * sets it only with MangoHud on): the queue reports GPU busy intervals (GPU
++ * timestamp ticks at freq Hz), and at most every 500 ms the file is
++ * rewritten as "load=<GPU busy %>\nvram=<bytes the driver allocated>\n".
++ * start == end only ticks the window. NULL path = off (no cost). */
++const char *panvk_gpu_stats_path(void);
++void panvk_gpu_stats_busy(uint64_t freq, uint64_t devmem, uint64_t start,
++                          uint64_t end);
++
+ #endif
+-- 
+2.56.0
+
