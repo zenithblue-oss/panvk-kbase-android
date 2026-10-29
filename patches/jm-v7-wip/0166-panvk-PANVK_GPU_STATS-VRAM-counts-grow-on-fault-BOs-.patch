@@ -1,0 +1,150 @@
+From c0d282eb69003c7ec6687cfed43ede5e4dd5b4b5 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 29 Oct 2026 22:03:27 +0530
+Subject: [PATCH] panvk: PANVK_GPU_STATS VRAM counts grow-on-fault BOs at their
+ committed size
+
+0164 reported 1.35-1.68 GiB of VRAM on JM: the reserved size of the
+GROW_ON_GPF private BOs (tiler heaps, indirect varyings, GS and tess
+buffers), of which only the pages the GPU touched are backed. With
+PANVK_GPU_STATS set, such BOs are kept on a list, and the 500 ms report
+replaces their full size with KBASE_IOCTL_MEM_QUERY COMMIT_SIZE (one
+ioctl per BO), the same meaning as on v10+: device memory plus backed
+private BOs. Unset: no list, no ioctl.
+---
+ src/panfrost/lib/kmod/kbase_kmod.c  | 15 ++++++++++++++
+ src/panfrost/lib/kmod/kbase_kmod.h  |  4 ++++
+ src/panfrost/vulkan/panvk_priv_bo.c | 32 +++++++++++++++++++++++++++++
+ src/panfrost/vulkan/panvk_priv_bo.h |  4 ++++
+ 4 files changed, 55 insertions(+)
+
+diff --git a/src/panfrost/lib/kmod/kbase_kmod.c b/src/panfrost/lib/kmod/kbase_kmod.c
+index 9ab162707ad..aad56a3c304 100644
+--- a/src/panfrost/lib/kmod/kbase_kmod.c
++++ b/src/panfrost/lib/kmod/kbase_kmod.c
+@@ -3720,6 +3720,21 @@ kbase_busy_cancel_locked(struct kbase_kmod_dev *kd,
+    slot->busy_counted = false;
+ }
+ 
++uint64_t
++kbase_kmod_bo_committed_size(struct pan_kmod_dev *dev, struct pan_kmod_bo *bo)
++{
++   if (dev->ops != &kbase_kmod_ops)
++      return bo->size;
++
++   struct kbase_kmod_bo *kb = container_of(bo, struct kbase_kmod_bo, base);
++   union kbase_ioctl_mem_query q = {
++      .in = {.gpu_addr = kb->gpu_va, .query = KBASE_MEM_QUERY_COMMIT_SIZE},
++   };
++   if (ioctl(dev->fd, KBASE_IOCTL_MEM_QUERY, &q) < 0)
++      return bo->size;
++   return MIN2(q.out.value * kbase_kmod_page_size(), bo->size);
++}
++
+ void
+ kbase_kmod_jm_busy_track(struct pan_kmod_dev *dev)
+ {
+diff --git a/src/panfrost/lib/kmod/kbase_kmod.h b/src/panfrost/lib/kmod/kbase_kmod.h
+index d63b6649b4c..223a2cf37b5 100644
+--- a/src/panfrost/lib/kmod/kbase_kmod.h
++++ b/src/panfrost/lib/kmod/kbase_kmod.h
+@@ -57,6 +57,10 @@ void kbase_kmod_jm_clean_imports(struct pan_kmod_dev *dev);
+  * PANVK_GPU_STATS), and read it in ns. */
+ void kbase_kmod_jm_busy_track(struct pan_kmod_dev *dev);
+ uint64_t kbase_kmod_jm_busy_ns(struct pan_kmod_dev *dev);
++/* Bytes of the BO backed by pages (a GROW_ON_GPF region commits on GPU page
++ * faults), one KBASE_IOCTL_MEM_QUERY; the BO size off kbase or on error. */
++uint64_t kbase_kmod_bo_committed_size(struct pan_kmod_dev *dev,
++                                      struct pan_kmod_bo *bo);
+ struct pan_kmod_bo *kbase_kmod_bo_import_host(struct pan_kmod_dev *dev,
+                                             void *host_ptr, uint64_t size);
+ 
+diff --git a/src/panfrost/vulkan/panvk_priv_bo.c b/src/panfrost/vulkan/panvk_priv_bo.c
+index e02cd7c4ca2..21cea2a66b4 100644
+--- a/src/panfrost/vulkan/panvk_priv_bo.c
++++ b/src/panfrost/vulkan/panvk_priv_bo.c
+@@ -11,6 +11,7 @@
+ #include "panvk_device.h"
+ #include "panvk_priv_bo.h"
+ 
++#include "kmod/kbase_kmod.h"
+ #include "kmod/pan_kmod.h"
+ #include "pan_props.h"
+ 
+@@ -37,6 +38,18 @@ panvk_priv_bo_create(struct panvk_device *dev, uint64_t size, uint32_t flags,
+ 
+ struct panvk_mem_stats panvk_mem_stats;
+ 
++/* jm-v7-wip 0166: PANVK_GPU_STATS counts a grow-on-fault BO (JM tiler heap,
++ * varyings, GS and tess buffers) at its committed size, as the memory v10+
++ * reports, not at its reserved size. Only tracked with the env set. */
++static struct {
++   simple_mtx_t lock;
++   struct list_head list;
++   uint64_t full_B;
++} panvk_gpu_grow = {
++   .lock = SIMPLE_MTX_INITIALIZER,
++   .list = {&panvk_gpu_grow.list, &panvk_gpu_grow.list},
++};
++
+ static void
+ panvk_mem_account(enum panvk_mem_kind kind, int64_t delta)
+ {
+@@ -152,6 +165,13 @@ panvk_priv_bo_create_kind(struct panvk_device *dev, uint64_t size,
+    p_atomic_set(&priv_bo->refcnt, 1);
+    priv_bo->mem_kind = kind;
+    panvk_mem_account(kind, pan_kmod_bo_size(bo));
++   if ((bo->flags & PAN_KMOD_BO_FLAG_ALLOC_ON_FAULT) && panvk_gpu_stats_path()) {
++      simple_mtx_lock(&panvk_gpu_grow.lock);
++      list_addtail(&priv_bo->grow_link, &panvk_gpu_grow.list);
++      panvk_gpu_grow.full_B += pan_kmod_bo_size(bo);
++      simple_mtx_unlock(&panvk_gpu_grow.lock);
++      priv_bo->grow_tracked = true;
++   }
+ 
+    *out = priv_bo;
+    return VK_SUCCESS;
+@@ -199,6 +219,12 @@ panvk_priv_bo_destroy(struct panvk_priv_bo *priv_bo)
+    struct panvk_device *dev = priv_bo->dev;
+ 
+    panvk_mem_account(priv_bo->mem_kind, -(int64_t)pan_kmod_bo_size(priv_bo->bo));
++   if (priv_bo->grow_tracked) {
++      simple_mtx_lock(&panvk_gpu_grow.lock);
++      list_del(&priv_bo->grow_link);
++      panvk_gpu_grow.full_B -= pan_kmod_bo_size(priv_bo->bo);
++      simple_mtx_unlock(&panvk_gpu_grow.lock);
++   }
+    panvk_address_binding_report(dev, NULL, priv_bo->addr.dev,
+                                 pan_kmod_bo_size(priv_bo->bo),
+                                 VK_DEVICE_ADDRESS_BINDING_TYPE_UNBIND_EXT);
+@@ -533,6 +559,12 @@ panvk_gpu_stats_busy(uint64_t freq, uint64_t devmem, uint64_t start,
+    uint64_t vram = devmem;
+    for (unsigned k = 0; k < PANVK_MEM_KIND_COUNT; k++)
+       vram += p_atomic_read_relaxed(&panvk_mem_stats.bytes[k]);
++   /* Grow-on-fault BOs: committed instead of reserved bytes (0166). */
++   simple_mtx_lock(&panvk_gpu_grow.lock);
++   vram -= MIN2(vram, panvk_gpu_grow.full_B);
++   list_for_each_entry(struct panvk_priv_bo, b, &panvk_gpu_grow.list, grow_link)
++      vram += kbase_kmod_bo_committed_size(b->dev->kmod.dev, b->bo);
++   simple_mtx_unlock(&panvk_gpu_grow.lock);
+ 
+    char tmp[4096];
+    snprintf(tmp, sizeof(tmp), "%s.tmp", path);
+diff --git a/src/panfrost/vulkan/panvk_priv_bo.h b/src/panfrost/vulkan/panvk_priv_bo.h
+index 0d643bb63e2..5d09a24b4a7 100644
+--- a/src/panfrost/vulkan/panvk_priv_bo.h
++++ b/src/panfrost/vulkan/panvk_priv_bo.h
+@@ -85,6 +85,10 @@ struct panvk_priv_bo {
+    /* csf-v11 230: when non-zero, addr.dev is a kbase MEM_ALIAS region of
+     * this many bytes over the BO (sparse device TLS), unmapped on destroy. */
+    uint64_t alias_size;
++   /* PANVK_GPU_STATS: a grow-on-fault BO on panvk_gpu_stats' list, whose
++    * VRAM is its committed size, not its full size. */
++   bool grow_tracked;
++   struct list_head grow_link;
+ };
+ 
+ VkResult panvk_priv_bo_create(struct panvk_device *dev, uint64_t size,
+-- 
+2.56.0
+

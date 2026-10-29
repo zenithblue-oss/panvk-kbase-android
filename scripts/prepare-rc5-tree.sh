@@ -13,7 +13,7 @@
 #   scripts/prepare-rc5-tree.sh --mesa /home/flux/src/mesa-115g-final [--csf-max 233] [--wip-max 0144] [--base-tag <tag>]
 set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MESA=""; CSF_MAX=233; WIP_MAX=0165; BASE_TAG=""
+MESA=""; CSF_MAX=233; WIP_MAX=0166; BASE_TAG=""
 while [ $# -gt 0 ]; do case "$1" in
   --mesa) MESA="$2"; shift 2;;
   --csf-max) CSF_MAX="$2"; shift 2;;
