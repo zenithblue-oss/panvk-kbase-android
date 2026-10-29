@@ -1,0 +1,104 @@
+{
+  "timestamp": "20261029-070912",
+  "startMs": 1793257691826,
+  "appVersion": "1.3.0",
+  "driverType": "Bundled Mesa PanVK",
+  "deviceName": "Mali-G1-Ultra MC12",
+  "driverName": "panvk",
+  "driverInfo": "Mesa 26.3.0-devel (git-f7e78953ac)",
+  "driverVersion": 109060195,
+  "apiVersion": "1.4.363",
+  "pass": 1,
+  "fail": 0,
+  "skip": 0,
+  "total": 1,
+  "tests": {
+    "tessellation": "PASS"
+  },
+  "results": [
+    {
+      "name": "tessellation",
+      "status": "PASS",
+      "durationMs": 1565,
+      "log": "20261029-070911-tessellation.log"
+    }
+  ],
+  "compliance": {
+    "dxvk": {
+      "title": "DXVK compliance",
+      "pass": true,
+      "items": 94,
+      "missingHard": [],
+      "missingSoft": [
+        "tiled resources tier 2 (FL12_0)",
+        "fragmentShaderPixelInterlock (FL12_1)",
+        "D16_UNORM_S8_UINT (D3D9)",
+        "shaderFloat64",
+        "VK_EXT_sample_locations"
+      ]
+    },
+    "bachata_s4": {
+      "title": "Bachata S4 compliance",
+      "pass": true,
+      "items": 114,
+      "missingHard": [],
+      "missingSoft": [
+        "primitiveTopologyPatchListRestart",
+        "VK_KHR_fragment_shader_barycentric",
+        "VK_AMD_shader_image_load_store_lod",
+        "VK_EXT_shader_atomic_float2",
+        "VK_EXT_depth_range_unrestricted",
+        "shaderFloat64",
+        "subgroup_wave64"
+      ]
+    },
+    "vkd3d": {
+      "title": "vkd3d compliance",
+      "pass": true,
+      "items": 100,
+      "missingHard": [],
+      "missingSoft": [
+        "viewportSubPixelBits >= 8",
+        "VK_EXT_fragment_shader_interlock pixel+sample (ROVs)",
+        "VK_EXT_shader_viewport_index_layer",
+        "shaderFloat64",
+        "proton: tiled resources tier 2 (sparse residency + sparse queue)",
+        "proton: ROVs (pixel+sample interlock)",
+        "proton: VK_EXT_descriptor_buffer path",
+        "proton: VK_KHR_fragment_shading_rate",
+        "proton: VK_EXT_mesh_shader",
+        "proton: VK_KHR_ray_query + acceleration_structure"
+      ]
+    },
+    "d3d_fl": {
+      "title": "D3D feature levels",
+      "pass": true,
+      "items": 20,
+      "missingHard": [],
+      "missingSoft": [
+        "D3D12 FL12_0",
+        "D3D12 FL12_1",
+        "D3D12 FL12_2",
+        "D3D11 FL12_0",
+        "D3D11 FL12_1",
+        "D3D12 FL12_0 needs TiledResourcesTier >= 2 (have 0)",
+        "D3D12 FL12_1 needs ROVsSupported",
+        "D3D12 FL12_2 needs ConservativeRasterizationTier 3 (have 2)",
+        "D3D12 FL12_2 needs TiledResourcesTier >= 3 (have 0)",
+        "D3D12 FL12_2 needs RaytracingTier >= 1.1",
+        "D3D12 FL12_2 needs VariableShadingRateTier 2",
+        "D3D12 FL12_2 needs MeshShaderTier 1",
+        "D3D11 FL12_0 needs TiledResourcesTier >= 2 (have 0)",
+        "D3D11 FL12_1 needs ROVsSupported"
+      ]
+    }
+  },
+  "sparse_kbase": {
+    "status": "PASS",
+    "verdict": "VERDICT v14 eager-only -- MEM_ALLOC_EX FIXED refused; SAME_VA arena, grow-from-end ok",
+    "ms": 129,
+    "bench": "sparse_arena_commit=9.7us sparse_arena_uncommit=1.9us (per 64KiB tile, n=63) | sparse_alias_rebuild24=4.0us (n=256)",
+    "log": "20261029-070912-sparse_kbase.log",
+    "informational": true
+  }
+}
