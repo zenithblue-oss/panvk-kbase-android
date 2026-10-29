@@ -1,5 +1,186 @@
+diff --git a/include/filesystem.h b/include/filesystem.h
+index e4e0e27..021944d 100644
+--- a/include/filesystem.h
++++ b/include/filesystem.h
+@@ -44,6 +44,12 @@
+ //---------------------------------------------------------------------------------------
+ #ifndef GHC_FILESYSTEM_H
+ #define GHC_FILESYSTEM_H
++// PanPlay: the Android app sandbox denies most of /sys; unreadable dirs iterate as empty instead of throwing.
++#ifdef __ANDROID__
++#define GHC_ANDROID_NOTHROW 1
++#else
++#define GHC_ANDROID_NOTHROW 0
++#endif
+ 
+ // #define BSD manifest constant only in
+ // sys/param.h
+@@ -4065,7 +4071,12 @@ GHC_INLINE bool exists(file_status s) noexcept
+ #ifdef GHC_WITH_EXCEPTIONS
+ GHC_INLINE bool exists(const path& p)
+ {
++#ifdef __ANDROID__
++    std::error_code ec;
++    return exists(status(p, ec));
++#else
+     return exists(status(p));
++#endif
+ }
+ #endif
+ 
+@@ -5577,7 +5588,7 @@ GHC_INLINE directory_iterator::directory_iterator() noexcept
+ GHC_INLINE directory_iterator::directory_iterator(const path& p)
+     : _impl(new impl(p, directory_options::none))
+ {
+-    if (_impl->_ec) {
++    if (_impl->_ec && !GHC_ANDROID_NOTHROW) {
+         throw filesystem_error(detail::systemErrorText(_impl->_ec.value()), p, _impl->_ec);
+     }
+     _impl->_ec.clear();
+@@ -5586,7 +5597,7 @@ GHC_INLINE directory_iterator::directory_iterator(const path& p)
+ GHC_INLINE directory_iterator::directory_iterator(const path& p, directory_options options)
+     : _impl(new impl(p, options))
+ {
+-    if (_impl->_ec) {
++    if (_impl->_ec && !GHC_ANDROID_NOTHROW) {
+         throw filesystem_error(detail::systemErrorText(_impl->_ec.value()), p, _impl->_ec);
+     }
+ }
+@@ -5647,7 +5658,7 @@ GHC_INLINE directory_iterator& directory_iterator::operator++()
+ {
+     std::error_code ec;
+     _impl->increment(ec);
+-    if (ec) {
++    if (ec && !GHC_ANDROID_NOTHROW) {
+         throw filesystem_error(detail::systemErrorText(ec.value()), _impl->_dir_entry._path, ec);
+     }
+     return *this;
+diff --git a/src/battery.cpp b/src/battery.cpp
+index 1612bff..28507d4 100644
+--- a/src/battery.cpp
++++ b/src/battery.cpp
+@@ -7,10 +7,10 @@ using namespace std;
+ 
+ void BatteryStats::numBattery() {
+     int batteryCount = 0;
+-    if (!fs::exists("/sys/class/power_supply/")) {
+-         batteryCount = 0;
+-    }
+-    fs::path path("/sys/class/power_supply/");
++    // PanPlay: Android apps cannot read /sys/class/power_supply; the launcher mirrors BatteryManager
++    // into a BAT0 dir in this layout and points MANGOHUD_POWER_SUPPLY at it.
++    const char* ps = getenv("MANGOHUD_POWER_SUPPLY");
++    fs::path path(ps && *ps ? ps : "/sys/class/power_supply/");
+     for (auto& p : fs::directory_iterator(path)) {
+         string fileName = p.path().filename();
+         if (fileName.find("BAT") != std::string::npos) {
+diff --git a/src/cpu.cpp b/src/cpu.cpp
+index f46faba..b893b20 100644
+--- a/src/cpu.cpp
++++ b/src/cpu.cpp
+@@ -35,6 +35,38 @@
+ #endif
+ 
+ #include "file_utils.h"
++#ifdef __ANDROID__
++#include <time.h>
++#include <unistd.h>
++// PanPlay: Android apps cannot read /proc/stat. CPU load = this (game) process's CPU time, all threads,
++// over wall time x cores, from /proc/self/stat. Per-core load has no source and stays off.
++static bool android_self_stat = false;
++static bool android_self_cpu(CPUData& total) {
++    static double last_wall = 0;
++    static unsigned long long last_ticks = 0;
++    FILE* f = fopen("/proc/self/stat", "r");
++    if (!f) return false;
++    char buf[1024];
++    size_t n = fread(buf, 1, sizeof(buf) - 1, f);
++    fclose(f);
++    buf[n] = 0;
++    const char* p = strrchr(buf, ')');
++    unsigned long long ut = 0, st = 0;
++    if (!p || sscanf(p + 2, "%*c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u %llu %llu", &ut, &st) != 2)
++        return false;
++    struct timespec ts;
++    clock_gettime(CLOCK_MONOTONIC, &ts);
++    double wall = ts.tv_sec + ts.tv_nsec / 1e9;
++    unsigned long long ticks = ut + st;
++    if (last_wall > 0 && wall > last_wall) {
++        double pct = (ticks - last_ticks) / (double)sysconf(_SC_CLK_TCK) / ((wall - last_wall) * sysconf(_SC_NPROCESSORS_CONF)) * 100.0;
++        total.percent = std::min(std::max((float)pct, 0.0f), 100.0f);
++    }
++    last_wall = wall;
++    last_ticks = ticks;
++    return true;
++}
++#endif
+ 
+ static void calculateCPUData(CPUData& cpuData,
+     unsigned long long int usertime,
+@@ -125,6 +157,18 @@ bool CPUStats::Init()
+     m_cpuData.clear();
+ 
+     if (!file.is_open()) {
++#ifdef __ANDROID__
++        for (int i = 0; i < sysconf(_SC_NPROCESSORS_CONF); i++) {
++            CPUData cpu = {};
++            cpu.totalTime = 1;
++            cpu.totalPeriod = 1;
++            cpu.cpu_id = i;
++            m_cpuData.push_back(cpu);
++        }
++        android_self_stat = true;
++        m_inited = true;
++        return UpdateCPUData();
++#endif
+         SPDLOG_ERROR("Failed to opening " PROCSTATFILE);
+         return false;
+     }
+@@ -184,6 +228,13 @@ bool CPUStats::UpdateCPUData()
+ 
+     if (!m_inited)
+         return false;
++#ifdef __ANDROID__
++    if (android_self_stat) {
++        m_cpuPeriod = 1;
++        m_updatedCPUs = true;
++        return android_self_cpu(m_cpuDataTotal);
++    }
++#endif
+ 
+     std::string line;
+     std::ifstream file (PROCSTATFILE);
+@@ -548,8 +599,14 @@ static void check_thermal_zones(std::string& path, std::string& input) {
+             continue;
+ 
+         std::string type = read_line(d / "type");
+-        if (type.substr(0, 6) != "cpuss-")
++        // PanPlay: Android SoCs name CPU zones "cpu-big-core7-1" (MediaTek), "cpu-..."; prefer a big core.
++        if (type.substr(0, 6) != "cpuss-" && type.substr(0, 7) != "cpu-big" && !(path.empty() && type.substr(0, 4) == "cpu-"))
++            continue;
++        if (type.substr(0, 4) == "cpu-" && type.substr(0, 7) != "cpu-big") {
++            path = d.path();
++            input = d / "temp";
+             continue;
++        }
+ 
+         path = d.path();
+         input = d / "temp";
+diff --git a/src/keybinds.h b/src/keybinds.h
+index cbf095b..dcb6e95 100644
+--- a/src/keybinds.h
++++ b/src/keybinds.h
+@@ -30,7 +30,7 @@ static inline bool keys_are_pressed(const std::vector<KeySym>& keys)
+     }
+     #endif
+ 
+-    #if defined(HAVE_X11)
++    #if defined(HAVE_X11) && !defined(__ANDROID__) // PanPlay: X servers on Android lack QueryKeymap (BadRequest kills the game)
+     if (init_x11())
+     {
+         char keys_return[32];
 diff --git a/src/overlay_params.cpp b/src/overlay_params.cpp
-index b10a0ce..b4a9192 100644
+index b10a0ce..4efe979 100644
 --- a/src/overlay_params.cpp
 +++ b/src/overlay_params.cpp
 @@ -7,7 +7,9 @@
@@ -21,3 +202,22 @@ index b10a0ce..b4a9192 100644
     // Expand ~/ to home dir
     if (str[0] == '~') {
        std::stringstream s;
+@@ -1043,6 +1045,18 @@ parse_overlay_config(struct overlay_params *params,
+       parse_overlay_env(params, env, true);
+    }
+ 
++#ifdef __ANDROID__
++   // PanPlay: no data source for these inside an Android app (no /proc/stat per-core, RAPL/hwmon power,
++   // fans, net, D-Bus media, HID batteries, sysfs GPU): keep them off, even with "full", instead of showing 0.
++   for (auto e : { OVERLAY_PARAM_ENABLED_core_load, OVERLAY_PARAM_ENABLED_core_bars, OVERLAY_PARAM_ENABLED_core_load_change,
++                   OVERLAY_PARAM_ENABLED_cpu_power, OVERLAY_PARAM_ENABLED_cpu_efficiency, OVERLAY_PARAM_ENABLED_flip_efficiency,
++                   OVERLAY_PARAM_ENABLED_ram_temp, OVERLAY_PARAM_ENABLED_fan, OVERLAY_PARAM_ENABLED_media_player,
++                   OVERLAY_PARAM_ENABLED_device_battery_icon, OVERLAY_PARAM_ENABLED_display_server })
++      params->enabled[e] = false;
++   params->network.clear();
++   params->device_battery.clear();
++#endif
++
+    // If fps_only param is enabled disable legacy_layout
+    if (params->enabled[OVERLAY_PARAM_ENABLED_fps_only])
+       params->enabled[OVERLAY_PARAM_ENABLED_legacy_layout] = false;

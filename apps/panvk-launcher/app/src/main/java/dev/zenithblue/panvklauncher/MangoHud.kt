@@ -154,6 +154,26 @@ object MangoHudSettings {
     )
     private val ALL = GROUPS.flatMap { it.second }
 
+    // Options with no data source inside an Android app (tested on Mali-G615 kbase, Android 14): shown greyed out.
+    // The MangoHud build also forces the switches among them off (runtimes/mangohud/android-bionic.patch).
+    private const val NO_GPU = "Not available on this device: Android blocks the Mali GPU load, clock and sensor files for apps"
+    val NOT_AVAILABLE: Map<String, String> = buildMap {
+        listOf("gpu_stats", "gpu_temp", "gpu_junction_temp", "gpu_mem_temp", "gpu_core_clock", "gpu_mem_clock", "gpu_power",
+            "gpu_power_limit", "gpu_fan", "gpu_voltage", "gpu_efficiency", "vram", "proc_vram", "gpu_text", "gpu_load_change",
+            "gpu_load_value", "gpu_load_color", "gpu_list", "pci_dev", "throttling_status", "throttling_status_graph").forEach { put(it, NO_GPU) }
+        listOf("core_load", "core_load_change", "core_bars").forEach { put(it, "Not available on this device: Android blocks /proc/stat for apps") }
+        listOf("cpu_power", "cpu_efficiency", "flip_efficiency").forEach { put(it, "Not available on this device: no CPU power sensor readable by apps") }
+        put("network", "Not available on this device: Android blocks /sys/class/net for apps")
+        listOf("media_player", "media_player_name", "media_player_format").forEach { put(it, "Not available on this device: needs D-Bus") }
+        listOf("device_battery", "device_battery_icon").forEach { put(it, "Not available on this device: HID batteries are not readable by apps") }
+        put("core_type", "Not available on this device: shown only with per-core load, which Android blocks")
+        put("display_server", "Not available on this device: MangoHud cannot detect the Android X server")
+        put("refresh_rate", "Not available on this device: needs gamescope")
+        put("fex_stats","Not available on this device: FEX stats are not exported by FEXCore for ARM64EC")
+        listOf("toggle_hud", "toggle_hud_position", "toggle_preset", "toggle_fps_limit", "toggle_logging", "reload_cfg",
+            "reset_fps_metrics", "upload_log").forEach { put(it, "Not available on this device: the X server has no keyboard state query (QueryKeymap)") }
+    }
+
     data class Cfg(val enabled: Boolean = false, val values: Map<String, String> = emptyMap()) {
         fun get(o: Opt) = values[o.key] ?: o.def
     }
@@ -184,7 +204,9 @@ object MangoHudSettings {
         append("# Written by PanPlay at launch (MangoHud page). Edits here are overwritten.\n")
         for (o in ALL) {
             val v = cfg.get(o).replace('\n', ' ').replace('\r', ' ').trim()
+            val na = o.key in NOT_AVAILABLE
             when {
+                na -> if (o.kind == 'b' && o.def == "1") append(o.key).append("=0\n")
                 o.kind == 'b' -> when {
                     v == "1" -> append(o.key).append('\n')
                     o.def == "1" -> append(o.key).append("=0\n")
@@ -210,13 +232,57 @@ object MangoHudSettings {
                 .put("functions", JSONObject().put("vkGetInstanceProcAddr", "overlay_GetInstanceProcAddr").put("vkGetDeviceProcAddr", "overlay_GetDeviceProcAddr"))
                 .put("enable_environment", JSONObject().put("MANGOHUD", "1"))
                 .put("disable_environment", JSONObject().put("DISABLE_MANGOHUD", "1"))).toString(2))
+            startBatteryMirror(c, File(dir, "power_supply"))
             mapOf(
                 "MANGOHUD" to "1",
+                "MANGOHUD_POWER_SUPPLY" to File(dir, "power_supply").absolutePath,
                 "MANGOHUD_CONFIGFILE" to conf.absolutePath,
                 "VK_ADD_IMPLICIT_LAYER_PATH" to layerDir.absolutePath,
                 "VK_LOADER_LAYERS_DISABLE" to STOCK_LAYER
             )
         } catch (_: Exception) { emptyMap() }
+    }
+
+    @Volatile private var mirror: Thread? = null
+
+    /**
+     * Apps cannot read /sys/class/power_supply, so MangoHud's battery items read this mirror of BatteryManager
+     * (sysfs units: %, µA, µV, µW, µAh), refreshed every second while Wine runs.
+     */
+    private fun startBatteryMirror(c: Context, root: File) {
+        if (mirror?.isAlive == true) return
+        val bat = File(root, "BAT0").apply { mkdirs() }
+        val app = c.applicationContext
+        mirror = Thread({
+            val bm = app.getSystemService(Context.BATTERY_SERVICE) as? android.os.BatteryManager
+            val t0 = System.currentTimeMillis()
+            while (System.currentTimeMillis() - t0 < 15_000 || ContainerManager.isRunning()) {
+                try {
+                    val i = app.registerReceiver(null, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))
+                    val pct = bm?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
+                    val ua = bm?.getLongProperty(android.os.BatteryManager.BATTERY_PROPERTY_CURRENT_NOW) ?: Long.MIN_VALUE
+                    val chargeUah = bm?.getLongProperty(android.os.BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER) ?: Long.MIN_VALUE
+                    val uv = (i?.getIntExtra(android.os.BatteryManager.EXTRA_VOLTAGE, 0) ?: 0) * 1000L
+                    val status = when (i?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1)) {
+                        android.os.BatteryManager.BATTERY_STATUS_CHARGING -> "Charging"
+                        android.os.BatteryManager.BATTERY_STATUS_FULL -> "Full"
+                        android.os.BatteryManager.BATTERY_STATUS_DISCHARGING, android.os.BatteryManager.BATTERY_STATUS_NOT_CHARGING -> "Discharging"
+                        else -> "Unknown"
+                    }
+                    fun put(n: String, v: Any) { val f = File(bat, "$n.tmp"); f.writeText("$v\n"); f.renameTo(File(bat, n)) }
+                    if (pct in 0..100) put("capacity", pct)
+                    put("status", status)
+                    // Some devices report mA instead of µA: treat small magnitudes as mA.
+                    val cur = if (ua == Long.MIN_VALUE || ua == 0L) null else if (kotlin.math.abs(ua) < 10_000) ua * 1000 else ua
+                    if (cur != null && uv > 0) {
+                        put("current_now", kotlin.math.abs(cur)); put("voltage_now", uv)
+                        put("power_now", kotlin.math.abs(cur) * uv / 1_000_000)
+                    }
+                    if (chargeUah > 0 && pct in 1..100) { put("charge_now", chargeUah); put("charge_full", chargeUah * 100 / pct) }
+                } catch (_: Throwable) {}
+                try { Thread.sleep(1000) } catch (_: InterruptedException) { break }
+            }
+        }, "mangohud-battery").apply { isDaemon = true; start() }
     }
 }
 
@@ -252,7 +318,7 @@ fun MangoHudPage(gameId: String?, gameName: String?, onDismiss: () -> Unit) {
                                 own = it
                                 if (it) update(cfg) else { MangoHudSettings.clear(ctx, gameId!!); cfg = MangoHudSettings.effective(ctx, null) }
                             }
-                            MhSwitch("MangoHud", "Vulkan overlay: FPS, frame time, CPU/GPU. Shown at top-right by default so it does not cover the DXVK HUD.", cfg.enabled, own) {
+                            MhSwitch("MangoHud", "Vulkan overlay: FPS, frame time, CPU, RAM, battery. Shown at top-right by default so it does not cover the DXVK HUD. CPU load is the game's share of all cores.", cfg.enabled, own) {
                                 update(cfg.copy(enabled = it))
                             }
                             if (!installed) Text("MangoHud is not installed. Install it in Components.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
@@ -295,15 +361,18 @@ private fun MhSwitch(title: String, subtitle: String?, checked: Boolean, enabled
 }
 
 @Composable
-private fun MhOption(o: MangoHudSettings.Opt, value: String, enabled: Boolean, onValue: (String) -> Unit) {
+private fun MhOption(o: MangoHudSettings.Opt, value: String, editable: Boolean, onValue: (String) -> Unit) {
+    val na = MangoHudSettings.NOT_AVAILABLE[o.key]
+    val enabled = editable && na == null
+    val note = o.key + (if (o.kind == 'k') " (RRGGBB)" else "") + (na?.let { " · $it" } ?: "")
     when (o.kind) {
-        'b' -> MhSwitch(o.label, o.key, value == "1", enabled) { onValue(if (it) "1" else "0") }
+        'b' -> MhSwitch(o.label, note, value == "1" && na == null, enabled) { onValue(if (it) "1" else "0") }
         'c' -> DropdownField(o.label, o.choices.map { it to it.ifEmpty { "Default" } }, value, onValue, enabled = enabled)
         else -> OutlinedTextField(
             value, onValue, enabled = enabled, singleLine = true, modifier = Modifier.fillMaxWidth(),
             label = { Text(o.label) },
             placeholder = { if (o.hint.isNotEmpty()) Text(o.hint) },
-            supportingText = { Text(o.key + if (o.kind == 'k') " (RRGGBB)" else "") }
+            supportingText = { Text(note) }
         )
     }
 }
