@@ -166,3 +166,20 @@ section "Round 2". X6 Pro (v11) only: TB336FU (v9) is disconnected, RTL/Firebase
 | 20 | JM timestamps | CSF native (`ts_pair` +0.1 ms/frame incl. the readback); JM part needs a JM device |
 | 21 | v9 primitives-generated | CSF free (`pg_query` = `ref`); v9 part needs a JM device |
 | 22 | v7 BGRA custom border colour AFBC | v11 no cost (`tex_bgra` = `tex_rgba` within noise); the v7 case needs a v7 device |
+
+## 6. Item status, round 3 (2026-10-29, JM parts, build 122)
+
+Measured on the TB336FU (v9 JM) with PanProbe `workload_perf`; 3 alternating runs where the gain is small.
+Build 122 = jm-v7-wip 0006-0165. Numbers: `PERF-PROGRESS.md` "Build 122".
+
+| Rank | Item | Status |
+|---|---|---|
+| 23 | MangoHud GPU stats, JM | **done, 0164** (v6/v7/v9): busy = CPU-observed time with at least one atom in flight (kbase_kmod counts atoms from JOB_SUBMIT to the completion event), no GPU jobs, no PERMON; only tracked with `PANVK_GPU_STATS` set. TB336FU under `workload_perf`: `load=97..99`, `vram` reported. Slight overestimate when nobody reads kbase events promptly (DXVK always has a fence waiter) |
+| 21 | v9 primitives-generated | **done, 0165**: direct draws without restart are counted on the CPU, one job per query end. `pg_query` 18.6 to 12.2 us/draw (`ref` 6.2) |
+| 19 | JM conditional rendering | measured, **skipped**: `cond_true` 15 us/draw vs `ref` 6 (+9 us/draw, one predicate job per draw), `cond_false` 8. One predicate job per run of draws must keep meta copies, clears and query writes recorded inside the block out of the predicate list (they are jobs in the same chain), so it is a sync-sensitive change for D3D predication, which games rarely use |
+| 20 | JM timestamps | measured, **closed**: PERMON is already set only on batches with timestamps (`batch->timestamps`); `ts_pair` costs about 0.1 ms per pair per frame, the batch split that orders the timestamp after earlier work. Nothing cheap left |
+| 10 | v9 BC into ETC2/ASTC shadows | **deferred, not safe as a gate change**: the lowmem path needs the raw BC store for read-back (`bc_raw_use()`, `panvk_bc_raw_acquire()`, v10+ only, UNREACHABLE on v9), CS-builder CRC invalidation and the XC timing on CSF. A port, not a small item |
+| 14 | v6/v7 TES per domain point (D9), rotating arenas (D10) | **deferred**: D9 is a new indexed TES draw shape plus TES lowering (index rebasing per patch allocation), D10 replaces JM barriers with explicit job dependencies (precomp has no dependency API). Both medium-high risk and only checkable on Firebase v6/v7 with one run; not shipped blind in the final build |
+| 22 | v7 BGRA custom border colour AFBC | **closed, no safe fix**: a sampler with `customBorderColorWithoutFormat` does not know the view, DXVK uses separate sampler and image descriptors, so the border colour cannot be pre-swizzled per view; keeping AFBC would swap R/B in border texels of BGRA images (a conformance bug). 089 already keeps AFBC for non-sampled BGRA images |
+| 15 | v14 sparse TLS alias for core mask 0x3300ff | deferred to the next RTL v14 session (RTL owned by another agent today) |
+| 11 | v14 scissor array | skipped (large) |
