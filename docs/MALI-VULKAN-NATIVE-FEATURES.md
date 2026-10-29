@@ -17,6 +17,9 @@ Each report was fetched twice: the full HTML (`displayreport.php?id=N`, used for
 | v13 | [52411](https://vulkan.gpuinfo.org/displayreport.php?id=52411) | Mali-G925-Immortalis MC12 | OnePlus PLC110 | 49.1.0 | 1.3.278 | 17.0 | 2026-10-09 |
 | v14 | [52849](https://vulkan.gpuinfo.org/displayreport.php?id=52849) | Mali-G1-Ultra MC12 | vivo V2509A | 54.1.0 | 1.3.305 | 16.0 | 2026-10-28 |
 | v15 | [52414](https://vulkan.gpuinfo.org/displayreport.php?id=52414) | Mali-G2-Ultra-NX MC12 | vivo V2602A | 56.0.0 | 1.4.349 | 17.0 | 2026-10-09 |
+| v15 (alt) | [51699](https://vulkan.gpuinfo.org/displayreport.php?id=51699), [51676](https://vulkan.gpuinfo.org/displayreport.php?id=51676) | Mali-G2-Ultra-NX MC16 | Xiaomi M367FC / 2608BPX34C | 56.0.0 (r56p0-15bet0) | 1.4.345 | - | 2026-09 |
+
+The v15 alt reports are used only for BC. Their r56p0-15bet0 driver build exposes `textureCompressionBC` and all 16 BC1-BC7 formats. The 52414 build (r56p0-18eac0) does not. So v15 hardware decodes BC, and exposure depends on the ARM driver build.
 
 Caveats that matter when reading the tables:
 
@@ -77,7 +80,7 @@ Legend: `Y` reported true, `n` reported false, `-` structure/extension not repor
 | samplerAnisotropy | Y | Y | Y | Y | Y | Y | Y | Y | Y |
 | textureCompressionETC2 | Y | Y | Y | Y | Y | Y | Y | Y | Y |
 | textureCompressionASTC_LDR | Y | Y | Y | Y | Y | Y | Y | Y | Y |
-| textureCompressionBC | n | n | n | n | n | n | n | n | n |
+| textureCompressionBC | n | n | n | n | n | n | n | n | Y (alt build 51699) |
 | textureCompressionASTC_HDR | Y | Y | Y | Y | Y | Y | Y | Y | Y |
 | occlusionQueryPrecise | Y | Y | Y | Y | Y | Y | Y | Y | Y |
 | pipelineStatisticsQuery | n | n | n | n | n | n | n | n | n |
@@ -421,17 +424,17 @@ A couple of extensions differ in spec version between arches (marked in appendix
 
 ### 5.1 Compressed formats
 
-Counts are formats with `SAMPLED_IMAGE_BIT` in optimal tiling (all also have linear filtering, blit-src and transfer bits). Totals: ETC2/EAC 10 formats, ASTC LDR 28 formats (14 block sizes x UNORM/SRGB), BC 18 formats.
+Counts are formats with `SAMPLED_IMAGE_BIT` in optimal tiling (all also have linear filtering, blit-src and transfer bits). Totals: ETC2/EAC 10 formats, ASTC LDR 28 formats (14 block sizes x UNORM/SRGB), BC 16 formats (Vulkan core BC1-BC7).
 
 | Group | v6 | v7 | v9 | v10 | v11 | v12 | v13 | v14 | v15 |
 |---|---|---|---|---|---|---|---|---|---|
-| BC (BC1-BC7) | 0/18 | 0/18 | 0/18 | 0/18 | 0/18 | 0/18 | 0/18 | 0/18 | 0/18 |
+| BC (BC1-BC7) | 0/16 | 0/16 | 0/16 | 0/16 | 0/16 | 0/16 | 0/16 | 0/16 | 0/16 (52414); 16/16 (51699) |
 | ETC2/EAC | 10/10 | 10/10 | 10/10 | 10/10 | 10/10 | 10/10 | 10/10 | 10/10 | 10/10 |
 | ASTC LDR | 28/28 | 28/28 | 28/28 | 28/28 | 28/28 | 28/28 | 28/28 | 28/28 | 28/28 |
 | ASTC HDR (feature bit) | Y | Y | Y | Y | Y | Y | Y | Y | Y |
-| textureCompressionBC feature | n | n | n | n | n | n | n | n | n |
+| textureCompressionBC feature | n | n | n | n | n | n | n | n | n (52414); Y (51699) |
 
-No arch has any BC format: ARM's driver never exposes BC1-BC7, so PanVK's BCn emulation has no native counterpart anywhere. ETC2/EAC and ASTC LDR are universal from v6 to v15, and the ASTC HDR bit is set on every arch (including Bifrost v6/v7).
+v6-v14 have no BC format in any ARM report used here. v15 differs: the r56p0-15bet0 build (reports 51699, 51676, Mali-G2-Ultra-NX MC16) sets `textureCompressionBC` and exposes all 16 BC1-BC7 formats with sampled, linear-filter, blit-src and transfer bits. The 52414 build of the same GPU family exposes none. So on v15 the texture unit decodes BC natively, and PanVK must use the native path there instead of BCn emulation. A Pixel 9 (v11) report 52097 also claims BC, but it has an empty driverInfo and driver version 5.0.0, so it is not treated as evidence. ETC2/EAC and ASTC LDR are universal from v6 to v15, and the ASTC HDR bit is set on every arch (including Bifrost v6/v7).
 
 ### 5.2 Selected formats (optimal / linear / buffer feature-bit counts)
 
@@ -907,7 +910,7 @@ The PanVK column is the patched Mesa tree `/var/tmp/panvk/mesa-115g-final` (`src
 | vertexPipelineStoresAndAtomics | drirc opt-in (default on v9+) | n | n | n | n | n | n | n | n | n |
 | depthBounds | perf-flag gated | n | n | n | n | n | n | n | n | n |
 | shaderClipDistance / CullDistance | true (emulated) | n/n | n/n | n/n | n/n | n/n | n/n | n/n | n/n | n/n |
-| textureCompressionBC | true when BC emulation enabled | n | n | n | n | n | n | n | n | n |
+| textureCompressionBC | true when BC emulation enabled | n | n | n | n | n | n | n | n | Y (51699) |
 | robustImageAccess2 | v9+; v6/v7 via env/debug | - | - | n | n | - | - | - | Y | Y |
 | robustBufferAccess2 | true | - | - | n | n | - | - | - | Y | Y |
 | nullDescriptor | true (emulated on v6/v7) | - | - | Y | Y | - | - | - | Y | Y |
@@ -934,7 +937,7 @@ Categories: **HW-native likely** (ARM exposes it and a plausible fixed-function 
 - **vertexPipelineStoresAndAtomics**: *ARM not exposed (all arches).* False everywhere, so ARM never offers vertex-stage stores. PanVK's gpu_prerast / per-vertex-job path is beyond ARM. Unknown whether ARM refrains because of the Valhall IDVS speculation hazard mentioned in the PanVK source rather than HW inability.
 - **depthBounds**: *ARM not exposed (all arches).* False everywhere; PanVK gates it behind a perf flag.
 - **shaderClipDistance / shaderCullDistance**: *ARM not exposed (all arches).* False everywhere (ARM reports only `pointClippingBehavior`). PanVK emulation is PanVK-only.
-- **textureCompressionBC**: *ARM not exposed (all arches).* Feature false and 0 of 18 BC formats exposed on every arch. The texture unit has no BC decode; emulation (compute decode or recompression) is the only route and has no native counterpart. Strongest evidence in the dataset.
+- **textureCompressionBC**: *ARM-native on v15 only.* v6-v14: feature false and 0 BC formats in every report, so emulation (compute decode or recompression) is the only route. v15: the r56p0-15bet0 build (51699, 51676) exposes the feature and 16/16 BC formats. Action: on v15, use the hardware BC texture formats and skip BCn emulation (needs the v15 BC pixel-format encodings, then a device check).
 - **robustImageAccess2 / robustBufferAccess2**: *v14/v15: native or ARM shader lowering (unknown); v9/v10: ARM cannot; others: ARM not exposed.* v14/v15 (r54/r56) report BA2, RIA2 and nullDescriptor true. v9 and v10 (both r54, `VK_EXT_robustness2` present) report BA2 false, RIA2 false, nullDescriptor true, so ARM does not provide RIA2 on v9 or v10: PanVK's v9 emulation, v10 GPU alpha fix-up and software bounds checks exceed ARM. v6/v7/v11/v12/v13 do not expose the extension at all (v11-v13 drivers are older). Whether v14's RIA2 is HW or ARM compiler lowering is unknown.
 - **nullDescriptor**: *HW-native likely on v9/v10/v14/v15; unknown elsewhere.* True on v9, v10, v14, v15 where the robustness2 structure is reported; not reported on other drivers. PanVK emulates it with null_descs on v6/v7.
 - **pipelineStatisticsQuery**: *ARM not exposed (all arches).* False everywhere; PanVK's GPU-counted queries on JM go beyond ARM. Related `VK_EXT_primitives_generated_query` is exposed by ARM on v7 and v9-v15 (not v6), matching PanVK v9+.
@@ -962,7 +965,7 @@ Ranked by usefulness and strength of evidence (ARM exposure is necessary, not su
 9. logicOp, dualSrcBlend, wideLines on v7/v9/v10/v12+: ARM exposes natively-looking; v6 and v11 gaps in ARM are unexplained.
 10. drawIndirectFirstInstance and fullDrawIndexUint32 are true on every ARM arch (v6-v15), so no emulation needed there.
 
-Nothing in this dataset shows ARM exposing BC, fillModeNonSolid, depthBounds, shaderClipDistance/CullDistance, vertexPipelineStoresAndAtomics, pipelineStatisticsQuery, sparse, alphaToOne or shaderFloat64 on any Mali. Those PanVK emulations have no ARM-native proof.
+Except BC on v15 (see above), nothing in this dataset shows ARM exposing BC, fillModeNonSolid, depthBounds, shaderClipDistance/CullDistance, vertexPipelineStoresAndAtomics, pipelineStatisticsQuery, sparse, alphaToOne or shaderFloat64 on any Mali. Those PanVK emulations have no ARM-native proof.
 
 ### 8.3 ARM exposes, PanVK source tables do not (extensions)
 
