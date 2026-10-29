@@ -868,6 +868,8 @@ PanProbe 40/40, `draw_params` and `bc_decode` PASS, no DEVICE_LOST
 | 0158 | item 23: `PANVK_GPU_STATS=<file>`: GPU load % from per ring entry GPU timestamps and VRAM bytes, rewritten at most every 500 ms (kbase CSF); PanPlay's MangoHud reads it | env unset = off |
 | 0159 | reverts 0147 (v14 per-chunk gpu_prerast cache flush): the v14 A/B on 116 passed `tessellation` 3/3 without it; 0148 (sparse device TLS) was the fix. Simpler than dropping 0147 from the middle of the series | - |
 | 0160 | the sw WSI (X11 present without DRI3 dma-buf, every PanPlay game) reads frames through the uncached buffer again: 0115's cached read + per-present DC CIVAC cost more (the rc4 vs 115c+ fps gap, FL 11_1 257 vs 831 fps on the X6 Pro) | `PANVK_WSI_SW_CACHED=1` = 0115 behaviour |
+| 0162 | item 7 fix: the BC prewarm compiles the XC_BATCH pipeline only for batchable images (one-layer 2D with mips). 0155 compiled it for every ETC2 mode, which doubled the cold `bc_decode` (9.3 s vs 5.0 s on the X6 Pro) | `PANVK_BC_PREWARM=0` |
+| 0163 | item 8 on v9: the pass-through GS skip in the JM `v9_cmd_draw()` (0157 hooked only CSF). TB336FU `strip_gs` 354 to 17.6 us/draw | `PANVK_GS_PT_SKIP=0` |
 
 Build 119 = 0006-0159 (`git-0146a719f6`, driverInfo `Mesa 26.3.0-devel (git-0146a719f6, p0159, 2026-10-29)`,
 .so sha256 `186278b8...`, BuildID `ba2ef6fd...`). Build 120 = 0006-0160 (`git-94af3802af`, driverInfo
@@ -875,6 +877,14 @@ Build 119 = 0006-0159 (`git-0146a719f6`, driverInfo `Mesa 26.3.0-devel (git-0146
 sha256 `1195a047045b6384480a88924ddf61c1095ace90bfcbb95aa26c6598ff99d716`, 29455192 bytes, BuildID
 `6c1061318e24f02cac02a577242c3709fff1d05b`); strict prepare `BASE-OK applied=228`, `OK base=228 jm-v7-wip=155
 head=94af3802af9`. **120 is the default bundled driver** (`prepare-rc5-tree.sh` default `--wip-max 0160`).
+
+Build 121b = 0006-0163 (it includes the tiler-OOM 0161), `Mesa 26.3.0-devel (git-07177325ca, p0163, 2026-10-29)`.
+- .so: `/var/tmp/panvk/build-out/2026-10-29-121b/libvulkan_panfrost.so`, sha256
+  `9f58ee27ad8e4d0b02f43b26bada3e34da5feba5134f8ac1c91b23c4f9cf85ae`, BuildID
+  `c5337130bf092b76764921dc321808a88f56df0c`.
+- Strict prepare: `OK base=228 jm-v7-wip=158 head=07177325cad`.
+- Tested with PanProbe only: 41/41 on the X6 Pro and the TB336FU.
+- **Not the default.** The pins stay on 120.
 
 Numbers: `docs/PERF-PROGRESS.md` "Round 2" and "Build 120"; status per item: `docs/PERF-OPTIMIZATION-PLAN.md` section 5.
 

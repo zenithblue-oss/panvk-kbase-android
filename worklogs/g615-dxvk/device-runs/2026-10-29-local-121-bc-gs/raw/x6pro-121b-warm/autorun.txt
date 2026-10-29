@@ -1,0 +1,78 @@
+GAMELOOP scenario=2
+INFO devices=1 exts=188 formats=196
+DRIVER slot=RC5 driverInfo=Mesa 26.3.0-devel (git-07177325ca, p0163, 2026-10-29)
+COMPLIANCE DXVK compliance PASS items=94 missingHard=[] missingSoft=["tiled resources tier 2 (FL12_0)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","VK_EXT_sample_locations"]
+COMPLIANCE Bachata S4 compliance PASS items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","subgroup_wave64"]
+COMPLIANCE vkd3d compliance PASS items=100 missingHard=[] missingSoft=["viewportSubPixelBits >= 8","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","shaderFloat64","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: ROVs (pixel+sample interlock)","proton: VK_EXT_descriptor_buffer path","proton: VK_KHR_fragment_shading_rate","proton: VK_EXT_mesh_shader","proton: VK_KHR_ray_query + acceleration_structure"]
+COMPLIANCE D3D feature levels PASS items=20 missingHard=[] missingSoft=["D3D12 FL12_0","D3D12 FL12_1","D3D12 FL12_2","D3D11 FL12_0","D3D11 FL12_1","D3D12 FL12_0 needs TiledResourcesTier >= 2 (have 0)","D3D12 FL12_1 needs ROVsSupported","D3D12 FL12_2 needs ConservativeRasterizationTier 3 (have 1)","D3D12 FL12_2 needs TiledResourcesTier >= 3 (have 0)","D3D12 FL12_2 needs RaytracingTier >= 1.1","D3D12 FL12_2 needs VariableShadingRateTier 2","D3D12 FL12_2 needs MeshShaderTier 1","D3D11 FL12_0 needs TiledResourcesTier >= 2 (have 0)","D3D11 FL12_1 needs ROVsSupported"]
+RESULT gpu_prerast_slice PASS mismatch=0 fps=0 ms=82
+RESULT clip_cull PASS mismatch=0 fps=4164.6 ms=1177
+RESULT multi_viewport PASS mismatch=0 fps=4318.4 ms=1160
+RESULT fill_mode PASS mismatch=0 fps=4277.0 ms=1618
+RESULT bc_decode PASS mismatch=0 fps=0 ms=180
+RESULT bc_perf PASS mismatch=0 fps=0 ms=28142
+RESULT tess_perf PASS mismatch=0 fps=3.9 ms=27082 extra=tess_perf opt=default gs=0 L=ref draws=256 patches=4096 ms=0.89 us_draw=3.5 frames=786 hash=4807f3f5 | tess_perf opt=default gs=0 L=1 draws=256 patches=4096 ms=40.26 us_draw=157.3 frames=18 hash=a03404c5 | tess_perf opt=default gs=0 L=4 draws=256 patches=4096 ms=58.91 us_draw=230.1 frames=12 hash=cec55885 | tess_perf opt=default gs=0 L=16 draws=256 patches=4096 ms=277.50 us_draw=1084.0 frames=3 hash=d4463b35 | tess_perf opt=default gs=0 L=mix draws=256 patches=4096 ms=255.84 us_draw=999.4 frames=3 hash=b34a251c | tess_perf opt=default gs=1 L=1 draws=256 patches=4096 ms=112.60 us_draw=439.8 frames=7 hash=a03404c5 | tess_perf opt=default gs=1 L=4 draws=256 patches=4096 ms=105.44 us_draw=411.9 frames=7 hash=cec55885 | tess_perf opt=default gs=1 L=16 draws=256 patches=4096 ms=599.96 us_draw=2343.6 frames=3 hash=d4463b35 | tess_perf opt=default gs=1 L=mix draws=256 patches=4096 ms=408.50 us_draw=1595.7 frames=3 hash=b34a251c | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=ref draws=256 patches=4096 ms=0.95 us_draw=3.7 frames=738 hash=4807f3f5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=1 draws=256 patches=4096 ms=99.60 us_draw=389.0 frames=8 hash=a03404c5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=4 draws=256 patches=4096 ms=71.11 us_draw=277.8 frames=10 hash=cec55885 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=16 draws=256 patches=4096 ms=354.37 us_draw=1384.3 frames=3 hash=d4463b35 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=mix draws=256 patches=4096 ms=320.39 us_draw=1251.5 frames=3 hash=b34a251c | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=1 draws=256 patches=4096 ms=121.42 us_draw=474.3 frames=6 hash=a03404c5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=4 draws=256 patches=4096 ms=113.90 us_draw=444.9 frames=7 hash=cec55885 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=16 draws=256 patches=4096 ms=660.36 us_draw=2579.5 frames=3 hash=d4463b35 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=1 L=mix draws=256 patches=4096 ms=477.31 us_draw=1864.5 frames=3 hash=b34a251c
+RESULT workload_perf PASS mismatch=0 fps=11.9 ms=10801 extra=workload_perf case=bc_level ms=2543.5 us_op=423915 fps=0.39 ops=6 device_ms=8.4 create_ms=3.2 record_ms=2528.7 gpu_wait_ms=11.6 | workload_perf case=ref ms=1.557 us_op=3.04 fps=642.3 ops=512 frames=257 | workload_perf case=gs_pass ms=1.210 us_op=2.36 fps=826.6 ops=512 frames=331 | workload_perf case=gs_layer ms=28.863 us_op=56.37 fps=34.6 ops=512 frames=14 | workload_perf case=xfb_vs ms=110.026 us_op=214.89 fps=9.1 ops=512 frames=4 | workload_perf case=xfb_gs ms=84.000 us_op=164.06 fps=11.9 ops=512 frames=5 | workload_perf case=strip_ref ms=1.389 us_op=5.42 fps=720.2 ops=256 frames=290 | workload_perf case=strip_gs ms=1.104 us_op=4.31 fps=905.9 ops=256 frames=363 | workload_perf case=cond_true ms=1.325 us_op=2.59 fps=754.9 ops=512 frames=302 | workload_perf case=cond_false ms=1.135 us_op=2.22 fps=881.2 ops=512 frames=353 | workload_perf case=pg_query ms=1.406 us_op=2.75 fps=711.2 ops=512 frames=285 | workload_perf case=ts_ref ms=0.473 us_op=472.86 fps=2114.8 ops=1 frames=846 | workload_perf case=ts_pair ms=0.325 us_op=324.60 fps=3080.7 ops=1 frames=1233 | workload_perf case=msaa_ref ms=0.755 us_op=47.16 fps=1325.2 ops=16 frames=531 | workload_perf case=msaa_a2one ms=3.893 us_op=243.33 fps=256.9 ops=16 frames=103 | workload_perf case=msaa_sshade ms=3.813 us_op=238.34 fps=262.2 ops=16 frames=106 | workload_perf case=tex_rgba ms=0.859 us_op=53.67 fps=1164.4 ops=16 frames=466 | workload_perf case=tex_bgra ms=1.051 us_op=65.67 fps=951.7 ops=16 frames=381
+RESULT geometry PASS mismatch=0 fps=3450.7 ms=1544
+RESULT tessellation PASS mismatch=0 fps=3942.3 ms=2133
+RESULT xfb PASS mismatch=0 fps=0 ms=203
+RESULT pipeline_stats PASS mismatch=0 fps=3771.5 ms=1242
+RESULT vertex_stores PASS mismatch=0 fps=0 ms=188
+RESULT gs_viewport_depth PASS mismatch=0 fps=0 ms=144
+RESULT vs_viewport_index PASS mismatch=0 fps=0 ms=166
+RESULT depth_bounds PASS mismatch=0 fps=0 ms=138
+RESULT large_draw PASS mismatch=0 fps=0 ms=8793
+RESULT vmr_secondary PASS mismatch=0 fps=0 ms=102
+RESULT tess_cond_state PASS mismatch=0 fps=0 ms=186
+RESULT bachata_reqs PASS mismatch=0 fps=0 ms=92
+RESULT bachata_exec PASS mismatch=0 fps=0 ms=82
+RESULT robustness2 PASS mismatch=0 fps=0 ms=121
+RESULT robust_image_access2 PASS mismatch=0 fps=0 ms=636 extra=4096x4096x16 rgba8 loads ria2=30.61ms ria1=30.70ms delta=-0.3% stats(ria2/ria1): Instructions=185/185 Code size=1536/1536 Constant data size=0/0 Threads=2/2 Loops=0/0 Spills=0/0 Fills=0/0 Spill cost=0/0 Registers used=12/12 Uniforms used=4/4
+RESULT blend PASS mismatch=0 fps=0 ms=85
+RESULT occlusion_query PASS mismatch=0 fps=0 ms=81
+RESULT descriptor_model PASS mismatch=0 fps=0 ms=71
+RESULT shader_arith PASS mismatch=0 fps=0 ms=69
+RESULT depth_stencil PASS mismatch=0 fps=0 ms=95
+RESULT sampler PASS mismatch=0 fps=0 ms=85
+RESULT draw_params PASS mismatch=0 fps=0 ms=91
+RESULT submit_stress PASS mismatch=0 fps=0 ms=30071
+RESULT csf_event PASS mismatch=0 fps=0 ms=287
+RESULT gs_tess_primitive_id PASS mismatch=0 fps=0 ms=230
+RESULT bachata_storage_fmtless PASS mismatch=0 fps=0 ms=121
+RESULT bachata_dynamic_render PASS mismatch=0 fps=0 ms=81
+RESULT dxvk_reqs PASS mismatch=0 fps=0 ms=78
+RESULT vkd3d_reqs PASS mismatch=0 fps=0 ms=67
+RESULT d3d_fl PASS mismatch=0 fps=0 ms=58
+RESULT vkd3d_heap PASS mismatch=0 fps=0 ms=212
+RESULT vkd3d_timeline PASS mismatch=0 fps=0 ms=225
+RESULT swapchain_lifecycle PASS mismatch=0 fps=63.7 ms=9079 extra=resized FPS 59.3 | present_main 4709ms, resize 51ms, present_resized 2023ms, destroy 53ms, cycle 1674ms, teardown 27ms
+SPARSE_KBASE INFO sparse_kbase S0: own /dev/mali0 context, CPU-side kbase ioctls only, no GPU jobs
+SPARSE_KBASE PASS setup CSF uAPI 1.21 gpu_id=0xb8a31030 arch=v11 va_bits=48: own kbase context
+SPARSE_KBASE PASS T1 SAME_VA BO H0 at 0x71bebd2000 (64 KiB), CPU write/readback ok
+SPARSE_KBASE PASS T1 growable SAME_VA BO H1 at 0x71be5e0000 (64 of 128 KiB committed)
+SPARSE_KBASE PASS T2 MEM_ALIAS [H0,sink,H1,sink] created (64 pages)
+SPARSE_KBASE PASS T3 alias at 0x71be419000: entry 0 reads H0's pages
+SPARSE_KBASE PASS T4 per-entry mmap of alias entry 2 reads H1's pages
+SPARSE_KBASE PASS T5 sink entry CPU mmap refused (Invalid argument): sink contents are GPU-only
+SPARSE_KBASE PASS T6 MEM_COMMIT on an alias source refused while aliased (Invalid argument), accepted once the alias is freed
+SPARSE_KBASE PASS T7 alias dropped BASE_MEM_FIXED (SAME_VA cookie 0x41000): no alias at a fixed VA
+SPARSE_KBASE PASS T8 SAME_VA alloc/munmap x64: first VA came back 63/63 times (quiet process; Wine/ART can take it)
+SPARSE_KBASE PASS T9 arena commit grew 16->1024 pages and shrank back from the end, newest tile CPU-writable
+SPARSE_KBASE BENCH sparse_arena_commit=5.1us sparse_arena_uncommit=4.7us (per 64KiB tile, n=63)
+SPARSE_KBASE PASS T10a MEM_ALLOC_EX FIXED landed at the requested VA 0x800400000000
+SPARSE_KBASE INFO T10a CPU write/readback through mmap(offset=VA) ok
+SPARSE_KBASE PASS T10b overlapping FIXED alloc refused (Out of memory)
+SPARSE_KBASE PASS T10c freed and re-allocated at the same FIXED VA (8.7 us)
+SPARSE_KBASE PASS T10d per-tile commit 0->16->0->16 took effect (MEM_QUERY); re-committed page reads 0
+SPARSE_KBASE PASS T10e FIXABLE refused while a FIXED alloc is live (Invalid argument)
+SPARSE_KBASE BENCH sparse_tile_bind=3.7us sparse_tile_unbind=2.4us sparse_tile_reserve=2.1us sparse_tile_free=1.2us (64KiB FIXED tiles, n=256 x 8 cycles)
+SPARSE_KBASE PASS T10f 256 tiles x 8 bind/unbind cycles: no commit errors, every tile back at 0 pages
+SPARSE_KBASE BENCH sparse_alias_rebuild24=8.4us (n=256)
+SPARSE_KBASE PASS T11 rebuilt a 24-entry alias 256 times
+SPARSE_KBASE VERDICT v11 lazy-tile possible -- 64 KiB FIXED tiles commit 16->0->16 and re-alloc at the same VA (CSF 1.21)
+SPARSE_KBASE SUMMARY pass=18 fail=0 skip=0
+SPARSE_KBASE status=PASS ms=86 informational (not in pass/fail)
+AUTORUN DONE pass=41 fail=0 skip=0 total=41 (41 pass / 0 fail / 0 skip)
+EXTERNAL READY run=20261029-172355
+AUTOUPLOAD DRYRUN target=https://panvk-upload.panvk.workers.dev/upload-url size=199071 sha256=e6daca04774937290571372ecd85f8ee392daccb87b1f586431d001bcdf47a1c
+AUTOUPLOAD DRYRUN manifest 20261029-172355/gpu_prerast_slice.json:2820 20261029-172355/20261029-172146-gpu_prerast_slice.log:9586 20261029-172355/clip_cull.json:2864 20261029-172355/20261029-172146-clip_cull.log:9669 20261029-172355/multi_viewport.json:3217 20261029-172355/20261029-172147-multi_viewport.log:9423 20261029-172355/fill_mode.json:3357 20261029-172355/20261029-172149-fill_mode.log:10587 20261029-172355/bc_decode.json:1978 20261029-172355/20261029-172150-bc_decode.log:12702 20261029-172355/bc_perf.json:4683 20261029-172355/20261029-172151-bc_perf.log:16219 20261029-172355/tess_perf.json:7561 20261029-172355/20261029-172219-tess_perf.log:18619 20261029-172355/workload_perf.json:5150 20261029-172355/20261029-172246-workload_perf.log:13486 20261029-172355/geometry.json:3107 20261029-172355/20261029-172257-geometry.log:10996 20261029-172355/tessellation.json:3024 20261029-172355/20261029-172258-tessellation.log:11279 20261029-172355/xfb.json:2865 20261029-172355/20261029-172300-xfb.log:10466 20261029-172355/pipeline_stats.json:3767 20261029-172355/20261029-172301-pipeline_stats.log:10639 20261029-172355/vertex_stores.json:2747 20261029-172355/20261029-172302-vertex_stores.log:9545 20261029-172355/gs_viewport_depth.json:3482 20261029-172355/20261029-172302-gs_viewport_depth.log:9927 20261029-172355/vs_viewport_index.json:3769 20261029-172355/20261029-172302-vs_viewport_index.log:10784 20261029-172355/depth_bounds.json:3553 20261029-172355/20261029-172303-depth_bounds.log:10261 20261029-172355/large_draw.json:3257 20261029-172355/20261029-172303-large_draw.log:12523 20261029-172355/vmr_secondary.json:2749 20261029-172355/20261029-172312-vmr_secondary.log:9409 20261029-172355/tess_cond_state.json:3237 20261029-172355/20261029-172312-tess_cond_state.log:9663 20261029-172355/bachata_reqs.json:3432 20261029-172355/20261029-172312-bachata_reqs.log:13213 20261029-172355/bachata_exec.json:3292 20261029-172355/20261029-172312-bachata_exec.log:8758 20261029-172355/robustness2.json:3001 20261029-172355/20261029-172312-robustness2.log:9462 20261029-172355/robust_image_access2.json:2235 20261029-172355/20261029-172312-robust_image_access2.log:11557 20261029-172355/blend.json:3242 20261029-172355/20261029-172313-blend.log:9208 20261029-172355/occlusion_query.json:3035 20261029-172355/20261029-172313-occlusion_query.log:9438 20261029-172355/descriptor_model.json:3174 20261029-172355/20261029-172313-descriptor_model.log:8948 20261029-172355/shader_arith.json:2896 20261029-172355/20261029-172313-shader_arith.log:9345 20261029-172355/depth_stencil.json:3115 20261029-172355/20261029-172313-depth_stencil.log:9737 20261029-172355/sampler.json:3095 20261029-172355/20261029-172314-sampler.log:9652 20261029-172355/draw_params.json:2975 20261029-172355/20261029-172314-draw_params.log:9150 20261029-172355/submit_stress.json:2115 20261029-172355/20261029-172314-submit_stress.log:12468 20261029-172355/csf_event.json:2062 20261029-172355/20261029-172344-csf_event.log:10032 20261029-172355/gs_tess_primitive_id.json:5174 20261029-172355/20261029-172344-gs_tess_primitive_id.log:15025 20261029-172355/bachata_storage_fmtless.json:3272 20261029-172355/20261029-172345-bachata_storage_fmtless.log:8794 20261029-172355/bachata_dynamic_render.json:3261 20261029-172355/20261029-172345-bachata_dynamic_render.log:9075 20261029-172355/dxvk_reqs.json:1967 20261029-172355/20261029-172345-dxvk_reqs.log:9375 20261029-172355/vkd3d_reqs.json:2775 20261029-172355/20261029-172345-vkd3d_reqs.log:11856 20261029-172355/d3d_fl.json:6644 20261029-172355/20261029-172345-d3d_fl.log:11427 20261029-172355/vkd3d_heap.json:3303 20261029-172355/20261029-172345-vkd3d_heap.log:16669 20261029-172355/vkd3d_timeline.json:3239 20261029-172355/20261029-172346-vkd3d_timeline.log:9024 20261029-172355/swapchain_lifecycle.json:826 20261029-172355/20261029-172346-swapchain_lifecycle.log:418 20261029-172355/device_info.json:156361 20261029-172355/vkinfo.log:6063 20261029-172355/compliance.json:68181 20261029-172355/compliance-dxvk_reqs.log:9375 20261029-172355/compliance-bachata_reqs.log:13213 20261029-172355/compliance-vkd3d_reqs.log:11856 20261029-172355/compliance-d3d_fl.log:11427 20261029-172355/20261029-172355-sparse_kbase.log:1910 20261029-172355/summary.json:10094 vulkan-info.json:156361 system/props.txt:4380 logcat.txt:55 driver-load.json:2715 manifest.json:29307

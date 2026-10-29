@@ -1,0 +1,55 @@
+From a1da926d5c87c9d48dbc255de9850635f7bf4f3e Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 29 Oct 2026 16:53:25 +0530
+Subject: [PATCH 163/163] panvk/jm: skip pass-through geometry shaders on v9
+ too
+
+0157 only hooked the CSF draw path (v10+). The v9 JM draws (v9_cmd_draw)
+kept running a pt_skip GS through the gpu_prerast GS kernel: strip_gs 353
+us/draw on the TB336FU vs 7.5 on the X6 Pro. v9_cmd_draw now swaps the GS
+out the same way (not with pipeline statistics queries, PANVK_GS_PT_SKIP=0
+turns it off).
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index e8d9167b1fa..9c5ad68c295 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -7046,6 +7046,24 @@ v9_attachmentless_samples(struct panvk_cmd_buffer *cmdbuf)
+ static void
+ v9_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *info)
+ {
++   /* Item 8 on v9 JM, as panvk_cmd_draw() on CSF: a pass-through GS
++    * (pt_skip) is skipped and the VS draws on the hardware, unless a
++    * pipeline statistics query needs the GS counters. */
++   const struct panvk_shader *bound_gs = cmdbuf->state.gfx.gs.shader;
++   const struct panvk_shader *eff_gs = bound_gs;
++
++   if (!info->gpu_prerast_generated && bound_gs &&
++       bound_gs->gpu_prerast.gs.pt_skip &&
++       !cmdbuf->state.gfx.pstats_query.report)
++      eff_gs = NULL;
++   if (eff_gs != cmdbuf->state.gfx.gs_pt_last) {
++      gfx_state_set_dirty(cmdbuf, VS);
++      gfx_state_set_dirty(cmdbuf, VS_PUSH_UNIFORMS);
++      gfx_state_set_dirty(cmdbuf, FS);
++      cmdbuf->state.gfx.gs_pt_last = eff_gs;
++   }
++   cmdbuf->state.gfx.gs.shader = eff_gs;
++
+    struct panvk_cond_render_mark cond;
+    panvk_per_arch(cmd_cond_render_begin)(cmdbuf, &cond);
+ 
+@@ -7099,6 +7117,7 @@ v9_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *info)
+    cmdbuf->state.gfx.prims_generated_query.ptr = prims_generated;
+ 
+    panvk_per_arch(cmd_cond_render_end)(cmdbuf, &cond);
++   cmdbuf->state.gfx.gs.shader = bound_gs;
+ }
+ 
+ VKAPI_ATTR void VKAPI_CALL
+-- 
+2.56.0
+

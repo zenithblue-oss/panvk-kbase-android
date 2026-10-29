@@ -250,8 +250,8 @@ The 116 runs fail only `workload_perf`, in its `bc_level` case. That test is new
 | **all 41 tests, sum** | 152839 | 132911 (40/41) | 134200 | **131056 (-14 %)** |
 
 `bc_level` on rc4 is fast because rc4 has no lowmem BC transcoder, so it has nothing to compile. With a cold
-shader cache, 120 `bc_decode` takes 9.3 s because 0155 compiles all five transcoder pipelines at the first BC
-image. On 118 cold it took 5.0 s. Warm, it is 0.18 s.
+shader cache, 120 `bc_decode` takes 9.3 s; on 118 cold it took 5.0 s, and warm it is 0.18 s. The cause: 0155 also
+compiled the unused XC_BATCH pipeline per ETC2 mode. **Fixed in 0162** (build 121b, below).
 
 ### PanProbe, TB336FU v9 (ms per test)
 
@@ -269,7 +269,8 @@ image. On 118 cold it took 5.0 s. Warm, it is 0.18 s.
 | **sum** | 330333 (39/41) | 150608 (41/41, -54 %) |
 
 On v9, `workload_perf` `gs_pass` is 24 us/draw (rc4: 53) and `strip_gs` is 353 (rc4: 1927). The pass-through
-skip in 0157 does not fire for the restart-strip GS on the v9 JM path. That is a follow-up.
+skip in 0157 does not fire on the v9 JM path at all, because 0157 hooked only the CSF draw. **Fixed in 0163**
+(build 121b, below).
 
 ### PanPlay fps, rc4 vs 120 (full suite, 10 s warm-up, 30 s measured)
 
@@ -327,3 +328,27 @@ rc4.
 - **X6 Pro (v11):** 120 uses the same memory as rc4 in PanPlay. PanProbe Graphics is 32 MB lower (116 and 118 too;
   not split by patch).
 - **TB336FU (v9):** 120 is +13-45 MB PSS and +16-40 MB Graphics in PanPlay. Its PanProbe totals equal rc4.
+
+## Build 121b (2026-10-29): 0162 cold-cache BC, 0163 v9 pass-through GS (not the default)
+
+121b = jm-v7-wip 0006-0163, `Mesa 26.3.0-devel (git-07177325ca, p0163, 2026-10-29)`. It includes the tiler-OOM
+0161.
+- .so: `/var/tmp/panvk/build-out/2026-10-29-121b/libvulkan_panfrost.so`, sha256 `9f58ee27...`, BuildID
+  `c5337130...`.
+- Details and raw results: `worklogs/g615-dxvk/device-runs/2026-10-29-local-121-bc-gs/`.
+
+PanProbe 41/41 on both devices, cold and warm, with no DEVICE_LOST. Cold means only PanProbe's
+`cache/mesa_shader_cache` was removed.
+
+| | X6 120 cold | X6 121b cold / warm | TB 120 cold | TB 121b cold / warm |
+|---|---|---|---|---|
+| bc_decode (ms) | 9346 | **5155** / 180 | 1639 | 1610 / 130 |
+| workload `bc_level` (ms) | 2674 | 2994 / 2544 | 1513 | 1512 / 1517 |
+| `gs_pass` (us/draw) | 4.4 | 3.1 / 2.4 | 30.0 | **7.0 / 10.8** |
+| `strip_gs` (us/draw) | 9.2 | 6.3 / 4.3 | 354 | **17.6 / 15.8** |
+
+- **0162:** the XC_BATCH transcoder pipeline is prewarmed only for one-layer 2D images with mips; other images
+  compile it at first use. A first try (121) dropped the batch prewarm entirely, and `bc_level` rose to
+  3.3-3.5 s.
+- **0163:** the 0157 pass-through GS swap is added to the v9 JM `v9_cmd_draw()`.
+- PanPlay and the RTL/Firebase arches have not been run on 121b.
