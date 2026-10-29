@@ -147,6 +147,17 @@ object ContentManager {
             versionName = "26.2.4-1",
             note = "OpenGL for Wine games (Godot 3, Unity GL, old OpenGL titles) on top of PanVK",
             asset = "components/Mesa-Zink-26.2.4-1.wcp"
+        ),
+        // Performance overlay (scripts/build-mangohud.sh); enabled and configured on the MangoHud page (MangoHudSettings).
+        CatalogEntry(
+            type = MangoHudSettings.TYPE,
+            name = "MangoHud v0.8.4 Vulkan overlay layer, aarch64 bionic (built from flightlessmango/MangoHud source)",
+            url = "",
+            sha256 = null,
+            title = "MangoHud",
+            versionName = "0.8.4-1",
+            note = "FPS, frame time, CPU/GPU overlay for Vulkan, DXVK and vkd3d games",
+            asset = "components/MangoHud-0.8.4-1.wcp"
         )
     )
 

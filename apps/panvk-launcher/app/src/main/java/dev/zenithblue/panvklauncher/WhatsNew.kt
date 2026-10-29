@@ -21,6 +21,9 @@ import androidx.compose.ui.unit.dp
 /** Release notes shown once per versionCode. Update these two lists each release. */
 object WhatsNew {
     val added = listOf(
+        "MangoHud 0.8.4 overlay, built from source: install it in Components",
+        "MangoHud page (Settings > Graphics, and per game in Edit game): on/off and every MangoHud option, global or per game",
+        "DXVK HUD on/off switch and HUD items in Settings > Graphics, plus a DXVK HUD choice per game",
         "Mesa PanVK 26.3.0-devel driver, now also for Mali Bifrost GPUs (v6/v7)",
         "OpenGL games through Mesa Zink 26.2.4",
         "Render API per game: Auto, DXVK, VKD3D, WineD3D, OpenGL (Zink), Vulkan or cnc-ddraw",
@@ -28,6 +31,7 @@ object WhatsNew {
         "Built-in Direct3D feature level tests: D3D12 11_0 to 12_2 and D3D11 10_0 to 11_1",
     )
     val fixed = listOf(
+        "The DXVK HUD was always on with every item: the game's DXVK_HUD setting was ignored",
         "Fallout 4: launch fixes, less memory, no black heads",
         "The launch sheet no longer saves stale values",
         "Built-in X server: MIT-SHM requests check the segment owner and the image bounds",

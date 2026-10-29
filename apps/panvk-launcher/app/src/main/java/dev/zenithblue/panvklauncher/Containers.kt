@@ -440,7 +440,7 @@ object ContainerManager {
         if (dxvk) {
             envMap["DXVK_LOG_LEVEL"] = if (PerfRecorder.gamingMode(ctx)) "warn" else "info"
             envMap["DXVK_LOG_PATH"] = "Z:" + gfxLogs.absolutePath
-            envMap["DXVK_HUD"] = "full"
+            DxvkHud.resolve(ctx, launchOpts.get()?.env?.get("DXVK_HUD"))?.let { envMap["DXVK_HUD"] = it }
             envMap.putAll(PerfRecorder.env()) // DXVK_STATS_FILE while a perf session is recording
         }
         envMap["VKD3D_LOG_FILE"] = "Z:" + File(gfxLogs, "vkd3d.log").absolutePath
@@ -487,6 +487,8 @@ object ContainerManager {
         // Per-game shortcut env wins over defaults (but not DISPLAY / display plumbing above).
         launchOpts.get()?.env?.forEach { (k, v) -> if (k != "DISPLAY" && k != "DXVK_HUD") envMap[k] = v }
         envMap.remove(EXTRA_DLL_OVERRIDES)?.let { envMap["WINEDLLOVERRIDES"] = envMap["WINEDLLOVERRIDES"] + it }
+        // MangoHud Vulkan layer (graphical runs): global or per-game settings from the MangoHud page.
+        if (extra?.containsKey("DISPLAY") == true) envMap.putAll(MangoHudSettings.env(ctx, launchOpts.get()?.gameId, containerDir))
         // OpenGL for Wine: winex11's EGL backend (HKCU X11 Driver UseEGL) loads libEGL.so.1 from the Mesa-Zink component,
         // which renders through Zink on PanVK. Appended last so imagefs libs (libexpat, libxcb...) keep priority.
         envMap.remove(GL_LIB_KEY)?.let { lib ->
@@ -1270,3 +1272,18 @@ object ContainerManager {
 }
 
 typealias Containers = ContainerManager
+
+/** DXVK HUD: global on/off + items (Settings > Graphics); a game's own DXVK_HUD env line wins ("0" / "off" / empty = off). */
+object DxvkHud {
+    const val DEFAULT = "full"
+    private fun p(c: Context) = c.getSharedPreferences("dxvk_hud", Context.MODE_PRIVATE)
+    fun enabled(c: Context) = p(c).getBoolean("on", true)
+    fun params(c: Context): String = p(c).getString("params", null)?.trim()?.ifEmpty { null } ?: DEFAULT
+    fun set(c: Context, on: Boolean, params: String) = p(c).edit().putBoolean("on", on).putString("params", params.trim()).apply()
+
+    /** DXVK_HUD value to set, or null for no HUD. [perGame]: the game's DXVK_HUD env value, null = use the global setting. */
+    fun resolve(c: Context, perGame: String?): String? {
+        val v = perGame?.trim() ?: if (enabled(c)) params(c) else return null
+        return v.takeUnless { it.isEmpty() || it == "0" || it.equals("off", true) }
+    }
+}

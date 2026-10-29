@@ -20,7 +20,7 @@ data class Shortcut(
     val name: String,
     val exe: String,
     val args: String = "",
-    val env: Map<String, String> = mapOf("DXVK_HUD" to "full"),
+    val env: Map<String, String> = emptyMap(), // DXVK_HUD here overrides the global DXVK HUD setting (DxvkHud)
     val arch: String = "auto", // auto | i386 | x86_64 | arm64ec | arm64
     val resolution: String = "", // "" = launcher default, else e.g. 1280x720
     val driver: String = "", // "" = launcher default, else Driver.id
@@ -42,7 +42,8 @@ data class LaunchOptions(
     val fexMode: String = "",
     val fpsLimit: Int = 0,
     val audio: String = "",
-    val renderApi: String = RenderApi.AUTO
+    val renderApi: String = RenderApi.AUTO,
+    val gameId: String = "" // shortcut id: per-game MangoHud settings
 )
 
 /** FEX emulation presets, applied as FEX_* env on the Wine process (FEX also reads them in libwow64fex.dll). */
@@ -139,13 +140,15 @@ object ShortcutStore {
         put("id", s.id); put("name", s.name); put("exe", s.exe); put("args", s.args)
         put("env", JSONObject(s.env)); put("arch", s.arch); put("resolution", s.resolution)
         put("driver", s.driver); put("fex", s.fex); put("fpsLimit", s.fpsLimit); put("audio", s.audio); put("renderApi", s.renderApi); put("lastApi", s.lastApi); put("icon", s.icon); put("created", s.created)
-        put("lastPlayed", s.lastPlayed)
+        put("lastPlayed", s.lastPlayed); put("hudV", 1)
     }
 
     private fun fromJson(j: JSONObject): Shortcut {
         val e = j.optJSONObject("env")
         val env = mutableMapOf<String, String>()
         e?.keys()?.forEach { env[it] = e.optString(it) }
+        // Before hudV 1 every game was saved with DXVK_HUD=full (ignored at launch): drop it so the global HUD setting applies.
+        if (!j.has("hudV") && env["DXVK_HUD"] == "full") env.remove("DXVK_HUD")
         return Shortcut(
             id = j.getString("id"), name = j.optString("name", j.getString("id")),
             exe = j.getString("exe"), args = j.optString("args", ""), env = env,
@@ -249,7 +252,7 @@ object ShortcutStore {
 
     fun launchOptions(ctx: Context, s: Shortcut) = LaunchOptions(
         args = splitArgs(s.args), env = s.env, driverId = s.driver, fexMode = Box64Presets.modeFor(s), fpsLimit = s.fpsLimit,
-        audio = s.audio, renderApi = RenderApi.norm(s.renderApi)
+        audio = s.audio, renderApi = RenderApi.norm(s.renderApi), gameId = s.id
     )
 
     /** Whitespace split honouring "double quotes". */

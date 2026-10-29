@@ -493,6 +493,23 @@ private fun ShortcutEditorSheet(
                     env = ShortcutStore.envText(m)
                 }
             )
+            // DXVK HUD for this game: edits the DXVK_HUD line of the env text (any custom value typed there also works).
+            DropdownField(
+                "DXVK HUD",
+                listOf("" to "Default (Settings: ${if (DxvkHud.enabled(ctx)) DxvkHud.params(ctx) else "off"})", "0" to "Off", "full" to "full",
+                    "fps" to "fps", "fps,frametimes" to "fps,frametimes", "devinfo,fps,frametimes,gpuload,memory" to "devinfo,fps,frametimes,gpuload,memory"),
+                ShortcutStore.parseEnv(env)["DXVK_HUD"] ?: "",
+                { h ->
+                    val m = ShortcutStore.parseEnv(env).toMutableMap()
+                    if (h.isEmpty()) m.remove("DXVK_HUD") else m["DXVK_HUD"] = h
+                    env = ShortcutStore.envText(m)
+                }
+            )
+            var mango by remember { mutableStateOf(false) }
+            OutlinedButton(onClick = { mango = true }, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text("MangoHud for this game…")
+            }
+            if (mango) MangoHudPage(initial.id, name.ifBlank { null }) { mango = false }
             DropdownField("Architecture", ARCHES.map { it to it }, arch, { arch = it })
             ResolutionField("Resolution", res, { res = it }, defaultLabel = "Launcher default")
             FpsLimitField(fps) { fps = it }

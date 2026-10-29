@@ -238,6 +238,23 @@ fun SettingsScreen(
             SettingsCard {
                 SwitchRow("DXVK", "Direct3D 8/9/10/11 to Vulkan", isDxvkEnabled, onToggleDxvk)
                 SwitchRow("vkd3d-proton", "Direct3D 12 to Vulkan (needs DXVK on)", isVkd3dEnabled, onToggleVkd3d)
+                val hctx = androidx.compose.ui.platform.LocalContext.current
+                var hudOn by remember { mutableStateOf(DxvkHud.enabled(hctx)) }
+                var hudParams by remember { mutableStateOf(DxvkHud.params(hctx)) }
+                var mango by remember { mutableStateOf(false) }
+                SwitchRow("DXVK HUD", "Overlay drawn by DXVK (top-left). A game's own DXVK_HUD line wins.", hudOn, { hudOn = it; DxvkHud.set(hctx, it, hudParams) })
+                OutlinedTextField(
+                    value = hudParams,
+                    onValueChange = { hudParams = it; DxvkHud.set(hctx, hudOn, it) },
+                    enabled = hudOn,
+                    label = { Text("DXVK HUD items") },
+                    placeholder = { Text(DxvkHud.DEFAULT) },
+                    supportingText = { Text("full, or a list such as fps,frametimes,gpuload,memory,devinfo,version,api,compiler,scale=1.2. Empty = full.") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedButton(onClick = { mango = true }, modifier = Modifier.heightIn(min = 48.dp)) { Text("MangoHud…") }
+                if (mango) MangoHudPage(null, null) { mango = false }
                 Text(
                     "Enabling DXVK is not a game compatibility result. ARM64EC smoke tests do not validate x86/i686 WOW64 games; 32-bit staging can fail on Mali kbase SAME_VA.",
                     style = MaterialTheme.typography.bodySmall,
