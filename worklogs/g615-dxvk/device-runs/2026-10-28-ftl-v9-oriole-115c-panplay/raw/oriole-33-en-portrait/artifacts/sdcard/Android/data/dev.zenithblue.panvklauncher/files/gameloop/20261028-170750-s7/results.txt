@@ -1,0 +1,12 @@
+PanPlay game loop, scenario 7 (d3d12fl), run 20261028-170750-s7
+Device: Google Pixel 6 (oriole), SDK 33, SoC Tensor
+Driver: Mesa 26.3.0-devel (git-15fd70c7c4), sha256 eb44336a93870592
+App: dev.zenithblue.panvklauncher 1.3.0 (44)
+Window: 10 s warm-up, 30 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d12fl_11_0 default   ok       718.3   685.0   771.0    16.6        -        -      -      -      -     90.0  D3DFL: PASS api=d3d12 level=11_0 created tess:PASS,gs:PASS,compute:PASS,mrt:PASS,msaa4x:PASS frames=34407 secs=48.0 fps=716.8 startup=1.9
+02  d3d12fl_11_1 default   ok       714.7   665.2   773.6    33.4        -        -      -      -      -     90.0  D3DFL: PASS api=d3d12 level=11_1 created uav_vs:PASS,logic_op:PASS,tir:REPORTED frames=34158 secs=48.0 fps=711.6 startup=2.5
+03  d3d12fl_12_0 default   ok       713.6   684.8   757.3    34.8        -        -      -      -      -     90.1  D3DFL: UNSUPPORTED api=d3d12 level=12_0 not_created typed_uav_load:PASS,binding_tier2:PASS,tiled_tier2:UNSUPPORTED frames=34237 secs=48.0 fps=713.2 startup=2.1
+04  d3d12fl_12_1 default   ok       716.1   689.5   760.4     9.6        -        -      -      -      -     90.1  D3DFL: UNSUPPORTED api=d3d12 level=12_1 not_created rov:UNSUPPORTED,conservative:UNSUPPORTED frames=34222 secs=48.0 fps=712.9 startup=1.7
+05  d3d12fl_12_2 default   ok       709.2   660.2   729.1    57.0        -        -      -      -      -     90.0  D3DFL: UNSUPPORTED api=d3d12 level=12_2 not_created sm6_5:REPORTED,mesh_shader:UNSUPPORTED,dxr1_1:UNSUPPORTED,vrs_tier2:UNSUPPORTED,sampler_feedback:REPORTED frames=34073 secs=48.0 fps=709.8 startup=1.8

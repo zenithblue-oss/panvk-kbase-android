@@ -1,0 +1,14 @@
+PanPlay game loop, scenario 4 (ab), run 20261028-142951-s4
+Device: Google Pixel 8 (shiba), SDK 34, SoC Tensor G3
+Driver: Mesa 26.3.0-devel (git-15fd70c7c4), sha256 eb44336a93870592
+App: dev.zenithblue.panvklauncher 1.3.0 (44)
+Window: 10 s warm-up, 30 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d11    old       ok       160.4   138.8   183.1    22.7    160.3     69.7    6.0    8.6   11.7     60.0  CUBE: PASS api=d3d11 frames=7931 (check pixels)
+02  d3d11    default   ok       410.0   370.3   444.3    28.7    409.0     61.6    2.1    4.0    7.9     59.5  CUBE: PASS api=d3d11 frames=19616 (check pixels)
+03  d3d9     old       ok       117.9   110.8   120.4    63.7    117.9     33.9    8.1   14.2   23.8     60.0  CUBE: PASS api=d3d9 frames=5619 (check pixels)
+04  d3d9     default   ok       118.6   116.6   120.8    54.0    118.5     28.9    8.1   14.6   26.3     60.0  CUBE: PASS api=d3d9 frames=5661 (check pixels)
+
+A/B d3d11: old 160.4 fps, default 410.0 fps (+155.7%) (change vs old)
+A/B d3d9: old 117.9 fps, default 118.6 fps (+0.6%) (change vs old)

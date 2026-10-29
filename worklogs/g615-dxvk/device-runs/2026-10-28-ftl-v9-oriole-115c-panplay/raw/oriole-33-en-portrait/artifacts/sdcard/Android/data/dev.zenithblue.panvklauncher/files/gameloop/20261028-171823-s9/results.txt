@@ -1,0 +1,9 @@
+PanPlay game loop, scenario 9 (fl-quick), run 20261028-171823-s9
+Device: Google Pixel 6 (oriole), SDK 33, SoC Tensor
+Driver: Mesa 26.3.0-devel (git-15fd70c7c4), sha256 eb44336a93870592
+App: dev.zenithblue.panvklauncher 1.3.0 (44)
+Window: 10 s warm-up, 30 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d12fl_all default   ok       705.1   659.4   745.6    38.4        -        -      -      -      -     90.1  D3DFL: DONE api=d3d12 level=all 11_0=PASS 11_1=PASS 12_0=UNSUPPORTED 12_1=UNSUPPORTED 12_2=UNSUPPORTED highest=11_1 frames=33922 secs=48.0 fps=706.7 startup=2.8
+02  d3d11fl_all default   fail     250.0   231.7   271.8    60.0    249.8    141.7    3.8    5.5    6.0     90.0  test failed: D3DFL: FAIL api=d3d11 level=all 10_0=PASS 10_1=PASS 11_0=PASS 11_1=FAIL frames=11929 secs=48.0 fps=248.5 startup=2.0

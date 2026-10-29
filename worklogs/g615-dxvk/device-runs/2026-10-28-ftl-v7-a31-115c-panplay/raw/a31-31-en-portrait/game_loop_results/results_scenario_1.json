@@ -1,0 +1,171 @@
+{
+  "harness": "panplay-gameloop",
+  "version": 1,
+  "scenario": 1,
+  "runId": "20261028-131833-s1",
+  "startedUnixMs": 1793218713250,
+  "app": {
+    "package": "dev.zenithblue.panvklauncher",
+    "versionName": "1.3.0",
+    "versionCode": 44
+  },
+  "device": {
+    "manufacturer": "samsung",
+    "model": "SM-A315N",
+    "device": "a31",
+    "product": "a31ks",
+    "hardware": "mt6768",
+    "board": "a31",
+    "sdk": 31,
+    "release": "12",
+    "fingerprint": "samsung\/a31ks\/a31:12\/SP1A.210812.016\/A315NKSS4DWL1:user\/release-keys",
+    "socManufacturer": "Mediatek",
+    "socModel": "MT6768V\/CA",
+    "maliNode": true,
+    "display": "1080x2195",
+    "refreshHz": 60,
+    "xScreen": "1280x720"
+  },
+  "passes": [
+    {
+      "index": 1,
+      "task": "d3d11",
+      "title": "D3D11 cube (ARM64EC)",
+      "envSet": "default",
+      "dir": "01-d3d11-default",
+      "shortcut": "builtin-d3d11-arm64ec",
+      "exe": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/games\/builtin\/dxcube-arm64ec.exe",
+      "env": {
+        "PANVK_FPS_LOG": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/gameloop\/20261028-131833-s1\/01-d3d11-default\/panvk-fps-%p.log",
+        "PANVK_FPS_LOG_MS": "1000",
+        "DXCUBE_SECS": "48"
+      },
+      "exit": 0,
+      "wallSec": 69.858,
+      "firstFrameSec": 21.102,
+      "sessionReason": "Game exited normally (exit 0)",
+      "perfSummary": {
+        "startMs": 1793218927928,
+        "game": "Cube · D3D11 · ARM64EC",
+        "exe": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/games\/builtin\/dxcube-arm64ec.exe",
+        "driverId": "mesa-panvk-26.3.0-devel-git-15fd70c7c4",
+        "driver": "Mesa PanVK",
+        "driverVersion": "26.3.0-devel (git-15fd70c7c4)",
+        "driverInfo": "Mesa 26.3.0-devel (git-15fd70c7c4)",
+        "driverBuildId": "Mesa 5a07217f",
+        "dxvk": "off",
+        "emulator": "FEX Intermediate",
+        "resolution": "1280x720",
+        "fpsLimit": 0,
+        "device": "samsung SM-A315N",
+        "id": "20261028-132207_Cube_D3D11_ARM64EC",
+        "endMs": 1793218997678,
+        "dxvkStats": true,
+        "frames": 3064,
+        "durationSec": 47.270904,
+        "avgFps": 64.8178845913334,
+        "low1Fps": 32.92289458089155,
+        "low01Fps": 17.03780689349667,
+        "minFps": 8.204858917450915,
+        "maxFps": 97.7803852547179,
+        "frametimeP50Ms": 14.897,
+        "frametimeP95Ms": 20.122,
+        "frametimeP99Ms": 23.564,
+        "stutters": 8,
+        "gpuLoadAvg": 79.89247311827957,
+        "gpuLoadMax": 86,
+        "vidmemPeakMb": 20,
+        "sysmemPeakMb": 0,
+        "drawCallsAvg": 131.56989247311827,
+        "compilingShare": 0,
+        "gameCpuAvg": 8.876923076923074,
+        "gameCpuMax": 16.1,
+        "gameCoresAvg": 0.7046153846153849,
+        "gameCoresMax": 1.3,
+        "ramAvgMb": 195.78484848484862,
+        "ramPeakMb": 244.6,
+        "battTempAvgC": 24.400000000000027,
+        "battTempMaxC": 24.4,
+        "cpuFreqAvgMhz": 1817.5,
+        "cpuFreqMaxMhz": 2000,
+        "powerAvgMw": 0,
+        "powerMaxMw": 0,
+        "memAvailMinMb": 1178.6
+      },
+      "fpsLog": "panvk-fps-30026.log",
+      "driverPresents": 3107,
+      "driverInfo": "Mesa 26.3.0-devel (git-15fd70c7c4)",
+      "driverFps": {
+        "fps": 64.9235086758616,
+        "frames": 1897,
+        "spanMs": 29219,
+        "intervals": 29,
+        "minIntervalFps": 61.5,
+        "maxIntervalFps": 68.8,
+        "maxFrameMs": 35.93
+      },
+      "dxvkFps": {
+        "avgFps": 64.91915498988354,
+        "frames": 1948,
+        "low1Fps": 36.153355302522236,
+        "low01Fps": 25.770207063613757,
+        "p50Ms": 14.909,
+        "p95Ms": 20.05,
+        "p99Ms": 23.755,
+        "stutters": 4,
+        "gpuLoadAvg": 80.11864406779661,
+        "drawCallsAvg": 132.135593220339
+      },
+      "compositor": {
+        "drawnFps": 56.501315920978115,
+        "contentFps": 64.963187527068
+      },
+      "screenshot": "screen.png",
+      "fps": 64.9235086758616,
+      "fpsSource": "driver",
+      "test": {
+        "ok": true,
+        "line": "CUBE: PASS api=d3d11 frames=3108 (check pixels)",
+        "frames": 3108,
+        "fps": null,
+        "startupSec": null
+      },
+      "status": "ok"
+    }
+  ],
+  "configSource": [
+    "assets\/gameloop.json",
+    "\/storage\/emulated\/0\/Android\/data\/dev.zenithblue.panvklauncher\/files\/gameloop.json sha256=4683a64ae83b459ccf9384b81fd76828e7edf85097ebcf18945b21b1610ce4fc"
+  ],
+  "scenarioName": "d3d11",
+  "tasks": [
+    "d3d11"
+  ],
+  "envSets": [
+    "default"
+  ],
+  "window": {
+    "warmupSec": 10,
+    "measureSec": 30,
+    "tailSec": 8,
+    "fpsLogMs": 1000,
+    "from": "first frame"
+  },
+  "envSetNotes": {
+    "default": "driver defaults"
+  },
+  "updatedUnixMs": 1793218998953,
+  "driver": {
+    "id": "mesa-panvk-26.3.0-devel-git-15fd70c7c4",
+    "name": "Mesa PanVK",
+    "version": "26.3.0-devel (git-15fd70c7c4)",
+    "bundled": true,
+    "libPath": "\/data\/app\/~~DZPEuNNysMtKSmOiRc5dww==\/dev.zenithblue.panvklauncher-msXTy0b92mH3loxTrVQEmQ==\/lib\/arm64\/libvulkan_panfrost.so",
+    "size": 29918992,
+    "sha256": "eb44336a938705923bfca1728694701cdb05b4c589b959ecdede2b11464f5b6b"
+  },
+  "driverInfo": "Mesa 26.3.0-devel (git-15fd70c7c4)",
+  "ab": [],
+  "ok": true,
+  "endedUnixMs": 1793218998953
+}
