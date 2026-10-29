@@ -1,0 +1,55 @@
+MESA: info: kbase: CSF driver, uAPI version 1.38, page_size=4096
+MESA: info: kbase: coherency mode 0 (ACE-Lite), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 1000000000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: info: panvk: gpu_id 0xe8800010 variant 0x4 arch v14 model Mali-G1-Ultra texture_features 0xc7fe001e 0 0 0
+MESA: info: panvk: BC emulation on, lowmem (native compressed mask 0xc7fe001e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+ICD device=Mali-G1-Ultra MC12 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+MESA: info: kbase: CSF driver, uAPI version 1.38, page_size=4096
+MESA: info: kbase: coherency mode 0 (ACE-Lite), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 1000000000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: warning: kbase: KBASE_IOCTL_MEM_ALLOC_EX failed: Inappropriate ioctl for device; trying KBASE_IOCTL_MEM_ALLOC
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: kbase: queue_group_create layout=112 bytes, 1 CS, csi_handlers 0x0
+MESA: info: kbase: tiler heaps 4 initial / 400 max chunks of 1024 KiB
+MESA: info: kbase: tiler_heap_init layout=16 bytes
+BENCH workload_perf case=bc_level ms=1496.0 us_op=249339 fps=0.67 ops=6 device_ms=5.1 create_ms=2.1 record_ms=1488.5 gpu_wait_ms=5.5
+MESA: info: kbase: CSF driver, uAPI version 1.38, page_size=4096
+MESA: info: kbase: coherency mode 0 (ACE-Lite), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 1000000000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: info: panvk: gpu_id 0xe8800010 variant 0x4 arch v14 model Mali-G1-Ultra texture_features 0xc7fe001e 0 0 0
+MESA: info: panvk: BC emulation on, lowmem (native compressed mask 0xc7fe001e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+ICD device=Mali-G1-Ultra MC12 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+MESA: info: kbase: CSF driver, uAPI version 1.38, page_size=4096
+MESA: info: kbase: coherency mode 0 (ACE-Lite), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 1000000000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: warning: kbase: KBASE_IOCTL_MEM_ALLOC_EX failed: Inappropriate ioctl for device; trying KBASE_IOCTL_MEM_ALLOC
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: kbase: queue_group_create layout=112 bytes, 1 CS, csi_handlers 0x0
+MESA: info: kbase: tiler_heap_init layout=16 bytes
+workload_perf device=Mali-G1-Ultra MC12 gs=1 xfb=1 cond=1 pg=1 cbc=1/1 a2one=1 sshade=1
+BENCH workload_perf case=ref ms=1.365 us_op=2.67 fps=732.5 ops=512 frames=294
+BENCH workload_perf case=gs_pass ms=1.399 us_op=2.73 fps=714.8 ops=512 frames=286
+MESA: info: panvk: gpu_prerast draw arena committed (64 MiB)
+BENCH workload_perf case=gs_layer ms=51.535 us_op=100.65 fps=19.4 ops=512 frames=8
+MESA: info: panvk: device TLS 2048 B/thread x 2048 threads x 22 core IDs (mask 0x3300ff) = 88 MiB
+BENCH workload_perf case=xfb_vs ms=45.308 us_op=88.49 fps=22.1 ops=512 frames=10
+BENCH workload_perf case=xfb_gs ms=70.666 us_op=138.02 fps=14.2 ops=512 frames=6
+BENCH workload_perf case=strip_ref ms=0.872 us_op=3.41 fps=1147.0 ops=256 frames=460
+BENCH workload_perf case=strip_gs ms=0.817 us_op=3.19 fps=1223.7 ops=256 frames=490
+BENCH workload_perf case=cond_true ms=0.971 us_op=1.90 fps=1029.7 ops=512 frames=412
+BENCH workload_perf case=cond_false ms=0.667 us_op=1.30 fps=1499.1 ops=512 frames=600
+BENCH workload_perf case=pg_query ms=2.108 us_op=4.12 fps=474.4 ops=512 frames=190
+BENCH workload_perf case=ts_ref ms=0.378 us_op=378.49 fps=2642.1 ops=1 frames=1057
+BENCH workload_perf case=ts_pair ms=0.370 us_op=370.39 fps=2699.9 ops=1 frames=1080
+BENCH workload_perf case=msaa_ref ms=0.413 us_op=25.83 fps=2419.4 ops=16 frames=969
+BENCH workload_perf case=msaa_a2one ms=1.663 us_op=103.95 fps=601.2 ops=16 frames=241
+BENCH workload_perf case=msaa_sshade ms=0.901 us_op=56.33 fps=1109.5 ops=16 frames=444
+BENCH workload_perf case=tex_rgba ms=0.471 us_op=29.43 fps=2123.5 ops=16 frames=850
+BENCH workload_perf case=tex_bgra ms=0.697 us_op=43.58 fps=1434.1 ops=16 frames=574
+FPS 14.2 (xfb_gs frame: 512 draws, GS + XFB)
+WORKLOAD_PERF_FAILS=0
+PASS workload_perf

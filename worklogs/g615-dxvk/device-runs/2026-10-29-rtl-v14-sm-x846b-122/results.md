@@ -1,4 +1,17 @@
-# RTL v14 (Mali G1-Ultra) - build 122 (p0165): REGRESSION, vkCreateDevice fails (2026-10-29 22:05-22:22 IST)
+# RTL v14 (Mali G1-Ultra) - build 122 / 122c (2026-10-29)
+
+Device (adb): SM-X946B, mt6993, Android 17 (the 116 run listed SM-X846B). Section A = 122c (final, 0167, no env). Section B = original 122 failure and bisect.
+
+## A. Build 122c: driverInfo "Mesa 26.3.0-devel (git-07132536df, p0167, 2026-10-29)", no env
+
+### A1. PanProbe `all` (22:31-22:34 IST): 41/41 PASS, 0 fail, 0 skip
+- tess_perf PASS (ms=0.87 per ref run, 20 s test), tessellation PASS mismatch=0 (4207 fps), submit_stress PASS, csf_event PASS, swapchain_lifecycle PASS (122 fps).
+- 0161 incremental-rendering path on v14 now works with the default (old layout) heap: no CreateDevice failure.
+- Logcat grep (full probe window): 0 DEVICE_LOST, 0 timeout snapshots, 0 tiler OOM, 0 CSF faults, 0 GPU resets.
+- Raw: raw/122c-probe/probe-all/ (autorun.txt, logcat-full.txt.gz, run dir), probe-results.png.
+
+
+## B. Build 122 (p0165) original failure + bisect
 
 Device reported by adb: model SM-X946B (not SM-X846B as in the 116 run), board mt6993, display 2960x1848, Android 17. Same G1-Ultra v14 class.
 driverInfo "Mesa 26.3.0-devel (git-3506474d17, p0165, 2026-10-29)". Run stopped early on purpose after the bisect (PanPlay not run: DXVK needs a device).
