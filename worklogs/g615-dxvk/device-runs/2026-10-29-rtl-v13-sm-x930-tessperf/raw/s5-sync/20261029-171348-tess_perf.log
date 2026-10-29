@@ -1,0 +1,71 @@
+MESA: info: kbase: CSF driver, uAPI version 1.30, page_size=4096
+MESA: info: kbase: coherency mode 0 (ACE-Lite), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 13000000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: info: panvk: gpu_id 0xd8300015 variant 0x4 arch v13 model Mali-G725/G925 texture_features 0xc7fe001e 0 0 0
+MESA: info: panvk: BC emulation on, lowmem (native compressed mask 0xc7fe001e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+ICD device=Mali-G925-Immortalis MC12 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+MESA: info: kbase: CSF driver, uAPI version 1.30, page_size=4096
+MESA: info: kbase: coherency mode 0 (ACE-Lite), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 13000000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: info: kbase: mem_alloc via ALLOC_EX
+MESA: info: kbase: queue_group_create layout=112 bytes
+MESA: info: kbase: tiler heaps 4 initial / 400 max chunks of 1024 KiB
+MESA: info: kbase: tiler_heap_init layout=16 bytes
+variant 0 opt=default device=Mali-G925-Immortalis MC12 gs=1
+MEM device avail_kb=7392044 rss_kb=19232
+MEM recorded opt=default gs=0 L=ref avail_kb=7391784 rss_kb=21756
+MEM first frame avail_kb=7391288 rss_kb=21756
+BENCH tess_perf opt=default gs=0 L=ref draws=256 patches=4096 ms=0.44 us_draw=1.7 frames=1606 hash=4807f3f5
+MEM opt=default gs=0 L=ref avail_kb=7604256 rss_kb=21756
+MESA: info: panvk: gpu_prerast tessellation arena committed (72 MiB)
+MESA: info: panvk: gpu_prerast second tessellation arena committed (72 MiB)
+MESA: info: panvk: device TLS 512 B/thread x 2048 threads x 24 core IDs (mask 0xee0077) = 24 MiB
+MEM recorded opt=default gs=0 L=1 avail_kb=7411612 rss_kb=204748
+MEM first frame avail_kb=7406204 rss_kb=205776
+BENCH tess_perf opt=default gs=0 L=1 draws=256 patches=4096 ms=21.24 us_draw=83.0 frames=33 hash=a03404c5
+MEM opt=default gs=0 L=1 avail_kb=7385364 rss_kb=205780
+MEM recorded opt=default gs=0 L=4 avail_kb=7385368 rss_kb=208908
+MEM first frame avail_kb=7378944 rss_kb=206852
+BENCH tess_perf opt=default gs=0 L=4 draws=256 patches=4096 ms=41.54 us_draw=162.3 frames=17 hash=cec55885
+MEM opt=default gs=0 L=4 avail_kb=7525580 rss_kb=206848
+MEM recorded opt=default gs=0 L=16 avail_kb=7526864 rss_kb=209956
+MEM first frame avail_kb=7480672 rss_kb=249104
+BENCH tess_perf opt=default gs=0 L=16 draws=256 patches=4096 ms=179.96 us_draw=703.0 frames=4 hash=d4463b35
+MEM opt=default gs=0 L=16 avail_kb=7351740 rss_kb=293388
+MEM recorded opt=default gs=0 L=mix avail_kb=7345592 rss_kb=251160
+MEM first frame avail_kb=7335872 rss_kb=262496
+BENCH tess_perf opt=default gs=0 L=mix draws=256 patches=4096 ms=158.31 us_draw=618.4 frames=5 hash=b34a251c
+MEM opt=default gs=0 L=mix avail_kb=7374232 rss_kb=229532
+MESA: info: panvk: gpu_prerast draw arena committed (64 MiB)
+MEM recorded opt=default gs=1 L=1 avail_kb=7359124 rss_kb=289824
+MEM first frame avail_kb=7356416 rss_kb=285708
+BENCH tess_perf opt=default gs=1 L=1 draws=256 patches=4096 ms=36.11 us_draw=141.0 frames=20 hash=a03404c5
+MEM opt=default gs=1 L=1 avail_kb=7231244 rss_kb=275404
+MEM recorded opt=default gs=1 L=4 avail_kb=7225872 rss_kb=275408
+MEM first frame avail_kb=7222732 rss_kb=291892
+BENCH tess_perf opt=default gs=1 L=4 draws=256 patches=4096 ms=69.91 us_draw=273.1 frames=11 hash=cec55885
+MEM opt=default gs=1 L=4 avail_kb=7339636 rss_kb=300140
+MEM recorded opt=default gs=1 L=16 avail_kb=7331420 rss_kb=291892
+MESA: error: kbase: CSF group 0 tiler heap OOM notification
+MESA: info: kbase: csf error/potential timeout (error=4) on subqueue 0 @ job 1712 / 1713: insert 331136 (gpu_va: 600002ed80), extract 331088 (gpu_va: 600002ed50), last_job_offset 3264 (gpu_va: 5ffffdecc0), last_last_job_offset 3072 (gpu_va: 5ffffdec00)
+Access to unknown memory 600002ed50 in ../mesa-117perf-final/src/panfrost/genxml/decode_csf.c:2402
+CRASH signal=11 (SIGSEGV) addr=0x20
+  #00: libpt_runner.so (???+0x3084)
+  #01: [vdso] (__kernel_rt_sigreturn+0x0)
+  #02: libvulkan_panfrost_rc5.so (???+0x197d230)
+  #03: libvulkan_panfrost_rc5.so (???+0x197d10c)
+  #04: libvulkan_panfrost_rc5.so (???+0x18854c4)
+  #05: libvulkan_panfrost_rc5.so (???+0x16dc968)
+  #06: libvulkan_panfrost_rc5.so (???+0x16d5b48)
+  #07: libvulkan_panfrost_rc5.so (???+0x17d3580)
+  #08: libvulkan_panfrost_rc5.so (???+0x17d3268)
+  #09: libvulkan_panfrost_rc5.so (???+0x17c7cf8)
+  #10: libvulkan_panfrost_rc5.so (???+0x17d39d8)
+  #11: libvulkan_panfrost_rc5.so (???+0x17dd7b4)
+  #12: libt_tess_perf.so (???+0x6d58)
+  #13: libt_tess_perf.so (main+0x1b40)
+  #14: libpt_runner.so (???+0x2fbc)
+  #15: libc.so (__libc_init+0x7c)
