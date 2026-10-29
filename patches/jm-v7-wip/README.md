@@ -571,3 +571,38 @@ applied=228`, `OK base=228 jm-v7-wip=137`) then 0144 applied with no offset/fuzz
 sha256 `b0d63069b5802da1...`, BuildID `8e82ce80783d63b815711ede0b90213520b79a65` (driverInfo still reads
 `git-0f038f9e96`: the build dir was configured before the commit). PanProbe 40/40, no DEVICE_LOST, on X6 Pro
 (156.2 s) and TB336FU (218.0 s): `worklogs/g615-dxvk/device-runs/2026-10-29-local-*-lop-panprobe`.
+
+## TLS/WLS 4 GiB window (2026-10-29): 0145, v14 `tessellation` DEVICE_LOST, not yet in a numbered build
+
+| jm-v7-wip | what |
+|---|---|
+| 0145 | TLS and WLS regions stay inside one 4 GiB window. The GPU adds the per-thread (TLS) / per-workgroup (WLS) offset to the low 32 bits of the base only (kbase uAPI: `BASE_MEM_GPU_VA_SAME_4GB_PAGE` "required for TLS memory"; `pan_emit_tls()` asserts it for WLS, compiled out in release). Nothing enforced it: `cmd_dispatch_prepare_tls()` (CSF WLS) and JM batch TLS/WLS took plain `tls_pool` allocations, and the CSF device TLS (csf-v11 230/232 alias region or full BO) took whatever VA kbase/mmap gave. New `panvk_cmd_alloc_tls_mem()` skips a crossing pool allocation (the next one starts past the boundary or in a new BO); `dev_tls_alias()` / `dev_tls_create()` retry while holding up to 8 crossing regions/BOs |
+
+Root cause of the RTL SM-X846B (Mali-G1-Ultra v14) 115e `tessellation` failure
+(`worklogs/g615-dxvk/device-runs/2026-10-29-rtl-v14-sm-x846b-115e-panprobe`): `CSF group 0/1/2 fatal error: status
+0x001003c1, sideband 0x5f0005d040` is the kbase AS fault forwarded as a group error: exception 0xc1 = translation fault
+level 1, access type 3 = write, address 0x5f0005d040. On that device kbase (MEM_ALLOC fallback, SAME_VA) places the
+driver's allocations around 0x6000000000 (ring entries `0x5ffffa12c0`, `0x6000000040`); 0x5f0005d040 is exactly
+0x600005d040 - 4 GiB, a TLS/WLS write past 0x6000000000 that lost its carry. It hit right after the device TLS grew to
+4096 B/thread x 2048 x 22 core IDs (176 MiB alias region) for the 3072-patch `grid_64x48_l16` case. Other devices put
+SAME_VA elsewhere (crossing chance ~ size / 4 GiB per region), so v9-v13 passed. 115g's 0143 shrinks tess TLS and
+makes the hit less likely, it does not remove it.
+
+`tess_perf` on the same run is a different failure: `CSF group 0 tiler heap OOM notification` at gs=1 L=16 in the
+`PANVK_TESS_FUSE=0` pass (the default pass passed the same scene). kbase only enters incremental rendering when the
+group has `BASE_CSF_TILER_OOM_EXCEPTION_FLAG` (`kbase_queue_oom_event`, kbase-src `mali_kbase_csf.c` ~2033), which
+panvk does not request (`kbase_kmod.c` KBASE_GROUP_CREATE_IN, csi_handlers 0), so a render pass that needs more than
+the 400 x 1 MiB heap with no fragment work in flight is terminated. Not changed by 0145.
+
+Strict check: fresh 5a07217f worktree `/var/tmp/panvk/mesa-v14-dev` (branch `pv14fix`), `prepare-rc5-tree.sh`
+defaults (`--wip-max 0144`): `BASE-OK applied=228`, `OK base=228 jm-v7-wip=139`, tree `e6da4cd9` = `p115g-final`;
+0145 committed on top (`fbbac61b`). Driver `/var/tmp/panvk/build-out/2026-10-29-v14fix/libvulkan_panfrost.so`
+(`/var/tmp/panvk/v14fix-build.sh`, rel9 host tools, 4 jobs), sha256 `330b6a65c471695e...0424ae5`, 29291064 bytes,
+BuildID `cce90267b61943cd68ec576d63027b51f520e8b2`, driverInfo `git-fbbac61b35`. APK
+`/var/tmp/panvk/build-out/apks/panprobe-v14fix.apk` (`build-v14fix.sh`, rc5 slot, sha256 `50fb9b7e...`).
+
+Tests (rc5 slot, autorun all, upload dry run):
+- X6 Pro (G615 v11): PanProbe 40/40, no DEVICE_LOST, 123.6 s (`tess_perf`, `tessellation` PASS).
+- TB336FU (G57 v9): 15/15 PASS incl. `tess_perf`, `tessellation`, then the run was cut by a PanPlay session another
+  agent started on the device (not a driver failure).
+- v14 RTL: UNTESTED (RTL link dropped repeatedly while queued on `rtl.lock`).
