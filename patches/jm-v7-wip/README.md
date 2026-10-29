@@ -867,5 +867,13 @@ PanProbe 40/40, `draw_params` and `bc_decode` PASS, no DEVICE_LOST
 | 0157 | item 8: pass-through GS skipped at draw time, the VS runs on the hardware (v9+; not with pipeline statistics queries). `PANVK_GPU_PRERAST_ABI_VERSION` 11 | `PANVK_GS_PT_SKIP=0` |
 | 0158 | item 23: `PANVK_GPU_STATS=<file>`: GPU load % from per ring entry GPU timestamps and VRAM bytes, rewritten at most every 500 ms (kbase CSF); PanPlay's MangoHud reads it | env unset = off |
 | 0159 | reverts 0147 (v14 per-chunk gpu_prerast cache flush): the v14 A/B on 116 passed `tessellation` 3/3 without it; 0148 (sparse device TLS) was the fix. Simpler than dropping 0147 from the middle of the series | - |
+| 0160 | the sw WSI (X11 present without DRI3 dma-buf, every PanPlay game) reads frames through the uncached buffer again: 0115's cached read + per-present DC CIVAC cost more (the rc4 vs 115c+ fps gap, FL 11_1 257 vs 831 fps on the X6 Pro) | `PANVK_WSI_SW_CACHED=1` = 0115 behaviour |
 
-Numbers: `docs/PERF-PROGRESS.md` "Round 2"; status per item: `docs/PERF-OPTIMIZATION-PLAN.md` section 5.
+Build 119 = 0006-0159 (`git-0146a719f6`, driverInfo `Mesa 26.3.0-devel (git-0146a719f6, p0159, 2026-10-29)`,
+.so sha256 `186278b8...`, BuildID `ba2ef6fd...`). Build 120 = 0006-0160 (`git-94af3802af`, driverInfo
+`Mesa 26.3.0-devel (git-94af3802af, p0160, 2026-10-29)`, .so `/var/tmp/panvk/build-out/2026-10-29-120/libvulkan_panfrost.so`
+sha256 `1195a047045b6384480a88924ddf61c1095ace90bfcbb95aa26c6598ff99d716`, 29455192 bytes, BuildID
+`6c1061318e24f02cac02a577242c3709fff1d05b`); strict prepare `BASE-OK applied=228`, `OK base=228 jm-v7-wip=155
+head=94af3802af9`. **120 is the default bundled driver** (`prepare-rc5-tree.sh` default `--wip-max 0160`).
+
+Numbers: `docs/PERF-PROGRESS.md` "Round 2" and "Build 120"; status per item: `docs/PERF-OPTIMIZATION-PLAN.md` section 5.
