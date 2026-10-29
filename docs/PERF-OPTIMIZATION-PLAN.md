@@ -106,6 +106,9 @@ Gain = expected effect on the measured workloads; risk = chance of a correctness
    instances 6 and 7 on TB336FU; CSF passed. Root cause not found (likely the v9 JM instance/attribute path
    under merged warps). Cost of the exception on v9: `large_draw` 10.2 s instead of 7.3 s with full merging.
 1a. Root-cause the v9 merged-VS instance-divisor bug and drop the exception (v9 `large_draw` about -30 %).
+   **Done, 0152**: on the G57 an instance-frequency `LD_ATTR` with merged workgroups returns the element of the
+   first lane of each 4-lane group (hardware divisor or not); the v9 lowered VS now computes instance / divisor
+   itself and fetches with vertex frequency. `large_draw` 10.2 s to 7.2 s on TB336FU.
 2. Firebase/RTL follow-up for 116 on v6/v7/v10/v14 (fills the empty PERF-PROGRESS columns; 0149 and 0151 touch
    every arch, 0150 only v9).
 3. BC compute decode per block on v6/v7/v9 (rank 4), checked with the `bc_decode` hashes and `bc_perf`.

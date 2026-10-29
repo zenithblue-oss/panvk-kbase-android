@@ -803,7 +803,8 @@ full PanProbe 40/40. A full v14 PanPlay s3 run started but the RTL session ended
 
 v9 exception: with merging for every prerast VS, PanProbe `draw_params` case `divisor` (1 vertex x 6 instances,
 divisor 2) failed on TB336FU (instances 6 and 7 read attribute 1004 instead of 1005); X6 Pro passed. Root cause not
-found. Without the exception v9 `large_draw` was 7.3 s (10.2 s with it, 24.6 s before).
+found. Without the exception v9 `large_draw` was 7.3 s (10.2 s with it, 24.6 s before). Root-caused and dropped in
+0152 (build 117 section below).
 
 Strict check: fresh 5a07217f worktree `/var/tmp/panvk/mesa-116-final`, `prepare-rc5-tree.sh --wip-max 0151`:
 `BASE-OK applied=228 csf-v11<=233 head=e9d394f0713`, `OK base=228 jm-v7-wip=146 head=f7e78953ac5`, tree equal to
@@ -817,3 +818,18 @@ s3/s5/s6/s7/s8 all ok, no deviceLost. Gains vs the previous series (through 0148
 10.6 ms to 3.1 ms per draw, `large_draw` 24.6 s to 10.2 s, PanProbe sum 185.9 s to 143.2 s; X6 Pro tess gs=1 L=16
 2.96 ms to 2.39 ms, `xfb` 322 to 223 ms, sum 122.2 s to 119.4 s. Full tables: `docs/PERF-PROGRESS.md`.
 v6/v7/v10/v14 untested with 116.
+
+## Build 117 (perf) (2026-10-29, in progress): 0152-
+
+| jm-v7-wip | what |
+|---|---|
+| 0152 | v9: the merged lowered VS fetches instance-rate attributes with vertex frequency and computes the element (instance / divisor) itself; drops the 0151 v9 exception |
+
+0152 root cause: on the G57 an instance-frequency `LD_ATTR` in a compute job with merged workgroups returns, for
+every lane of a 4-lane group, the element of the group's first lane. `draw_params` `divisor` (1 vertex x 6 instances,
+divisor 2) got elements 0,0,0,0,2,2 instead of 0,0,1,1,2,2, both with the hardware POT divisor and with the instance
+ID divided in the shader and a plain 1D instance attribute (dev build A/B). Vertex-frequency fetches are per lane.
+The lowered VS now reads one u32 per attribute slot after the gpu_prerast params (0 = vertex rate, else the divisor,
+written by `v9_prerast_vs()`), passes instance / divisor as the vertex ID, and the prerast driver set uses vertex
+frequency for every attribute. IDVS draws and CSF are unchanged. TB336FU dev build: PanProbe 40/40, `large_draw`
+10.2 s to 7.2 s.
