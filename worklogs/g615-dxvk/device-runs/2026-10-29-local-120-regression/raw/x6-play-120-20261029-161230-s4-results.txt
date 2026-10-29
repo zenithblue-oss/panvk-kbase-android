@@ -1,0 +1,14 @@
+PanPlay game loop, scenario 4 (ab), run 20261029-161230-s4
+Device: Xiaomi 2311DRK48I (duchamp), SDK 36, SoC MT6897Z_A/ZA
+Driver: Mesa 26.3.0-devel (git-94af3802af, p0160, 2026-10-29), sha256 1195a047045b6384
+App: dev.zenithblue.panvklauncher 1.3.0 (44)
+Window: 10 s warm-up, 30 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d11    old       ok       276.7   249.2   288.5    78.6    276.7     81.2    3.4    5.7    8.1     52.9  CUBE: PASS api=d3d11 frames=13343 (check pixels)
+02  d3d11    default   ok       279.6   238.1   292.9    71.5    279.8     94.4    3.4    5.2    7.6     53.9  CUBE: PASS api=d3d11 frames=13333 (check pixels)
+03  d3d9     old       ok       116.3   103.4   120.6    84.9    116.3     33.8    8.2   14.8   21.8     53.0  CUBE: PASS api=d3d9 frames=5542 (check pixels)
+04  d3d9     default   ok       117.9   112.8   120.0    59.7    117.9     36.3    8.2   14.3   22.5     54.0  CUBE: PASS api=d3d9 frames=5575 (check pixels)
+
+A/B d3d11: old 276.7 fps, default 279.6 fps (+1.1%) (change vs old)
+A/B d3d9: old 116.3 fps, default 117.9 fps (+1.3%) (change vs old)

@@ -1,0 +1,42 @@
+DRIVER slot=RC5 driverInfo=Mesa 26.3.0-devel (git-94af3802af, p0160, 2026-10-29)
+RESULT gpu_prerast_slice PASS mismatch=0 fps=0 ms=206
+RESULT clip_cull PASS mismatch=0 fps=5290.9 ms=1167
+RESULT multi_viewport PASS mismatch=0 fps=5592.8 ms=1094
+RESULT fill_mode PASS mismatch=0 fps=5397.3 ms=1177
+RESULT bc_decode PASS mismatch=0 fps=0 ms=1639
+RESULT bc_perf PASS mismatch=0 fps=0 ms=45040
+RESULT tess_perf PASS mismatch=0 fps=3.0 ms=33181 extra=tess_perf opt=default gs=0 L=ref draws=256 patches=4096 ms=3.39 us_draw=13.2 frames=207 hash=4807f3f5 | tess_perf opt=default gs=0 L=1 draws=256 patches=4096 ms=30.10 us_draw=117.6 frames=24 hash=a03404c5 | tess_perf opt=default gs=0 L=4 draws=256 patches=4096 ms=70.04 us_draw=273.6 frames=11 hash=cec55885 | tess_perf opt=default gs=0 L=16 draws=256 patches=4096 ms=389.67 us_draw=1522.2 frames=3 hash=d4463b35 | tess_perf opt=default gs=0 L=mix draws=256 patches=4096 ms=332.97 us_draw=1300.7 frames=3 hash=b34a251c | tess_perf opt=default gs=1 L=1 draws=256 patches=4096 ms=67.83 us_draw=264.9 frames=11 hash=a03404c5 | tess_perf opt=default gs=1 L=4 draws=256 patches=4096 ms=217.13 us_draw=848.2 frames=4 hash=cec55885 | tess_perf opt=default gs=1 L=16 draws=256 patches=4096 ms=822.50 us_draw=3212.9 frames=3 hash=d4463b35 | tess_perf opt=default gs=1 L=mix draws=256 patches=4096 ms=648.82 us_draw=2534.5 frames=3 hash=b34a251c | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=ref draws=256 patches=4096 ms=3.59 us_draw=14.0 frames=195 hash=4807f3f5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=1 draws=256 patches=4096 ms=29.79 us_draw=116.4 frames=24 hash=a03404c5 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=4 draws=256 patches=4096 ms=70.92 us_draw=277.0 frames=10 hash=cec55885 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=16 draws=256 patches=4096 ms=373.64 us_draw=1459.5 frames=3 hash=d4463b35 | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1,PANVK_TESS_WINDING_INLINE=0 gs=0 L=mix draws=256 patches=4096 ms=335.99 us_draw=1312.5 frames=3 hash=b34a251c | tess_perf opt=PANVK_TESS_FUSE=0,PANVK_TESS_SETUP_STEP=0,PANVK_TESS_ARENAS=1
+RESULT workload_perf PASS mismatch=0 fps=8.7 ms=9597 extra=workload_perf case=bc_level ms=1522.3 us_op=253713 fps=0.66 ops=6 device_ms=29.3 create_ms=1.2 record_ms=1453.6 gpu_wait_ms=67.5 | workload_perf case=ref ms=3.274 us_op=6.39 fps=305.5 ops=512 frames=123 | workload_perf case=gs_pass ms=12.228 us_op=23.88 fps=81.8 ops=512 frames=33 | workload_perf case=gs_layer ms=12.592 us_op=24.59 fps=79.4 ops=512 frames=32 | workload_perf case=xfb_vs ms=43.874 us_op=85.69 fps=22.8 ops=512 frames=10 | workload_perf case=xfb_gs ms=115.165 us_op=224.93 fps=8.7 ops=512 frames=4 | workload_perf case=strip_ref ms=4.151 us_op=16.22 fps=240.9 ops=256 frames=97 | workload_perf case=strip_gs ms=90.898 us_op=355.07 fps=11.0 ops=256 frames=5 | workload_perf case=cond_true ms=6.025 us_op=11.77 fps=166.0 ops=512 frames=67 | workload_perf case=cond_false ms=2.227 us_op=4.35 fps=449.1 ops=512 frames=180 | workload_perf case=pg_query ms=6.486 us_op=12.67 fps=154.2 ops=512 frames=62 | workload_perf case=ts_ref ms=0.343 us_op=343.29 fps=2913.0 ops=1 frames=1166 | workload_perf case=ts_pair ms=0.427 us_op=426.82 fps=2342.9 ops=1 frames=938 | workload_perf case=msaa_ref ms=1.634 us_op=102.15 fps=611.9 ops=16 frames=245 | workload_perf case=msaa_sshade ms=18.437 us_op=1152.32 fps=54.2 ops=16 frames=22 | workload_perf case=tex_rgba ms=2.116 us_op=132.27 fps=472.5 ops=16 frames=190 | workload_perf case=tex_bgra ms=4.444 us_op=277.73 fps=225.0 ops=16 frames=91
+RESULT geometry PASS mismatch=0 fps=1889.0 ms=1461
+RESULT tessellation PASS mismatch=0 fps=5888.6 ms=2057
+RESULT xfb PASS mismatch=0 fps=0 ms=291
+RESULT pipeline_stats PASS mismatch=0 fps=2808.1 ms=1226
+RESULT vertex_stores PASS mismatch=0 fps=0 ms=170
+RESULT gs_viewport_depth PASS mismatch=0 fps=0 ms=247
+RESULT vs_viewport_index PASS mismatch=0 fps=0 ms=237
+RESULT depth_bounds PASS mismatch=0 fps=0 ms=183
+RESULT large_draw PASS mismatch=0 fps=0 ms=7378
+RESULT vmr_secondary PASS mismatch=0 fps=0 ms=103
+RESULT tess_cond_state PASS mismatch=0 fps=0 ms=173
+RESULT bachata_reqs PASS mismatch=0 fps=0 ms=100
+RESULT bachata_exec PASS mismatch=0 fps=0 ms=98
+RESULT robustness2 PASS mismatch=0 fps=0 ms=103
+RESULT robust_image_access2 PASS mismatch=0 fps=0 ms=6563 extra=4096x4096x16 rgba8 loads ria2=391.86ms ria1=391.91ms delta=-0.0% stats(ria2/ria1): Instructions=229/187 Code size=1920/1536 Constant data size=0/0 Threads=2/2 Loops=0/0 Spills=0/0 Fills=0/0 Spill cost=0/0 Registers used=16/12 Uniforms used=3/3
+RESULT blend PASS mismatch=0 fps=0 ms=106
+RESULT occlusion_query PASS mismatch=0 fps=0 ms=104
+RESULT descriptor_model PASS mismatch=0 fps=0 ms=109
+RESULT shader_arith PASS mismatch=0 fps=0 ms=134
+RESULT depth_stencil PASS mismatch=0 fps=0 ms=113
+RESULT sampler PASS mismatch=0 fps=0 ms=106
+RESULT draw_params PASS mismatch=0 fps=0 ms=153
+RESULT submit_stress PASS mismatch=0 fps=0 ms=30098
+RESULT csf_event PASS mismatch=0 fps=0 ms=383
+RESULT gs_tess_primitive_id PASS mismatch=0 fps=0 ms=258
+RESULT bachata_storage_fmtless PASS mismatch=0 fps=0 ms=94
+RESULT bachata_dynamic_render PASS mismatch=0 fps=0 ms=100
+RESULT dxvk_reqs PASS mismatch=0 fps=0 ms=88
+RESULT vkd3d_reqs PASS mismatch=0 fps=0 ms=73
+RESULT d3d_fl PASS mismatch=0 fps=0 ms=67
+RESULT vkd3d_heap PASS mismatch=0 fps=0 ms=339
+RESULT vkd3d_timeline PASS mismatch=0 fps=0 ms=235
+RESULT swapchain_lifecycle PASS mismatch=0 fps=92.3 ms=6361 extra=resized FPS 92.6 | present_main 3249ms, resize 37ms, present_resized 1296ms, destroy 37ms, cycle 1106ms, teardown 5ms

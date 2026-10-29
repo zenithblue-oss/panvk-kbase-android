@@ -217,3 +217,113 @@ Item 23 (0158): with `PANVK_GPU_STATS=<file>` the file read `load=83` / `vram=16
 0159 reverts 0147 (v14 per-chunk prerast cache flush; the v14 A/B on 116 passed `tessellation` 3/3 with
 `PANVK_PRERAST_CHUNK_FLUSH=0`, 0148 was the fix). X6 Pro `tessellation`, `geometry`, `workload_perf` PASS on
 `+0159`.
+
+## Build 120 (2026-10-29): final perf driver, rc4 vs 116 vs 118 vs 120
+
+120 = jm-v7-wip 0006-0160 (`git-94af3802af`, driverInfo `Mesa 26.3.0-devel (git-94af3802af, p0160, 2026-10-29)`).
+That is 119 (0006-0159, `git-0146a719f6`) plus **0160**, which fixes the rc4 vs 115c+ PanPlay fps gap.
+The gap came from 0115's cached sw readback. Details:
+`worklogs/g615-dxvk/device-runs/2026-10-29-x6pro-rc4-vs-119-fps/`. The local regression (screenshots, raw
+results, memory samples) is in `worklogs/g615-dxvk/device-runs/2026-10-29-local-120-regression/`.
+
+- **PanProbe:** 41/41 on both devices, no DEVICE_LOST. X6 Pro cold and warm; TB336FU twice. rc4 on TB336FU:
+  39/41.
+- **PanPlay 1-9:** every task passes on 120, no DEVICE_LOST.
+  - On rc4, every D3D12 task fails on both devices.
+
+The 116 runs fail only `workload_perf`, in its `bc_level` case. That test is newer than 116; it passes on 118+.
+
+### PanProbe, X6 Pro v11 (ms per test, warm cache, same session)
+
+| Test | rc4 | 116 | 118 | 120 |
+|---|---|---|---|---|
+| tess_perf | 48411 | 28987 | 29075 | 28978 (-40 %) |
+| tessellation | 3199 | 2067 | 2097 | 2219 (-31 %) |
+| geometry | 2049 | 1617 | 1610 | 1543 (-25 %) |
+| xfb | 369 | 218 | 219 | 233 (-37 %) |
+| large_draw | 9613 | 9078 | 9376 | 9366 |
+| bc_decode | 595 | 160 | 161 | 181 |
+| draw_params | 121 | 95 | 107 | 93 |
+| workload_perf `gs_pass` (us/draw) | 91.6 | 110.9 | 99.1 | **3.7** |
+| workload_perf `strip_gs` (us/draw) | 337 | 313 | 376 | **7.5** |
+| workload_perf `bc_level` (ms, cold BC compile) | 285 | 4476 | 4917 | 2592 |
+| **all 41 tests, sum** | 152839 | 132911 (40/41) | 134200 | **131056 (-14 %)** |
+
+`bc_level` on rc4 is fast because rc4 has no lowmem BC transcoder, so it has nothing to compile. With a cold
+shader cache, 120 `bc_decode` takes 9.3 s because 0155 compiles all five transcoder pipelines at the first BC
+image. On 118 cold it took 5.0 s. Warm, it is 0.18 s.
+
+### PanProbe, TB336FU v9 (ms per test)
+
+| Test | rc4 | 120 |
+|---|---|---|
+| tess_perf | 20705 **FAIL** | 34080 |
+| tessellation | 7749 | 1863 (-76 %) |
+| geometry | 5508 | 1185 (-78 %) |
+| xfb | 4312 | 205 (-95 %) |
+| large_draw | 28365 **FAIL** | 7537 |
+| bc_decode | 4651 | 112 |
+| bc_perf | 53329 | 44839 |
+| draw_params | 4125 | 135 |
+| workload_perf | 21967 | 9536 |
+| **sum** | 330333 (39/41) | 150608 (41/41, -54 %) |
+
+On v9, `workload_perf` `gs_pass` is 24 us/draw (rc4: 53) and `strip_gs` is 353 (rc4: 1927). The pass-through
+skip in 0157 does not fire for the restart-strip GS on the v9 JM path. That is a follow-up.
+
+### PanPlay fps, rc4 vs 120 (full suite, 10 s warm-up, 30 s measured)
+
+Each cell is fps / 1 %-low / drawn. fps is the DXVK HUD rate; for D3D12 it is the driver fps log, because rc4
+has no driver fps log. The X6 Pro display composites at about 60 Hz, the TB336FU at 90 Hz. Screenshots are in
+the regression worklog under `shots/<device>-<rc4|120>-panplay-s<N>[-k].png`.
+
+| s | task | X6 rc4 | X6 120 | TB rc4 | TB 120 |
+|---|---|---|---|---|---|
+| 1 | d3d11 cube | 278.5 / 80.8 / 56 | 287.9 / 78.6 / 53 | 160.2 / 71.2 / 90 | 159.8 / 75.4 / 90 |
+| 2 | d3d9 cube | 116.9 / 32.4 / 55 | 115.5 / 31.8 / 53 | 89.9 / 49.0 / 90 | 90.0 / 50.3 / 90 |
+| 3 | d3d11 | 268.0 / 80.2 / 56 | 276.2 / 84.4 / 55 | 160.8 / 82.4 / 90 | 165.9 / 94.5 / 90 |
+| 3 | d3d9 | 116.8 / 33.9 / 55 | 115.2 / 31.8 / 53 | 89.9 / 47.4 / 90 | 90.0 / 51.8 / 90 |
+| 4 | d3d11 old / default | 270.1 / 277.8 | 276.7 / 279.8 | 164.3 / 161.4 | 164.8 / 162.9 |
+| 4 | d3d9 old / default | 117.0 / 115.6 | 116.3 / 117.9 | 89.9 / 90.0 | 90.0 / 90.0 |
+| 5 | d3d12 SquidRoom | fail | 59.0 / - / 55 | fail | 24.8 / - / 25 |
+| 6 | d3d12 gears | fail | 174.0 / - / 60 | fail | 226.4 / - / 90 |
+| 7 | d3d12 FL 11_0 / 11_1 / 12_0 / 12_1 / 12_2 | fail | 198 / 207 / 210 / 166 / 179 | fail | 477 / 504 / 480 / 472 / 527 |
+| 8 | d3d11 FL 10_0 | 794.9 / 137.2 / 57 | 746.1 / 147.5 / 44 | 199.7 / 99.0 / 90 | 217.1 / 100.1 / 90 |
+| 8 | d3d11 FL 10_1 | 798.1 / 135.1 / 54 | 739.2 / 132.0 / 49 | 200.1 / 98.2 / 90 | 214.0 / 105.4 / 90 |
+| 8 | d3d11 FL 11_0 | 797.9 / 128.2 / 57 | 752.3 / 140.7 / 44 | 199.7 / 97.6 / 90 | 204.8 / 100.4 / 90 |
+| 8 | d3d11 FL 11_1 | 820.0 / 150.3 / 52 | 707.9 / 105.6 / 51 | 200.4 / 102.9 / 90 | 198.6 / 97.7 / 90 |
+| 8 | d3d10 cube | 271.2 / 83.0 / 56 | 271.7 / 73.4 / 55 | 162.0 / 74.4 / 90 | 157.0 / 87.8 / 90 |
+| 8 | d3d9 cube | 117.5 / 34.7 / 55 | 117.1 / 35.6 / 54 | 90.0 / 49.0 / 90 | 89.9 / 49.4 / 90 |
+| 9 | d3d12 FL all | fail | 197.5 / - / 60 | fail | 498.4 / - / 90 |
+| 9 | d3d11 FL all | 825.9 / 156.6 / 53 | 772.5 / 158.4 / 41 | 195.7 / 100.5 / 90 | 192.9 / 100.3 / 90 |
+
+119 (before 0160) on the X6 Pro, same window: FL 10_0 to 11_1 ran at 272-359 fps and FL all at 397. With 0160,
+120 reaches 92-94 % of rc4 on the tiny FL frames. The 120 runs came after the rc4 runs, so the device was
+warmer. The cubes, D3D9 and D3D10 are equal on both devices.
+
+### Memory
+
+**PanProbe:** maximum over 5 s `dumpsys meminfo` samples, full run, X6 Pro warm. The `-` cells were not sampled.
+
+| | rc4 | 116 | 118 | 120 |
+|---|---|---|---|---|
+| X6 Pro TOTAL PSS (MB) | 194 | 162 | 163 | 184 (cold run: 166) |
+| X6 Pro Graphics (MB) | 93 | 61 | 61 | 61 |
+| TB336FU TOTAL PSS / Graphics (MB) | 229 / 128 | - | - | 226 / 126 |
+
+**PanPlay:** one sample per test process, about 20 s into the pass; maximum per scenario. The driver VRAM
+counter comes from 0158 (`PANVK_GPU_STATS`, CSF only, so none on v9). The `-` cells are scenarios that fail on
+rc4.
+
+| Scenario | X6 PSS rc4 / 120 (MB) | X6 Graphics rc4 / 120 | X6 driver VRAM 120 (MiB) | TB PSS rc4 / 120 | TB Graphics rc4 / 120 |
+|---|---|---|---|---|---|
+| s1 d3d11 | 262 / 262 | 111 / 111 | 51 | 334 / 356 | 190 / 206 |
+| s3 d3d11 + d3d9 | 298 / 302 | 125 / 125 | 54 | 359 / 389 | 192 / 212 |
+| s5 SquidRoom | - / 306 | - / 132 | 154 | - / 365 | - / 212 |
+| s7 D3D12 FL | - / 286 | - / 118 | 166 | 327 / 372 | 168 / 208 |
+| s8 D3D11 FL | 326 / 326 | 121 / 120 | 54 | 366 / 379 | 192 / 208 |
+| s9 FL all | 304 / 243 | 104 / 104 | 167 | 329 / 371 | 168 / 208 |
+
+- **X6 Pro (v11):** 120 uses the same memory as rc4 in PanPlay. PanProbe Graphics is 32 MB lower (116 and 118 too;
+  not split by patch).
+- **TB336FU (v9):** 120 is +13-45 MB PSS and +16-40 MB Graphics in PanPlay. Its PanProbe totals equal rc4.

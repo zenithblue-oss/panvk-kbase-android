@@ -1,0 +1,13 @@
+PanPlay game loop, scenario 8 (d3d11fl), run 20261029-160009-s8
+Device: Xiaomi 2311DRK48I (duchamp), SDK 36, SoC MT6897Z_A/ZA
+Driver: Mesa PanVK, sha256 977c0c4c0803b994
+App: dev.zenithblue.panvklauncher 1.3.0 (44)
+Window: 10 s warm-up, 30 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d11fl_10_0 default   ok           -       -       -       -    794.9    137.2    1.1    2.4    4.6     57.1  D3DFL: PASS api=d3d11 level=10_0 created gs:PASS,stream_out:PASS frames=38065 secs=48.0 fps=793.0 startup=1.0
+02  d3d11fl_10_1 default   ok           -       -       -       -    798.1    135.1    1.1    2.4    4.8     54.4  D3DFL: PASS api=d3d11 level=10_1 created cube_array:PASS,gather4:PASS frames=38615 secs=48.0 fps=804.4 startup=0.9
+03  d3d11fl_11_0 default   ok           -       -       -       -    797.9    128.2    1.0    2.5    5.0     56.7  D3DFL: PASS api=d3d11 level=11_0 created tess:PASS,compute:PASS frames=38467 secs=48.0 fps=801.4 startup=1.0
+04  d3d11fl_11_1 default   ok           -       -       -       -    820.0    150.3    1.0    2.3    4.4     51.8  D3DFL: PASS api=d3d11 level=11_1 created uav_vs:PASS,logic_op:PASS,tir:PASS frames=40154 secs=48.0 fps=836.5 startup=1.1
+05  d3d10    default   ok           -       -       -       -    271.2     83.0    3.4    5.8    8.2     56.3  CUBE: PASS api=d3d10 frames=12947 (check pixels)
+06  d3d9     default   ok           -       -       -       -    117.5     34.7    8.2   14.4   23.1     55.2  CUBE: PASS api=d3d9 frames=5629 (check pixels)
