@@ -352,3 +352,12 @@ PanProbe 41/41 on both devices, cold and warm, with no DEVICE_LOST. Cold means o
   3.3-3.5 s.
 - **0163:** the 0157 pass-through GS swap is added to the v9 JM `v9_cmd_draw()`.
 - PanPlay and the RTL/Firebase arches have not been run on 121b.
+
+## Build 121b PanPlay (2026-10-29)
+
+Full PanPlay 1-9 on 121b (`git-07177325ca`, p0163, BuildID `c5337130...`) on X6 Pro (v11) and TB336FU (v9), same
+short-window config as the build 120 run. All tasks pass, no DEVICE_LOST, no GPU reset lines in logcat/dmesg. fps is
+within noise of 120 (X6 Pro s7 D3D12 FL tasks swing -27 %..+39 %, other tasks within about 6 %; TB336FU worst -13 %).
+Extra: X6 Pro D3D11 cube s1/s3, 3 alternating runs, default vs `PANVK_KBASE_TILER_IR=0`: 279.7 vs 277.2 and 277.2 vs
+278.3 fps, no difference, so the v13 cube drop is not the tiler IR path on v11. Details, screenshots and raw:
+`worklogs/g615-dxvk/device-runs/2026-10-29-local-121b-panplay/`.

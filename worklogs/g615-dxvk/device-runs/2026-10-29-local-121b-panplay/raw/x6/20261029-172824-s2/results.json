@@ -1,0 +1,172 @@
+{
+  "harness": "panplay-gameloop",
+  "version": 1,
+  "scenario": 2,
+  "runId": "20261029-172824-s2",
+  "startedUnixMs": 1793275104537,
+  "app": {
+    "package": "dev.zenithblue.panvklauncher",
+    "versionName": "1.3.0",
+    "versionCode": 44
+  },
+  "device": {
+    "manufacturer": "Xiaomi",
+    "model": "2311DRK48I",
+    "device": "duchamp",
+    "product": "duchamp_in",
+    "hardware": "mt6897",
+    "board": "duchamp",
+    "sdk": 36,
+    "release": "16",
+    "fingerprint": "POCO\/duchamp_global\/duchamp:16\/BP2A.250605.031.A3\/OS3.0.6.0.WNLMIXM:user\/release-keys",
+    "socManufacturer": "Mediatek",
+    "socModel": "MT6897Z_A\/ZA",
+    "maliNode": true,
+    "display": "1728x1080",
+    "refreshHz": 60,
+    "xScreen": "1280x720"
+  },
+  "passes": [
+    {
+      "index": 1,
+      "task": "d3d9",
+      "title": "D3D9 cube (i686, WoW64)",
+      "envSet": "default",
+      "dir": "01-d3d9-default",
+      "shortcut": "builtin-d3d9-i686",
+      "exe": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/games\/builtin\/dxcube-i686.exe",
+      "env": {
+        "PANVK_GPU_STATS": "\/sdcard\/Android\/data\/dev.zenithblue.panvklauncher\/files\/gpustats.txt",
+        "PANVK_FPS_LOG": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/gameloop\/20261029-172824-s2\/01-d3d9-default\/panvk-fps-%p.log",
+        "PANVK_FPS_LOG_MS": "1000",
+        "DXCUBE_SECS": "48"
+      },
+      "exit": 0,
+      "wallSec": 51.495,
+      "firstFrameSec": 2.606,
+      "sessionReason": "Game exited normally (exit 0)",
+      "perfSummary": {
+        "startMs": 1793275104624,
+        "game": "Cube · D3D9 · x86",
+        "exe": "\/data\/user\/0\/dev.zenithblue.panvklauncher\/files\/games\/builtin\/dxcube-i686.exe",
+        "driverId": "mesa-panvk-26.3.0-devel-git-94af3802af",
+        "driver": "Mesa PanVK",
+        "driverVersion": "26.3.0-devel (git-94af3802af, p0160, 2026-10-29)",
+        "driverInfo": "Mesa 26.3.0-devel (git-94af3802af, p0160, 2026-10-29)",
+        "driverBuildId": "Mesa 5a07217f",
+        "dxvk": "3.1.1-5-arm64ec",
+        "emulator": "FEX Intermediate",
+        "resolution": "1280x720",
+        "fpsLimit": 0,
+        "device": "Xiaomi 2311DRK48I",
+        "id": "20261029-172824_Cube_D3D9_x86",
+        "endMs": 1793275156009,
+        "dxvkStats": true,
+        "frames": 5404,
+        "durationSec": 46.462289,
+        "avgFps": 116.3093794195116,
+        "low1Fps": 34.12162560387522,
+        "low01Fps": 25.130574275506486,
+        "minFps": 21.00928610445817,
+        "maxFps": 1886.7924528301887,
+        "frametimeP50Ms": 8.109,
+        "frametimeP95Ms": 15.56,
+        "frametimeP99Ms": 23.832,
+        "stutters": 237,
+        "gpuLoadAvg": 59.83870967741935,
+        "gpuLoadMax": 71,
+        "vidmemPeakMb": 20,
+        "sysmemPeakMb": 0,
+        "drawCallsAvg": 232.38709677419354,
+        "compilingShare": 0.010752688172043012,
+        "gameCpuAvg": 10.435416666666669,
+        "gameCpuMax": 15,
+        "gameCoresAvg": 0.8395833333333328,
+        "gameCoresMax": 1.2,
+        "ramAvgMb": 267.66122448979587,
+        "ramPeakMb": 299,
+        "battTempAvgC": 30.71836734693875,
+        "battTempMaxC": 30.8,
+        "cpuFreqAvgMhz": 1332.6530612244899,
+        "cpuFreqMaxMhz": 2400,
+        "powerAvgMw": 403.8166666666666,
+        "powerMaxMw": 718.4,
+        "memAvailMinMb": 2909.8
+      },
+      "fpsLog": "panvk-fps-16375.log",
+      "driverPresents": 5490,
+      "driverInfo": "Mesa 26.3.0-devel (git-07177325ca, p0163, 2026-10-29)",
+      "driverFps": {
+        "fps": 116.81889980083785,
+        "frames": 3402,
+        "spanMs": 29122,
+        "intervals": 29,
+        "minIntervalFps": 109.8,
+        "maxIntervalFps": 121,
+        "maxFrameMs": 50.3
+      },
+      "dxvkFps": {
+        "avgFps": 116.78401298539544,
+        "frames": 3503,
+        "low1Fps": 33.407479377841376,
+        "low01Fps": 23.87218830382134,
+        "p50Ms": 8.11,
+        "p95Ms": 15.495,
+        "p99Ms": 24.027,
+        "stutters": 147,
+        "gpuLoadAvg": 60.233333333333334,
+        "drawCallsAvg": 236
+      },
+      "compositor": {
+        "drawnFps": 55.89002608870159,
+        "contentFps": 116.83055722790822
+      },
+      "screenshot": "screen.png",
+      "fps": 116.81889980083785,
+      "fpsSource": "driver",
+      "test": {
+        "ok": true,
+        "line": "CUBE: PASS api=d3d9 frames=5490 (check pixels)",
+        "frames": 5490,
+        "fps": null,
+        "startupSec": null
+      },
+      "status": "ok"
+    }
+  ],
+  "configSource": [
+    "assets\/gameloop.json",
+    "\/sdcard\/Download\/gameloop-x6pro-121b.json sha256=c81f43fabf7ed829e456ad3e1ac8cd8c2167c4cafba6466cf8ece6deb81dd27a"
+  ],
+  "scenarioName": "d3d9",
+  "tasks": [
+    "d3d9"
+  ],
+  "envSets": [
+    "default"
+  ],
+  "window": {
+    "warmupSec": 10,
+    "measureSec": 30,
+    "tailSec": 8,
+    "fpsLogMs": 1000,
+    "from": "first frame"
+  },
+  "envSetNotes": {
+    "default": "driver defaults"
+  },
+  "updatedUnixMs": 1793275156696,
+  "driver": {
+    "id": "mesa-panvk-26.3.0-devel-git-94af3802af",
+    "name": "Mesa PanVK",
+    "version": "26.3.0-devel (git-94af3802af, p0160, 2026-10-29)",
+    "bundled": true,
+    "libPath": "\/data\/app\/~~3qhQKzR6ZCUiQ5xj5ZAbnQ==\/dev.zenithblue.panvklauncher-kIL4IIj6Xr8S2u1wYFpWWw==\/lib\/arm64\/libvulkan_panfrost.so",
+    "size": 29458152,
+    "sha256": "9f58ee27ad8e4d0b02f43b26bada3e34da5feba5134f8ac1c91b23c4f9cf85ae"
+  },
+  "driverInfo": "Mesa 26.3.0-devel (git-07177325ca, p0163, 2026-10-29)",
+  "ab": [],
+  "ok": true,
+  "endedUnixMs": 1793275156696
+}
