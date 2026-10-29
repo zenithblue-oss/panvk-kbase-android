@@ -39,6 +39,7 @@ object WhatsNew {
         "The launch sheet no longer saves stale values",
         "Browse for .exe: files picked from Downloads (msf: picker URIs) now resolve to the real path",
         "Built-in X server: MIT-SHM requests check the segment owner and the image bounds",
+        "Fallout 4: the Xbox gamepad (on-screen or physical) works again; Wine services stay on unless the GOG Galaxy64.dll is present",
     )
 
     private const val KEY = "changelog_seen"

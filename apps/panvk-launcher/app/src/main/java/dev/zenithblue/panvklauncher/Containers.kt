@@ -842,10 +842,12 @@ object ContainerManager {
         // on Android) initialise instead of DXVK (NFS: Most Wanted on a fresh G925 container: wined3d_adapter_gl_init).
         val hlsl = if (!needsHlslFix(ctx, exeFile)) ""
             else if (exeFile.name.lowercase() in HLSL_FIX_EXES) ";d3dcompiler_43,wined3d=n" else ";d3dcompiler_43=n"
-        // Fallout 4 (Galaxy64/steam_api64) calls OpenSCManagerW, which crashes in the arm64ec rpcrt4 unless services.exe is
-        // disabled. Appended to the defaults (keeps nsiproxy.sys=d, which stops the GetAdaptersAddresses deadlock).
+        // GOG Fallout 4's Galaxy64.dll calls OpenSCManagerW, which crashes in the arm64ec rpcrt4 unless services.exe is
+        // disabled. Only then: without services.exe there is no winedevice/winebus, so no XInput pad (Steam builds
+        // without Galaxy64 run fine with services). Appended to the defaults (keeps nsiproxy.sys=d).
         if (fo4) ensureFo4Registry(ctx, exeFile, onLine)
-        val extraOvr = (ddraw ?: "") + hlsl + (if (fo4) ";services.exe=d" else "") + RenderApi.overrides(api)
+        val galaxy = fo4 && exeFile.parentFile?.list()?.any { it.equals("Galaxy64.dll", true) } == true
+        val extraOvr = (ddraw ?: "") + hlsl + (if (galaxy) ";services.exe=d" else "") + RenderApi.overrides(api)
         // Appended in env(), after ensureDxvk: reading defaultDllOverrides here on a fresh install (dxvk_enabled
         // not yet set) dropped d3d9=n, so wined3d loaded and crashed on first launch (NFS MW, G925/G720).
         val glEnv = if (gl && mesa != null) mapOf(GL_LIB_KEY to File(mesa.dir, "lib").absolutePath) else emptyMap()
