@@ -1,0 +1,83 @@
+{
+ "#": "v14 .so bisect: scenario 3 = D3D11 cube once per build, PANVK_WSI_SW_CACHED=1 everywhere (removes 0160). The launcher installs each .so from files/bisect/ (installDrivers), no APK reinstall.",
+ "warmupSec": 10,
+ "measureSec": 30,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-116": "bisect/116.so",
+  "bisect-117": "bisect/117.so",
+  "bisect-118": "bisect/118.so",
+  "bisect-119": "bisect/119.so",
+  "bisect-120": "bisect/120.so",
+  "bisect-121b": "bisect/121b.so",
+  "bisect-122c": "bisect/122c.so"
+ },
+ "envSets": {
+  "b116": {
+   "note": "build 116",
+   "driver": "bisect-116",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "b117": {
+   "note": "build 117",
+   "driver": "bisect-117",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "b118": {
+   "note": "build 118",
+   "driver": "bisect-118",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "b119": {
+   "note": "build 119",
+   "driver": "bisect-119",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "b120": {
+   "note": "build 120",
+   "driver": "bisect-120",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "b121b": {
+   "note": "build 121b",
+   "driver": "bisect-121b",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "b122c": {
+   "note": "build 122c",
+   "driver": "bisect-122c",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  }
+ },
+ "scenarios": {
+  "3": {
+   "name": "cube bisect",
+   "tasks": [
+    "d3d11"
+   ],
+   "envSets": [
+    "b116",
+    "b117",
+    "b118",
+    "b119",
+    "b120",
+    "b121b",
+    "b122c"
+   ]
+  }
+ }
+}
