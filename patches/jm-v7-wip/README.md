@@ -556,6 +556,60 @@ Ideas left, by expected gain:
 4. CSF: run the tess/GS compute steps on the vertex/tiler subqueue (one CS, no cross-CSG hand-off); needs the IDVS
    register state re-emitted after each compute and its own scoreboard slots.
 
+## Build 115g (2026-10-29): 0143, tessellator state in registers (GPU-emulation perf, handoff item 7) + 0144
+
+| jm-v7-wip | what |
+|---|---|
+| 0143 | `src/poly/cl/tessellator.h` only. The libpan tessellate kernels generate each patch on one thread; the per-edge arrays (tess-factor contexts, point counts, odd flags) were indexed by the ring-loop edge counter, so NIR put them in scratch, and the early returns of the inlined helpers left stale return-value phis carried around the ring loops (about 45 loop-carried values, so the register allocator spilled inside the loops). Per-edge values are now recomputed from scalars in the loop, the remaining small arrays are read through selects (`TESS_SEL2/3/4`), the odd flags are one bitmask, `PatchIndexValue`/`PlacePointIn1D`/`finalPointPositionTable` have one exit, and the index-patch context is reset at the end of each edge. Same output (tess_perf hashes equal). All archs; no compiler change |
+| 0144 | CSF re-emits the DCD flags when the logic op changes (D3D12 FL 11_1 `logic_op`), see "logic_op CSF" below; first shipped in 115g |
+
+Kernel TLS per thread (rel9 host tools, `libpan_shaders`):
+
+| kernel | before | 115g |
+|---|---|---|
+| v9-v13 `panlib_tessellate` tri WITH_COUNTS (also `panlib_tess_gen` tri) | 1824 B, spills | 0 B, no spills |
+| v9-v13 `panlib_tessellate` quad WITH_COUNTS (also `panlib_tess_gen` quad) | 2112 B (340 spills, 1367 fills) | 64 B (9 spills, 385 fills), 7094 -> 4462 instrs |
+| v9-v13 quad COUNT (`panlib_tessellate_1`, CSF `panlib_tess_count_draw_2`) | 1312 B / 2208 B | 0 B |
+| v6/v7 `panlib_v7_tessellate` tri / quad / quad COUNT | 1780 / 2064 / 1312 B | 0 / 0 / 0 B |
+
+The fused CSF `panlib_tess_count_draw` gen variants (only run when `fuse_gen`) keep 160 B (tri) / 208 B (quad).
+
+PanProbe `tess_perf`, us per draw (256 draws x 16 quad patches), full game loop scenario 2:
+
+| device | config | rc4 | 115f | 115g |
+|---|---|---|---|---|
+| TB336FU v9 | gs=0 L=1 / L=4 | 213.8 / 679.3 | 155.6 / 584.9 | 111.5 / **281.2** (-52 %) |
+| TB336FU v9 | gs=0 L=16 / L=mix | 3042.4 / 2864.3 | 2899.8 / 2724.9 | **1483.4 / 1312.1** (-49 / -52 %) |
+| TB336FU v9 | gs=1 L=4 / L=16 / L=mix | 1984.9 / FAIL / - | 1717.0 / 12016.7 / 6355.2 | 1465.1 / 10627.1 / 4904.7 |
+| X6 Pro v11 | gs=0 L=1 / L=4 | 544.3 / 577.7 | 497.4 / 500.0 | 383.1 / **278.6** (-44 %) |
+| X6 Pro v11 | gs=0 L=16 / L=mix | 2832.9 / 2734.5 | 2316.1 / 2328.7 | **1141.7 / 1078.3** (-51 / -54 %) |
+| X6 Pro v11 | gs=1 L=4 / L=16 / L=mix | 873.4 / 4647.7 / 3757.9 | 795.8 / 4127.5 / 3267.1 | 559.7 / 2798.6 / 1936.5 |
+
+PanProbe 40/40 on both (TB336FU 187.0 s, 115f 202.9 s; X6 Pro 122.0 s, 115f 148.2 s), hashes equal to 115f, no
+DEVICE_LOST: `worklogs/g615-dxvk/device-runs/2026-10-29-local-*-115g-*`. The first X6 Pro run stopped at
+`swapchain_lifecycle` with a CPU SIGSEGV in `panvk_android_swapchain_post()` (WSI CPU-copy present, unchanged since
+115f); the rerun passed. PanPlay on TB336FU (full bundle): s3, s6, s8 PASS (D3D11 11_0 tess PASS), s7 PASS except
+one D3D12 11_0 `tess` FAIL (zero-area tri patch: 0 px) in the first pass after an app-side crash (Java NPE in the
+X server); 11 of 12 runs of that pass PASS on 115g, cause not proven (no A/B against 115f at that repeat count),
+see the PanPlay results.md. v6/v7 not tested on a device (no local JM v6/v7): the change is in shared CL source and
+only removes TLS there.
+
+Strict check on a fresh 5a07217f worktree (`/var/tmp/panvk/mesa-115g-final`, branch `p115g-final`):
+`BASE-OK applied=228 csf-v11<=233 head=0f39027c` and `OK base=228 jm-v7-wip=139 head=2f2a20a7`, no offset or fuzz
+(only the jm-v9/002 whitespace warning). Driver `/var/tmp/panvk/build-out/2026-10-29-115g/libvulkan_panfrost.so`,
+sha256 `ce6635b2b82ad3a2...b41b6d9e`, 29278008 bytes (kernel binaries 1 MB smaller), BuildID
+`30615eb1d40ff97e21bbdd5b67b62eefedd5d72f`, driverInfo `Mesa 26.3.0-devel (git-2f2a20a728)`.
+`scripts/prepare-rc5-tree.sh` defaults: `--wip-max 0144`. Test APKs (`build-115g.sh`; PanPlay built from a copy of
+`apps/panvk-launcher` at HEAD, without uncommitted work-tree changes): `panprobe-115g.apk` `4ac640a7...`,
+`panplay-115g.apk` `14c7b5b4...`; pins unchanged.
+
+Ideas left, by expected gain:
+1. gs=1 at L>=4 is now bound by the GS emulation (TB336FU gs=1 L=16 10.6 ms vs gs=0 1.5 ms); the GS kernels use no
+   TLS, so the cost is elsewhere (serial GS invocations per primitive, index/XFB writes).
+2. Parallel generation per patch (per ring/row) instead of one thread per patch: L=16 is still about 1 us per index.
+3. Quad WITH_COUNTS still peaks at 71 live values (block with the triangle `vstore3`); getting under 64 would remove the
+   last 64 B of TLS.
+
 ## logic_op CSF (2026-10-29): 0144, not yet in a numbered build
 
 | jm-v7-wip | what |
