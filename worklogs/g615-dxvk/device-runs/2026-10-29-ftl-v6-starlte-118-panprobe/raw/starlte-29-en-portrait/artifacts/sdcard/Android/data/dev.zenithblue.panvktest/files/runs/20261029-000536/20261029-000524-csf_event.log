@@ -1,0 +1,69 @@
+PID 12484
+Tgid:	12484
+Pid:	12484
+PPid:	9255
+READY
+T 5406.863826093 go
+MESA: info: kbase: JM driver, uAPI version 11.16, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+MESA: info: kbase: v6 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 (base_jd_atom_v2 without renderpass_id)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: cntfrq_el0 is 0 and the 5 ms measurement failed (TIMEINFO failed, 0 / 0 Hz), retrying with 20 ms
+MESA: warning: kbase: timestamp calibration: cntfrq_el0 is 0 and the GPU counter rate is unknown (TIMEINFO failed: Not a typewriter, 0 / 0 Hz): timestamps not advertised
+MESA: info: kbase: no usable ION system heap
+MESA: info: panvk: gpu_id 0x62210010 variant 0 arch v6 model Mali-G72 texture_features 0xfffe007e 0xff0fff 0xfe3fffff 0
+MESA: warning: panvk: v6 (Bifrost) support is experimental
+MESA: info: panvk: BC emulation on (native compressed mask 0xfffe007e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+PHYS 0 Mali-G72 MC18 vendor=0x13b5 device=0x62210010
+FEATURE synchronization2=1
+QFAM 0 flags=0x7 count=1
+MESA: info: kbase: JM driver, uAPI version 11.16, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+MESA: info: kbase: v6 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 (base_jd_atom_v2 without renderpass_id)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: cntfrq_el0 is 0 and the 5 ms measurement failed (TIMEINFO failed, 0 / 0 Hz), retrying with 20 ms
+MESA: warning: kbase: timestamp calibration: cntfrq_el0 is 0 and the GPU counter rate is unknown (TIMEINFO failed: Not a typewriter, 0 / 0 Hz): timestamps not advertised
+MESA: info: kbase: no usable ION system heap
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 70313 pages committed
+SYNC2 enabled
+T 5406.875745246 host-set
+T 5406.875947477 host-submit
+FENCE host r=0 dt=0.001
+CASE host got=0x085000a1 expect=0x085000a1
+T 5406.876894093 host-set-replay
+T 5406.877195823 host-submit-replay
+FENCE host-replay r=0 dt=0.000
+CASE host-replay got=0x085000a2 expect=0x085000a2
+T 5406.877547246 gpu-write
+T 5406.878337823 gpu-submit-set
+FENCE gpu-set r=0 dt=0.000
+GPU_EVENT_STATUS 3
+T 5406.878851323 gpu-submit-wait
+FENCE gpu r=0 dt=0.001
+CASE gpu got=0x085000b1 expect=0x085000b1
+T 5406.879151246 gpu-write-replay
+T 5406.879854554 gpu-submit-set-replay
+FENCE gpu-set-replay r=0 dt=0.001
+GPU_EVENT_STATUS 3
+T 5406.880498323 gpu-submit-wait-replay
+FENCE gpu-replay r=0 dt=0.001
+CASE gpu-replay got=0x085000b2 expect=0x085000b2
+T 5406.898189669 ring-begin
+FENCE ring r=0 dt=0.121
+FENCE ring-copy r=0 dt=0.001
+CASE ring submit=0 red=64/64 passes=1700
+FENCE ring r=0 dt=0.101
+FENCE ring-copy r=0 dt=0.000
+CASE ring submit=1 red=64/64 passes=1700
+T 5407.126325131 ring-end
+RESULT PASS
