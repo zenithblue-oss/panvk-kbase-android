@@ -804,7 +804,7 @@ full PanProbe 40/40. A full v14 PanPlay s3 run started but the RTL session ended
 v9 exception: with merging for every prerast VS, PanProbe `draw_params` case `divisor` (1 vertex x 6 instances,
 divisor 2) failed on TB336FU (instances 6 and 7 read attribute 1004 instead of 1005); X6 Pro passed. Root cause not
 found. Without the exception v9 `large_draw` was 7.3 s (10.2 s with it, 24.6 s before). Root-caused and dropped in
-0152 (build 117 section below).
+0152 (build 118 section below).
 
 Strict check: fresh 5a07217f worktree `/var/tmp/panvk/mesa-116-final`, `prepare-rc5-tree.sh --wip-max 0151`:
 `BASE-OK applied=228 csf-v11<=233 head=e9d394f0713`, `OK base=228 jm-v7-wip=146 head=f7e78953ac5`, tree equal to
@@ -819,7 +819,9 @@ s3/s5/s6/s7/s8 all ok, no deviceLost. Gains vs the previous series (through 0148
 2.96 ms to 2.39 ms, `xfb` 322 to 223 ms, sum 122.2 s to 119.4 s. Full tables: `docs/PERF-PROGRESS.md`.
 v6/v7/v10/v14 untested with 116.
 
-## Build 117 (perf) (2026-10-29, in progress): 0152-
+## Build 118 (perf) (2026-10-29): 0152-0153, not yet default (v9 run pending)
+
+"117" is the Firebase build of jm-v7-wip through 0148 (`git-1a0a81aa00`); this perf build is 118.
 
 | jm-v7-wip | what |
 |---|---|
@@ -834,3 +836,21 @@ The lowered VS now reads one u32 per attribute slot after the gpu_prerast params
 written by `v9_prerast_vs()`), passes instance / divisor as the vertex ID, and the prerast driver set uses vertex
 frequency for every attribute. IDVS draws and CSF are unchanged. TB336FU dev build: PanProbe 40/40, `large_draw`
 10.2 s to 7.2 s.
+
+0153: one invocation per 4x4 block in the compute decoders (`vk/bc/panvk_bc_{s3tc,rgtc,bc6,bc7}.comp`, compute
+SPIR-V headers regenerated, fragment and `PANVK_BC_BLOCK` variants unchanged; BC7 compute built with
+`-DPANVK_BC_FAST`). TB336FU dev build (tree equal to the final): `bc_decode` PASS, `bc_perf` upload GPU ms BC1
+38.4 to 13.9, BC3 56.5 to 15.6, BC4 41.7 to 15.5, BC5 48.8 to 15.8, BC6H 99/117 to 37/39, BC7 77.5 to 15.2.
+
+Strict check: fresh 5a07217f worktree `/var/tmp/panvk/mesa-117perf-final`, `prepare-rc5-tree.sh --wip-max 0153`:
+`BASE-OK applied=228 csf-v11<=233 head=2738924bfc7`, `OK base=228 jm-v7-wip=148 head=a0412457abc`, tree equal to
+the dev worktree `/var/tmp/panvk/mesa-116-dev` (branch p117-dev). Driver
+`/var/tmp/panvk/build-out/2026-10-29-118/libvulkan_panfrost.so`, sha256
+`7a09e925138833727f95cb0e826b38faff63275c815d42cf9ab71db331df383c`, 29455736 bytes, BuildID
+`d3bfed43a62ab7327426a5e22c059e0fc90eef1d`, driverInfo `Mesa 26.3.0-devel (git-a0412457ab)`. APKs:
+`build-out/apks/panprobe-118.apk` `0980c534705aebea...`, `panplay-118.apk` `a59f01810c5cfa8a...`.
+
+Tests: X6 Pro (G615 v11) PanProbe 40/40 twice with the final build, no DEVICE_LOST, within noise of 116 (sum
+119.2 s vs 119.4 s; 0152 is v9-only, 0153 changes only compute BC decode, which v11 uses for 3D images).
+**Pending:** full PanProbe on TB336FU (v9) with the final build (device disconnected during the run); until it
+passes, 118 is not the default bundled driver (pins stay on 116). v6/v7/v10/v14 untested.

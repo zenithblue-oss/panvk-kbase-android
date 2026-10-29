@@ -8,6 +8,9 @@ Drivers:
   115e/115g runs).
 - **116**: build 116 (perf), jm-v7-wip through 0151 on top of 0148, `Mesa 26.3.0-devel (git-f7e78953ac)`,
   .so sha256 `d5817e51...`. Default bundled driver since 2026-10-29.
+- **118**: build 118 (perf), jm-v7-wip through 0153 (0152 v9 merged-VS attribute fix, 0153 BC compute decode per
+  block), `Mesa 26.3.0-devel (git-a0412457ab)`, .so sha256 `7a09e925...`. Not default yet: the TB336FU (v9) run is
+  pending. ("117" is the Firebase build through 0148.)
 
 Devices: TB336FU = Lenovo, Mali-G57 (v9 JM). X6 Pro = POCO X6 Pro, Mali-G615 (v11 CSF). The v6, v7, v10 and v14
 columns are empty until 116 runs there (Firebase / RTL).
@@ -105,3 +108,44 @@ s6 and s7 fail on rc4. Latest s7: 11_0 from 115g run 1, 11_1 from run 2 (run 1 1
 The PanPlay scenes are fragment-bound and use no GS/tess at these sizes, so 116 is within noise of latest
 (s8 FL 11_1: an earlier 116 candidate build measured 213.2; one run each). The 116 gains are in the emulated
 geometry paths measured by PanProbe.
+
+## Build 118 (2026-10-29)
+
+X6 Pro: final build, two full runs, 40/40 both; numbers are run 2 (warm). TB336FU: **pending** for the final
+build (device disconnected); the v9 numbers below are from the dev build with the same tree (0152 full run cold
+cache; 0153 `bc_perf`, warm) and are marked "dev". Raw: `/var/tmp/panvk/perf117/{p117-x6-*,full-0152-tb-1,bcp-tb-*}`.
+
+### PanProbe, X6 Pro v11 (ms per test unless noted)
+
+| Test | rc4 | 116 | 118 |
+|---|---|---|---|
+| tess_perf gs=0 L=16 (us/draw) | 2787.4 | 1186.6 | 1157.4 (-58 %) |
+| tess_perf gs=1 L=16 (us/draw) | 4681.8 | 2387 | 2348.6 (-50 %) |
+| tessellation | 3183 | 2196 | 2195 (-31 %) |
+| geometry | 2216 | 1602 | 1564 (-29 %) |
+| xfb | 463 | 223 | 216 (-53 %) |
+| large_draw | 9842 | 9392 | 9286 (-6 %) |
+| bc_decode | 601 | 180 | 165 (-73 %) |
+| draw_params | 181 | 117 | 112 (-38 %) |
+| **all 40 tests, sum** | 144996 (40/40) | 119413 (40/40) | 119229 (40/40, -18 %) |
+
+v11 is within noise of 116, as expected: 0152 is v9-only and v11 uses the fragment BC decode for 2D images
+(`bc_perf` upload on v11 unchanged, e.g. BC7 5.5 ms in both).
+
+### TB336FU v9 (dev build, final run pending)
+
+| Measure | rc4 | latest | 116 | 118 dev |
+|---|---|---|---|---|
+| large_draw (ms) | FAIL 28387 | 24607 | 10178 | 7198 (-71 % vs latest, cold cache) |
+| draw_params (ms) | 4141 | 126 | 123 | 144 (PASS with merging) |
+| bc_perf BC1_RGB_UNORM upload (ms) | 38.7 | 38.8 | 38.7 | 13.9 (-64 %) |
+| bc_perf BC3_UNORM | 56.5 | 56.8 | 56.7 | 15.6 (-72 %) |
+| bc_perf BC4_UNORM | 41.6 | 42.1 | 42.1 | 15.5 (-63 %) |
+| bc_perf BC5_UNORM | 48.9 | 49.0 | 48.7 | 15.8 (-68 %) |
+| bc_perf BC6H_UFLOAT | 98.6 | 98.1 | 99.0 | 37.2 (-62 %) |
+| bc_perf BC6H_SFLOAT | 116.1 | 116.8 | 117.1 | 38.5 (-67 %) |
+| bc_perf BC7_UNORM | 77.5 | 77.5 | 77.8 | 15.2 (-80 %) |
+| bc_perf REF_RGBA8 | 6.2 | 6.3 | 6.3 | 6.4 |
+| PanProbe full, final build | | | 40/40 | **pending** |
+
+BC is now 2.2-2.5x an RGBA8 upload on v9 (was 6-18x); BC6H stays about 6x (RGBA16F output, 10.8 ms reference).
