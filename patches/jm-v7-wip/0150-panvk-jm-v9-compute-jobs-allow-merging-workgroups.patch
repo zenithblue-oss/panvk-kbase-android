@@ -1,0 +1,117 @@
+From f9c0df794786e666c6c553ed8dfaf4e86b58713f Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 29 Oct 2026 09:12:08 +0530
+Subject: [PATCH 150/151] panvk/jm: v9 compute jobs allow merging workgroups
+
+The v9 (Valhall JM) COMPUTE_JOB payload has the same "Allow merging
+workgroups" bit as the CSF COMPUTE_SIZE_WORKGROUP register, but the JM
+paths never set it: vkCmdDispatch, the libpan kernels (tessellator,
+gpu_prerast helpers, BC decode) and the gpu_prerast jobs all ran one
+workgroup per warp even when the shader allows merging. Shaders and
+kernels already carry info.cs.allow_merging_workgroups (computed with the
+merged divergence options for user compute shaders, by panfrost_compile
+for libpan) and CSF uses it; set it on v9 JM too.
+
+PANVK_V9_JM_MERGE_WG=0 keeps the bit clear.
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_dispatch.c | 3 +++
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c     | 3 +++
+ src/panfrost/vulkan/jm/panvk_vX_cmd_precomp.c  | 4 ++++
+ src/panfrost/vulkan/panvk_instance.c           | 1 +
+ src/panfrost/vulkan/panvk_perf_knobs.h         | 4 ++++
+ 5 files changed, 15 insertions(+)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_dispatch.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_dispatch.c
+index 85965f01cec..d60f4f26773 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_dispatch.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_dispatch.c
+@@ -22,6 +22,7 @@
+ #include "panvk_macros.h"
+ #include "panvk_meta.h"
+ #include "panvk_physical_device.h"
++#include "panvk_perf_knobs.h"
+ 
+ #include "pan_desc.h"
+ #include "pan_encoder.h"
+@@ -276,6 +277,8 @@ cmd_dispatch(struct panvk_cmd_buffer *cmdbuf, struct panvk_dispatch_info *info)
+       cfg.workgroup_count_x = wg_count.x;
+       cfg.workgroup_count_y = wg_count.y;
+       cfg.workgroup_count_z = wg_count.z;
++      cfg.allow_merging_workgroups =
++         PANVK_PERF(V9_JM_MERGE_WG) && cs->info.cs.allow_merging_workgroups;
+       /* Same as panfrost (Valhall JM). */
+       cfg.task_increment = 1;
+       cfg.task_axis = MALI_TASK_AXIS_Z;
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index b398e4745c4..eb2a53da31b 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -31,6 +31,7 @@
+ #include "panvk_priv_bo.h"
+ #include "panvk_shader.h"
+ #include "panvk_v7_knobs.h"
++#include "panvk_perf_knobs.h"
+ 
+ #include "draw_helper.h"
+ #include "libpan/draw_helper_vp.h"
+@@ -5130,6 +5131,8 @@ v9_prerast_job(struct panvk_cmd_buffer *cmdbuf,
+       cfg.workgroup_count_x = x;
+       cfg.workgroup_count_y = y;
+       cfg.workgroup_count_z = z;
++      cfg.allow_merging_workgroups =
++         PANVK_PERF(V9_JM_MERGE_WG) && cs->info.cs.allow_merging_workgroups;
+       cfg.task_increment = 1;
+       cfg.task_axis = MALI_TASK_AXIS_Z;
+       cfg.compute.resources = res_table;
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_precomp.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_precomp.c
+index 694b2746ae8..502b6f3f511 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_precomp.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_precomp.c
+@@ -12,6 +12,7 @@
+ #include "panvk_macros.h"
+ #include "panvk_mempool.h"
+ #include "panvk_precomp_cache.h"
++#include "panvk_perf_knobs.h"
+ 
+ void
+ panvk_per_arch(dispatch_precomp)(struct panvk_precomp_ctx *ctx,
+@@ -83,6 +84,9 @@ panvk_per_arch(dispatch_precomp)(struct panvk_precomp_ctx *ctx,
+       cfg.workgroup_count_x = grid.count[0];
+       cfg.workgroup_count_y = grid.count[1];
+       cfg.workgroup_count_z = grid.count[2];
++      cfg.allow_merging_workgroups =
++         PANVK_PERF(V9_JM_MERGE_WG) &&
++         shader->info.cs.allow_merging_workgroups;
+       /* Same as panfrost (Valhall JM). */
+       cfg.task_increment = 1;
+       cfg.task_axis = MALI_TASK_AXIS_Z;
+diff --git a/src/panfrost/vulkan/panvk_instance.c b/src/panfrost/vulkan/panvk_instance.c
+index 13cc6d02cc9..7090f4fc0c9 100644
+--- a/src/panfrost/vulkan/panvk_instance.c
++++ b/src/panfrost/vulkan/panvk_instance.c
+@@ -97,6 +97,7 @@ static const struct {
+    {"PANVK_ANDROID_PRESENT_THREAD", PANVK_PERF_ANDROID_PRESENT_THREAD},
+    {"PANVK_PRELOAD_BARRIER_TRACK", PANVK_PERF_PRELOAD_BARRIER_TRACK},
+    {"PANVK_LOGICOP_FPK", PANVK_PERF_LOGICOP_FPK},
++   {"PANVK_V9_JM_MERGE_WG", PANVK_PERF_V9_JM_MERGE_WG},
+ };
+ 
+ void
+diff --git a/src/panfrost/vulkan/panvk_perf_knobs.h b/src/panfrost/vulkan/panvk_perf_knobs.h
+index 49b3048c6a5..dfe70239e87 100644
+--- a/src/panfrost/vulkan/panvk_perf_knobs.h
++++ b/src/panfrost/vulkan/panvk_perf_knobs.h
+@@ -65,6 +65,10 @@ enum panvk_perf_knob {
+    /* Build 116. PANVK_LOGICOP_FPK: logic ops that ignore the destination
+     * (CLEAR, COPY, COPY_INVERTED, SET) keep forward pixel kill. */
+    PANVK_PERF_LOGICOP_FPK = 1 << 13,
++   /* PANVK_V9_JM_MERGE_WG: v9 JM compute jobs (vkCmdDispatch, libpan
++    * kernels, gpu_prerast) set "Allow merging workgroups" from the shader,
++    * as CSF does. */
++   PANVK_PERF_V9_JM_MERGE_WG = 1 << 14,
+ };
+ 
+ extern uint32_t panvk_perf_knobs;
+-- 
+2.56.0
+
