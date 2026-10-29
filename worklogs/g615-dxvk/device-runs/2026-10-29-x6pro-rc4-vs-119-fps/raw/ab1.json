@@ -1,0 +1,16 @@
+{
+  "#": "2026-10-29 rc4 vs 119 fps A/B on the X6 Pro, one APK (panplay-119), drivers installed per env set; no PANVK_MEM_LOG / PANVK_GPU_STATS.",
+  "warmupSec": 10,
+  "measureSec": 30,
+  "screenshotAtSec": 20,
+  "installDrivers": {"ab-rc4": "ab/rc4.so", "ab-115c": "ab/115c.so", "ab-116": "ab/116.so", "ab-119": "ab/119.so"},
+  "envSets": {
+    "rc4": {"note": "rc4 release", "env": {}, "driver": "ab-rc4"},
+    "b115c": {"note": "build 115c", "env": {}, "driver": "ab-115c"},
+    "b116": {"note": "build 116", "env": {}, "driver": "ab-116"},
+    "b119": {"note": "build 119", "env": {}, "driver": "ab-119"}
+  },
+  "scenarios": {
+    "10": {"name": "fps-ab", "tasks": ["d3d11fl_10_0", "d3d11fl_11_1"], "envSets": ["rc4", "b115c", "b116", "b119"]}
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "#": "2026-10-29 fps A/B 2 (X6 Pro): Android present path knobs on 119 vs rc4; no PANVK_MEM_LOG / PANVK_GPU_STATS.",
+  "warmupSec": 10,
+  "measureSec": 30,
+  "screenshotAtSec": 20,
+  "installDrivers": {"ab-rc4": "ab/rc4.so", "ab-119": "ab/119.so"},
+  "envSets": {
+    "rc4": {"note": "rc4 release", "env": {}, "driver": "ab-rc4"},
+    "b119": {"note": "119 default", "env": {}, "driver": "ab-119"},
+    "b119_nothr": {"note": "119, synchronous present (0118 off), K1 fence wait kept", "env": {"PANVK_ANDROID_PRESENT_THREAD": "0"}, "driver": "ab-119"},
+    "b119_nothr_nofence": {"note": "119, synchronous present, no fence wait (rc4-like)", "env": {"PANVK_ANDROID_PRESENT_THREAD": "0", "PANVK_ANDROID_PRESENT_FENCE": "0"}, "driver": "ab-119"}
+  },
+  "scenarios": {
+    "10": {"name": "fps-ab2", "tasks": ["d3d11fl_10_0", "d3d11"], "envSets": ["rc4", "b119", "b119_nothr", "b119_nothr_nofence"]}
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "#": "2026-10-29 fps A/B 4 (X6 Pro): 119 PANVK_WSI_SW_CACHED default vs 0 on the cube and D3D12 SquidRoom, bracketed.",
+  "warmupSec": 10,
+  "measureSec": 30,
+  "screenshotAtSec": 20,
+  "installDrivers": {"ab-119": "ab/119.so"},
+  "envSets": {
+    "b119": {"note": "119 default (SW_CACHED=1)", "env": {}, "driver": "ab-119"},
+    "b119_nocached": {"note": "119, PANVK_WSI_SW_CACHED=0", "env": {"PANVK_WSI_SW_CACHED": "0"}, "driver": "ab-119"},
+    "b119b": {"note": "119 default again", "env": {}, "driver": "ab-119"}
+  },
+  "scenarios": {
+    "10": {"name": "fps-ab4", "tasks": ["d3d11", "d3d12", "d3d11fl_11_1"], "envSets": ["b119", "b119_nocached", "b119b"]}
+  }
+}

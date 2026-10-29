@@ -1,0 +1,17 @@
+{
+  "#": "2026-10-29 fps A/B 3 (X6 Pro): 119 X11 sw present stage timing + CSF wait stats, X11 sw knobs; rc4 bracket.",
+  "warmupSec": 10,
+  "measureSec": 30,
+  "screenshotAtSec": 20,
+  "installDrivers": {"ab-rc4": "ab/rc4.so", "ab-119": "ab/119.so"},
+  "envSets": {
+    "rc4": {"note": "rc4 release", "env": {}, "driver": "ab-rc4"},
+    "b119_diag": {"note": "119 + MESA_VK_X11_SW_TIMING + PANVK_KBASE_WAIT_STATS + MESA_VK_WSI_CREATE_LOG", "env": {"MESA_VK_X11_SW_TIMING": "1", "PANVK_KBASE_WAIT_STATS": "1", "MESA_VK_WSI_CREATE_LOG": "1"}, "driver": "ab-119"},
+    "b119_nodefer": {"note": "119, PANVK_WSI_SW_DEFER_REPLY=0", "env": {"PANVK_WSI_SW_DEFER_REPLY": "0"}, "driver": "ab-119"},
+    "b119_nocached": {"note": "119, PANVK_WSI_SW_CACHED=0", "env": {"PANVK_WSI_SW_CACHED": "0"}, "driver": "ab-119"},
+    "rc4b": {"note": "rc4 release again (thermal bracket)", "env": {}, "driver": "ab-rc4"}
+  },
+  "scenarios": {
+    "10": {"name": "fps-ab3", "tasks": ["d3d11fl_10_0"], "envSets": ["rc4", "b119_diag", "b119_nodefer", "b119_nocached", "rc4b"]}
+  }
+}

@@ -1,0 +1,18 @@
+PanPlay game loop, scenario 10 (fps-ab2), run 20261029-145750-s10
+Device: Xiaomi 2311DRK48I (duchamp), SDK 36, SoC MT6897Z_A/ZA
+Driver: Mesa 26.3.0-devel (git-0146a719f6, p0159, 2026-10-29), sha256 186278b8a269362b
+App: dev.zenithblue.panvklauncher 1.3.0 (44)
+Window: 10 s warm-up, 30 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d11fl_10_0 rc4       ok           -       -       -       -    795.1    144.2    1.1    2.4    4.6     52.0  D3DFL: PASS api=d3d11 level=10_0 created gs:PASS,stream_out:PASS frames=37532 secs=48.0 fps=781.9 startup=0.8
+02  d3d11fl_10_0 b119      ok       331.1   213.6   510.0    39.1    334.8     49.8    2.2    8.0   15.0     59.4  D3DFL: PASS api=d3d11 level=10_0 created gs:PASS,stream_out:PASS frames=17268 secs=48.0 fps=359.7 startup=0.9
+03  d3d11fl_10_0 b119_nothr ok       273.4   194.7   445.6    60.6    272.2     42.4    2.6    9.6   18.6     59.7  D3DFL: PASS api=d3d11 level=10_0 created gs:PASS,stream_out:PASS frames=13085 secs=48.0 fps=272.6 startup=0.8
+04  d3d11fl_10_0 b119_nothr_nofence ok       291.4   212.9   628.2    46.6    289.9     45.0    2.4    9.0   17.3     59.6  D3DFL: PASS api=d3d11 level=10_0 created gs:PASS,stream_out:PASS frames=13545 secs=48.0 fps=282.1 startup=0.8
+05  d3d11    rc4       ok           -       -       -       -    296.0     86.9    3.1    5.6    8.2     56.4  CUBE: PASS api=d3d11 frames=14131 (check pixels)
+06  d3d11    b119      ok       291.9   185.7   382.3    49.3    289.4     50.0    2.9    7.0   13.3     51.3  CUBE: PASS api=d3d11 frames=13327 (check pixels)
+07  d3d11    b119_nothr ok       213.6   159.6   360.9    60.1    212.7     37.9    3.5   11.2   21.3     54.4  CUBE: PASS api=d3d11 frames=10823 (check pixels)
+08  d3d11    b119_nothr_nofence ok       204.8   157.0   331.9    47.0    203.8     37.2    3.6   11.6   23.4     53.8  CUBE: PASS api=d3d11 frames=10688 (check pixels)
+
+A/B d3d11fl_10_0: rc4 795.1 fps, b119 331.1 fps (-58.4%), b119_nothr 273.4 fps (-65.6%), b119_nothr_nofence 291.4 fps (-63.3%) (change vs rc4)
+A/B d3d11: rc4 296.0 fps, b119 291.9 fps (-1.4%), b119_nothr 213.6 fps (-27.9%), b119_nothr_nofence 204.8 fps (-30.8%) (change vs rc4)
