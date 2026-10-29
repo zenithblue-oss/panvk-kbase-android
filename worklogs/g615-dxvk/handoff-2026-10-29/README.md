@@ -134,6 +134,17 @@ Full tables are in `docs/PERF-PROGRESS.md` under "Build 120", "Build 121b" and "
 6. **0162 limit:** whether the batch pipeline is prewarmed is decided by the first image of each ETC2 mode. If a later image could use it, it compiles at first use instead.
 7. **Older kbase kernels:** kernels with only the old 32-byte group-create layout get the single group but no OOM flag, so OOM still terminates the group there.
 
+## PanPlay fixes after this handoff was first written
+
+- **Add game, "Browse for .exe" from the DocumentsUI Downloads root returned an empty Executable field.**
+  - Cause: Downloads root URIs have docId `msf:<id>`, which `ContainerManager.resolveUriToPath` did not handle.
+  - Fix in commit 8dcc3e28: the path is read from MediaStore `_data`.
+  - Verified on the X6 Pro from both the Downloads root and the internal-storage root: `device-runs/2026-10-29-x6pro-exe-picker-fix/`.
+  - Test APK: `/var/tmp/panvk/build-out/apks/panplay-121b-pickfix.apk` (driver 121b), installed on the X6 Pro.
+  - Add this fix to `WhatsNew.kt` at release.
+- **PanPlay shows the wrong driver label.** The APK's `bundled-driver.json` is copied as-is from the pin, so PanPlay builds with a non-default .so (121b) still show `p0160`. The driver inside the APK is correct. Fix: derive the label from the .so in the Gradle build, as PanProbe does, or pin the final build.
+- **X6 Pro logcat is broken:** `logcat: Logcat read failure`, so logd is down. A reboot of the device should fix it.
+
 ## Perf plan items left (`docs/PERF-OPTIMIZATION-PLAN.md`)
 
 - **Done:**
