@@ -1,0 +1,38 @@
+{
+ "#": "TB336FU: 122d default vs PANVK_WSI_SW_CACHED=1, twice.",
+ "warmupSec": 10,
+ "measureSec": 30,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-122d": "bisect/122d.so"
+ },
+ "envSets": {
+  "d0": {
+   "note": "122d default",
+   "driver": "bisect-122d",
+   "env": {}
+  },
+  "d1": {
+   "note": "122d cached",
+   "driver": "bisect-122d",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  }
+ },
+ "scenarios": {
+  "6": {
+   "name": "v9 wsi ab",
+   "tasks": [
+    "d3d12gears",
+    "d3d11fl_11_0"
+   ],
+   "envSets": [
+    "d0",
+    "d1",
+    "d0",
+    "d1"
+   ]
+  }
+ }
+}

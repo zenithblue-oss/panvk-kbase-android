@@ -1,0 +1,77 @@
+{
+ "#": "v9 TB336FU .so bisect (no env): scenario 6 = D3D12 gears + D3D11 FL 11_0, once per build.",
+ "warmupSec": 10,
+ "measureSec": 30,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-116": "bisect/116.so",
+  "bisect-117": "bisect/117.so",
+  "bisect-118": "bisect/118.so",
+  "bisect-119": "bisect/119.so",
+  "bisect-120": "bisect/120.so",
+  "bisect-121b": "bisect/121b.so",
+  "bisect-122c": "bisect/122c.so",
+  "bisect-122d": "bisect/122d.so"
+ },
+ "envSets": {
+  "b116": {
+   "note": "build 116",
+   "driver": "bisect-116",
+   "env": {}
+  },
+  "b117": {
+   "note": "build 117",
+   "driver": "bisect-117",
+   "env": {}
+  },
+  "b118": {
+   "note": "build 118",
+   "driver": "bisect-118",
+   "env": {}
+  },
+  "b119": {
+   "note": "build 119",
+   "driver": "bisect-119",
+   "env": {}
+  },
+  "b120": {
+   "note": "build 120",
+   "driver": "bisect-120",
+   "env": {}
+  },
+  "b121b": {
+   "note": "build 121b",
+   "driver": "bisect-121b",
+   "env": {}
+  },
+  "b122c": {
+   "note": "build 122c",
+   "driver": "bisect-122c",
+   "env": {}
+  },
+  "b122d": {
+   "note": "build 122d",
+   "driver": "bisect-122d",
+   "env": {}
+  }
+ },
+ "scenarios": {
+  "6": {
+   "name": "v9 bisect",
+   "tasks": [
+    "d3d12gears",
+    "d3d11fl_11_0"
+   ],
+   "envSets": [
+    "b116",
+    "b117",
+    "b118",
+    "b119",
+    "b120",
+    "b121b",
+    "b122c",
+    "b122d"
+   ]
+  }
+ }
+}
