@@ -1,0 +1,47 @@
+MESA: info: kbase: JM driver, uAPI version 11.16, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+MESA: info: kbase: v6 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 (base_jd_atom_v2 without renderpass_id)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: cntfrq_el0 is 0 and the 5 ms measurement failed (TIMEINFO failed, 0 / 0 Hz), retrying with 20 ms
+MESA: warning: kbase: timestamp calibration: cntfrq_el0 is 0 and the GPU counter rate is unknown (TIMEINFO failed: Not a typewriter, 0 / 0 Hz): timestamps not advertised
+MESA: info: kbase: no usable ION system heap
+MESA: info: panvk: gpu_id 0x62210010 variant 0 arch v6 model Mali-G72 texture_features 0xffffffff 0xff0fff 0xfe3fffff 0
+MESA: warning: panvk: v6 (Bifrost) support is experimental
+MESA: info: panvk: BC emulation off (native compressed mask 0xffffffff)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+PHYS 0 Mali-G72 MC18 vendor=0x13b5 device=0x62210010
+FEATURE samplerAnisotropy=1
+FEATURE samplerMirrorClampToEdge=1
+FEATURE customBorderColors=1
+FEATURE customBorderColorWithoutFormat=1
+FEATURE imageCubeArray=1
+FEATURE nonSeamlessCubeMap=1
+FEATURE shaderImageGatherExtended=1
+MESA: info: kbase: JM driver, uAPI version 11.16, page_size=4096
+MESA: info: kbase: stock JM atom layout (stride 72 refused), stride 56
+MESA: info: kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+MESA: info: kbase: v6 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+MESA: info: kbase: Bifrost JM atom strides 56 and 64 refused, stride 48 (base_jd_atom_v2 without renderpass_id)
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: cntfrq_el0 is 0 and the 5 ms measurement failed (TIMEINFO failed, 0 / 0 Hz), retrying with 20 ms
+MESA: warning: kbase: timestamp calibration: cntfrq_el0 is 0 and the GPU counter rate is unknown (TIMEINFO failed: Not a typewriter, 0 / 0 Hz): timestamps not advertised
+MESA: info: kbase: no usable ION system heap
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: mem_alloc via ALLOC
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+MESA: info: kbase: v6 growable BO, GROW_ON_GPF, 256 of 70313 pages committed
+PASS case anisotropy lod_iso=3.00 lod_aniso2=2.00 lod_aniso16=0.00
+PASS case mirror_clamp_to_edge all 9 samples match
+PASS case border_opaque_white border and inside correct
+PASS case border_custom custom border match
+PASS case border_custom_no_format format=UNDEFINED match
+PASS case cube_array all 12 cube layer faces match
+PASS case cube_seamless r0=10 r1=40 (seamless blend)
+PASS case cube_non_seamless r0=10 r1=10
+PASS case gather all 4 gather results exact
+PASS case gather_offsets all components exact
+RESULT PASS
