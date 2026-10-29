@@ -1,0 +1,84 @@
+From f87c5894b9d6bc635eff14b47b061e42a1db591c Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 29 Oct 2026 08:56:07 +0530
+Subject: [PATCH] panvk/csf: flush the LS and other caches at each gpu_prerast
+ chunk on v14
+
+Every gpu_prerast chunk (tessellation, draw chunk loop) rewrites the arena
+addresses that the previous chunk's kernels and draw read. On the
+Mali-G1-Ultra (v14) chunks from the second on drew with stale data of the
+previous chunk: PanProbe tessellation grid_indexed_inst2_*_first1 and
+grid_inst3_indirect_first1 lost a varying run of patches of the second
+chunk (mismatch 64-390, different on every run).
+
+When the compute side takes the arenas back for a new chunk, clean and
+invalidate the LS caches and invalidate the other caches.
+PANVK_PRERAST_CHUNK_FLUSH=0/1 overrides the default (on for v14+).
+---
+ src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c | 18 ++++++++++++++++++
+ src/panfrost/vulkan/panvk_device.h          |  6 ++++++
+ src/panfrost/vulkan/panvk_vX_device.c       |  2 ++
+ 3 files changed, 26 insertions(+)
+
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+index 255f840ea9f..409d37a44fd 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+@@ -4784,6 +4784,24 @@ gpu_prerast_sync32_take(struct panvk_cmd_buffer *cmdbuf,
+    cs_sync32_wait(b, false, MALI_CS_CONDITION_GREATER, value, addr);
+    cs_move32_to(b, value, -1);
+    cs_sync32_add(b, true, panvk_cs_signal_scope(cmdbuf), value, addr, cs_now());
++
++   /* jm-v7: every chunk rewrites the arena addresses (VS records, TCS
++    * outputs, domain points, indices) that the previous chunk's kernels and
++    * draw read. On v14 the second chunk on drew with stale lines of the
++    * previous one (missing tessellation patches). The compute side owns the
++    * arenas again here: flush once before this chunk's kernels.
++    */
++   if (subqueue == PANVK_SUBQUEUE_COMPUTE &&
++       to_panvk_device(cmdbuf->vk.base.device)->tess_opt.chunk_flush) {
++      struct cs_index flush_id = cs_scratch_reg32(b, 2);
++
++      cs_move32_to(b, flush_id, 0);
++      cs_flush_caches(b, MALI_CS_FLUSH_MODE_NONE,
++                      MALI_CS_FLUSH_MODE_CLEAN_AND_INVALIDATE,
++                      MALI_CS_OTHER_FLUSH_MODE_INVALIDATE, flush_id,
++                      cs_defer(SB_IMM_MASK, SB_ID(IMM_FLUSH)));
++      cs_wait_slot(b, SB_ID(IMM_FLUSH));
++   }
+ }
+ 
+ static void
+diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
+index 46c56dc6c08..fdf13c2d860 100644
+--- a/src/panfrost/vulkan/panvk_device.h
++++ b/src/panfrost/vulkan/panvk_device.h
+@@ -219,6 +219,12 @@ struct panvk_device {
+       uint8_t arenas;
+       /* PANVK_TESS_WINDING_INLINE (default 1): POLY_TESS_CCW_INLINE. */
+       bool winding_inline;
++      /* PANVK_PRERAST_CHUNK_FLUSH (default 1 on v14+, 0 before): each
++       * gpu_prerast chunk iteration (tessellation and the draw chunk loop)
++       * cleans and invalidates the LS caches and invalidates the other
++       * caches once the previous chunk is drawn, so no core reads that
++       * chunk's lines at the reused arena addresses. */
++      bool chunk_flush;
+       /* PANVK_TESS_VS_REGION_MB (default 8 on v10+, 32 = the v9 layout):
+        * end of the VS records in the tessellation arenas, where their data
+        * region starts. */
+diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
+index d32a3df1975..69a9a289bfb 100644
+--- a/src/panfrost/vulkan/panvk_vX_device.c
++++ b/src/panfrost/vulkan/panvk_vX_device.c
+@@ -936,6 +936,8 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
+       debug_get_num_option("PANVK_TESS_ARENAS", 2) >= 2 ? 2 : 1;
+    device->tess_opt.winding_inline =
+       debug_get_num_option("PANVK_TESS_WINDING_INLINE", 1) != 0;
++   device->tess_opt.chunk_flush =
++      debug_get_num_option("PANVK_PRERAST_CHUNK_FLUSH", PAN_ARCH >= 14) != 0;
+    /* A tessellation chunk needs max_patches x patch size VS records, about
+     * 0.25 MiB for 4 control points x 128 B and 8 MiB only for 32 control
+     * points x 512 B records (then fewer patches per chunk). v9 JM computes
+-- 
+2.56.0
+

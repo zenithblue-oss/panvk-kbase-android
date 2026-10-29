@@ -719,3 +719,36 @@ Tested build (strict tree with that 0147 on top, recycling on by default; `prepa
 fresh 5a07217f worktree `/var/tmp/panvk/mesa-oom-final`, `OK base=228 jm-v7-wip=142 head=2732f11e42d`): .so sha256
 `2ebe4e602032be77...`, BuildID `5e205faa85f81c3f...`, driverInfo `git-2732f11e42`. X6 Pro 40/40, TB336FU 40/40,
 v14 RTL 39/40 (`tessellation` mismatch=460, no DEVICE_LOST, same failure as the v14fix run). Not a release build.
+
+## v14 tessellation stale chunk data (2026-10-29): 0147 (not the parked tiler-heap 0147 above), v14 UNTESTED
+
+| jm-v7-wip | what |
+|---|---|
+| 0147 | `gpu_prerast_sync32_take()` on the compute subqueue (start of every iteration of the tessellation loop and of the draw chunk loop, after the previous chunk was drawn): `FLUSH_CACHE2` LSC clean+invalidate, other caches invalidate, wait. Default on for v14+, off before; `PANVK_PRERAST_CHUNK_FLUSH=0/1` overrides |
+
+Failure (v14fix run, `worklogs/g615-dxvk/device-runs/2026-10-29-rtl-v14-sm-x846b-v14fix-panprobe/`): only
+`grid_indexed_inst2_direct_first1`/`_indirect_first1` (mismatch 160 each). Knob runs on RTL SM-X846B with the then-installed
+`git-2732f11e42` PanProbe (`/var/tmp/panvk/v14tess-knobs/`, tessellation only): defaults total mismatch 390 with
+`grid_inst3_indirect_first1` 64 (first=(48,5)), `grid_indexed_*` 160/166 (first=(24,16) and (35,16)); `PANVK_TESS_FUSE=0`
+total 3424. The other agent's 0147 run: 460. So the count changes run to run (direct 813 px vs indirect 811 px in one run).
+- Not 0143: every failing case is equal-spacing quads L16 (`tcs_idx 7`); quad/tri/frac odd+even/isolines/point all PASS.
+- Not 0145: TLS/WLS sizes are unchanged for these cases and the failure is not a fault.
+- Pattern: the missing patches are always in the SECOND chunk of a draw (max_patches 507: `grid_indexed` 768 patches per
+  instance = chunks [0,507) and [507,768); `grid_inst3` 2 instances in chunk 1, instance 2 in chunk 2), a run of
+  patches some way into it (local 5 or 16 in `grid_indexed`, 80 in `grid_inst3`), missing rather than misplaced. Single-chunk
+  draws (all other cases) and the tess_perf hashes (all chunks identical data) pass. Every chunk rewrites the same arena
+  addresses (VS records, TCS outputs, domain points, coord_allocs, indices) that the previous chunk's kernels and its
+  draw read, with no cache maintenance between chunks (the CSF barrier model treats LS as coherent). A stale previous-chunk
+  line draws an already-drawn patch again (same position and primitive ID, invisible) instead of the new one.
+- Root cause is therefore stale cached chunk data on v14 (inferred, not proven: no device time for the A/B).
+
+Strict check: fresh 5a07217f worktree `/var/tmp/panvk/mesa-v14tess-final`, `prepare-rc5-tree.sh --wip-max 0147`:
+`BASE-OK applied=228`, `OK base=228 jm-v7-wip=142 head=f2cc53b08e5`, tree `55cb1525` = dev worktree
+`/var/tmp/panvk/mesa-v14tess-dev` (`f87c5894b9d`). Driver `/var/tmp/panvk/build-out/2026-10-29-v14tess/libvulkan_panfrost.so`
+(`/var/tmp/panvk/v14tess-build.sh`, 4 jobs), sha256 `25b044d75e5b5b50...`, BuildID `7e1efa8af10cff9a...`, driverInfo
+`git-f87c5894b9`. APK `/var/tmp/panvk/build-out/apks/panprobe-v14tess.apk` (`build-v14tess.sh`, rc5 slot).
+
+Tests: X6 Pro (G615 v11) full PanProbe with `PANVK_PRERAST_CHUNK_FLUSH=1` (flush path forced on) 40/40; TB336FU (G57 v9,
+JM, flush code not used) 40/40. v14 NOT TESTED (RTL session ended while rtl.lock was held). Next v14 run: PanProbe
+`--es autorun tessellation` with defaults (expect 0 mismatch on repeated runs) and with `PANVK_PRERAST_CHUNK_FLUSH=0`
+(expect the 64-460 mismatch back); `tess_perf` ms vs the v14fix run for the flush cost (one flush per chunk).
