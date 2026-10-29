@@ -36,7 +36,7 @@ val checkPanvkSo = tasks.register("checkPanvkSo") {
     doLast {
         if (panvkSoProp != null) {
             if (!panvkSoFile.exists()) throw GradleException("panvkSo not found: ${panvkSoFile.absolutePath}")
-            if (sha256Of(panvkSoFile) != pinnedSha) logger.warn("WARNING: -PpanvkSo sha256 != bundled-driver.json pin ($pinnedSha): APK label will not match the bundled .so")
+            if (sha256Of(panvkSoFile) != pinnedSha) logger.warn("WARNING: -PpanvkSo sha256 != bundled-driver.json pin ($pinnedSha): the APK label is derived from the .so")
             return@doLast
         }
         if (!(pinnedCache.exists() && sha256Of(pinnedCache) == pinnedSha)) {
@@ -65,6 +65,65 @@ val copyPanvkSo = tasks.register<Copy>("copyPanvkSo") {
 
 tasks.named("preBuild") {
     dependsOn(copyPanvkSo)
+}
+
+// The APK's assets/bundled-driver.json is derived from the bundled .so (driverInfo, git sha, sha256, size), as
+// PanProbe does, so the PanPlay label can never go stale; src/main/assets/bundled-driver.json stays the pin.
+fun indexOfBytes(b: ByteArray, key: ByteArray, from: Int): Int {
+    outer@ for (i in from until b.size - key.size) {
+        if (b[i] != key[0]) continue
+        for (j in key.indices) if (b[i + j] != key[j]) continue@outer
+        return i
+    }
+    return -1
+}
+
+// "Mesa 26.3.0-devel (git-<sha>, p<NNNN>, <date>)", a whole NUL-terminated string in .rodata.
+fun driverInfoOf(b: ByteArray): String? {
+    val re = Regex("""Mesa \d+\.\d+\.\d+[-.0-9A-Za-z]* \(git-[0-9a-f]+(, [^)]*)?\)""")
+    val key = "Mesa ".toByteArray()
+    var i = indexOfBytes(b, key, 1)
+    while (i >= 0) {
+        if (b[i - 1] == 0.toByte()) {
+            var e = i
+            while (e < b.size && b[e] != 0.toByte()) e++
+            val s = String(b, i, e - i, Charsets.UTF_8)
+            if (re.matches(s)) return s
+        }
+        i = indexOfBytes(b, key, i + 1)
+    }
+    return null
+}
+
+val mainAssetsDir = layout.buildDirectory.dir("generated/mainAssets")
+val syncMainAssets = tasks.register<Sync>("syncMainAssets") {
+    dependsOn(checkPanvkSo)
+    outputs.upToDateWhen { false }
+    into(mainAssetsDir)
+    from("src/main/assets") { exclude("bundled-driver.json") }
+    doLast {
+        val bytes = panvkSoFile.readBytes()
+        val info = driverInfoOf(bytes)
+            ?: throw GradleException("no driverInfo string in ${panvkSoFile.absolutePath}")
+        val git = Regex("""\(git-([0-9a-f]+)""").find(info)!!.groupValues[1]
+        val oldGit = bundledDriver["buildId"] as String
+        val sha = sha256Of(panvkSoFile)
+        val m = LinkedHashMap(bundledDriver)
+        m["id"] = "mesa-panvk-${bundledDriver["packageVersion"]}-git-$git"
+        m["displayVersion"] = info.removePrefix("Mesa ")
+        m["driverVersion"] = info
+        m["buildId"] = git
+        m["description"] = (bundledDriver["description"] as String).replace(oldGit, git)
+        m["release"] = LinkedHashMap(bundledRelease).apply { put("sha256", sha); put("size", panvkSoFile.length()) }
+        m["derivedFromSo"] = true
+        m["matchesPin"] = (sha == pinnedSha)
+        File(mainAssetsDir.get().asFile, "bundled-driver.json")
+            .writeText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(m)))
+    }
+}
+
+tasks.named("preBuild") {
+    dependsOn(syncMainAssets)
 }
 
 @Suppress("UNCHECKED_CAST")
@@ -216,6 +275,9 @@ tasks.named("preBuild") {
 
 android {
     sourceSets.getByName("main") {
+        // src/main/assets reaches the APK through syncMainAssets (derived bundled-driver.json).
+        assets.directories.remove("src/main/assets")
+        assets.directories.add(mainAssetsDir.get().asFile.path)
         assets.directories.add(componentAssetsDir.get().asFile.path)
         assets.directories.add(testAssetsDir.get().asFile.path)
     }

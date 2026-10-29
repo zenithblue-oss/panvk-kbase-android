@@ -47,7 +47,8 @@ fun cStringAt(b: ByteArray, i: Int): String {
 // "Mesa 26.3.0-devel (git-6a5d4e2756)": a whole NUL-terminated string (the fps-log header that also contains it
 // starts with "# panvk-fps "). RC4 up to rc5g-114 reported "PanVK-kbase <release> (Mesa ...)".
 fun driverInfoOf(b: ByteArray): String? {
-    val upstream = Regex("""Mesa \d+\.\d+\.\d+[-.0-9A-Za-z]* \(git-[0-9a-f]+\)""")
+    // Also "(git-<sha>, p<NNNN>, <date>)" (jm-v7-wip 0154).
+    val upstream = Regex("""Mesa \d+\.\d+\.\d+[-.0-9A-Za-z]* \(git-[0-9a-f]+(, [^)]*)?\)""")
     val mesa = "Mesa ".toByteArray()
     var i = indexOfBytes(b, mesa, 1)
     while (i >= 0) {
