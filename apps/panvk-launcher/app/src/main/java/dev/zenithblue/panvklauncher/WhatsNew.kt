@@ -31,7 +31,7 @@ object WhatsNew {
         "Built-in Direct3D feature level tests: D3D12 11_0 to 12_2 and D3D11 10_0 to 11_1",
         "Present path: Default or EGL (frames in AHardwareBuffers, no GL upload), in Settings > Display and per game",
         "WineD3D-Zink Render API, named clearly: D3D9-11 through OpenGL, Zink and PanVK (D3D12 stays on VKD3D)",
-        "Built-in Fallout 4 controller key config (Fallout 4 template), assigned to Fallout4.exe",
+        "Built-in Fallout 4 controller key config (\"Fallout 4 (keyboard)\" template, incl. Enter and T); Fallout 4 itself uses the Xbox gamepad by default",
     )
     val fixed = listOf(
         "The DXVK HUD was always on with every item: the game's DXVK_HUD setting was ignored",
