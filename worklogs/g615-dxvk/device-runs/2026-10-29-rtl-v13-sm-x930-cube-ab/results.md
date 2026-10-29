@@ -26,3 +26,19 @@ Screenshots: `shots/a.png`, `shots/b.png`, `shots/c.png` (one per config, taken 
 0161 is NOT the cause. Build 120 (no 0161) gives the same ~590-600 fps as 121b (with 0161) on s1/s3, and TILER_IR=0 changes nothing (as on v11). The ~600 fps is therefore a floor shared by 120 and 121b: the drop from the build 118 numbers (965 / 882) came from something before 0161, i.e. a change between 118 and 120 (patches 0159/0160 or earlier, or an app/DXVK change in the build 119/120 APK). Next step: bisect 118 -> 119 -> 120 on this device. Also note the s1 cube sits near 600 fps both with and without any 0161 code, a suspiciously round cap; check 119 first.
 
 Note: an aborted first attempt (bad loop var; `r1-a` s1 437 fps cold, the first run after install) is not included; the first run after a fresh install can be slower (shader cache cold).
+
+## Part 2: PANVK_WSI_SW_CACHED=1 (d) vs default (a) vs build 118 (e)
+
+Hypothesis: 118 had 0115 (cached sw WSI readback), 0160 switched to uncached; on MT6991 the cached path may be faster. Same device, same harness (`raw2/`, script `raw2/run2.sh`). d = 121b + PANVK_WSI_SW_CACHED=1, a = 121b default, e = build 118 (default). 121b reinstalled at the end. s3 only 1 round, 118 only s1 (session cut short).
+
+| run | s1 fps / 1%low | s3 fps / 1%low |
+|---|---|---|
+| d r1 | 604.6 / 287.7 | 581.2 / 293.9 |
+| a r1 | 594.8 / 294.9 | 595.0 / 290.3 |
+| d r2 | 598.7 / 299.0 | - |
+| a r2 | 579.2 / 290.4 | - |
+| e (118) | 964.4 / 115.9 | - |
+
+Thermal: AP flat 49.2 C, no throttling (raw2/thermal.txt).
+
+Verdict: PANVK_WSI_SW_CACHED=1 makes no difference on 121b (d ~ a within noise), so the uncached-vs-cached readback flag is not the cause (unless the env knob no longer reaches the code path in 0160+, not checked). Build 118 reproduces ~964 fps on s1 (matching the earlier 965), so the regression is real and sits between 118 and 120, not in 0161. Note 118's 1% low is much worse (116 vs ~290): high mean fps with bad frame pacing, so 118 trades smoothness for throughput. Next: bisect 119 on a device that is still available; check what 0160 changes besides the cached flag.
