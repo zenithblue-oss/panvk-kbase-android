@@ -856,3 +856,13 @@ v9 gate: the TB336FU stayed disconnected, so the final build ran on Firebase ori
 PanProbe 40/40, `draw_params` and `bc_decode` PASS, no DEVICE_LOST
 (`worklogs/g615-dxvk/device-runs/2026-10-29-ftl-v9-oriole-118-panprobe/`). **118 is the default bundled driver**
 (both pins, `prepare-rc5-tree.sh` default `--wip-max 0153`). v6/v7/v10/v14 untested.
+
+## Round 2 (2026-10-29): 0154+, perf plan items 5-23 (not yet in a numbered build)
+
+| jm-v7-wip | what | knob |
+|---|---|---|
+| 0154 | driverInfo shows the patch level and build date: `bin/git_sha1_gen.py` appends `.panvk-patchlevel` (written by `prepare-rc5-tree.sh`, e.g. `p0157`) and the build date, `Mesa 26.3.0-devel (git-<sha>, p0157, 2026-10-29)` | - |
+| 0155 | item 7: the BC transcoder pipelines of a mode compile on 3 background threads from the first BC image of that mode; a recording that needs one waits for it | `PANVK_BC_PREWARM=0` |
+| 0156 | item 16 measurement: Android present thread post time (window dequeue, copy, queue) as running averages on the `PANVK_FPS_LOG` lines | - |
+
+Numbers: `docs/PERF-PROGRESS.md` "Round 2"; status per item: `docs/PERF-OPTIMIZATION-PLAN.md` section 5.

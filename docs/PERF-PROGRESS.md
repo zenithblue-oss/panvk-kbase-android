@@ -167,3 +167,38 @@ Per-test wall-clock seconds (log deltas, so a different method from the ms table
 | tessellation | | 2.4 |
 | geometry | | 1.4 |
 | bc_decode | 0.3 | 0.9 |
+
+## Round 2 (2026-10-29): plan items 5-23, X6 Pro (v11)
+
+New PanProbe perf test `workload_perf` (PanProbe 1.3.1, versionCode 20; `device/workload-perf.c`): one command
+buffer per frame of a real pattern, resubmitted for 400 ms; `ms` per frame, `us/op` per draw (per frame for the
+timestamps, per texture for `bc_level`). Cases with an emulated feature have a `ref` case without it; the
+images of pass-through GS, XFB, predicate-true and query cases must equal `ref`. `swapchain_lifecycle` also
+prints `BENCH present` (CPU ms inside `vkQueuePresentKHR`; the Android copy runs on the driver's present thread,
+item 16 times that with `PANVK_FPS_LOG`). Raw: `/var/tmp/panvk/perf119/{b116,b118,c118,d*}/`.
+
+Drivers: 116, 118 (default), and the dev builds on top of 118: `+0154` driverInfo, `+0155` item 7,
+`+0156` present timing, `+0157` item 8.
+
+| workload_perf case | what | 116 | 118 | dev |
+|---|---|---|---|---|
+| ref | 512 draws x 48 tris, VS only (us/draw) | 4.00 | 4.19 | |
+| gs_pass | + pass-through GS (DXVK/emulator) | 107.4 | 97.7 | |
+| gs_layer | + GS writing gl_Layer | 108.4 | 104.8 | |
+| xfb_vs | VS + transform feedback | 182.9 | 202.4 | |
+| xfb_gs | GS + transform feedback (D3D11 SO) | 583.5 | 571.3 | |
+| strip_ref | 256 indexed strips with restart (us/draw) | 7.61 | 7.69 | |
+| strip_gs | + pass-through GS | 308.6 | 302.8 | |
+| cond_true | 512 draws, each predicated, predicate 1 | 3.95 | 2.90 | |
+| cond_false | predicate 0 | 2.76 | 2.76 | |
+| pg_query | 512 draws in a primitives-generated query | 3.15 | 3.82 | |
+| ts_ref / ts_pair | 64 draws, + timestamp pair read back (ms/frame) | 0.33 / 0.45 | 0.38 / 0.48 | |
+| msaa_ref | 4x MSAA 512^2, 16 blended full-screen draws (us/draw) | 75.6 | 79.1 | |
+| msaa_a2one | + alphaToOne | 255.9 | 252.2 | |
+| msaa_sshade | + sample shading 1.0 | 249.3 | 256.7 | |
+| tex_rgba / tex_bgra | 16 full-screen draws, 512^2 texture, custom border colour | 68.4 / 80.7 | 77.0 / 73.1 | |
+| bc_level | cold device, 6 BC textures 1024^2 + mips (ms, total) | 4937 | 4927 | 2567 (+0155) |
+
+`bc_level` with `+0155`: device creation 6.3 ms (8.4 on 116), the recording that used to compile the 5
+transcoder pipelines (4.9 s) takes 2.55 s; `PANVK_BC_PREWARM=0` on the same build: 4.47 s.
+driverInfo with 0154: `Mesa 26.3.0-devel (git-33ae94dd8c, p0154, 2026-10-29)` (dev tree HEAD).

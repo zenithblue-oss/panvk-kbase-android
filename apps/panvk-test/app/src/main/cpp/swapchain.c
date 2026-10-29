@@ -225,6 +225,9 @@ ms_since(const struct timespec *a)
     return (long)(ms + 0.5);
 }
 
+static double g_present_ms;
+static int g_presents;
+
 static double
 ms_exact(const struct timespec *a)
 {
@@ -1050,7 +1053,14 @@ draw_frame(struct Ctx *c, int index)
     pi.swapchainCount = 1;
     pi.pSwapchains = &c->sc.swap;
     pi.pImageIndices = &img;
-    r = c->vkQueuePresentKHR(c->queue, &pi);
+    {
+        /* Present cost (perf plan item 16): CPU ms inside vkQueuePresentKHR. */
+        struct timespec pa;
+        clock_gettime(CLOCK_MONOTONIC, &pa);
+        r = c->vkQueuePresentKHR(c->queue, &pi);
+        g_present_ms += ms_exact(&pa);
+        g_presents++;
+    }
     c->slot = (slot + 1) % FRAMES;
     if (r == VK_ERROR_OUT_OF_DATE_KHR)
         return phase_is("resize") ? sc_recreate(c) : fail(c, "vkQueuePresentKHR", r);
@@ -1066,6 +1076,8 @@ present_n(struct Ctx *c, int frames, int kind)
     int i;
     double ms;
     clock_gettime(CLOCK_MONOTONIC, &a);
+    g_present_ms = 0;
+    g_presents = 0;
     for (i = 0; i < frames; i++)
         if (!draw_frame(c, i))
             return 0;
@@ -1075,6 +1087,9 @@ present_n(struct Ctx *c, int frames, int kind)
     if (ms < 0.001)
         ms = 0.001;
     lg(c, "%s %.1f", kind == 0 ? "FPS" : "FPS_RESIZED", frames * 1000.0 / ms);
+    if (g_presents)
+        lg(c, "BENCH present kind=%d w=%u h=%u presents=%d ms_present=%.3f", kind,
+           c->sc.extent.width, c->sc.extent.height, g_presents, g_present_ms / g_presents);
     if (kind == 0)
         lg(c, "PHASE present_main ms=%ld frames=%d", (long)(ms + 0.5), frames);
     else

@@ -1,0 +1,37 @@
+From d8b67413448b127017ce5123fe20b27c6ba4eae6 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 29 Oct 2026 12:09:11 +0530
+Subject: [PATCH] panvk: driverInfo shows the jm-v7-wip patch level and build
+ date
+
+bin/git_sha1_gen.py appends the last applied jm-v7-wip patch (.panvk-patchlevel,
+written by prepare-rc5-tree.sh) and the build date to MESA_GIT_SHA1, so driverInfo
+reads e.g. "Mesa 26.3.0-devel (git-a0412457ab, p0154, 2026-10-29)".
+---
+ bin/git_sha1_gen.py | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/bin/git_sha1_gen.py b/bin/git_sha1_gen.py
+index a457b310d48..56939116954 100644
+--- a/bin/git_sha1_gen.py
++++ b/bin/git_sha1_gen.py
+@@ -45,6 +45,15 @@ args = parser.parse_args()
+ 
+ git_sha1 = os.environ.get('MESA_GIT_SHA1_OVERRIDE', get_git_sha1())[:10]
+ if git_sha1:
+-    write_if_different('#define MESA_GIT_SHA1 " (git-' + git_sha1 + ')"')
++    # PanVK-kbase: last applied jm-v7-wip patch (written by prepare-rc5-tree.sh) and build date
++    import datetime
++    extra = ''
++    try:
++        with open(os.path.join(os.path.dirname(sys.argv[0]), '..', '.panvk-patchlevel')) as f:
++            extra = ', ' + f.read().strip()
++    except OSError:
++        pass
++    extra += ', ' + datetime.date.today().isoformat()
++    write_if_different('#define MESA_GIT_SHA1 " (git-' + git_sha1 + extra + ')"')
+ else:
+     write_if_different('#define MESA_GIT_SHA1 ""')
+-- 
+2.56.0
+

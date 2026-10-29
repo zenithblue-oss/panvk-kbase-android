@@ -140,3 +140,23 @@ Gain = expected effect on the measured workloads; risk = chance of a correctness
 5. BC lowmem background precompile (rank 7).
 6. Pass-through GS detection (rank 8) and the parallel strip table (rank 13).
 7. Longer term: parallel tessellator, v14 scissor array, v15 native BC once Mesa has v15.
+
+## 5. Item status, round 2 (2026-10-29, ranks 5-23)
+
+Measured with the new PanProbe perf test `workload_perf` (`device/workload-perf.c`, real-workload frames: DXVK
+stream output and pass-through GS, emulator strips with restart, D3D predication, DXVK HUD timestamps,
+primitives-generated queries, 4x MSAA alphaToOne, BGRA textures with a custom border colour, a cold BC level
+load) plus `tess_perf`, `bc_perf` and the `swapchain_lifecycle` present timing. Numbers: `PERF-PROGRESS.md`,
+section "Round 2". X6 Pro (v11) only: TB336FU (v9) is disconnected, RTL/Firebase belong to other agents.
+
+| Rank | Item | Status |
+|---|---|---|
+| 5 | CSF tess on one CS | deferred: large, high risk (IDVS state re-emit inside the compute loop, scoreboards); `tess_perf` covers it. Next step: prototype the loop on the vertex/tiler CS behind a knob |
+| 6 | CSF tess drains | closed, not worth it: every wait in the loop is a true dependency (each dispatch reads the previous one's output), a narrower `cs_wait_slot` waits for the same work; the second wait in `gpu_prerast_sync32_give` hits drained scoreboards (one CS instruction). The ~370 us/draw is the cross-CSG hand-off (item 5) |
+| 7 | BC transcoder compile at the first BC image | **done, 0155**: `workload_perf bc_level` (cold cache, 6 BC formats 1024^2 + mips) 4.93 s to 2.57 s, device creation unchanged |
+| 8 | Pass-through GS detection | 0157, see PERF-PROGRESS |
+| 13 | Restart strip table as a parallel scan | closed: `panlib_gs_strip_table` already is a CHUNK_WG-thread segmented scan (one workgroup); `strip_gs` cost is the GS emulation itself (item 8) |
+| 19 | Conditional rendering | CSF measured free (`cond_true` = `ref`, `cond_false` skips); JM part (v6/v7/v9) not measurable without a JM device |
+| 20 | JM timestamps | CSF native (`ts_pair` +0.1 ms/frame incl. the readback); JM part needs a JM device |
+| 21 | v9 primitives-generated | CSF free (`pg_query` = `ref`); v9 part needs a JM device |
+| 22 | v7 BGRA custom border colour AFBC | v11 no cost (`tex_bgra` = `tex_rgba` within noise); the v7 case needs a v7 device |

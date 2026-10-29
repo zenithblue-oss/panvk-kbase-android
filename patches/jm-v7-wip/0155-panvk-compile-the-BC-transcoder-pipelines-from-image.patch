@@ -1,0 +1,205 @@
+From 33ae94dd8c0e2dea4120d644071e90d20d00aefe Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 29 Oct 2026 12:20:25 +0530
+Subject: [PATCH 155/156] panvk: compile the BC transcoder pipelines from image
+ creation on background threads
+
+---
+ src/panfrost/vulkan/panvk_device.h      | 13 ++++
+ src/panfrost/vulkan/panvk_image.c       |  6 ++
+ src/panfrost/vulkan/panvk_vX_cmd_meta.c | 88 +++++++++++++++++++++++++
+ src/panfrost/vulkan/panvk_vX_device.c   |  1 +
+ 4 files changed, 108 insertions(+)
+
+diff --git a/src/panfrost/vulkan/panvk_device.h b/src/panfrost/vulkan/panvk_device.h
+index fdf13c2d860..7737e15c4b5 100644
+--- a/src/panfrost/vulkan/panvk_device.h
++++ b/src/panfrost/vulkan/panvk_device.h
+@@ -30,8 +30,11 @@
+ #include "util/u_dynarray.h"
+ #include "util/u_call_once.h"
+ #include "util/u_printf.h"
++#include "util/u_queue.h"
+ #include "util/vma.h"
+ 
++struct panvk_image;
++
+ /* On JM hardware, we need to allocate a buffer depending on vertex count.
+  *
+  * As a result, for indirect and indexed draw we allocate a large buffer with
+@@ -116,6 +119,14 @@ struct panvk_device {
+       /* csf-v11/206: expanded EAC endpoint pair tables (panvk_bc_eac_lut.h)
+        * per kind, created at the first transcode that needs one. */
+       struct panvk_priv_bo *eac_lut[3];
++      /* Item 7: transcoder pipelines compiled from image creation, one
++       * fence per bc_xcode_mode() (panvk_vX_cmd_meta.c). */
++      void (*prewarm)(struct panvk_device *dev, const struct panvk_image *img);
++      simple_mtx_t prewarm_lock;
++      struct util_queue prewarm_queue;
++      bool prewarm_queue_ok;
++      uint32_t prewarm_started;
++      struct util_queue_fence prewarm_fence[10];
+    } bc;
+ 
+    /* BC raw store (csf-v11/201), under the lock in panvk_image.c: the
+@@ -453,6 +464,8 @@ void panvk_per_arch(destroy_device)(struct panvk_device *device,
+ /* Device teardown of the BC emulation state (csf-v11/200), then of the
+  * vk_meta device (it replaces panvk_meta_cleanup() in destroy_device). */
+ void panvk_per_arch(device_bc_finish)(struct panvk_device *dev);
++void panvk_per_arch(bc_xcode_prewarm)(struct panvk_device *dev,
++                                      const struct panvk_image *img);
+ 
+ /* The gpu_prerast arena (tess = false) or the tessellation arena,
+  * allocated on first use on v10+ (csf-v11/205). Returns a zero
+diff --git a/src/panfrost/vulkan/panvk_image.c b/src/panfrost/vulkan/panvk_image.c
+index b83814d60af..305a11b95ba 100644
+--- a/src/panfrost/vulkan/panvk_image.c
++++ b/src/panfrost/vulkan/panvk_image.c
+@@ -1045,6 +1045,12 @@ panvk_image_init(struct panvk_image *image,
+          image->bc_raw_store = raw_store;
+       }
+    }
++   if (panvk_bc_xcoded(image)) {
++      struct panvk_device *dev = to_panvk_device(image->vk.base.device);
++
++      if (dev->bc.prewarm)
++         dev->bc.prewarm(dev, image);
++   }
+ 
+    /* Add any create/usage flags that might be needed for meta operations.
+     * This is run before the modifier selection because some
+diff --git a/src/panfrost/vulkan/panvk_vX_cmd_meta.c b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
+index 178312dd873..cca2b2be3f9 100644
+--- a/src/panfrost/vulkan/panvk_vX_cmd_meta.c
++++ b/src/panfrost/vulkan/panvk_vX_cmd_meta.c
+@@ -1038,6 +1038,9 @@ bc_xcode_wg(uint32_t wg[2])
+    wg[1] = cached[1];
+ }
+ 
++/* Set on the BC transcoder prewarm threads (item 7). */
++static thread_local bool bc_prewarm_worker;
++
+ /* Shader of a transcoded (panvk_bc_xcoded()) image. */
+ enum bc_xcode_shader {
+    BC_XCODE_ETC2,   /* BC1-BC5 -> ETC2/EAC, panvk_bc_etc2.comp */
+@@ -1092,6 +1095,13 @@ get_bc_xcode_pipeline(struct panvk_device *dev, enum bc_xcode_shader shader,
+    };
+    bc_xcode_wg(key.wg);
+    VkPipeline cached = vk_meta_lookup_pipeline(&dev->meta, &key, sizeof(key));
++   /* Item 7: a compile started at image creation is waited for, not
++    * repeated. The worker itself never waits. */
++   if (cached == VK_NULL_HANDLE && !bc_prewarm_worker && mode < 32 &&
++       (p_atomic_read(&dev->bc.prewarm_started) & BITFIELD_BIT(mode))) {
++      util_queue_fence_wait(&dev->bc.prewarm_fence[mode]);
++      cached = vk_meta_lookup_pipeline(&dev->meta, &key, sizeof(key));
++   }
+    if (cached != VK_NULL_HANDLE) {
+       *pipeline_out = cached;
+       return VK_SUCCESS;
+@@ -1139,6 +1149,79 @@ get_bc_xcode_pipeline(struct panvk_device *dev, enum bc_xcode_shader shader,
+                                           sizeof(key), pipeline_out);
+ }
+ 
++/* Item 7 (perf plan): the transcoder pipelines of a BC image's mode are
++ * compiled on a background thread from the image's creation (the first
++ * image of each mode), so a level load that creates several BC formats
++ * compiles them in parallel and before the uploads are recorded. A
++ * recording that needs one waits for it in get_bc_xcode_pipeline().
++ * PANVK_BC_PREWARM=0 keeps the compile at the first upload. */
++struct bc_prewarm_job {
++   struct panvk_device *dev;
++   enum bc_xcode_shader shader;
++   uint32_t mode;
++};
++
++static void
++bc_prewarm_run(void *data, void *gdata, int thread_index)
++{
++   struct bc_prewarm_job *job = data;
++   VkPipelineLayout layout;
++   VkPipeline pipeline;
++
++   bc_prewarm_worker = true;
++   get_bc_xcode_pipeline(job->dev, job->shader, job->mode, false, &layout,
++                         &pipeline);
++   if (job->shader == BC_XCODE_ETC2)
++      get_bc_xcode_pipeline(job->dev, job->shader, job->mode, true, &layout,
++                            &pipeline);
++}
++
++static void
++bc_prewarm_free(void *data, void *gdata, int thread_index)
++{
++   free(data);
++}
++
++void
++panvk_per_arch(bc_xcode_prewarm)(struct panvk_device *dev,
++                                 const struct panvk_image *img)
++{
++   if (!panvk_bc_xcoded(img) || !debug_get_bool_option("PANVK_BC_PREWARM", true))
++      return;
++
++   const uint32_t mode = bc_xcode_mode(img->vk.format);
++   if (mode >= ARRAY_SIZE(dev->bc.prewarm_fence) ||
++       (p_atomic_read(&dev->bc.prewarm_started) & BITFIELD_BIT(mode)))
++      return;
++
++   simple_mtx_lock(&dev->bc.prewarm_lock);
++   if (dev->bc.prewarm_started & BITFIELD_BIT(mode)) {
++      simple_mtx_unlock(&dev->bc.prewarm_lock);
++      return;
++   }
++   struct bc_prewarm_job *job = malloc(sizeof(*job));
++   if (!dev->bc.prewarm_queue_ok) {
++      /* 3 threads: the 4-5 lowmem modes of a typical game in two rounds,
++       * leaving cores for the application's own loading threads. */
++      for (unsigned i = 0; i < ARRAY_SIZE(dev->bc.prewarm_fence); i++)
++         util_queue_fence_init(&dev->bc.prewarm_fence[i]);
++      dev->bc.prewarm_queue_ok =
++         util_queue_init(&dev->bc.prewarm_queue, "panvk_bcpre", 16, 3,
++                         UTIL_QUEUE_INIT_RESIZE_IF_FULL, NULL);
++   }
++   if (job && dev->bc.prewarm_queue_ok) {
++      *job = (struct bc_prewarm_job){dev, bc_xcode_shader(img), mode};
++      util_queue_add_job(&dev->bc.prewarm_queue, job,
++                         &dev->bc.prewarm_fence[mode], bc_prewarm_run,
++                         bc_prewarm_free, 0);
++      p_atomic_set(&dev->bc.prewarm_started,
++                   dev->bc.prewarm_started | BITFIELD_BIT(mode));
++   } else {
++      free(job);
++   }
++   simple_mtx_unlock(&dev->bc.prewarm_lock);
++}
++
+ static uint64_t bc_eac_lut_addr(struct panvk_device *dev, uint32_t mode);
+ 
+ /* Transcode the BC blocks of one region at src into the ETC2/EAC shadow of
+@@ -1582,6 +1665,11 @@ panvk_per_arch(device_bc_finish)(struct panvk_device *dev)
+       panvk_priv_bo_unref(dev->bc.eac_lut[k]);
+       dev->bc.eac_lut[k] = NULL;
+    }
++   if (dev->bc.prewarm_queue_ok) {
++      util_queue_finish(&dev->bc.prewarm_queue);
++      util_queue_destroy(&dev->bc.prewarm_queue);
++      dev->bc.prewarm_queue_ok = false;
++   }
+    panvk_bc_raw_device_finish(dev);
+    vk_meta_device_finish(&dev->vk, &dev->meta);
+ }
+diff --git a/src/panfrost/vulkan/panvk_vX_device.c b/src/panfrost/vulkan/panvk_vX_device.c
+index 69a9a289bfb..27dbd8acd8e 100644
+--- a/src/panfrost/vulkan/panvk_vX_device.c
++++ b/src/panfrost/vulkan/panvk_vX_device.c
+@@ -270,6 +270,7 @@ panvk_meta_init(struct panvk_device *device)
+    if (result != VK_SUCCESS)
+       return result;
+ 
++   device->bc.prewarm = panvk_per_arch(bc_xcode_prewarm);
+    device->meta.use_stencil_export = true;
+    device->meta.use_rect_list_pipeline = true;
+    device->meta.max_bind_map_buffer_size_B = 64 * 1024;
+-- 
+2.56.0
+
