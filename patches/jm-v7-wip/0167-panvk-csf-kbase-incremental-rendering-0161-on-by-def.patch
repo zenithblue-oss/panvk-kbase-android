@@ -1,0 +1,51 @@
+From 15416b201a83c067f375a7504d9cb21a8ca106d2 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 29 Oct 2026 22:23:57 +0530
+Subject: [PATCH] panvk/csf: kbase incremental rendering (0161) on by default
+ only on v11/v13
+
+On v14 G1-Ultra the single kbase queue group with the tiler OOM flag hangs the first submit (subqueue 1 timeout, DEVICE_LOST at vkCreateDevice). v10 and v12 are untested. Default PANVK_KBASE_TILER_IR to on for PAN_ARCH 11 and 13 only; =1 forces it on elsewhere.
+---
+ src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c  | 7 ++++++-
+ src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c | 7 ++++++-
+ 2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+index ab2ff59e8e6..bbf8bdee2af 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+@@ -74,7 +74,12 @@ cmdbuf_skips_gpu_heap_ops(const struct panvk_cmd_buffer *cmdbuf)
+ }
+ 
+ /* kbase incremental rendering (jm-v7-wip 0161, panvk_vX_gpu_queue.c). */
+-DEBUG_GET_ONCE_BOOL_OPTION(kbase_tiler_ir, "PANVK_KBASE_TILER_IR", true)
++/* jm-v7-wip 0167: on by default only where verified (v11 X6 Pro, v13 S11
++ * Ultra).  On v14 G1-Ultra the first submit hangs (subqueue 1 timeout,
++ * DEVICE_LOST at vkCreateDevice); v10/v12 are untested.  PANVK_KBASE_TILER_IR
++ * =1 forces it on, =0 off. */
++DEBUG_GET_ONCE_BOOL_OPTION(kbase_tiler_ir, "PANVK_KBASE_TILER_IR",
++                           PAN_ARCH == 11 || PAN_ARCH == 13)
+ 
+ static bool
+ render_needs_zs_crc_ext(struct panvk_cmd_buffer *cmdbuf)
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+index c8a08c33e45..3bad68077d2 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+@@ -1115,7 +1115,12 @@ kbase_queue_wait_current(struct panvk_gpu_queue *queue,
+  * rendering, panvk_vX_exception_handler.c), which only reaches CSs of the
+  * group that hit the OOM.  One group per subqueue (PANVK_KBASE_TILER_IR=0,
+  * the old layout) turns every heap exhaustion into DEVICE_LOST. */
+-DEBUG_GET_ONCE_BOOL_OPTION(kbase_one_group, "PANVK_KBASE_TILER_IR", true)
++/* jm-v7-wip 0167: on by default only where verified (v11 X6 Pro, v13 S11
++ * Ultra).  On v14 G1-Ultra the first submit hangs (subqueue 1 timeout,
++ * DEVICE_LOST at vkCreateDevice); v10/v12 are untested.  PANVK_KBASE_TILER_IR
++ * =1 forces it on, =0 off. */
++DEBUG_GET_ONCE_BOOL_OPTION(kbase_one_group, "PANVK_KBASE_TILER_IR",
++                           PAN_ARCH == 11 || PAN_ARCH == 13)
+ 
+ static void
+ kbase_destroy_group(struct panvk_gpu_queue *queue)
+-- 
+2.56.0
+
