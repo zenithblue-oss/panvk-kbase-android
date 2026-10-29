@@ -67,3 +67,18 @@ Not run: PanProbe tess_perf, PanPlay 1-9, D3D9 cube (would all hit CreateDevice)
 
 ## Device
 Stayed online. No adb connect/disconnect, no sysfs. Only own processes killed (run script, logcat). Final state: panprobe-122 installed (-r), panplay not reinstalled.
+
+## C. A/B on this device (SM-X946B), PanPlay scenario 1 (D3D11 cube, 10 s warm-up + 30 s), 23:01-23:20 IST
+| Variant | driver | drv fps | 1s min/max | 1% low | PSS MB (launcher, t=30 s) |
+|---|---|---|---|---|---|
+| a. 122c default | git-07132536df p0167 | 258.4 | 254 / 262 | 113.4 | 251 |
+| b2. 122c + PANVK_WSI_SW_CACHED=1 | same | **732.6** | 649 / 831 | 61.5 | 264 |
+| c. panplay-116 (installed -r -d) | git-f7e78953ac | **765.8** | 651 / 886 | 70.9 | 260 |
+| a again. 122c default (reinstalled) | p0167 | 258.5 | 254 / 263 | 114.9 | 251 |
+
+- The slowdown is a real regression from 116 to 122c on this same device, not a device difference: 116 gives 766 fps here, 122c 258 fps, repeatable (a twice).
+- `PANVK_WSI_SW_CACHED=1` on 122c restores about 733 fps (within noise of 116's 766); 1% low is lower (61.5 vs 113) because frame times spread wider at high fps.
+- Env verification: first attempt (b, `--es gameloop_config /sdcard/panplay-ab-env.json`) was NOT applied (configSource shows no file, pass env lacks the var; fps 256, ignore b). Second attempt (b2): json written to the launcher's own files/gameloop.json; results.json configSource lists it with sha256, and the pass `env` map contains `PANVK_WSI_SW_CACHED: 1`. This is the harness's recorded env, not a wine-log dump (grep of logcat for the var: 0 hits). The 3x fps change confirms it took effect.
+- Suspect: the WSI default (which memory the swapchain readback uses) changed between 116 and 122c; env flips back to the fast path. Not bisected beyond that.
+- Raw: raw/ab-s1-cube/ (rtl-ab-s1 = a, c, a2, first b; rtl-ab-s1b = b2), per-variant results.txt/json, harness.log, meminfo, png.
+- End state: 122c panplay installed (-r -d), my gameloop.json removed from the launcher files dir. /sdcard/panplay-ab-env.json left (harmless, unused).
