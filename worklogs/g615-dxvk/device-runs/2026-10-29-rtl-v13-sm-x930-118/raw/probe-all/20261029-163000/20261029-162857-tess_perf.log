@@ -1,0 +1,76 @@
+MESA: info: kbase: CSF driver, uAPI version 1.30, page_size=4096
+MESA: info: kbase: coherency mode 0 (ACE-Lite), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 13000000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: info: panvk: gpu_id 0xd8300015 variant 0x4 arch v13 model Mali-G725/G925 texture_features 0xc7fe001e 0 0 0
+MESA: info: panvk: BC emulation on, lowmem (native compressed mask 0xc7fe001e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+ICD device=Mali-G925-Immortalis MC12 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+MESA: info: kbase: CSF driver, uAPI version 1.30, page_size=4096
+MESA: info: kbase: coherency mode 0 (ACE-Lite), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 13000000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: info: kbase: mem_alloc via ALLOC_EX
+MESA: info: kbase: queue_group_create layout=112 bytes
+MESA: info: kbase: tiler heaps 4 initial / 400 max chunks of 1024 KiB
+MESA: info: kbase: tiler_heap_init layout=16 bytes
+variant 0 opt=default device=Mali-G925-Immortalis MC12 gs=1
+MEM device avail_kb=5569852 rss_kb=19252
+MEM recorded opt=default gs=0 L=ref avail_kb=5568688 rss_kb=23700
+MEM first frame avail_kb=5568636 rss_kb=23616
+BENCH tess_perf opt=default gs=0 L=ref draws=256 patches=4096 ms=1.00 us_draw=3.9 frames=698 hash=4807f3f5
+MEM opt=default gs=0 L=ref avail_kb=5647764 rss_kb=27768
+MESA: info: panvk: gpu_prerast tessellation arena committed (72 MiB)
+MESA: info: panvk: gpu_prerast second tessellation arena committed (72 MiB)
+MESA: info: panvk: device TLS 512 B/thread x 2048 threads x 24 core IDs (12 cores, mask 0xee0077) = 24 MiB of VA, 12 MiB backed
+MEM recorded opt=default gs=0 L=1 avail_kb=5461376 rss_kb=201148
+MEM first frame avail_kb=5451636 rss_kb=205268
+BENCH tess_perf opt=default gs=0 L=1 draws=256 patches=4096 ms=27.96 us_draw=109.2 frames=26 hash=a03404c5
+MEM opt=default gs=0 L=1 avail_kb=5477352 rss_kb=205264
+MEM recorded opt=default gs=0 L=4 avail_kb=5476572 rss_kb=205304
+MEM first frame avail_kb=5465972 rss_kb=206332
+BENCH tess_perf opt=default gs=0 L=4 draws=256 patches=4096 ms=47.44 us_draw=185.3 frames=15 hash=cec55885
+MEM opt=default gs=0 L=4 avail_kb=5497020 rss_kb=207364
+MEM recorded opt=default gs=0 L=16 avail_kb=5490012 rss_kb=207384
+MEM first frame avail_kb=5438400 rss_kb=248584
+BENCH tess_perf opt=default gs=0 L=16 draws=256 patches=4096 ms=175.04 us_draw=683.8 frames=4 hash=d4463b35
+MEM opt=default gs=0 L=16 avail_kb=5391524 rss_kb=289780
+MEM recorded opt=default gs=0 L=mix avail_kb=5391536 rss_kb=289780
+MEM first frame avail_kb=5371428 rss_kb=261972
+BENCH tess_perf opt=default gs=0 L=mix draws=256 patches=4096 ms=159.54 us_draw=623.2 frames=5 hash=b34a251c
+MEM opt=default gs=0 L=mix avail_kb=5450332 rss_kb=234160
+MESA: info: panvk: gpu_prerast draw arena committed (64 MiB)
+MEM recorded opt=default gs=1 L=1 avail_kb=5419120 rss_kb=301248
+MEM first frame avail_kb=5413824 rss_kb=286828
+BENCH tess_perf opt=default gs=1 L=1 draws=256 patches=4096 ms=50.66 us_draw=197.9 frames=14 hash=a03404c5
+MEM opt=default gs=1 L=1 avail_kb=5306948 rss_kb=272408
+MEM recorded opt=default gs=1 L=4 avail_kb=5306948 rss_kb=272416
+MEM first frame avail_kb=5301848 rss_kb=288896
+BENCH tess_perf opt=default gs=1 L=4 draws=256 patches=4096 ms=73.02 us_draw=285.2 frames=10 hash=cec55885
+MEM opt=default gs=1 L=4 avail_kb=5333376 rss_kb=305376
+MEM recorded opt=default gs=1 L=16 avail_kb=5370824 rss_kb=305376
+MEM first frame avail_kb=5413844 rss_kb=368204
+MESA: error: kbase: CSF group 0 tiler heap OOM notification
+MESA: error: kbase: timeout on subqueue 0: seqno 792, ls_copy 0, target 793, marks pre/post-call/post-wait 0x0/0x0/0x0, stream progress 0x0, insert 153152, extract 153104, active 0, error 0x0, ring[0..3] 0x1c00000000000003/0x1c00000900000008/0x1c00000100000000/0x1c00000200000001
+MESA: error: kbase: last job on subqueue 0: ring offset 21888, entry 192/192 bytes, stream 0x5fffde4000/4088, flush 16777202, extract offset 22032
+MESA: error: kbase: last ring[0..15] 0x1c00000000000003/0x1c00000900000008/0x1c00000100000000/0x1c00000200000001/0x1c0000080000fff0/0x220000000000000c/0x17a005ffff9f340/0x17c0060000000c0/0x30007c0000000000/0x17c005ffff9f370/0x17e005ffffa3080/0x157e7c0000030000/0x300000000010000/0x27e000000fffff2/0x24007e0000000233/0x300000000010000
+MESA: error: kbase: extract line ring[0..7] 0x17c005fffde4000/0x27e000000000ff8/0x20007c7e00000000/0x17c005ffff9d000/0x3000000ffff0000/0x17e000000000001/0x33007c7e00000001/0x2f00000000000000
+MESA: error: kbase: queue syncobj 0: seqno 1581, error 0x0, pad 0x0
+MESA: error: kbase: queue syncobj 1: seqno 2371, error 0x0, pad 0x0
+MESA: error: kbase: queue syncobj 2: seqno 791, error 0x0, pad 0x0
+MESA: error: kbase: timeout snapshot subqueue 0: seqno 792, ls_copy 0, target 793, marks 0x0/0x0/0x0, insert 153152, extract 153104, active 0, error 0x0, jobs 793
+MESA: error: kbase: timeout snapshot subqueue 0 stream progress 0x0
+MESA: error: kbase: timeout snapshot subqueue 0 last job: ring offset 21888, entry 192/192 bytes, stream 0x5fffde4000/4088, flush 16777202
+MESA: error: kbase: subqueue 0 extract ring[0..7] @153088 0x17c005fffde4000/0x27e000000000ff8/0x20007c7e00000000/0x17c005ffff9d000/0x3000000ffff0000/0x17e000000000001/0x33007c7e00000001/0x2f00000000000000
+MESA: error: kbase: subqueue 0 last-job ring[0..7] @21888 0x1c00000000000003/0x1c00000900000008/0x1c00000100000000/0x1c00000200000001/0x1c0000080000fff0/0x220000000000000c/0x17a005ffff9f340/0x17c0060000000c0
+MESA: error: kbase: timeout snapshot subqueue 1: seqno 792, ls_copy 0, target 793, marks 0x0/0x0/0x0, insert 153152, extract 153104, active 0, error 0x0, jobs 793
+MESA: error: kbase: timeout snapshot subqueue 1 stream progress 0x0
+MESA: error: kbase: timeout snapshot subqueue 1 last job: ring offset 21888, entry 192/192 bytes, stream 0x5fffde2000/1120, flush 16777202
+MESA: error: kbase: subqueue 1 extract ring[0..7] @153088 0x17c005fffde2000/0x27e000000000460/0x20007c7e00000000/0x17c005ffff9d040/0x3000000ffff0000/0x17e000000000001/0x33007c7e00000001/0x2f00000000000000
+MESA: error: kbase: subqueue 1 last-job ring[0..7] @21888 0x1c00000000000003/0x1c00000900000008/0x1c00000100000000/0x1c00000200000001/0x1c0000080000fff0/0x2200000000000002/0x17a005ffffa0580/0x17c0060000000c0
+MESA: error: kbase: timeout snapshot subqueue 2: seqno 792, ls_copy 0, target 793, marks 0x0/0x0/0x0, insert 153152, extract 153056, active 0, error 0x0, jobs 793
+MESA: error: kbase: timeout snapshot subqueue 2 stream progress 0x0
+MESA: error: kbase: timeout snapshot subqueue 2 last job: ring offset 21888, entry 144/192 bytes, stream 0x5fffde3000/3136, flush 16777202
+MESA: error: kbase: subqueue 2 extract ring[0..7] @153024 0x24007e0000000233/0x300000000010000/0x17c005fffde3000/0x27e000000000c40/0x20007c7e00000000/0x17c005ffff9d080/0x3000000ffff0000/0x17e000000000001
+MESA: error: kbase: subqueue 2 last-job ring[0..7] @21888 0x1c00000000000003/0x1c00000900000008/0x1c00000100000000/0x1c00000200000001/0x1c0000080000fff0/0x2200000000000001/0x17a005ffffa1740/0x27e000000fffff2
+FAIL Wait r=-4 line=253
