@@ -78,18 +78,17 @@ fun indexOfBytes(b: ByteArray, key: ByteArray, from: Int): Int {
     return -1
 }
 
-// "Mesa 26.3.0-devel (git-<sha>, p<NNNN>, <date>)", a whole NUL-terminated string in .rodata.
+// "Mesa 26.3.0-devel (git-<sha>, p<NNNN>, <date>)" at the start of a NUL-terminated string in .rodata.
 fun driverInfoOf(b: ByteArray): String? {
     val re = Regex("""Mesa \d+\.\d+\.\d+[-.0-9A-Za-z]* \(git-[0-9a-f]+(, [^)]*)?\)""")
     val key = "Mesa ".toByteArray()
     var i = indexOfBytes(b, key, 1)
     while (i >= 0) {
-        if (b[i - 1] == 0.toByte()) {
-            var e = i
-            while (e < b.size && b[e] != 0.toByte()) e++
-            val s = String(b, i, e - i, Charsets.UTF_8)
-            if (re.matches(s)) return s
-        }
+        var e = i
+        while (e < b.size && b[e] != 0.toByte()) e++
+        val s = String(b, i, e - i, Charsets.UTF_8)
+        // rc4 embeds it inside "PanVK-kbase RC4 (Mesa ...)".
+        re.find(s)?.takeIf { it.range.first == 0 }?.let { return it.value }
         i = indexOfBytes(b, key, i + 1)
     }
     return null
