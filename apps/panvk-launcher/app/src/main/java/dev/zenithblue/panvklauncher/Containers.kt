@@ -811,7 +811,8 @@ object ContainerManager {
         val workDir = exeFile.parentFile ?: File(ctx.filesDir, "container")
         applyGamePrefs(ctx, exeFile.name)
         // Native-first override is what makes Wine load the swapped-in cnc-ddraw instead of its builtin.
-        val api = RenderApi.norm(opts?.renderApi ?: RenderApi.AUTO)
+        // env PANPLAY_RENDER_API: game-loop env sets A/B the render API without a shortcut change.
+        val api = RenderApi.norm(opts?.env?.get("PANPLAY_RENDER_API") ?: opts?.renderApi ?: RenderApi.AUTO)
         val det = RenderApi.detect(exeFile.path)
         val ddraw = swapDdraw(ctx, exeFile.path, api)
         val mesa = ContentManager.current(ctx, RenderApi.MESA_TYPE)?.takeIf { File(it.dir, "lib/libEGL.so.1").isFile }
