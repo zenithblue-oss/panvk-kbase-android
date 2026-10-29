@@ -84,6 +84,26 @@ object ContainerManager {
         }
     }
 
+    /**
+     * wineboot.exe (aarch64) runs `f = CNTFRQ_EL0; do { x = f; f <<= 1 } while (x < 1e9)`. Samsung Exynos 9810 (kernel 4.9)
+     * leaves CNTFRQ_EL0 at 0, so wineboot spins forever and the prefix never gets created (wine then reports
+     * "could not load kernel32.dll, c0000135"). NOP the back-branch; idempotent, no-op where CNTFRQ is set.
+     */
+    private fun patchCntfrqLoop(wineDir: File) {
+        val exe = File(wineDir, "lib/wine/aarch64-windows/wineboot.exe")
+        val old = byteArrayOf(0x09, 0xe0.toByte(), 0x3b, 0xd5.toByte(), 0xf5.toByte(), 0x03, 0x09, 0xaa.toByte(),
+            0x29, 0xf9.toByte(), 0x7f, 0xd3.toByte(), 0xbf.toByte(), 0x02, 0x0a, 0xeb.toByte(),
+            0xa3.toByte(), 0xff.toByte(), 0xff.toByte(), 0x54)
+        try {
+            val b = exe.readBytes()
+            val at = (0..b.size - old.size).firstOrNull { i -> old.indices.all { b[i + it] == old[it] } } ?: return
+            val nop = byteArrayOf(0x1f, 0x20, 0x03, 0xd5.toByte())
+            nop.copyInto(b, at + 16)
+            exe.setWritable(true)
+            exe.writeBytes(b)
+        } catch (_: Exception) {}
+    }
+
     fun setup(ctx: Context, onLine: (String) -> Unit = {}): Result<Unit> {
         val dir = File(ctx.filesDir, "container")
         val marker = File(dir, ".setup-ok")
@@ -168,6 +188,7 @@ object ContainerManager {
             }
             File(dir, "container.json").writeText(containerJson.toString(2))
 
+            patchCntfrqLoop(wine.dir)
             val exitCode = runInternal(ctx, listOf("wineboot", "-u"), dir, onLine)
             val systemReg = File(winePrefix, "system.reg")
             if (exitCode == 0 && system32.isDirectory && systemReg.isFile) {
