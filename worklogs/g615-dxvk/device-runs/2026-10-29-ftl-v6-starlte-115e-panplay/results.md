@@ -33,8 +33,8 @@ E audit : type=1400 audit(1793232800.135:90): avc:  denied  { ioctl } for  pid=1
 ```
 
 Both scenarios show it (scenario 1 at 17:13:20 and 17:18:20, scenario 2 at 17:18:31 and 17:23:31); `untrusted_app_27` (targetSdk 27 domain),
-Samsung SELinux build `SEPF_SM-G960F_10_0030`. `ioctlcmd=0x7201` is `FIGETBSZ`-class (`'r'` ioctl range, `0x72`), a directory ioctl Wine
-issues while opening the prefix directories; the prefix never gets `system32` or `system.reg` (`system32=false, systemReg=false`).
+Samsung SELinux build `SEPF_SM-G960F_10_0030`. `ioctlcmd=0x7201` is an ioctl on directories that the app domain may not issue (cause of the wine
+failure is inferred, not confirmed); the prefix never gets `system32` or `system.reg` (`system32=false, systemReg=false`).
 
 No driver code ran: no fps, no DEVICE_LOST, no `timeout on subqueue`, no GPU fault in logcat. So there is no 115e result for
 starlte D3D11/D3D12 (FL 11_1 on v6) from this run; needs a fix for the dir ioctl denial (for example a Wine build that
