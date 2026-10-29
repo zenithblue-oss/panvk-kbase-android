@@ -112,6 +112,9 @@ Gain = expected effect on the measured workloads; risk = chance of a correctness
 2. Firebase/RTL follow-up for 116 on v6/v7/v10/v14 (fills the empty PERF-PROGRESS columns; 0149 and 0151 touch
    every arch, 0150 only v9).
 3. BC compute decode per block on v6/v7/v9 (rank 4), checked with the `bc_decode` hashes and `bc_perf`.
+   **Done, 0153**: one invocation per 4x4 block (palette / subset endpoints once per block, BC7 via the fast
+   decoders), 16-byte row stores; bit-identical. TB336FU upload GPU ms: BC1 38.4 to 13.9, BC3 56.5 to 15.6,
+   BC6H 99-117 to 37-39, BC7 77.5 to 15.2 (RGBA8 6.4). v6/v7 use the same shaders, untested there.
 4. CSF tess drains (rank 6), then the single-CS tess design (rank 5) as its own build.
 5. BC lowmem background precompile (rank 7).
 6. Pass-through GS detection (rank 8) and the parallel strip table (rank 13).

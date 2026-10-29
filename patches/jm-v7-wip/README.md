@@ -824,6 +824,7 @@ v6/v7/v10/v14 untested with 116.
 | jm-v7-wip | what |
 |---|---|
 | 0152 | v9: the merged lowered VS fetches instance-rate attributes with vertex frequency and computes the element (instance / divisor) itself; drops the 0151 v9 exception |
+| 0153 | BC compute decoders (v6/v7/v9, 3D images everywhere) decode one 4x4 block per invocation, bit-identical; BC7 compute uses the fast decoders |
 
 0152 root cause: on the G57 an instance-frequency `LD_ATTR` in a compute job with merged workgroups returns, for
 every lane of a 4-lane group, the element of the group's first lane. `draw_params` `divisor` (1 vertex x 6 instances,
