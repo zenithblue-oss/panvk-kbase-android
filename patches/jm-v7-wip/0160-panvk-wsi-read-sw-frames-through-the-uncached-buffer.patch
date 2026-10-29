@@ -1,0 +1,60 @@
+From 94efd881634bbfc900a53f1d0ed5d41645ca142a Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 29 Oct 2026 15:22:48 +0530
+Subject: [PATCH] panvk/wsi: read sw frames through the uncached buffer again
+ (PANVK_WSI_SW_CACHED=1 opts in)
+
+jm-v7-wip 0115 made the sw WSI (kbase without the DRI3 dma-buf path, so
+every PanPlay Wine/DXVK present) read each frame back through the cached
+host memory type and invalidate it first.  The invalidate is a userland
+DC CIVAC over the whole frame per present, and on the X6 Pro (MT6897, v11)
+that costs more than the write-combined read it replaces:
+small frames lose most (D3D11 FL 11_1 640x360: 257 fps cached, 831
+uncached, rc4 803), the cube gains (255 to 271 fps, 1 % low 43 to 83),
+SquidRoom D3D12 is the same (58 / 58).  rc4 (before 0115) read uncached,
+which is the whole rc4 vs 115c+ fps gap on PanPlay's small-frame tests.
+
+Default the sw readback to the uncached buffer; PANVK_WSI_SW_CACHED=1
+keeps the cached read + invalidate for A/B.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_wsi.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_wsi.c b/src/panfrost/vulkan/panvk_wsi.c
+index 4d87b7ca7e2..54d35aa9667 100644
+--- a/src/panfrost/vulkan/panvk_wsi.c
++++ b/src/panfrost/vulkan/panvk_wsi.c
+@@ -17,6 +17,8 @@
+ #include <stdlib.h>
+ #include <string.h>
+ 
++#include "util/u_debug.h"
++
+ #if defined(HAVE_PAN_KMOD_KBASE)
+ #include "lib/kmod/kbase_kmod.h"
+ #endif
+@@ -757,12 +759,15 @@ panvk_wsi_init(struct panvk_physical_device *physical_device)
+       panvk_can_present_on_device;
+ 
+    /* The sw path reads every frame back on the CPU.  Without IO coherency
+-    * the only coherent host-visible type is the uncached one, so read
+-    * through the cached type and invalidate instead.
+-    * PANVK_WSI_SW_CACHED=0 keeps the uncached buffer.
++    * the only coherent host-visible type is the uncached one.  Reading
++    * through the cached type needs a DC CIVAC over the whole frame before
++    * each read, and on kbase (X6 Pro, v11) that costs more than the
++    * uncached read it saves: D3D11 FL 11_1 at 640x360 257 fps cached vs
++    * 831 uncached, the cube 255 vs 271, SquidRoom equal.  So the uncached
++    * buffer is the default again; PANVK_WSI_SW_CACHED=1 reads cached.
+     */
+    physical_device->wsi_device.sw_cached_noncoherent =
+-      PANVK_PERF(WSI_SW_CACHED);
++      debug_get_bool_option("PANVK_WSI_SW_CACHED", false);
+ 
+    /* MIT-SHM sw present: the event thread collects each put's GetGeometry
+     * reply, so the present thread copies and sends the next frame while
+-- 
+2.56.0
+
