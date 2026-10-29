@@ -32,3 +32,10 @@ add_library(padshim SHARED
 target_compile_options(padshim PRIVATE -O2 -fvisibility=hidden)
 target_link_options(padshim PRIVATE "-Wl,-z,max-page-size=16384" "-Wl,--as-needed")
 target_link_libraries(padshim PRIVATE log dl)
+
+# LD_PRELOAD shim: memfd_create for Android < 11 (libxshmfence dlopen).
+add_library(memfdshim SHARED
+    memfdshim.c
+)
+target_compile_options(memfdshim PRIVATE -O2 -fvisibility=hidden)
+target_link_options(memfdshim PRIVATE "-Wl,-z,max-page-size=16384" "-Wl,--as-needed")

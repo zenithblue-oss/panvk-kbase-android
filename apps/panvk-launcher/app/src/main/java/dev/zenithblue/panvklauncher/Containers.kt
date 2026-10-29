@@ -466,6 +466,11 @@ object ContainerManager {
         extra?.get("ANDROID_SYSVSHM_SERVER")?.let { envMap["ANDROID_SYSVSHM_SERVER"] = it }
         // Gamepad: LD_PRELOAD shim -> SDL virtual Xbox pad -> winebus. Graphical runs only.
         if (extra?.containsKey("DISPLAY") == true) envMap.putAll(GamepadBridge.env(ctx))
+        // Android < 11 has no libc memfd_create: libxshmfence would not dlopen and X11 WSI fails with OOM.
+        if (extra?.containsKey("DISPLAY") == true && android.os.Build.VERSION.SDK_INT < 30) {
+            val shim = File(ctx.applicationInfo.nativeLibraryDir, "libmemfdshim.so")
+            if (shim.exists()) envMap["LD_PRELOAD"] = listOfNotNull(shim.path, envMap["LD_PRELOAD"]).joinToString(":")
+        }
         // X11 sw WSI (csf-v11/117) paces FIFO to this; X servers here give no real vblank.
         if (extra?.containsKey("DISPLAY") == true) {
             ctx.getSystemService(android.hardware.display.DisplayManager::class.java)
