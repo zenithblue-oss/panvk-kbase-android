@@ -752,3 +752,43 @@ Tests: X6 Pro (G615 v11) full PanProbe with `PANVK_PRERAST_CHUNK_FLUSH=1` (flush
 JM, flush code not used) 40/40. v14 NOT TESTED (RTL session ended while rtl.lock was held). Next v14 run: PanProbe
 `--es autorun tessellation` with defaults (expect 0 mismatch on repeated runs) and with `PANVK_PRERAST_CHUNK_FLUSH=0`
 (expect the 64-460 mismatch back); `tess_perf` ms vs the v14fix run for the flush cost (one flush per chunk).
+
+## v14 D3D9 DEVICE_LOST: sparse device TLS (2026-10-29): 0148
+
+| jm-v7-wip | what |
+|---|---|
+| 0148 | `PANVK_TLS_SPARSE` defaults to 0 on v14 (csf-v11 230 alias region off, full device TLS BO); `=1` still forces the alias. v10-v13 unchanged |
+
+Symptom (115e/115g, RTL SM-X846B, Mali-G1-Ultra v14, `shader_present 0x3300ff`, 22 core IDs for 12 cores): PanPlay
+s3 D3D9 cube `VK_ERROR_DEVICE_LOST`. Not a deadlock: ~1-7 s after the first frame kbase reports a GPU MMU fault on
+every group of the context (`CSF group N fatal error: status 0x....02c1/02c0/03c1`, exception 0xc0/0xc1 = translation
+fault, access READ, once WRITE), the groups stop, and the "timeout snapshot" 10 s later (seqno < target, stream progress
+0) is the consequence. Fault addresses are garbage: 0x0, 0x3f800000 (1.0f), 0x3f67f100, 0x3e7ace00, 0x144009d7c00,
+0x144000ae5c0, 0x144001dad80, write at 0x5f00000000, i.e. pointers reloaded from memory holding other data.
+
+A/B on the RTL device, 115g PanPlay, d3d9 cube passes of 15-23 s (`worklogs/g615-dxvk/device-runs/2026-10-29-rtl-v14-sm-x846b-tls-sparse/`):
+- with the alias (default 115g, `old` knob set, `PANVK_KBASE_IMPORT_SYNC=1`, `PANVK_DEBUG=no_wb_mmap`, DXVK GPL off,
+  d3d9 `presentInterval = 0`): faults in 13 of 17 passes; no knob other than the TLS one changes it, so not CPU cache
+  maintenance, vsync idle or pipeline libraries.
+- `PANVK_TLS_SPARSE=0`: 0 faults in 6 of 6 passes; `PANVK_DEBUG=sync` (its decode context also skips the alias): 0 in 2.
+- PanProbe `tessellation` (installed `git-2732f11e42`, no 0147): `PANVK_TLS_SPARSE=1` FAIL mismatch 437/64/510 (3 of 3),
+  `=0` PASS mismatch 0 (4 of 4). So the 0147 "stale chunk data" mismatch is the same bug (0147 was inferred, never A/B'd).
+
+Cause: the alias maps the core-ID slots of absent cores onto slab 0 and relies on the hardware placing core c's stacks
+in slot c. On v14 that does not hold (the slot mapping is unknown; the full BO covers every slot of the 22-ID range so
+it works whatever it is): threads of different cores share stack memory, so a spilled 64-bit pointer is reloaded with
+another thread's data. D3D9 (fixed-function lighting shaders, 4096 B/thread device TLS) and the tessellation compute
+kernels spill; the D3D11 cube does not. v10 (mask 0x1110055) and v11 (0x130013) run the alias without faults.
+Cost on v14: 176 MiB device TLS committed instead of 96 MiB.
+
+Strict check: fresh 5a07217f worktree `/var/tmp/panvk/mesa-d3d9v14-final`, `prepare-rc5-tree.sh --wip-max 0148`:
+`BASE-OK applied=228`, `OK base=228 jm-v7-wip=143 head=0cef29d17b1`, tree `ed9e282a` = dev worktree
+`/var/tmp/panvk/mesa-d3d9v14-dev` (`41aa2dafce2`). Driver `/var/tmp/panvk/build-out/2026-10-29-d3d9v14/libvulkan_panfrost.so`
+(`/var/tmp/panvk/d3d9v14-build.sh`, 4 jobs), sha256 `6cd9c1f507c1c9bc...`, 29294648 bytes, BuildID
+`13ac4106911a0f0e8d86a48ce2250678a94da78b`, driverInfo `git-41aa2dafce`. APKs (`build-out/apks/build-d3d9v14.sh`, PanPlay
+from a `git archive HEAD` copy of `apps/panvk-launcher`): `panprobe-d3d9v14.apk` `7549e90131516482...` (rc5 slot),
+`panplay-d3d9v14.apk` `0f5b1c09cdad4cd0...`.
+
+Tests with that driver: v14 RTL PanPlay d3d9 cube 7 of 7 default passes without a fault (the one `PANVK_TLS_SPARSE=1`
+pass faulted), PanProbe `tessellation` 3 of 3 mismatch 0; X6 Pro (G615 v11) full PanProbe 40/40; v14 RTL full PanProbe 40/40 (115g-era v14fix: 39/40, tessellation); TB336FU (G57 v9)
+full PanProbe 40/40. A full v14 PanPlay s3 run started but the RTL session ended in pass 1 (d3d11).

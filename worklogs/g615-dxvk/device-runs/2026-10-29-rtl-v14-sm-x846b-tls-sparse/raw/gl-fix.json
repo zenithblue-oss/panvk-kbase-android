@@ -1,0 +1,12 @@
+{
+  "warmupSec": 3,
+  "measureSec": 20,
+  "tailSec": 3,
+  "screenshotAtSec": 4,
+  "envSets": {
+    "sparse1": {"note": "PANVK_TLS_SPARSE=1 (old v14 default)", "env": {"PANVK_TLS_SPARSE": "1"}}
+  },
+  "scenarios": {
+    "10": {"name": "d3d9fix", "tasks": ["d3d9"], "envSets": ["default", "default", "default", "sparse1", "default", "default", "default", "default"]}
+  }
+}
