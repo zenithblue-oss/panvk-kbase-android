@@ -1,0 +1,37 @@
+MESA: info: kbase: CSF driver, uAPI version 1.30, page_size=4096
+MESA: info: kbase: coherency mode 0 (ACE-Lite), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 13000000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: info: panvk: gpu_id 0xd8300015 variant 0x4 arch v13 model Mali-G725/G925 texture_features 0xc7fe001e 0 0 0
+MESA: info: panvk: BC emulation on, lowmem (native compressed mask 0xc7fe001e)
+WARNING: panvk is not a conformant Vulkan implementation, testing use only.
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+INFO device Mali-G925-Immortalis MC12, Mali v13, apiVersion 1.4.363
+INFO D3D12 (vkd3d-proton 2230755): 11_0 PASS, 11_1 PASS, 12_0 FAIL, 12_1 FAIL, 12_2 FAIL; max 11_1
+INFO D3D12 caps: shader model 6.8, resource binding tier 3, tiled resources tier 0, conservative raster tier 1, ROVs no, typed UAV loads 18/18, wave ops yes, VP/RT index without GS yes, VRS tier 0, mesh tier 0, DXR none, sampler feedback 0.9
+INFO D3D11 (DXVK 3.1.1): 9_1-9_3 PASS, 10_0-10_1 PASS, 11_0 PASS, 11_1 PASS, 12_0 FAIL, 12_1 FAIL; max 11_1 (tiled tier 0, conservative tier 1, ROVs no)
+INFO target D3D12 11_0-12_1 on v13: not met, missing 12_0, 12_1; 12_2 out of scope
+INFO reach FL12_0 TiledResourcesTier >= 2 (have 0) on v13: needs kernel: the kbase uAPI has no map-pages-at-a-chosen-GPU-VA (bind/unbind) ioctl (docs/KBASE-SPARSE-FEASIBILITY.md, NO-GO); then driver work: sparseResidencyAliased (panfrost/mesa#237), residencyNonResidentStrict, shaderResourceResidency/MinLod (upstream PanVK on panthor is tier 0 too)
+INFO reach FL12_1 ROVsSupported on v13: possible with driver work: no Mali driver exposes fragment shader interlock, but the per-pixel ordering primitive exists (eldest-colour dependency slot 7: bifrost.h BIFROST_SLOT_ELDEST_COLOUR, Valhall flow 'wait' = slots 0,1,2,6,7); unproven for fragments that write no colour
+HARD ok D3D12 FL11_0
+SOFT ok D3D12 FL11_1
+SOFT missing D3D12 FL12_0 -- TiledResourcesTier >= 2 (have 0)
+SOFT missing D3D12 FL12_1 -- ROVsSupported
+SOFT missing D3D12 FL12_2 -- ConservativeRasterizationTier 3 (have 1), TiledResourcesTier >= 3 (have 0), RaytracingTier >= 1.1, VariableShadingRateTier 2, MeshShaderTier 1
+SOFT ok D3D11 FL9_1-9_3
+SOFT ok D3D11 FL10_0-10_1
+HARD ok D3D11 FL11_0
+SOFT ok D3D11 FL11_1
+SOFT missing D3D11 FL12_0 -- TiledResourcesTier >= 2 (have 0)
+SOFT missing D3D11 FL12_1 -- ROVsSupported
+SOFT missing D3D12 FL12_0 needs TiledResourcesTier >= 2 (have 0) -- sparse residency + residency queries [missing: sparseBinding, sparseResidencyAliased, sparseResidencyBuffer, sparseResidencyImage2D, sparse-binding queue] [missing: shaderResourceResidency, shaderResourceMinLod, residencyNonResidentStrict] | v13: needs kernel: the kbase uAPI has no map-pages-at-a-chosen-GPU-VA (bind/unbind) ioctl (docs/KBASE-SPARSE-FEASIBILITY.md, NO-GO); then driver work: sparseResidencyAliased (panfrost/mesa#237), residencyNonResidentStrict, shaderResourceResidency/MinLod (upstream PanVK on panthor is tier 0 too)
+SOFT missing D3D12 FL12_1 needs ROVsSupported -- VK_EXT_fragment_shader_interlock pixel + sample [missing: fragmentShaderPixelInterlock, fragmentShaderSampleInterlock] | v13: possible with driver work: no Mali driver exposes fragment shader interlock, but the per-pixel ordering primitive exists (eldest-colour dependency slot 7: bifrost.h BIFROST_SLOT_ELDEST_COLOUR, Valhall flow 'wait' = slots 0,1,2,6,7); unproven for fragments that write no colour
+SOFT missing D3D12 FL12_2 needs ConservativeRasterizationTier 3 (have 1) -- [missing: degenerateTrianglesRasterized, fullyCoveredFragmentShaderInputVariable] | v13: unknown: degenerateTrianglesRasterized only on v14, no inner-coverage input on any arch
+SOFT missing D3D12 FL12_2 needs TiledResourcesTier >= 3 (have 0) -- tier 2 + 3D sparse [missing: sparseResidencyImage3D, residencyStandard3DBlockShape] | v13: needs kernel: the kbase uAPI has no map-pages-at-a-chosen-GPU-VA (bind/unbind) ioctl (docs/KBASE-SPARSE-FEASIBILITY.md, NO-GO); then driver work: sparseResidencyAliased (panfrost/mesa#237), residencyNonResidentStrict, shaderResourceResidency/MinLod (upstream PanVK on panthor is tier 0 too)
+SOFT missing D3D12 FL12_2 needs RaytracingTier >= 1.1 -- VK_KHR_acceleration_structure + ray_tracing_pipeline + ray_query + rayTraversalPrimitiveCulling | v13: hardware only on Immortalis parts (RT unit: Immortalis-G715/G720/G925, Mali-G1-Ultra); VK_KHR_ray_tracing_pipeline + ray_query do not exist in PanVK (very large driver work)
+SOFT missing D3D12 FL12_2 needs VariableShadingRateTier 2 -- VK_KHR_fragment_shading_rate pipeline + primitive + attachment rates | v13: possible with driver work: VRS hardware since Mali-G715/G615 (v11); PanVK has no VK_KHR_fragment_shading_rate
+SOFT missing D3D12 FL12_2 needs MeshShaderTier 1 -- VK_EXT_mesh_shader meshShader + taskShader | v13: hardware cannot natively (no mesh/task stage known on v6-v14); compute emulation = very large driver work
+SOFT missing D3D11 FL12_0 needs TiledResourcesTier >= 2 (have 0) -- sparse residency [missing: sparseBinding, sparseResidencyBuffer, sparseResidencyImage2D, sparseResidencyAliased, shaderResourceResidency, shaderResourceMinLod, residencyNonResidentStrict] | v13: needs kernel: the kbase uAPI has no map-pages-at-a-chosen-GPU-VA (bind/unbind) ioctl (docs/KBASE-SPARSE-FEASIBILITY.md, NO-GO); then driver work: sparseResidencyAliased (panfrost/mesa#237), residencyNonResidentStrict, shaderResourceResidency/MinLod (upstream PanVK on panthor is tier 0 too)
+SOFT missing D3D11 FL12_1 needs ROVsSupported -- VK_EXT_fragment_shader_interlock fragmentShaderPixelInterlock | v13: possible with driver work: no Mali driver exposes fragment shader interlock, but the per-pixel ordering primitive exists (eldest-colour dependency slot 7: bifrost.h BIFROST_SLOT_ELDEST_COLOUR, Valhall flow 'wait' = slots 0,1,2,6,7); unproven for fragments that write no colour
+INFO hard ok, 9 blocking caps listed
+RESULT PASS
