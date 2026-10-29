@@ -1144,6 +1144,13 @@ object ContainerManager {
                 }
                 "com.android.providers.downloads.documents" ->
                     if (docId.startsWith("raw:")) cands.add(docId.removePrefix("raw:"))
+                    // Downloads root lists MediaStore files as "msf:<id>"; their _data is readable with All files access.
+                    else docId.removePrefix("msf:").toLongOrNull()?.let { id ->
+                        ctx.contentResolver.query(
+                            android.content.ContentUris.withAppendedId(android.provider.MediaStore.Files.getContentUri("external"), id),
+                            arrayOf("_data"), null, null, null
+                        )?.use { c -> if (c.moveToFirst()) c.getString(0)?.let { cands.add(it) } }
+                    }
             }
         } catch (_: Exception) {}
         try {
