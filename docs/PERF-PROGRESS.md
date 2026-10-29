@@ -422,3 +422,289 @@ s8 342 / 131, s9 301 / 121; TB336FU s1 340 / 190, s3 391 / 212, s5 385 / 212, s7
 **v13 single-scene cube** (RTL S11 Ultra, other agent, `2026-10-29-rtl-v13-sm-x930-cube-ab/`): 118 964 fps / 1 %-low
 116 vs 121b about 600 / 290, so 121b is smoother with a lower average; `PANVK_WSI_SW_CACHED=1` and
 `PANVK_KBASE_TILER_IR=0` change nothing; the 119 bisect is open.
+
+
+## Build 122c/122d/122e gate (2026-10-30): rc4 vs 116 vs 122c, TB336FU v9
+
+Release gate: the final build must beat rc4 and 116 in speed and memory on every PanProbe and PanPlay benchmark.
+Builds after 122b:
+- 122c adds 0167, which turns 0161 off on v14, where it was a release blocker.
+- 122d adds 0168: sw WSI readback cached on v13+.
+- 122e adds 0169: cached on every arch except v11.
+
+Neither 0168 nor 0169 changes PanProbe on v9, and 0167 is CSF-only. So the v9 PanProbe numbers below hold for 122c, 122d and 122e.
+PanPlay on v9 changes with 0169 (cached readback again), see "0160 on v9" below.
+
+How the runs were made:
+- One session on the TB336FU (battery 28-29 C), using the same app build (main bbb22c94).
+- Only the .so differs: panprobe-116c and panplay-rc4c/116c are built from the same tree as 122c.
+- PanProbe: two cold and two warm runs per build, in alternating order (122c round 1, rc4, 116, then 122c, 116, rc4).
+- PanPlay: one full 1-9 pass each for rc4c and 116c, and two for 122c.
+- The value shown is the mean. "±" is half the spread between runs.
+- Flag rule: the candidate mean is worse than a baseline mean by more than 5 % and by more than both spreads.
+- Raw data: `worklogs/g615-dxvk/device-runs/2026-10-30-local-122c-gate/`. The table script is `table.py` there.
+
+rc4's PanProbe test times are ~2-4 s higher for every test: its slot runs each test with a longer fixed setup. So per-test
+rc4 times are not comparable, but its `workload_perf` cases and memory are.
+
+### PanProbe TB336FU, cold cache (ms per test, `workload_perf` us per op)
+
+| metric | rc4 | 116 | 122c | flag |
+|---|---|---|---|---|
+| gpu_prerast_slice ms | 4081.0 ±3.0 | 164.0 ±24.0 | 173.0 ±24.0 |  |
+| clip_cull ms | 5131.5 ±4.5 | 1156.0 ±11.0 | 1163.0 ±16.0 |  |
+| multi_viewport ms | 5085.5 ±0.5 | 1100.0 ±15.0 | 1094.0 ±1.0 |  |
+| fill_mode ms | 5399.0 ±3.0 | 1241.0 ±41.0 | 1240.0 ±35.0 |  |
+| bc_decode ms | 4617.0 ±15.0 | 620.0 ±4.0 | 1617.5 ±7.5 | worse than 116 |
+| bc_perf ms | 53637.5 ±43.5 | 46401.5 ±9.5 | 45087.0 ±98.0 |  |
+| tess_perf ms | - | 33138.0 ±379.0 | 33279.0 ±1377.0 |  |
+| workload_perf ms | 22016.0 ±9.0 | 11530.5 ±15.5 | 9467.5 ±5.5 |  |
+| geometry ms | 5498.5 ±10.5 | 1399.5 ±19.5 | 1362.5 ±4.5 |  |
+| tessellation ms | 7822.5 ±48.5 | 2273.0 ±4.0 | 2105.5 ±14.5 |  |
+| xfb ms | 4335.5 ±2.5 | 300.5 ±2.5 | 289.5 ±3.5 |  |
+| pipeline_stats ms | 5209.0 ±7.0 | 1165.0 ±13.0 | 1151.0 ±0.0 |  |
+| vertex_stores ms | 4140.0 ±2.0 | 155.5 ±6.5 | 150.0 ±3.0 |  |
+| gs_viewport_depth ms | 4243.5 ±2.5 | 284.0 ±37.0 | 302.5 ±4.5 |  |
+| vs_viewport_index ms | 4241.0 ±15.0 | 242.5 ±5.5 | 251.0 ±12.0 |  |
+| depth_bounds ms | 4313.0 ±2.0 | 197.5 ±3.5 | 185.5 ±1.5 |  |
+| large_draw ms | - | 10231.5 ±157.5 | 7419.0 ±6.0 |  |
+| vmr_secondary ms | 4091.5 ±2.5 | 101.5 ±2.5 | 103.0 ±9.0 |  |
+| tess_cond_state ms | 4168.0 ±5.0 | 233.5 ±25.5 | 265.5 ±19.5 |  |
+| bachata_reqs ms | 4177.5 ±17.5 | 107.0 ±13.0 | 92.0 ±8.0 |  |
+| bachata_exec ms | 4100.5 ±0.5 | 120.0 ±5.0 | 128.0 ±3.0 |  |
+| robustness2 ms | 4098.5 ±4.5 | 141.5 ±3.5 | 135.5 ±11.5 |  |
+| robust_image_access2 ms | 10535.0 ±1.0 | 6573.0 ±4.0 | 6564.0 ±27.0 |  |
+| blend ms | 4099.0 ±5.0 | 103.5 ±0.5 | 120.0 ±18.0 |  |
+| occlusion_query ms | 4099.5 ±5.5 | 125.0 ±21.0 | 117.0 ±3.0 |  |
+| descriptor_model ms | 4106.5 ±6.5 | 129.0 ±5.0 | 135.0 ±1.0 |  |
+| shader_arith ms | 4113.0 ±23.0 | 197.0 ±16.0 | 171.5 ±7.5 |  |
+| depth_stencil ms | 4131.0 ±4.0 | 140.0 ±19.0 | 141.0 ±2.0 |  |
+| sampler ms | 4126.0 ±4.0 | 204.0 ±40.0 | 155.5 ±10.5 |  |
+| draw_params ms | 4136.5 ±1.5 | 166.0 ±12.0 | 185.5 ±29.5 |  |
+| submit_stress ms | 34087.5 ±1.5 | 30107.5 ±0.5 | 30117.0 ±4.0 |  |
+| csf_event ms | 4516.0 ±3.0 | 311.5 ±20.5 | 299.0 ±12.0 |  |
+| gs_tess_primitive_id ms | 4306.5 ±13.5 | 258.5 ±16.5 | 241.5 ±11.5 |  |
+| bachata_storage_fmtless ms | 4107.5 ±3.5 | 99.0 ±5.0 | 109.0 ±9.0 |  |
+| bachata_dynamic_render ms | 4112.0 ±11.0 | 128.0 ±5.0 | 140.0 ±6.0 | worse than 116 |
+| dxvk_reqs ms | 2070.5 ±3.5 | 84.5 ±0.5 | 83.0 ±1.0 |  |
+| vkd3d_reqs ms | 2065.0 ±1.0 | 82.0 ±3.0 | 87.5 ±3.5 |  |
+| d3d_fl ms | 2055.5 ±1.5 | 88.0 ±4.0 | 84.5 ±0.5 |  |
+| vkd3d_heap ms | 10365.0 ±1.0 | 372.0 ±16.0 | 364.0 ±26.0 |  |
+| vkd3d_timeline ms | 4241.5 ±2.5 | 225.0 ±9.0 | 215.5 ±0.5 |  |
+| swapchain_lifecycle ms | 10379.0 ±10.0 | 6384.0 ±7.0 | 6429.0 ±12.0 |  |
+| wl bc_level us | 107140.0 ±614.0 | 101939.0 ±1587.0 | 256352.0 ±940.0 | worse than rc4 worse than 116 |
+| wl ref us | 12.9 ±2.0 | 10.8 ±1.0 | 13.2 ±0.9 | worse than 116 |
+| wl gs_pass us | 53.2 ±2.4 | 41.7 ±0.2 | 14.4 ±0.9 |  |
+| wl gs_layer us | 53.9 ±3.2 | 42.8 ±0.0 | 34.1 ±0.8 |  |
+| wl xfb_vs us | 464.2 ±0.6 | 461.5 ±0.2 | 87.9 ±2.5 |  |
+| wl xfb_gs us | 862.0 ±1.4 | 514.2 ±1.4 | 228.2 ±1.6 |  |
+| wl strip_ref us | 17.4 ±1.3 | 18.5 ±0.4 | 17.1 ±1.5 |  |
+| wl strip_gs us | 1928.8 ±3.8 | 1186.0 ±0.3 | 17.8 ±1.3 |  |
+| wl cond_true us | 18.1 ±0.6 | 16.7 ±1.5 | 18.6 ±0.2 | worse than 116 |
+| wl cond_false us | 8.4 ±0.1 | 8.1 ±0.0 | 8.1 ±0.0 |  |
+| wl pg_query us | 21.3 ±0.1 | 20.5 ±0.1 | 11.9 ±1.0 |  |
+| wl ts_ref us | 722.9 ±3.3 | 729.4 ±9.1 | 700.8 ±32.3 |  |
+| wl ts_pair us | 1027.0 ±3.6 | 964.7 ±9.6 | 961.8 ±8.2 |  |
+| wl msaa_ref us | 255.7 ±3.8 | 256.1 ±4.2 | 253.0 ±1.3 |  |
+| wl msaa_sshade us | 1999.7 ±825.1 | 1177.3 ±1.7 | 1195.2 ±3.7 |  |
+| wl tex_rgba us | 260.9 ±9.2 | 248.2 ±1.1 | 247.1 ±3.3 |  |
+| wl tex_bgra us | 270.0 ±0.3 | 275.2 ±5.3 | 274.4 ±2.8 |  |
+| PSS max MB | 228.5 ±0.7 | 230.1 ±0.7 | 226.4 ±1.9 |  |
+| Graphics max MB | 130.7 ±0.0 | 128.8 ±0.1 | 126.7 ±0.0 |  |
+
+### PanProbe TB336FU, warm cache
+
+| metric | rc4 | 116 | 122c | flag |
+|---|---|---|---|---|
+| gpu_prerast_slice ms | 4079.0 ±3.0 | 145.5 ±23.5 | 146.0 ±25.0 |  |
+| clip_cull ms | 5127.5 ±0.5 | 1127.5 ±10.5 | 1119.5 ±3.5 |  |
+| multi_viewport ms | 5092.5 ±0.5 | 1091.0 ±4.0 | 1098.5 ±7.5 |  |
+| fill_mode ms | 5372.5 ±6.5 | 1200.0 ±32.0 | 1174.0 ±2.0 |  |
+| bc_decode ms | 4630.0 ±1.0 | 133.5 ±8.5 | 120.0 ±4.0 |  |
+| bc_perf ms | 53849.0 ±214.0 | 46392.0 ±113.0 | 45050.0 ±274.0 |  |
+| tess_perf ms | - | 32814.0 ±1326.0 | 34380.0 ±131.0 |  |
+| workload_perf ms | 22016.5 ±4.5 | 11425.5 ±101.5 | 9316.5 ±64.5 |  |
+| geometry ms | 5516.5 ±8.5 | 1195.0 ±4.0 | 1176.0 ±6.0 |  |
+| tessellation ms | 7846.0 ±42.0 | 1836.0 ±3.0 | 1847.0 ±8.0 |  |
+| xfb ms | 4325.0 ±6.0 | 200.0 ±4.0 | 210.0 ±10.0 |  |
+| pipeline_stats ms | 5198.0 ±9.0 | 1171.5 ±19.5 | 1151.5 ±10.5 |  |
+| vertex_stores ms | 4148.5 ±10.5 | 144.0 ±10.0 | 144.0 ±0.0 |  |
+| gs_viewport_depth ms | 4245.0 ±3.0 | 309.0 ±1.0 | 283.0 ±15.0 |  |
+| vs_viewport_index ms | 4235.0 ±15.0 | 208.5 ±1.5 | 229.0 ±17.0 | worse than 116 |
+| depth_bounds ms | 4336.0 ±13.0 | 204.5 ±11.5 | 188.0 ±10.0 |  |
+| large_draw ms | - | 10184.5 ±63.5 | 7177.5 ±42.5 |  |
+| vmr_secondary ms | 4105.0 ±5.0 | 95.0 ±7.0 | 84.5 ±2.5 |  |
+| tess_cond_state ms | 4172.0 ±2.0 | 215.5 ±27.5 | 198.5 ±7.5 |  |
+| bachata_reqs ms | 4176.5 ±7.5 | 117.0 ±15.0 | 122.5 ±0.5 |  |
+| bachata_exec ms | 4093.5 ±10.5 | 107.0 ±3.0 | 114.5 ±10.5 |  |
+| robustness2 ms | 4104.5 ±11.5 | 109.0 ±6.0 | 109.5 ±7.5 |  |
+| robust_image_access2 ms | 10515.5 ±19.5 | 6514.0 ±5.0 | 6493.5 ±4.5 |  |
+| blend ms | 4101.5 ±1.5 | 100.5 ±8.5 | 100.0 ±7.0 |  |
+| occlusion_query ms | 4101.5 ±2.5 | 120.0 ±4.0 | 115.5 ±8.5 |  |
+| descriptor_model ms | 4098.0 ±1.0 | 123.5 ±0.5 | 123.5 ±2.5 |  |
+| shader_arith ms | 4112.5 ±15.5 | 124.0 ±4.0 | 131.5 ±9.5 |  |
+| depth_stencil ms | 4120.0 ±8.0 | 134.5 ±7.5 | 137.0 ±2.0 |  |
+| sampler ms | 4117.5 ±15.5 | 125.5 ±0.5 | 123.5 ±2.5 |  |
+| draw_params ms | 4138.0 ±17.0 | 179.0 ±8.0 | 192.5 ±2.5 | worse than 116 |
+| submit_stress ms | 34090.0 ±1.0 | 30116.0 ±7.0 | 30110.0 ±5.0 |  |
+| csf_event ms | 4561.5 ±4.5 | 274.5 ±2.5 | 277.0 ±1.0 |  |
+| gs_tess_primitive_id ms | 4314.5 ±2.5 | 213.0 ±3.0 | 220.5 ±15.5 |  |
+| bachata_storage_fmtless ms | 4099.0 ±4.0 | 123.0 ±8.0 | 116.0 ±12.0 |  |
+| bachata_dynamic_render ms | 4103.0 ±1.0 | 118.0 ±3.0 | 122.0 ±3.0 |  |
+| dxvk_reqs ms | 2068.0 ±14.0 | 75.5 ±0.5 | 88.0 ±5.0 | worse than 116 |
+| vkd3d_reqs ms | 2070.0 ±4.0 | 83.5 ±4.5 | 90.0 ±2.0 |  |
+| d3d_fl ms | 2057.0 ±0.0 | 82.0 ±3.0 | 91.0 ±3.0 | worse than 116 |
+| vkd3d_heap ms | 10348.5 ±13.5 | 375.5 ±3.5 | 345.5 ±17.5 |  |
+| vkd3d_timeline ms | 4230.0 ±2.0 | 221.5 ±4.5 | 226.0 ±0.0 |  |
+| swapchain_lifecycle ms | 10336.5 ±34.5 | 6362.5 ±13.5 | 6357.5 ±26.5 |  |
+| wl bc_level us | 108437.5 ±333.5 | 104681.5 ±3394.5 | 257520.5 ±2352.5 | worse than rc4 worse than 116 |
+| wl ref us | 13.2 ±0.2 | 12.0 ±3.6 | 13.7 ±2.0 |  |
+| wl gs_pass us | 54.8 ±0.1 | 39.8 ±4.2 | 13.9 ±2.0 |  |
+| wl gs_layer us | 50.0 ±0.9 | 38.8 ±4.8 | 33.8 ±1.6 |  |
+| wl xfb_vs us | 463.9 ±0.4 | 462.8 ±0.4 | 90.4 ±0.1 |  |
+| wl xfb_gs us | 864.7 ±0.2 | 511.1 ±3.7 | 236.5 ±1.6 |  |
+| wl strip_ref us | 18.5 ±0.2 | 16.6 ±0.2 | 19.0 ±0.1 | worse than 116 |
+| wl strip_gs us | 1927.9 ±3.7 | 1183.7 ±0.2 | 18.9 ±0.9 |  |
+| wl cond_true us | 18.5 ±0.3 | 17.7 ±0.1 | 19.2 ±0.0 | worse than 116 |
+| wl cond_false us | 8.3 ±0.2 | 7.9 ±0.1 | 8.2 ±0.1 |  |
+| wl pg_query us | 21.7 ±0.2 | 20.7 ±0.2 | 15.4 ±0.3 |  |
+| wl ts_ref us | 736.2 ±3.9 | 731.6 ±14.5 | 723.5 ±4.9 |  |
+| wl ts_pair us | 1010.7 ±16.4 | 960.6 ±13.2 | 965.5 ±8.2 |  |
+| wl msaa_ref us | 251.7 ±0.4 | 254.3 ±2.7 | 253.0 ±1.1 |  |
+| wl msaa_sshade us | 1176.6 ±6.3 | 1190.3 ±1.2 | 1169.4 ±4.0 |  |
+| wl tex_rgba us | 254.3 ±7.7 | 247.1 ±0.1 | 245.9 ±1.4 |  |
+| wl tex_bgra us | 275.5 ±5.4 | 274.5 ±2.0 | 272.8 ±0.8 |  |
+| PSS max MB | 228.4 ±2.4 | 224.3 ±5.5 | 232.6 ±4.3 |  |
+| Graphics max MB | 129.7 ±1.0 | 125.0 ±1.8 | 129.0 ±0.3 |  |
+
+### PanPlay TB336FU (fps, 1 % low, max PSS / Graphics MB per scenario), 122c = 0160 uncached readback
+
+| metric | rc4 | 116 | 122c | flag |
+|---|---|---|---|---|
+| s1 01 d3d11 default fps | 155.3 | 152.9 | 159.7 ±0.4 |  |
+| s1 01 d3d11 default 1%low | 80.7 | 84.8 | 81.6 ±2.0 |  |
+| s2 01 d3d9 default fps | 90.0 | 89.9 | 90.0 ±0.0 |  |
+| s2 01 d3d9 default 1%low | 50.9 | 47.1 | 50.3 ±1.1 |  |
+| s3 01 d3d11 default fps | 157.4 | 159.5 | 161.2 ±4.1 |  |
+| s3 01 d3d11 default 1%low | 86.9 | 92.9 | 90.6 ±0.4 |  |
+| s3 02 d3d9 default fps | 90.0 | 90.0 | 90.0 ±0.0 |  |
+| s3 02 d3d9 default 1%low | 52.7 | 48.2 | 52.2 ±0.4 |  |
+| s4 01 d3d11 old fps | 144.1 | 159.5 | 161.3 ±2.9 |  |
+| s4 01 d3d11 old 1%low | 39.7 | 88.4 | 84.8 ±0.4 |  |
+| s4 02 d3d11 default fps | 157.3 | 161.1 | 161.2 ±2.1 |  |
+| s4 02 d3d11 default 1%low | 83.2 | 91.9 | 85.3 ±1.1 | worse than 116 |
+| s4 03 d3d9 old fps | 89.9 | 89.9 | 89.9 ±0.0 |  |
+| s4 03 d3d9 old 1%low | 49.8 | 50.4 | 50.3 ±0.4 |  |
+| s4 04 d3d9 default fps | 90.0 | 89.9 | 90.0 ±0.0 |  |
+| s4 04 d3d9 default 1%low | 49.3 | 46.4 | 50.3 ±1.7 |  |
+| s8 01 d3d11fl_10_0 default fps | 194.4 | 208.4 | 199.8 ±0.3 |  |
+| s8 01 d3d11fl_10_0 default 1%low | 97.4 | 107.8 | 100.8 ±0.1 | worse than 116 |
+| s8 02 d3d11fl_10_1 default fps | 201.9 | 212.9 | 201.8 ±0.3 | worse than 116 |
+| s8 02 d3d11fl_10_1 default 1%low | 102.7 | 104.7 | 103.3 ±1.1 |  |
+| s8 03 d3d11fl_11_0 default fps | 194.4 | 212.8 | 200.9 ±0.2 | worse than 116 |
+| s8 03 d3d11fl_11_0 default 1%low | 99.8 | 109.4 | 99.2 ±2.6 | worse than 116 |
+| s8 04 d3d11fl_11_1 default fps | 194.0 | 202.2 | 206.1 ±1.5 |  |
+| s8 04 d3d11fl_11_1 default 1%low | 98.2 | 104.8 | 94.3 ±2.1 | worse than 116 |
+| s8 05 d3d10 default fps | 158.7 | 162.4 | 162.5 ±2.8 |  |
+| s8 05 d3d10 default 1%low | 80.2 | 96.1 | 87.0 ±6.2 | worse than 116 |
+| s8 06 d3d9 default fps | 89.9 | 90.0 | 89.8 ±0.1 |  |
+| s8 06 d3d9 default 1%low | 50.3 | 47.6 | 48.0 ±1.1 |  |
+| s9 02 d3d11fl_all default fps | 197.1 | 212.3 | 200.0 ±1.3 | worse than 116 |
+| s9 02 d3d11fl_all default 1%low | 101.3 | 109.5 | 97.8 ±2.2 | worse than 116 |
+| s1 PSS MB | 317.4 | 339.1 | 345.6 ±9.3 | worse than rc4 |
+| s1 Graphics MB | 174.4 | 187.1 | 195.1 ±8.0 | worse than rc4 |
+| s2 PSS MB | 350.6 | 389.6 | 380.7 ±8.4 | worse than rc4 |
+| s2 Graphics MB | 196.8 | 212.2 | 213.2 ±0.9 | worse than rc4 |
+| s3 PSS MB | 358.7 | 366.9 | 371.9 ±7.9 |  |
+| s3 Graphics MB | 193.0 | 205.3 | 204.3 ±1.0 | worse than rc4 |
+| s4 PSS MB | 368.2 | 414.8 | 389.7 ±16.3 | worse than rc4 |
+| s4 Graphics MB | 209.0 | 218.1 | 213.1 ±1.1 |  |
+| s7 PSS MB | 323.3 | 371.8 | 371.8 ±0.8 | worse than rc4 |
+| s7 Graphics MB | 168.7 | 209.0 | 208.9 ±0.1 | worse than rc4 |
+| s8 PSS MB | 365.6 | 387.0 | 389.0 ±5.2 | worse than rc4 |
+| s8 Graphics MB | 193.0 | 214.3 | 210.5 ±1.6 | worse than rc4 |
+| s9 PSS MB | 324.3 | 377.0 | 374.7 ±0.6 | worse than rc4 |
+| s9 Graphics MB | 168.7 | 209.0 | 208.9 ±0.1 | worse than rc4 |
+| s5 01 d3d12 default fps | - | 22.9 | 23.9 ±1.0 |  |
+| s5 01 d3d12 default 1%low | - | 22.4 | 23.3 ±1.0 |  |
+| s6 01 d3d12gears default fps | - | 261.0 | 221.1 ±1.9 | worse than 116 |
+| s6 01 d3d12gears default 1%low | - | 244.2 | 208.3 ±4.5 | worse than 116 |
+| s7 01 d3d12fl_11_0 default fps | - | 426.4 | 483.1 ±23.2 |  |
+| s7 01 d3d12fl_11_0 default 1%low | - | 402.9 | 413.7 ±16.5 |  |
+| s7 02 d3d12fl_11_1 default fps | - | 434.9 | 503.8 ±3.9 |  |
+| s7 02 d3d12fl_11_1 default 1%low | - | 407.5 | 419.4 ±19.5 |  |
+| s7 03 d3d12fl_12_0 default fps | - | 429.6 | 483.1 ±0.4 |  |
+| s7 03 d3d12fl_12_0 default 1%low | - | 410.5 | 397.3 ±20.5 |  |
+| s7 04 d3d12fl_12_1 default fps | - | 424.5 | 495.1 ±8.2 |  |
+| s7 04 d3d12fl_12_1 default 1%low | - | 391.6 | 426.5 ±1.7 |  |
+| s7 05 d3d12fl_12_2 default fps | - | 432.7 | 481.0 ±24.3 |  |
+| s7 05 d3d12fl_12_2 default 1%low | - | 416.2 | 417.4 ±20.0 |  |
+| s9 01 d3d12fl_all default fps | - | 436.1 | 485.7 ±11.9 |  |
+| s9 01 d3d12fl_all default 1%low | - | 418.2 | 407.8 ±16.8 |  |
+| s5 PSS MB | - | 371.3 | 378.1 ±10.4 |  |
+| s5 Graphics MB | - | 212.3 | 212.3 ±0.0 |  |
+| s6 PSS MB | - | 361.0 | 359.8 ±0.8 |  |
+| s6 Graphics MB | - | 205.3 | 205.3 ±0.0 |  |
+
+rc4 has no D3D12 results (s5-s7, s9 D3D12 do not run on rc4).
+
+### 0160 on v9: the TB336FU .so bisect
+
+Method: PanPlay `installDrivers` with one env set per build and no env, no APK reinstall.
+Kit: `worklogs/g615-dxvk/device-runs/2026-10-30-v14-so-bisect-kit/`, with `CFG=bisect-v9.json SC=6`.
+
+| build | 116 | 117 | 118 | 119 | 120 | 121b | 122c | 122d |
+|---|---|---|---|---|---|---|---|---|
+| D3D12 gears fps | 248.0 | 250.8 | 257.4 | 259.2 | 219.6 | 219.7 | 222.9 | 218.4 |
+| D3D11 FL 11_0 fps | 212.3 | 210.5 | 211.0 | 214.0 | 196.2 | 199.0 | 200.0 | 196.5 |
+
+On v9, 120 adds only 0160, the uncached sw readback.
+- That explains every "worse than 116" PanPlay fps and 1 % low row above: gears -15 %, and the D3D11 FL / D3D10 / s4 rows -5 to -8 %.
+- PANVK_GPU_STATS is not the cause: 122d with and without it gave gears 221 / 222 and FL 11_0 201 / 195.
+- 0169 makes v9 read cached again, which is the 116-119 behaviour.
+- The direct A/B of 122d default vs `PANVK_WSI_SW_CACHED=1` was cut off when the TB336FU dropped off USB, so the 122e PanPlay rerun on v9 is still open.
+
+### Regressions vs rc4 / 116 on v9, cause and status
+
+1. **PanPlay fps / 1 % low vs 116** (gears, D3D11 FL, D3D10).
+   - Cause: 0160 (bisect above).
+   - Fixed by 0169 in 122e. Not yet re-measured on 122e.
+2. **`bc_level` 256 ms per format vs rc4 107 / 116 102.** Cold BC level load, shader cache disabled by the test.
+   - The time is all recording (`record_ms` ~1450 of ~1530 ms): the recording waits for the BC transcoder pipeline compiles.
+   - Cause: 0153 (one-block-per-invocation decoders) or 0155/0162 (prewarm + XC_BATCH pipeline); not separated yet.
+   - The `PANVK_BC_PREWARM=0` / `PANVK_BC_LM_BATCH=0` A/B was interrupted by the USB drop: only the 122d default run finished (306 ms per op).
+   - Open.
+3. **`bc_decode` cold 1618 ms vs 116 620 ms** (warm 120 vs 134, so warm is better).
+   - Same compile cost as item 2. Open.
+4. **PanPlay memory vs rc4: PSS +20..+50 MB, Graphics +13..+40 MB** (s1, s2, s4, s7, s8, s9).
+   - 116 has the same memory as 122c (within run noise), so this predates 116. It is not from 0117-0169.
+   - Not investigated in this round. Open.
+5. Small flags vs 116 under 20 ms on 100-250 ms PanProbe tests:
+   - cold: `bachata_dynamic_render`
+   - warm: `vs_viewport_index`, `draw_params`, `dxvk_reqs`, `d3d_fl`
+   - `workload_perf`: `ref`, `strip_ref`, `cond_true`, each about 1-2 us
+   - One extra run each would settle whether these are noise. Not fixed.
+
+PanProbe memory (max PSS / Graphics over the run) is equal to rc4 and 116 within run noise, cold and warm.
+
+### X6 Pro v11 and the WSI A/B
+
+The X6 Pro dropped off wireless adb at about 00:15, during the WSI A/B. Its gate runs (rc4 / 116 / 122e PanProbe +
+PanPlay, FO4 smoke test) did not run.
+
+Round 1 of the A/B on a 122d-dev build (scenario s1 cube, s8 D3D11 FL):
+
+| mode | cube fps | FL 10_0 | FL 10_1 | FL 11_0 | FL 11_1 | D3D10 |
+|---|---|---|---|---|---|---|
+| uncached (`=0`) | 270.5 | 814.6 | 793.4 | 813.5 | 771.7 | 273.9 |
+| cached (`=1`) | 339.0 | - | - | - | - | - |
+| timing-based auto (dropped) | 288.1 | 466.9 | 473.5 | 453.9 | 492.5 | 332.4 |
+
+So on v11 the cube is faster cached and FL is faster uncached. 0169 keeps v11 uncached.
+
+The cached FL loss is not in the CPU read. A timing of an invalidate + frame read at the first swapchain chose cached here, which is the wrong pick for FL.
+
+### MangoHud VRAM on JM (0166, from 122b)
+
+TB336FU PanPlay s1-s9 `vram` now reads 56-395 MiB. With 122 it read 1349-1684 MiB, because it counted the full size of the grow-on-fault BOs.
+PanPlay 1-9 on 122b and 122c pass with no DEVICE_LOST. PanProbe 41/41 on 122b and 122c, cold and warm.

@@ -1,0 +1,9 @@
+PanPlay game loop, scenario 9 (fl-quick), run 20261030-003303-s9
+Device: LENOVO TB336FU (TB336FU), SDK 36, SoC MT8755
+Driver: Mesa PanVK, sha256 977c0c4c0803b994
+App: dev.zenithblue.panvklauncher 1.3.0 (44)
+Window: 10 s warm-up, 30 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d12fl_all default   fail         -       -       -       -        -        -      -      -      -        -  no pass line (^D3DFL: (PASS|UNSUPPORTED|DONE) )
+02  d3d11fl_all default   ok           -       -       -       -    197.1    101.3    4.9    7.2    8.4     90.0  D3DFL: DONE api=d3d11 level=all 10_0=PASS 10_1=PASS 11_0=PASS 11_1=PASS frames=9419 secs=48.0 fps=196.2 startup=26.1

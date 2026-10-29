@@ -1,0 +1,14 @@
+PanPlay game loop, scenario 4 (ab), run 20261030-001716-s4
+Device: LENOVO TB336FU (TB336FU), SDK 36, SoC MT8755
+Driver: Mesa PanVK, sha256 977c0c4c0803b994
+App: dev.zenithblue.panvklauncher 1.3.0 (44)
+Window: 10 s warm-up, 30 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d11    old       ok           -       -       -       -    144.1     39.7    6.3   10.9   19.0     88.0  CUBE: PASS api=d3d11 frames=7109 (check pixels)
+02  d3d11    default   ok           -       -       -       -    157.3     83.2    6.2    8.0   10.5     90.0  CUBE: PASS api=d3d11 frames=7519 (check pixels)
+03  d3d9     old       ok           -       -       -       -     89.9     49.8   11.0   13.0   17.1     89.9  CUBE: PASS api=d3d9 frames=4305 (check pixels)
+04  d3d9     default   ok           -       -       -       -     90.0     49.3   11.0   13.2   17.0     89.9  CUBE: PASS api=d3d9 frames=4306 (check pixels)
+
+A/B d3d11: old 144.1 fps, default 157.3 fps (+9.2%) (change vs old)
+A/B d3d9: old 89.9 fps, default 90.0 fps (+0.0%) (change vs old)
