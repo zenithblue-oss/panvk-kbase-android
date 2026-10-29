@@ -1,0 +1,120 @@
+From dedcdbb19c36fd7189a13d1056c68f5be66f84ce Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Thu, 29 Oct 2026 19:59:45 +0530
+Subject: [PATCH 165/165] panvk/jm: v9 primitives-generated query counts direct
+ draws on the CPU
+
+A direct draw without primitive restart inside a primitives-generated
+query (and no GS/tess, which count in their kernels) has a CPU-known
+primitive count. It is summed in the command buffer and added at the
+query end by one update_pstats_draw job (a point list of that many
+vertices) instead of one job per draw. The sum stays within 32 bits; a
+draw that would overflow it counts on the GPU as before.
+---
+ src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c  | 21 ++++++++++++++-
+ src/panfrost/vulkan/jm/panvk_vX_cmd_query.c | 29 ++++++++++++++++++++-
+ src/panfrost/vulkan/panvk_cmd_query.h       |  3 +++
+ 3 files changed, 51 insertions(+), 2 deletions(-)
+
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+index 9c5ad68c295..b9d56a2cbd0 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_draw.c
+@@ -6922,10 +6922,29 @@ v9_count_draw_queries(struct panvk_cmd_buffer *cmdbuf,
+    const struct panvk_pstats_query_state *q = &cmdbuf->state.gfx.pstats_query;
+    const bool kernels_count = cmdbuf->state.gfx.gs.shader ||
+                               cmdbuf->state.gfx.tes.shader;
+-   const uint64_t prims_generated =
++   uint64_t prims_generated =
+       kernels_count ? 0 : cmdbuf->state.gfx.prims_generated_query.ptr;
+    uint32_t counted = 0;
+ 
++   /* Item 21: a direct draw without primitive restart has a CPU-known
++    * primitive count. It is summed in the command buffer and added by one
++    * job at the query end (CmdEndQueryIndexedEXT) instead of a job per draw.
++    * The sum stays within 32 bits, a draw that would overflow it counts on
++    * the GPU. */
++   if (prims_generated && !draw->indirect.buffer_dev_addr &&
++       !(draw->index.index_size && draw->index.restart_enable)) {
++      const uint32_t vm = cmdbuf->state.gfx.render.view_mask;
++      const uint64_t n =
++         (uint64_t)u_decomposed_prims_for_vertices(draw->prim,
++                                                   draw->vertex.count) *
++         draw->instance.count * (vm ? util_bitcount(vm) : 1);
++      uint64_t *sum = &cmdbuf->state.gfx.prims_generated_query.cpu_count;
++      if (n <= UINT32_MAX - *sum) {
++         *sum += n;
++         prims_generated = 0;
++      }
++   }
++
+    if (q->report) {
+       counted = q->mask & (PSTAT(INPUT_ASSEMBLY_VERTICES) |
+                            PSTAT(INPUT_ASSEMBLY_PRIMITIVES) |
+diff --git a/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c b/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c
+index c48017fe101..4d88ee702a9 100644
+--- a/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c
++++ b/src/panfrost/vulkan/jm/panvk_vX_cmd_query.c
+@@ -306,6 +306,7 @@ panvk_per_arch(CmdBeginQueryIndexedEXT)(VkCommandBuffer commandBuffer,
+ #if PAN_ARCH == 9
+    case VK_QUERY_TYPE_PRIMITIVES_GENERATED_EXT:
+       cmd->state.gfx.prims_generated_query.ptr = report_addr;
++      cmd->state.gfx.prims_generated_query.cpu_count = 0;
+       zero_queries = query_view_count(cmd, pool, query);
+       break;
+    case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT:
+@@ -427,10 +428,36 @@ panvk_per_arch(CmdEndQueryIndexedEXT)(VkCommandBuffer commandBuffer,
+       break;
+    }
+ #if PAN_ARCH == 9
+-   case VK_QUERY_TYPE_PRIMITIVES_GENERATED_EXT:
++   case VK_QUERY_TYPE_PRIMITIVES_GENERATED_EXT: {
++      /* Item 21: the direct draws' CPU-counted primitives, as one point
++       * list draw of that many vertices (sum <= UINT32_MAX). */
++      const uint64_t n = cmd->state.gfx.prims_generated_query.cpu_count;
++      const uint64_t report = cmd->state.gfx.prims_generated_query.ptr;
++      struct pan_ptr c =
++         n && report ? panvk_cmd_alloc_dev_mem(
++                          cmd, desc, sizeof(VkDrawIndirectCommand), 16)
++                     : (struct pan_ptr){0};
++      if (c.gpu) {
++         *(VkDrawIndirectCommand *)c.cpu = (VkDrawIndirectCommand){
++            .vertexCount = (uint32_t)n,
++            .instanceCount = 1,
++         };
++         const struct panlib_update_pstats_draw_args args = {
++            .stats = report,
++            .slots = 0xfff0f,
++            .cmd = c.gpu,
++            .prim = MESA_PRIM_POINTS,
++            .view_count = 1,
++         };
++         struct panvk_precomp_ctx precomp_ctx = panvk_per_arch(precomp_cs)(cmd);
++         panlib_update_pstats_draw_struct(&precomp_ctx, panlib_1d(1),
++                                          PANLIB_BARRIER_JM_BARRIER, args);
++      }
++      cmd->state.gfx.prims_generated_query.cpu_count = 0;
+       cmd->state.gfx.prims_generated_query.ptr = 0;
+       view_count = query_view_count(cmd, pool, query);
+       break;
++   }
+    case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT:
+       cmd->state.gfx.xfb.queries[index] = 0;
+       break;
+diff --git a/src/panfrost/vulkan/panvk_cmd_query.h b/src/panfrost/vulkan/panvk_cmd_query.h
+index c16a8335196..b3a9853c0db 100644
+--- a/src/panfrost/vulkan/panvk_cmd_query.h
++++ b/src/panfrost/vulkan/panvk_cmd_query.h
+@@ -25,6 +25,9 @@ struct panvk_occlusion_query_state {
+ struct panvk_prims_generated_query_state {
+    uint64_t syncobj;
+    uint64_t ptr;
++   /* v9 JM: primitives of direct draws counted on the CPU, added to ptr by
++    * one job at the end of the query. */
++   uint64_t cpu_count;
+ };
+ 
+ /* A pipeline statistics query has two u64 per enabled statistic, in bit
+-- 
+2.56.0
+

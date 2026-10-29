@@ -870,6 +870,8 @@ PanProbe 40/40, `draw_params` and `bc_decode` PASS, no DEVICE_LOST
 | 0160 | the sw WSI (X11 present without DRI3 dma-buf, every PanPlay game) reads frames through the uncached buffer again: 0115's cached read + per-present DC CIVAC cost more (the rc4 vs 115c+ fps gap, FL 11_1 257 vs 831 fps on the X6 Pro) | `PANVK_WSI_SW_CACHED=1` = 0115 behaviour |
 | 0162 | item 7 fix: the BC prewarm compiles the XC_BATCH pipeline only for batchable images (one-layer 2D with mips). 0155 compiled it for every ETC2 mode, which doubled the cold `bc_decode` (9.3 s vs 5.0 s on the X6 Pro) | `PANVK_BC_PREWARM=0` |
 | 0163 | item 8 on v9: the pass-through GS skip in the JM `v9_cmd_draw()` (0157 hooked only CSF). TB336FU `strip_gs` 354 to 17.6 us/draw | `PANVK_GS_PT_SKIP=0` |
+| 0164 | item 23 on JM (v6/v7/v9): `PANVK_GPU_STATS` GPU load = CPU-observed time with at least one atom of the context in flight (kbase_kmod counts atoms from JOB_SUBMIT to their completion event), reported per submit on a shared busy-time axis; VRAM as 0158. JM chains have no cheap GPU timestamps (PERMON + write jobs). TB336FU `workload_perf` with the env: `load=97..99`, `vram=1.46 GB` (0158 left JM at 0) | env unset = no tracking |
+| 0165 | item 21: v9 primitives-generated query: a direct draw without primitive restart (no GS/tess) is counted on the CPU, one `update_pstats_draw` job at the query end instead of one per draw (sum kept within 32 bits, else the GPU counts). TB336FU `pg_query` 18.6 to 12.2 us/draw (3 alternating runs, `ref` 6.2) | - |
 
 Build 119 = 0006-0159 (`git-0146a719f6`, driverInfo `Mesa 26.3.0-devel (git-0146a719f6, p0159, 2026-10-29)`,
 .so sha256 `186278b8...`, BuildID `ba2ef6fd...`). Build 120 = 0006-0160 (`git-94af3802af`, driverInfo
