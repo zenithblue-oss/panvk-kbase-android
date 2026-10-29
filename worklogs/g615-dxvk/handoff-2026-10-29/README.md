@@ -143,6 +143,17 @@ Full tables are in `docs/PERF-PROGRESS.md` under "Build 120", "Build 121b" and "
   - Test APK: `/var/tmp/panvk/build-out/apks/panplay-121b-pickfix.apk` (driver 121b), installed on the X6 Pro.
   - Add this fix to `WhatsNew.kt` at release.
 - **PanPlay shows the wrong driver label.** The APK's `bundled-driver.json` is copied as-is from the pin, so PanPlay builds with a non-default .so (121b) still show `p0160`. The driver inside the APK is correct. Fix: derive the label from the .so in the Gradle build, as PanProbe does, or pin the final build.
+- **The Fallout 4 Xbox gamepad did not work.**
+  - Cause: the launcher set `services.exe=d` for every Fallout4.exe launch, which was a GOG Galaxy64.dll workaround. With services off, `winebus.sys` and `winexinput.sys` never load, so there is no pad.
+  - Fix in commit 328135f6: the override now applies only when `Galaxy64.dll` is present.
+  - Verified on the X6 Pro: padshim attaches, and the game shows Xbox button prompts.
+  - Worklog: `device-runs/2026-10-29-x6pro-fo4-gamepad/`.
+  - Limit: GOG builds still get no pad.
+- **Fallout 4 keyboard preset:**
+  - Added in commit 57e40c74 as the "Fallout 4 (keyboard)" template. It includes Enter (D-pad down) and T (D-pad left).
+  - It is not auto-assigned. FO4 is native XInput, so "Automatic" leaves it on the Gamepad default.
+  - The template is meant for GOG builds or anyone who wants key output.
+  - The X6 Pro test APK predates the no-auto-assign change. Rebuild to include it.
 - **X6 Pro logcat is broken:** `logcat: Logcat read failure`, so logd is down. A reboot of the device should fix it.
 
 ## Perf plan items left (`docs/PERF-OPTIMIZATION-PLAN.md`)
