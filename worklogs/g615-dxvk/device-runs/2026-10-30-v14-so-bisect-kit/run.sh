@@ -7,6 +7,8 @@ K=$(dirname $(readlink -f $0)); O=$K/out-$(date +%H%M); mkdir -p $O
 X=/sdcard/Android/data/dev.zenithblue.panvklauncher/files
 exec 9>$L; flock 9
 for b in $B; do timeout 300 adb -s $S push /var/tmp/panvk/build-out/2026-10-29-$b/libvulkan_panfrost.so $X/bisect/$b.so; done
+timeout 30 adb -s $S push $K/$CFG $X/gameloop.json  # read by the launcher; /sdcard/Download is not readable on newer Android
 flock -u 9
 SER=$S LOCK=$L bash /var/tmp/panvk/fps119/play-cfg.sh $K/$CFG $O bisect $SC
+flock $L timeout 20 adb -s $S shell rm -f $X/gameloop.json
 grep -E '^ *0[1-9] ' $O/raw/*/results.txt
