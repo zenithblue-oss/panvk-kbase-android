@@ -24,3 +24,7 @@
 
 - 2026-10-29-ftl-v6-starlte-115c-panprobe: 40 PASS of 40 (driver git-30c29c0175)
 - 2026-10-29-ftl-v6-starlte-115e-panprobe: 40 PASS of 40 (driver git-e7d836d5a6)
+
+## Screenshots
+
+![PanProbe results screen](starlte-118-panprobe-s2.png)
