@@ -1,0 +1,80 @@
+10-29 16:36:40.543 20014 20038 I PanVKTest: GAMELOOP scenario=2
+10-29 16:36:51.297 20014 20038 I PanVKTest: INFO devices=1 exts=188 formats=196
+10-29 16:36:51.298 20014 20038 I PanVKTest: DRIVER slot=RC5 driverInfo=Mesa 26.3.0-devel (git-3506474d17, p0165, 2026-10-29)
+10-29 16:36:51.299 20014 20038 I PanVKTest: COMPLIANCE DXVK compliance PASS items=94 missingHard=[] missingSoft=["tiled resources tier 2 (FL12_0)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","VK_EXT_sample_locations"]
+10-29 16:36:51.299 20014 20038 I PanVKTest: COMPLIANCE Bachata S4 compliance FAIL items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","subgroup_wave64"]
+10-29 16:36:51.300 20014 20038 I PanVKTest: COMPLIANCE vkd3d compliance PASS items=100 missingHard=[] missingSoft=["viewportSubPixelBits >= 8","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","shaderFloat64","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: ROVs (pixel+sample interlock)","proton: VK_EXT_descriptor_buffer path","p
+10-29 16:36:51.300 20014 20038 I PanVKTest: COMPLIANCE D3D feature levels PASS items=20 missingHard=[] missingSoft=["D3D12 FL12_0","D3D12 FL12_1","D3D12 FL12_2","D3D11 FL12_0","D3D11 FL12_1","D3D12 FL12_0 needs TiledResourcesTier >= 2 (have 0)","D3D12 FL12_1 needs ROVsSupported","D3D12 FL12_2 needs ConservativeRasterizationTier 3 (have 2)","D3D12 FL12_2 needs TiledResourcesTier >= 3 (have 0)","D3D
+10-29 16:37:01.465 20014 20041 I PanVKTest: RESULT gpu_prerast_slice FAIL mismatch=0 fps=0 ms=10143
+10-29 16:37:01.466 20014 20041 I PanProbe: PANPROBE_TEST name=gpu_prerast_slice status=FAIL msg=FAIL CreateDevice r=-3 line=189
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: info: kbase: coherency mode 0 (ACE-Lite), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 1000000000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: warning: kbase: KBASE_IOCTL_MEM_ALLOC_EX failed: Inappropriate ioctl for device; trying KBASE_IOCTL_MEM_ALLOC
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: info: kbase: mem_alloc via ALLOC
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: info: kbase: queue_group_create layout=112 bytes, 3 CS, csi_handlers 0x1
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: info: kbase: tiler heaps 4 initial / 400 max chunks of 1024 KiB
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: info: kbase: tiler_heap_init layout=16 bytes
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: timeout on subqueue 1: seqno 0, ls_copy 0, target 1, marks pre/post-call/post-wait 0x0/0x0/0x0, stream progress 0x0, insert 192, extract 192, active 0, error 0x0, ring[0..3] 0x1c00000000000003/0x1c00000900000008/0x1c00000100000000/0x1c00000200000001
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: last job on subqueue 1: ring offset 0, entry 160/192 bytes, stream 0x5ffffa3680/64, flush 16777190, extract offset 192
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: last ring[0..15] 0x1c00000000000003/0x1c00000900000008/0x1c00000100000000/0x1c00000200000001/0x1c0000080000fff0/0x2200000000000002/0x17a005ffffa3500/0x17c006000000000/0x30007c0000000000/0x27e000000ffffe6/0x24007e0000000233/0x300000000010000/0x17c005ffffa3680/0x27e000000000040/0x20007c7e00000000/0x17c005f
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: extract line ring[0..7] 0x0/0x0/0x0/0x0/0x0/0x0/0x0/0x0
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: queue syncobj 0: seqno 1, error 0x0, pad 0x0
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: queue syncobj 1: seqno 1, error 0x0, pad 0x0
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: queue syncobj 2: seqno 1, error 0x0, pad 0x0
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: timeout snapshot subqueue 0: seqno 1, ls_copy 0, target 1, marks 0x0/0x0/0x0, insert 192, extract 192, active 0, error 0x0, jobs 1
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: timeout snapshot subqueue 0 stream progress 0x0
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: timeout snapshot subqueue 0 last job: ring offset 0, entry 160/192 bytes, stream 0x5ffffa2440/64, flush 16777190
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: subqueue 0 extract ring[0..7] @192 0x0/0x0/0x0/0x0/0x0/0x0/0x0/0x0
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: subqueue 0 last-job ring[0..7] @0 0x1c00000000000003/0x1c00000900000008/0x1c00000100000000/0x1c00000200000001/0x1c0000080000fff0/0x220000000000000c/0x17a005ffffa22c0/0x17c006000000000
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: timeout snapshot subqueue 1: seqno 0, ls_copy 0, target 1, marks 0x0/0x0/0x0, insert 192, extract 192, active 0, error 0x0, jobs 1
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: timeout snapshot subqueue 1 stream progress 0x0
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: timeout snapshot subqueue 1 last job: ring offset 0, entry 160/192 bytes, stream 0x5ffffa3680/64, flush 16777190
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: subqueue 1 extract ring[0..7] @192 0x0/0x0/0x0/0x0/0x0/0x0/0x0/0x0
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: subqueue 1 last-job ring[0..7] @0 0x1c00000000000003/0x1c00000900000008/0x1c00000100000000/0x1c00000200000001/0x1c0000080000fff0/0x2200000000000002/0x17a005ffffa3500/0x17c006000000000
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: timeout snapshot subqueue 2: seqno 0, ls_copy 0, target 1, marks 0x0/0x0/0x0, insert 192, extract 192, active 0, error 0x0, jobs 1
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: timeout snapshot subqueue 2 stream progress 0x0
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: timeout snapshot subqueue 2 last job: ring offset 0, entry 144/192 bytes, stream 0x5ffffa4840/48, flush 16777190
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: subqueue 2 extract ring[0..7] @192 0x0/0x0/0x0/0x0/0x0/0x0/0x0/0x0
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: MESA: error: kbase: subqueue 2 last-job ring[0..7] @0 0x1c00000000000003/0x1c00000900000008/0x1c00000100000000/0x1c00000200000001/0x1c0000080000fff0/0x2200000000000001/0x17a005ffffa46c0/0x27e000000ffffe6
+10-29 16:37:01.466 20014 20041 I PanProbeGameLoop: TAIL gpu_prerast_slice: FAIL CreateDevice r=-3 line=189
+10-29 16:37:11.662 20014 20039 I PanVKTest: RESULT clip_cull FAIL mismatch=0 fps=0 ms=10178
+10-29 16:37:11.669 20014 20039 I PanProbe: PANPROBE_TEST name=clip_cull status=FAIL msg=FAIL CreateDevice r=-3 line=160
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: info: kbase: coherency mode 0 (ACE-Lite), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 1000000000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: warning: kbase: KBASE_IOCTL_MEM_ALLOC_EX failed: Inappropriate ioctl for device; trying KBASE_IOCTL_MEM_ALLOC
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: info: kbase: mem_alloc via ALLOC
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: info: kbase: queue_group_create layout=112 bytes, 3 CS, csi_handlers 0x1
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: info: kbase: tiler heaps 4 initial / 400 max chunks of 1024 KiB
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: info: kbase: tiler_heap_init layout=16 bytes
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: timeout on subqueue 1: seqno 0, ls_copy 0, target 1, marks pre/post-call/post-wait 0x0/0x0/0x0, stream progress 0x0, insert 192, extract 192, active 0, error 0x0, ring[0..3] 0x1c00000000000003/0x1c00000900000008/0x1c00000100000000/0x1c00000200000001
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: last job on subqueue 1: ring offset 0, entry 160/192 bytes, stream 0x5ffffa3680/64, flush 16777184, extract offset 192
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: last ring[0..15] 0x1c00000000000003/0x1c00000900000008/0x1c00000100000000/0x1c00000200000001/0x1c0000080000fff0/0x2200000000000002/0x17a005ffffa3500/0x17c006000000000/0x30007c0000000000/0x27e000000ffffe0/0x24007e0000000233/0x300000000010000/0x17c005ffffa3680/0x27e000000000040/0x20007c7e00000000/0x17c005ffffa0040
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: extract line ring[0..7] 0x0/0x0/0x0/0x0/0x0/0x0/0x0/0x0
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: queue syncobj 0: seqno 1, error 0x0, pad 0x0
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: queue syncobj 1: seqno 1, error 0x0, pad 0x0
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: queue syncobj 2: seqno 1, error 0x0, pad 0x0
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: timeout snapshot subqueue 0: seqno 1, ls_copy 0, target 1, marks 0x0/0x0/0x0, insert 192, extract 192, active 0, error 0x0, jobs 1
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: timeout snapshot subqueue 0 stream progress 0x0
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: timeout snapshot subqueue 0 last job: ring offset 0, entry 160/192 bytes, stream 0x5ffffa2440/64, flush 16777184
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: subqueue 0 extract ring[0..7] @192 0x0/0x0/0x0/0x0/0x0/0x0/0x0/0x0
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: subqueue 0 last-job ring[0..7] @0 0x1c00000000000003/0x1c00000900000008/0x1c00000100000000/0x1c00000200000001/0x1c0000080000fff0/0x220000000000000c/0x17a005ffffa22c0/0x17c006000000000
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: timeout snapshot subqueue 1: seqno 0, ls_copy 0, target 1, marks 0x0/0x0/0x0, insert 192, extract 192, active 0, error 0x0, jobs 1
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: timeout snapshot subqueue 1 stream progress 0x0
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: timeout snapshot subqueue 1 last job: ring offset 0, entry 160/192 bytes, stream 0x5ffffa3680/64, flush 16777184
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: subqueue 1 extract ring[0..7] @192 0x0/0x0/0x0/0x0/0x0/0x0/0x0/0x0
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: subqueue 1 last-job ring[0..7] @0 0x1c00000000000003/0x1c00000900000008/0x1c00000100000000/0x1c00000200000001/0x1c0000080000fff0/0x2200000000000002/0x17a005ffffa3500/0x17c006000000000
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: timeout snapshot subqueue 2: seqno 0, ls_copy 0, target 1, marks 0x0/0x0/0x0, insert 192, extract 192, active 0, error 0x0, jobs 1
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: timeout snapshot subqueue 2 stream progress 0x0
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: timeout snapshot subqueue 2 last job: ring offset 0, entry 144/192 bytes, stream 0x5ffffa4840/48, flush 16777184
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: subqueue 2 extract ring[0..7] @192 0x0/0x0/0x0/0x0/0x0/0x0/0x0/0x0
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: MESA: error: kbase: subqueue 2 last-job ring[0..7] @0 0x1c00000000000003/0x1c00000900000008/0x1c00000100000000/0x1c00000200000001/0x1c0000080000fff0/0x2200000000000001/0x17a005ffffa46c0/0x27e000000ffffe0
+10-29 16:37:11.669 20014 20039 I PanProbeGameLoop: TAIL clip_cull: FAIL CreateDevice r=-3 line=160
+10-29 16:37:21.914 20014 20039 I PanVKTest: RESULT multi_viewport FAIL mismatch=0 fps=0 ms=10230
+10-29 16:37:21.915 20014 20039 I PanProbe: PANPROBE_TEST name=multi_viewport status=FAIL msg=FAIL CreateDevice r=-3 line=160
+10-29 16:37:21.915 20014 20039 I PanProbeGameLoop: TAIL multi_viewport: MESA: info: kbase: coherency mode 0 (ACE-Lite), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+10-29 16:37:21.915 20014 20039 I PanProbeGameLoop: TAIL multi_viewport: MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 1000000000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+10-29 16:37:21.915 20014 20039 I PanProbeGameLoop: TAIL multi_viewport: MESA: warning: kbase: KBASE_IOCTL_MEM_ALLOC_EX failed: Inappropriate ioctl for device; trying KBASE_IOCTL_MEM_ALLOC
+10-29 16:37:21.915 20014 20039 I PanProbeGameLoop: TAIL multi_viewport: MESA: info: kbase: mem_alloc via ALLOC
+10-29 16:37:21.915 20014 20039 I PanProbeGameLoop: TAIL multi_viewport: MESA: info: kbase: queue_group_create layout=112 bytes, 3 CS, csi_handlers 0x1
+10-29 16:37:21.915 20014 20039 I PanProbeGameLoop: TAIL multi_viewport: MESA: info: kbase: tiler heaps 4 initial / 400 max chunks of 1024 KiB
+10-29 16:37:21.915 20014 20039 I PanProbeGameLoop: TAIL multi_viewport: MESA: info: kbase: tiler_heap_init layout=16 bytes

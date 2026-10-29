@@ -1,0 +1,32 @@
+GAMELOOP scenario=2
+INFO devices=1 exts=188 formats=196
+DRIVER slot=RC5 driverInfo=Mesa 26.3.0-devel (git-3506474d17, p0165, 2026-10-29)
+COMPLIANCE DXVK compliance PASS items=94 missingHard=[] missingSoft=["tiled resources tier 2 (FL12_0)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","VK_EXT_sample_locations"]
+COMPLIANCE Bachata S4 compliance FAIL items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","subgroup_wave64"]
+COMPLIANCE vkd3d compliance PASS items=100 missingHard=[] missingSoft=["viewportSubPixelBits >= 8","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","shaderFloat64","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: ROVs (pixel+sample interlock)","proton: VK_EXT_descriptor_buffer path","proton: VK_KHR_fragment_shading_rate","proton: VK_EXT_mesh_shader","proton: VK_KHR_ray_query + acceleration_structure"]
+COMPLIANCE D3D feature levels PASS items=20 missingHard=[] missingSoft=["D3D12 FL12_0","D3D12 FL12_1","D3D12 FL12_2","D3D11 FL12_0","D3D11 FL12_1","D3D12 FL12_0 needs TiledResourcesTier >= 2 (have 0)","D3D12 FL12_1 needs ROVsSupported","D3D12 FL12_2 needs ConservativeRasterizationTier 3 (have 2)","D3D12 FL12_2 needs TiledResourcesTier >= 3 (have 0)","D3D12 FL12_2 needs RaytracingTier >= 1.1","D3D12 FL12_2 needs VariableShadingRateTier 2","D3D12 FL12_2 needs MeshShaderTier 1","D3D11 FL12_0 needs TiledResourcesTier >= 2 (have 0)","D3D11 FL12_1 needs ROVsSupported"]
+RESULT gpu_prerast_slice FAIL mismatch=0 fps=0 ms=10143
+RESULT clip_cull FAIL mismatch=0 fps=0 ms=10178
+RESULT multi_viewport FAIL mismatch=0 fps=0 ms=10230
+RESULT fill_mode FAIL mismatch=0 fps=0 ms=10202
+RESULT bc_decode FAIL mismatch=0 fps=0 ms=10199
+RESULT bc_perf FAIL mismatch=0 fps=0 ms=20299
+RESULT tess_perf FAIL mismatch=0 fps=0 ms=10220
+RESULT workload_perf FAIL mismatch=0 fps=0 ms=10166
+RESULT geometry FAIL mismatch=0 fps=0 ms=10142
+RESULT tessellation FAIL mismatch=0 fps=0 ms=10199
+RESULT xfb FAIL mismatch=0 fps=0 ms=10197
+RESULT pipeline_stats FAIL mismatch=0 fps=0 ms=10187
+RESULT vertex_stores FAIL mismatch=0 fps=0 ms=10172
+RESULT gs_viewport_depth FAIL mismatch=0 fps=0 ms=10168
+RESULT vs_viewport_index FAIL mismatch=0 fps=0 ms=10183
+RESULT depth_bounds FAIL mismatch=0 fps=0 ms=10166
+RESULT large_draw FAIL mismatch=0 fps=0 ms=10210
+RESULT vmr_secondary FAIL mismatch=0 fps=0 ms=10194
+RESULT tess_cond_state FAIL mismatch=0 fps=0 ms=10221
+RESULT bachata_reqs FAIL mismatch=0 fps=0 ms=10242
+RESULT bachata_exec FAIL mismatch=0 fps=0 ms=10220
+RESULT robustness2 FAIL mismatch=0 fps=0 ms=10196
+RESULT robust_image_access2 FAIL mismatch=0 fps=0 ms=10230
+RESULT blend FAIL mismatch=0 fps=0 ms=10156
+RESULT occlusion_query FAIL mismatch=0 fps=0 ms=10236
