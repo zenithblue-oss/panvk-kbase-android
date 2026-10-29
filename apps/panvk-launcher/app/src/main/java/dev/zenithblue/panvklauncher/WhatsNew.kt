@@ -36,6 +36,7 @@ object WhatsNew {
     val fixed = listOf(
         "The DXVK HUD was always on with every item: the game's DXVK_HUD setting was ignored",
         "Fallout 4: launch fixes, less memory, no black heads",
+        "Game audio in WMA (xWMA): Fallout 4 music, voices and sound effects no longer go silent once gameplay starts",
         "The launch sheet no longer saves stale values",
         "Browse for .exe: files picked from Downloads (msf: picker URIs) now resolve to the real path",
         "Built-in X server: MIT-SHM requests check the segment owner and the image bounds",

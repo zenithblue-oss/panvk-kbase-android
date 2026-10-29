@@ -354,6 +354,25 @@ object ContainerManager {
         } catch (_: Exception) {}
     }
 
+    /**
+     * files/glxstub/libGL.so.1 -> libglxstub.so (cpp/glxstub.c). The imagefs libgstgl-1.0 needs libGL.so.1, which no
+     * component ships, so Proton's winegstreamer.so failed to dlopen and Wine had no WMA decoder: Fallout 4's xWMA
+     * music, voices and effects were silent once gameplay started. Last on LD_LIBRARY_PATH so a real libGL wins.
+     */
+    private fun glxStubDir(ctx: Context): File? = try {
+        val so = File(ctx.applicationInfo.nativeLibraryDir, "libglxstub.so")
+        val dir = File(ctx.filesDir, "glxstub").apply { mkdirs() }
+        val link = File(dir, "libGL.so.1").toPath()
+        if (!so.isFile) null else {
+            // nativeLibraryDir changes on every app update: relink when it moved.
+            if (!java.nio.file.Files.isSymbolicLink(link) || java.nio.file.Files.readSymbolicLink(link).toString() != so.path) {
+                java.nio.file.Files.deleteIfExists(link)
+                java.nio.file.Files.createSymbolicLink(link, so.toPath())
+            }
+            dir
+        }
+    } catch (_: Exception) { null }
+
     fun env(ctx: Context, extra: Map<String, String>? = null): Map<String, String> {
         val containerDir = File(ctx.filesDir, "container")
         containerDir.mkdirs()
@@ -420,7 +439,8 @@ object ContainerManager {
             "HOME" to containerDir.absolutePath,
             "TMPDIR" to tmpDir.absolutePath,
             "PATH" to "${wineDir.absolutePath}/bin:${imagefs.absolutePath}/usr/bin:/system/bin",
-            "LD_LIBRARY_PATH" to "${imagefs.absolutePath}/usr/lib:/system/lib64:${wineDir.absolutePath}/lib",
+            "LD_LIBRARY_PATH" to "${imagefs.absolutePath}/usr/lib:/system/lib64:${wineDir.absolutePath}/lib" +
+                (glxStubDir(ctx)?.let { ":" + it.absolutePath } ?: ""),
             "WINEDLLOVERRIDES" to dllOverrides,
             "WINEDEBUG" to "fixme-all",
             "LC_ALL" to "en_US.UTF-8",
@@ -429,6 +449,10 @@ object ContainerManager {
             "USER" to "xuser",
             // libandroid-sysvshm sysvshm_connect crashes on NULL getenv; /dev/null forces clean non-SHM fallback.
             "ANDROID_SYSVSHM_SERVER" to "/dev/null",
+            // Proton's winegstreamer registers protonaudioconverterbin for audio/x-wma at a higher rank than gst-libav's
+            // WMA decoders. Without Steam's transcoded-media fozdb it fails (MEDIACONV_* unset) or plays blank audio, so
+            // XAudio2 xWMA (Fallout 4 music, voices, effects) was silent. Rank the real decoders first.
+            "GST_PLUGIN_FEATURE_RANK" to "avdec_wmav1:MAX,avdec_wmav2:MAX,avdec_wmapro:MAX",
             "VK_ICD_FILENAMES" to icdFile.absolutePath,
             "VK_DRIVER_FILES" to icdFile.absolutePath
         )

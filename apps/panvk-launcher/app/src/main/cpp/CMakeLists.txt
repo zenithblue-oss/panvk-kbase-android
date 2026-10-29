@@ -34,6 +34,13 @@ target_compile_options(padshim PRIVATE -O2 -fvisibility=hidden)
 target_link_options(padshim PRIVATE "-Wl,-z,max-page-size=16384" "-Wl,--as-needed")
 target_link_libraries(padshim PRIVATE log dl)
 
+# libGL.so.1 stand-in for the imagefs libgstgl (winegstreamer -> WMA decoder); Containers.glxStubDir links it.
+add_library(glxstub SHARED
+    glxstub.c
+)
+target_compile_options(glxstub PRIVATE -O2 -fvisibility=hidden)
+target_link_options(glxstub PRIVATE "-Wl,-soname,libGL.so.1" "-Wl,-z,max-page-size=16384")
+
 # LD_PRELOAD shim: memfd_create for Android < 11 (libxshmfence dlopen).
 add_library(memfdshim SHARED
     memfdshim.c
