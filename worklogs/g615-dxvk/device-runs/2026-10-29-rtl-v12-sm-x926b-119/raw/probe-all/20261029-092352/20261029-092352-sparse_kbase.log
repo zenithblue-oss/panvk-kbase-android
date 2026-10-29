@@ -1,0 +1,25 @@
+INFO sparse_kbase S0: own /dev/mali0 context, CPU-side kbase ioctls only, no GPU jobs
+PASS setup CSF uAPI 1.21 gpu_id=0xc8700000 arch=v12 va_bits=48: own kbase context
+PASS T1 SAME_VA BO H0 at 0x7520e18000 (64 KiB), CPU write/readback ok
+PASS T1 growable SAME_VA BO H1 at 0x751dbe0000 (64 of 128 KiB committed)
+PASS T2 MEM_ALIAS [H0,sink,H1,sink] created (64 pages)
+PASS T3 alias at 0x722da52000: entry 0 reads H0's pages
+PASS T4 per-entry mmap of alias entry 2 reads H1's pages
+PASS T5 sink entry CPU mmap refused (Invalid argument): sink contents are GPU-only
+PASS T6 MEM_COMMIT on an alias source refused while aliased (Invalid argument), accepted once the alias is freed
+PASS T7 alias dropped BASE_MEM_FIXED (SAME_VA cookie 0x41000): no alias at a fixed VA
+PASS T8 SAME_VA alloc/munmap x64: first VA came back 63/63 times (quiet process; Wine/ART can take it)
+PASS T9 arena commit grew 16->1024 pages and shrank back from the end, newest tile CPU-writable
+BENCH sparse_arena_commit=4.1us sparse_arena_uncommit=1.7us (per 64KiB tile, n=63)
+PASS T10a MEM_ALLOC_EX FIXED landed at the requested VA 0x800400000000
+INFO T10a CPU write/readback through mmap(offset=VA) ok
+PASS T10b overlapping FIXED alloc refused (Out of memory)
+PASS T10c freed and re-allocated at the same FIXED VA (5.5 us)
+PASS T10d per-tile commit 0->16->0->16 took effect (MEM_QUERY); re-committed page NOT zero (unbind must zero it)
+PASS T10e FIXABLE refused while a FIXED alloc is live (Invalid argument)
+BENCH sparse_tile_bind=2.0us sparse_tile_unbind=0.9us sparse_tile_reserve=0.8us sparse_tile_free=0.5us (64KiB FIXED tiles, n=256 x 8 cycles)
+PASS T10f 256 tiles x 8 bind/unbind cycles: no commit errors, every tile back at 0 pages
+BENCH sparse_alias_rebuild24=2.8us (n=256)
+PASS T11 rebuilt a 24-entry alias 256 times
+VERDICT v12 lazy-tile possible -- 64 KiB FIXED tiles commit 16->0->16 and re-alloc at the same VA (CSF 1.21)
+SUMMARY pass=18 fail=0 skip=0
