@@ -877,3 +877,51 @@ sha256 `1195a047045b6384480a88924ddf61c1095ace90bfcbb95aa26c6598ff99d716`, 29455
 head=94af3802af9`. **120 is the default bundled driver** (`prepare-rc5-tree.sh` default `--wip-max 0160`).
 
 Numbers: `docs/PERF-PROGRESS.md` "Round 2" and "Build 120"; status per item: `docs/PERF-OPTIMIZATION-PLAN.md` section 5.
+
+## kbase tiler heap OOM: incremental rendering (2026-10-29): 0161, not the default, v13/v14 pending
+
+Follows "CSF tiler heap OOM on kbase" above (v13 G925 `tess_perf` ~75% DEVICE_LOST, every failure with
+`CSF group 0 tiler heap OOM notification`, `worklogs/.../2026-10-29-rtl-v13-sm-x930-tessperf/`).
+
+| jm-v7-wip | what |
+|---|---|
+| 0161 | (1) All three subqueues in **one** kbase queue group (CS i = subqueue i, the panthor layout) created with `BASE_CSF_TILER_OOM_EXCEPTION_FLAG`; group create tries the layouts that carry `csi_handlers` before the 1_6 one (MediaTek 1.21). At `max_chunks` kbase now answers the tiler OOM with a NULL chunk instead of terminating the group, and the firmware runs the existing upstream TILER_OOM handler on the fragment CS (incremental rendering: flush the bins with the IR FBDs, FINISH_FRAGMENT the chunks back). That handler only reaches CSs of the group that hit the OOM, which is why it never ran with one group per subqueue. (2) The fragment subqueue issues FINISH_FRAGMENT at the end of every pass again, without the FRAGMENT_COMPLETED increment and without FRAGMENT_END (vt_end/frag_end stay 0, so 098's heap statistics check holds): chunks come back per pass instead of only at heap renewal. Without (2) the IR handler frees nothing once earlier passes hold every chunk and the tiler OOMs forever. `PANVK_KBASE_TILER_IR=0` restores the old layout and behaviour (both parts). |
+
+Root cause (X6 Pro, rooted, dmesg): with a small heap build 119 reproduces the v13 failure exactly
+(`PANVK_KBASE_HEAP_CHUNKS=4,32`: 3/3 FAIL, dmesg `Queue group to be terminated, couldn't handle the OoM event`).
+kbase `handle_oom_event()`: `chunk_count >= max_chunks` with `pending_frag_cnt == 0` is `-ENOMEM`, which terminates
+the group unless the group has the OOM exception flag. Since 098 no chunk came back before heap renewal, so any heap
+generation (up to 128 submits or 65536 work units) shared one `max_chunks` budget; why 1024/4096 max chunks still
+failed on v13 is not proven (no dmesg on RTL), but both parts of 0161 address the budget and the termination.
+
+X6 Pro results (`worklogs/g615-dxvk/device-runs/2026-10-29-x6pro-tiler-oom/results.md`): `tess_perf` at 4,32
+12/13 PASS with 0161 (dev 10/10, strict build 2/3), full PanProbe 41/41 at the default heap (dev and strict) and 41/41
+at 4,32, `large_draw` 2/2 at 1,8, PanPlay s3/s5/s7 fast pass ok. No OOM termination in any 0161 run. Perf (same
+binary, `PANVK_KBASE_TILER_IR=0` A/B, default heap): heavy tess frames faster (gs=1 L=4 105-111 ms vs 162-185 ms,
+FUSE=0 gs=0 L=4 74 vs 135-153), `L=16` within noise, trivial `L=ref` frame +0.2-0.3 ms, `large_draw` equal.
+
+Strict check: fresh 5a07217f worktree `/var/tmp/panvk/mesa-oom2-final`, `prepare-rc5-tree.sh --wip-max 0161`:
+`BASE-OK applied=228 csf-v11<=233`, `OK base=228 jm-v7-wip=156 head=84704e1bb7a`, equal to the dev tree
+`/var/tmp/panvk/mesa-oom2-dev`. Build oom2final: `/var/tmp/panvk/build-out/2026-10-29-oom2final/libvulkan_panfrost.so`,
+sha256 `d0d4a971f470d6d2...`, BuildID `0cf6b04d5cfdacb4...`, driverInfo `git-84704e1bb7, p0161`; APKs
+`/var/tmp/panvk/build-out/apks/panprobe-oom2final.apk`, `panplay-oom2final.apk`. Not the default bundled driver
+(`prepare-rc5-tree.sh` default stays `--wip-max 0160`).
+
+Open problems:
+- **Firmware hang under a very small heap.** With 0161 and `PANVK_KBASE_HEAP_CHUNKS=1,8`, 4 of 10 `tess_perf` runs
+  hang (mostly gs=1); with 4,32 1 of 13 (strict build, gs=1 L=4, FUSE=0 opt). Shape: no OOM termination, all three
+  subqueues stuck, MCU stops answering (`Timeout on CSG_REQ:STATUS_UPDATE`), kbase resets the GPU, group fatal 0x72
+  (kbase SW fault after reset). 1,16 4/4 PASS. Hypotheses, not tested: (a) the tiler's working set (open chunks per
+  core and hierarchy level) exceeds a tiny heap, so IR cannot free enough to make progress; (b) the IR handler is
+  only armed while the fragment CS sits in `wait_finish_tiling()`; if the fragment CS waits on another subqueue
+  (compute tess/GS work that waits on the stalled VT draw) before arming it, nobody services the pending OOM
+  exception. (b) would also hit big heaps, so the v13/v14 RTL reruns decide.
+- One group per queue changes kbase scheduling for every kbase device (v9 JM excluded): v10/v12/v13/v14 need a full
+  PanProbe + PanPlay rerun before 0161 becomes the default.
+- Groups created with the 1_6 layout (kernels that only take 32 bytes) silently drop the flag: the one-group layout
+  still applies, IR does not, OOM terminates as before.
+
+Next steps: RTL v13 SM-X930 (coordinator run `2026-10-29-rtl-v13-sm-x930-oom2final/`) and v14 SM-X846B: PanProbe
+with `tess_perf` x10 at the default heap and at 4,32, PanPlay 1-9. If the v13 hang persists at the default heap,
+look at (b): arm the handler before the fragment CS's cross-subqueue waits, or add a VT-side bound. If only tiny
+heaps hang, raise the minimum `max_chunks` clamp (8 today) and make 0161 the default.

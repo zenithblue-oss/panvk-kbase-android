@@ -1,0 +1,80 @@
+[64477.429200] mali 13000000.mali: Unknown ioctl 0xc010640c nr:12
+[64490.800937] mali 13000000.mali: ctx:2062_3 kcpu queue:3 Command - FENCE_SIGNAL timeout(3000 ms) on fence[0000000000000000] context#seqno:110#120173 (driver=mali, timeline=0-2062_3-110-kcpu)
+[64490.801092] mali 13000000.mali: KCPU queues for ctx 3:
+[64490.801129] mali 13000000.mali: queue:KCPU-3-3 exec:S cmd:CQS_WAIT_OPERATION obj:0x0000005fffd5fb80 live_value:0x0000000000000000 | op:gt arg_value:0x00000000
+[64490.801160] mali 13000000.mali: queue:KCPU-3-3 exec:P cmd:FENCE_SIGNAL obj:0x0000000000000000 live_value:0x00000000 | timeline_name:0-2062_3-110-kcpu context#seqno:110#120173
+[64490.801185] mali 13000000.mali: queue:KCPU-3-3 exec:P cmd:CQS_SET_OPERATION obj:0x0000005fffd5fb58 live_value:0x0000000000000000 | op:add arg_value:0x00000001
+[64490.801209] mali 13000000.mali: queue:KCPU-3-3 exec:P , U, Unknown blocking command
+[64490.801228] mali 13000000.mali: queue:KCPU-3-3 exec:P cmd:CQS_WAIT_OPERATION obj:0x0000005fffd5fb28 live_value:0x0000000000000000 | op:gt arg_value:0x00000000
+[64490.801253] mali 13000000.mali: queue:KCPU-3-3 exec:P cmd:FENCE_SIGNAL obj:0x0000000000000000 live_value:0x00000000 | timeline_name:0-2062_3-110-kcpu context#seqno:110#120174
+[64490.801278] mali 13000000.mali: queue:KCPU-3-3 exec:P cmd:CQS_SET_OPERATION obj:0x0000005fffd5fb40 live_value:0x0000000000000000 | op:add arg_value:0x00000001
+[64490.801297] mali 13000000.mali: queue:KCPU-3-3 exec:P , U, Unknown blocking command
+[64490.801317] mali 13000000.mali: mcu state back trace 8->9->10->0->1->2->3->4
+[64490.801332] mali 13000000.mali: diagnosis hook = 0x10000000000, mode = 0, mask = 0x00000000
+[64490.801476] mali 13000000.mali: [active_groups] MALI_CSF_CSG_DEBUGFS_VERSION: v0
+[64490.820631] mali 13000000.mali: mtk_debug_csf_dump_groups_and_queues lock csf.scheduler.lock failed!
+[64491.814039] mali 13000000.mali: ctx:2062_3 kcpu queue:3 Command - FENCE_SIGNAL timeout(4000 ms) on fence[0000000000000000] context#seqno:110#120173 (driver=mali, timeline=0-2062_3-110-kcpu)
+[64491.814116] mali 13000000.mali: KCPU queues for ctx 3:
+[64491.814155] mali 13000000.mali: queue:KCPU-3-3 exec:S cmd:CQS_WAIT_OPERATION obj:0x0000005fffd5fb80 live_value:0x0000000000000000 | op:gt arg_value:0x00000000
+[64491.814187] mali 13000000.mali: queue:KCPU-3-3 exec:P cmd:FENCE_SIGNAL obj:0x0000000000000000 live_value:0x00000000 | timeline_name:0-2062_3-110-kcpu context#seqno:110#120173
+[64491.814218] mali 13000000.mali: queue:KCPU-3-3 exec:P cmd:CQS_SET_OPERATION obj:0x0000005fffd5fb58 live_value:0x0000000000000000 | op:add arg_value:0x00000001
+[64491.814242] mali 13000000.mali: queue:KCPU-3-3 exec:P , U, Unknown blocking command
+[64491.814262] mali 13000000.mali: queue:KCPU-3-3 exec:P cmd:CQS_WAIT_OPERATION obj:0x0000005fffd5fb28 live_value:0x0000000000000000 | op:gt arg_value:0x00000000
+[64491.814289] mali 13000000.mali: queue:KCPU-3-3 exec:P cmd:FENCE_SIGNAL obj:0x0000000000000000 live_value:0x00000000 | timeline_name:0-2062_3-110-kcpu context#seqno:110#120174
+[64491.814318] mali 13000000.mali: queue:KCPU-3-3 exec:P cmd:CQS_SET_OPERATION obj:0x0000005fffd5fb40 live_value:0x0000000000000000 | op:add arg_value:0x00000001
+[64491.814340] mali 13000000.mali: queue:KCPU-3-3 exec:P , U, Unknown blocking command
+[64491.814363] mali 13000000.mali: mcu state back trace 8->9->10->0->1->2->3->4
+[64491.814379] mali 13000000.mali: diagnosis hook = 0x10000000000, mode = 0, mask = 0x00000000
+[64491.814572] mali 13000000.mali: [active_groups] MALI_CSF_CSG_DEBUGFS_VERSION: v0
+[64491.833965] mali 13000000.mali: mtk_debug_csf_dump_groups_and_queues lock csf.scheduler.lock failed!
+[64491.834056] mali 13000000.mali: KCPU queue command timeouts(4000 ms)! Trigger GPU reset
+[64491.834081] mali 13000000.mali: Preparing to soft-reset GPU
+[64492.827740] mali 13000000.mali: ctx:2062_3 kcpu queue:3 Command - FENCE_SIGNAL timeout(5000 ms) on fence[0000000000000000] context#seqno:110#120173 (driver=mali, timeline=0-2062_3-110-kcpu)
+[64492.827802] mali 13000000.mali: ctx:2062_3 kcpu queue:3 Command - FENCE_SIGNAL timeout(5000 ms)! Trigger cross queue sync recovery
+[64492.827835] mali 13000000.mali: [QINSPECT_RECOVERY]Preparing to recovery
+[64492.827851] mali 13000000.mali: [QINSPECT_RECOVERY]acquire lock
+[64493.227410] mali 13000000.mali: [5943514770] Timeout (6000 ms) on CSG_REQ:STATUS_UPDATE, treat groups as not idle: slot mask=0x6
+[64493.227464] mali 13000000.mali: mcu state back trace 8->9->10->0->1->2->3->4
+[64493.227484] mali 13000000.mali: diagnosis hook = 0x1000000000, mode = 0, mask = 0x00000000
+[64493.228061] mali 13000000.mali: [QINSPECT_RECOVERY]prevent gpu reset
+[64493.228107] mali 13000000.mali: [QINSPECT_RECOVERY]prevent gpu reset fail, skip this run
+[64493.228181] mali 13000000.mali: mcu state back trace 8->9->10->0->1->2->3->4
+[64493.228201] mali 13000000.mali: diagnosis hook = 0x01000000, mode = 0, mask = 0x00000000
+[64493.840914] mali 13000000.mali: ctx:2062_3 kcpu queue:3 Command - FENCE_SIGNAL timeout(6000 ms)! Trigger cross queue sync recovery
+[64493.840968] mali 13000000.mali: [QINSPECT_RECOVERY]Preparing to recovery
+[64493.840984] mali 13000000.mali: [QINSPECT_RECOVERY]acquire lock
+[64494.747933] mali 13000000.mali: [7219250987] Suspend request sent on CSG slots 0x7 timed out for slots 0x7
+[64494.747992] mali 13000000.mali: mcu state back trace 8->9->10->0->1->2->3->4
+[64494.748012] mali 13000000.mali: diagnosis hook = 0x1000000000, mode = 0, mask = 0x00000000
+[64494.748033] mali 13000000.mali: Timeout waiting for CSG slots to suspend before reset, slot_mask: 0x07
+[64494.748284] mali 13000000.mali: [QINSPECT_RECOVERY]prevent gpu reset
+[64494.748307] mali 13000000.mali: [QINSPECT_RECOVERY]prevent gpu reset fail, skip this run
+[64494.748710] mali 13000000.mali: Evicting context 4010_5388 slots: 0x01
+[64494.748778] mali 13000000.mali: Evicting context 4010_5387 slots: 0x00
+[64494.748802] mali 13000000.mali: Evicting context 4010_5386 slots: 0x00
+[64494.748824] mali 13000000.mali: Evicting context 3916_5378 slots: 0x00
+[64494.748948] mali 13000000.mali: Evicting context 28886_5205 slots: 0x00
+[64494.748984] mali 13000000.mali: Evicting context 25727_4506 slots: 0x00
+[64494.749007] mali 13000000.mali: Evicting context 2221_3546 slots: 0x00
+[64494.749130] mali 13000000.mali: Evicting context 22068_374 slots: 0x00
+[64494.749259] mali 13000000.mali: Evicting context 11595_6 slots: 0x00
+[64494.749381] mali 13000000.mali: Evicting context 1727_5 slots: 0x00
+[64494.749426] mali 13000000.mali: Evicting context 2515_4 slots: 0x00
+[64494.749755] mali 13000000.mali: Evicting context 2062_3 slots: 0x04
+[64494.752641] mali 13000000.mali: Evicting context 1042_0 slots: 0x02
+[64494.753216] mali 13000000.mali: Reset active queue groups and clear out scheduler data
+[64494.753273] mali 13000000.mali: Resetting GPU (allowing up to 500 ms)
+[64494.753293] mali 13000000.mali: Register state:
+[64494.753304] mali 13000000.mali:   GPU_IRQ_RAWSTAT=0x00040200   GPU_STATUS=0x00000001  MCU_STATUS=0x00000001
+[64494.753320] mali 13000000.mali:   JOB_IRQ_RAWSTAT=0x00000000   MMU_IRQ_RAWSTAT=0x00000000   GPU_FAULTSTATUS=0x00000000
+[64494.753332] mali 13000000.mali:   GPU_IRQ_MASK=0x00000000   JOB_IRQ_MASK=0x00000000   MMU_IRQ_MASK=0x00000000
+[64494.753343] mali 13000000.mali:   PWR_OVERRIDE0=0x00040000   PWR_OVERRIDE1=0x00000000
+[64494.753355] mali 13000000.mali:   SHADER_CONFIG=0x00000000   L2_MMU_CONFIG=0x00000000   TILER_CONFIG=0x00000000
+[64494.754676] mali 13000000.mali: GPU soft reset completed
+[64494.756428] mali 13000000.mali: reloading firmware
+[64494.756803] mali 13000000.mali: External quirks 0: 0x00000001
+[64494.757168] mali 13000000.mali: Reset complete
+[64496.967310] mali 13000000.mali: mmap failed -22
+[64496.969031] mali 13000000.mali: !(tmp->flags & KBASE_REG_FREE): tmp->start_pfn=0x800400000 tmp->flags=0x2000e26e tmp->nr_pages=0x10 gpu_pfn=0x800400000 nr_pages=0x10
+[64496.969046] mali 13000000.mali: Failed to map memory on GPU
+[64497.222015] mali 13000000.mali: Unknown ioctl 0xc010640c nr:12
