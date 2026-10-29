@@ -97,9 +97,15 @@ Gain = expected effect on the measured workloads; risk = chance of a correctness
 
 ## 4. Ordered work list
 
-1. Build 116: 0149 (logic op FPK), 0150 (v9 JM merge), 0151 (prerast merge). Measure on TB336FU and X6 Pro,
-   PanPlay s3/s5/s6/s7/s8. Each has a knob (`PANVK_LOGICOP_FPK`, `PANVK_V9_JM_MERGE_WG`,
-   `PANVK_PRERAST_MERGE_WG`, `=0` restores the old behaviour) for A/B and bisection.
+1. Build 116 (**done**, default bundled driver): 0149 (logic op FPK), 0150 (v9 JM merge), 0151 (prerast merge).
+   PanProbe 40/40 on TB336FU and X6 Pro, PanPlay s3/s5/s6/s7/s8 clean. Results in `docs/PERF-PROGRESS.md`.
+   Each has a knob (`PANVK_LOGICOP_FPK`, `PANVK_V9_JM_MERGE_WG`, `PANVK_PRERAST_MERGE_WG`, `=0` restores the
+   old behaviour) for A/B and bisection.
+   Exception in 0151: on v9 a lowered vertex shader that reads vertex inputs does not merge. With merging,
+   `draw_params` case `divisor` (1 vertex x 6 instances, divisor 2) read attribute 1004 instead of 1005 for
+   instances 6 and 7 on TB336FU; CSF passed. Root cause not found (likely the v9 JM instance/attribute path
+   under merged warps). Cost of the exception on v9: `large_draw` 10.2 s instead of 7.3 s with full merging.
+1a. Root-cause the v9 merged-VS instance-divisor bug and drop the exception (v9 `large_draw` about -30 %).
 2. Firebase/RTL follow-up for 116 on v6/v7/v10/v14 (fills the empty PERF-PROGRESS columns; 0149 and 0151 touch
    every arch, 0150 only v9).
 3. BC compute decode per block on v6/v7/v9 (rank 4), checked with the `bc_decode` hashes and `bc_perf`.

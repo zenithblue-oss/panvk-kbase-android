@@ -792,3 +792,28 @@ from a `git archive HEAD` copy of `apps/panvk-launcher`): `panprobe-d3d9v14.apk`
 Tests with that driver: v14 RTL PanPlay d3d9 cube 7 of 7 default passes without a fault (the one `PANVK_TLS_SPARSE=1`
 pass faulted), PanProbe `tessellation` 3 of 3 mismatch 0; X6 Pro (G615 v11) full PanProbe 40/40; v14 RTL full PanProbe 40/40 (115g-era v14fix: 39/40, tessellation); TB336FU (G57 v9)
 full PanProbe 40/40. A full v14 PanPlay s3 run started but the RTL session ended in pass 1 (d3d11).
+
+## Build 116 (perf) (2026-10-29): 0149-0151, default bundled driver
+
+| jm-v7-wip | what | knob (`=0` restores the old behaviour) |
+|---|---|---|
+| 0149 | logic ops that do not read the destination (CLEAR, COPY, COPY_INVERTED, SET) no longer set `any_dest_read`, so FPK stays on (0138 turned it off for every logic op) | `PANVK_LOGICOP_FPK` |
+| 0150 | v9 JM: compute, precomp (libpan) and `v9_prerast_job` payloads set "Allow merging workgroups" from the shader, as CSF already does | `PANVK_V9_JM_MERGE_WG` |
+| 0151 | gpu_prerast kernels (lowered VS/TES, GS kernel, polygon kernel; 1x1x1 workgroups) are compiled with the merged-workgroup divergence options and set `allow_merging_workgroups` when `valhall_can_merge_workgroups()` allows it. Exception: on v9 a lowered VS that reads vertex inputs does not merge (see below). The knob is part of the shader cache key | `PANVK_PRERAST_MERGE_WG` |
+
+v9 exception: with merging for every prerast VS, PanProbe `draw_params` case `divisor` (1 vertex x 6 instances,
+divisor 2) failed on TB336FU (instances 6 and 7 read attribute 1004 instead of 1005); X6 Pro passed. Root cause not
+found. Without the exception v9 `large_draw` was 7.3 s (10.2 s with it, 24.6 s before).
+
+Strict check: fresh 5a07217f worktree `/var/tmp/panvk/mesa-116-final`, `prepare-rc5-tree.sh --wip-max 0151`:
+`BASE-OK applied=228 csf-v11<=233 head=e9d394f0713`, `OK base=228 jm-v7-wip=146 head=f7e78953ac5`, tree equal to
+the dev worktree `/var/tmp/panvk/mesa-116-dev`. Driver `/var/tmp/panvk/build-out/2026-10-29-116/libvulkan_panfrost.so`,
+sha256 `d5817e51309f030581460b65c3cf1b59c6cf1bb4f71d69a303e57252a72cd1cf`, 29297400 bytes, BuildID
+`87d679ee64ac7df831dbc2f214ab601b1e8282e8`, driverInfo `Mesa 26.3.0-devel (git-f7e78953ac)`. APKs:
+`build-out/apks/panprobe-116.apk` `229dd862fc78e772...`, `panplay-116.apk` `03da729d0c5068a5...`.
+
+Tests: PanProbe 40/40 twice on TB336FU (G57 v9) and twice on X6 Pro (G615 v11), no DEVICE_LOST. PanPlay on TB336FU
+s3/s5/s6/s7/s8 all ok, no deviceLost. Gains vs the previous series (through 0148), warm cache: TB336FU tess gs=1 L=16
+10.6 ms to 3.1 ms per draw, `large_draw` 24.6 s to 10.2 s, PanProbe sum 185.9 s to 143.2 s; X6 Pro tess gs=1 L=16
+2.96 ms to 2.39 ms, `xfb` 322 to 223 ms, sum 122.2 s to 119.4 s. Full tables: `docs/PERF-PROGRESS.md`.
+v6/v7/v10/v14 untested with 116.
