@@ -82,3 +82,37 @@ Stayed online. No adb connect/disconnect, no sysfs. Only own processes killed (r
 - Suspect: the WSI default (which memory the swapchain readback uses) changed between 116 and 122c; env flips back to the fast path. Not bisected beyond that.
 - Raw: raw/ab-s1-cube/ (rtl-ab-s1 = a, c, a2, first b; rtl-ab-s1b = b2), per-variant results.txt/json, harness.log, meminfo, png.
 - End state: 122c panplay installed (-r -d), my gameloop.json removed from the launcher files dir. /sdcard/panplay-ab-env.json left (harmless, unused).
+
+## D. 122c + PANVK_WSI_SW_CACHED=1, full PanPlay 1-9 (runs 23:48-00:13 IST), new S12 Ultra session, SM-X946B
+Env via launcher files/gameloop.json; results.json pass env confirms PANVK_WSI_SW_CACHED=1 (s3 checked: both passes). Apps were absent in this new session: panplay-122c installed fresh with adb install -r (no uninstall). 10 s warm-up + 30 s measure, order 3 8 5 9 1 2 4 6 7. All 9 scenarios ok, 0 DEVICE_LOST / timeout snapshot / CSF fault / tiler OOM in per-scenario logcat greps. D3D9 cube PASS 120 fps in s1/s2/s3/s4/s8, no DEVICE_LOST.
+
+| Scn | task/env | stat | fps 122c+cached (116) | 1% low 122c+cached (116) |
+|---|---|---|---|---|
+| 1 | d3d11/default | ok | 715.4 (846.5) | 66.4 (104.4) |
+| 2 | d3d9/default | ok | 120.0 (120.0) | 64.6 (60.5) |
+| 3 | d3d11/default | ok | 634.8 (967.2) | 47.6 (138.5) |
+| 3 | d3d9/default | ok | 120.0 (120.0) | 63.5 (64.4) |
+| 4 | d3d11/default | ok | 664.4 (775.7) | 54.0 (73.9) |
+| 4 | d3d11/old | ok | 235.0 (260.2) | 106.3 (111.3) |
+| 4 | d3d9/default | ok | 120.0 (120.0) | 68.2 (63.5) |
+| 4 | d3d9/old | ok | 120.0 (120.0) | 64.7 (62.5) |
+| 5 | d3d12/default | ok | 239.4 (288.6) | None (None) |
+| 6 | d3d12gears/default | ok | 289.2 (304.6) | None (None) |
+| 7 | d3d12fl_11_0/default | ok | 356.4 (377.5) | None (None) |
+| 7 | d3d12fl_11_1/default | ok | 354.8 (358.6) | None (None) |
+| 7 | d3d12fl_12_0/default | ok | 369.1 (376.2) | None (None) |
+| 7 | d3d12fl_12_1/default | ok | 347.9 (373.4) | None (None) |
+| 7 | d3d12fl_12_2/default | ok | 360.4 (365.6) | None (None) |
+| 8 | d3d10/default | ok | 658.6 (768.7) | 55.1 (72.5) |
+| 8 | d3d11fl_10_0/default | ok | 1157.8 (1187.2) | 133.8 (155.0) |
+| 8 | d3d11fl_10_1/default | ok | 1179.6 (1203.3) | 129.7 (167.2) |
+| 8 | d3d11fl_11_0/default | ok | 1147.0 (1186.4) | 151.0 (167.5) |
+| 8 | d3d11fl_11_1/default | ok | 1046.3 (1188.7) | 128.0 (157.3) |
+| 8 | d3d9/default | ok | 120.0 (120.0) | 63.8 (62.1) |
+| 9 | d3d11fl_all/default | ok | 1159.3 (1205.9) | 160.2 (184.2) |
+| 9 | d3d12fl_all/default | ok | 337.3 (351.0) | None (None) |
+PSS MB (launcher, t=30 s): s1 232, s2 222, s3 205, s4 216, s5 286, s6 227, s7 193, s8 201, s9 182. 116 recorded no PSS. D3D12 rows have no dxvk 1% low (None).
+Screenshots: raw/122c-sw-cached-panplay/*.png (9). Raw: raw/122c-sw-cached-panplay/sN/.
+
+Flags vs 116 (fps worse than 15%): s3 d3d11 cube 635 vs 967 (-34%), s5 D3D12 SquidRoom 239 vs 289 (-17%), s1 d3d11 cube 715 vs 847 (-15%); s8 d3d10 -14%, FL11_1 -12%. Far better than 122c default (258 fps), but not fully back to 116 on the uncapped cube. 1% low is lower than 116 on the D3D11 cubes (47-66 vs 104-139) even though avg fps is high: frame-time spread is wider with cached. 122d (auto cached/uncached): only panplay-122d-dev.apk existed, not 122d.apk, so not tested.
+End: gameloop.json removed by the script; device still connected.
