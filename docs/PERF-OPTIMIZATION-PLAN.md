@@ -110,6 +110,7 @@ Gain = expected effect on the measured workloads; risk = chance of a correctness
 | 20 | JM timestamps batched per batch, PERMON only where needed | v6/v7/v9 | low (DXVK HUD timestamp pairs) | low | small, measure first |
 | 21 | v9 primitives-generated: CPU-known count for direct draws | v9 | low | low | small, measure first |
 | 22 | v7 customBorderColorWithoutFormat keeps AFBC for BGRA | v7 | AFBC bandwidth on BGRA textures | med | small, measure first on v7 |
+| 23 | GPU stats for MangoHud on Android (kbase/devfreq nodes are blocked for apps): the driver writes GPU load % (busy time from its per-submit GPU timestamps over a 500 ms window) and VRAM used (its own allocations) to a small file, gated on an env var the launcher sets only with MangoHud on; the launcher's MangoHud reads it | all | MangoHud GPU load / VRAM on Android (no perf gain; zero cost when off) | low | small |
 
 ## 4. Ordered work list
 
@@ -125,8 +126,8 @@ Gain = expected effect on the measured workloads; risk = chance of a correctness
    **Done, 0152**: on the G57 an instance-frequency `LD_ATTR` with merged workgroups returns the element of the
    first lane of each 4-lane group (hardware divisor or not); the v9 lowered VS now computes instance / divisor
    itself and fetches with vertex frequency. `large_draw` 10.2 s to 7.2 s on TB336FU.
-1b. Build 118 = 0152 + 0153 (`git-a0412457ab`): X6 Pro 40/40 x2; TB336FU final run pending (device disconnected),
-   so the default pins stay on 116 until it passes. Not done this round: CSF tess drains (rank 6) and the lowmem
+1b. Build 118 = 0152 + 0153 (`git-a0412457ab`): X6 Pro 40/40 x2; v9 gate on Firebase oriole (G78) 40/40, so 118
+   is the default bundled driver (**done**). Not done this round: CSF tess drains (rank 6) and the lowmem
    background precompile (rank 7; note it would cost every v10+ app start a cold compile thread even when it never
    uses BC, so gate it on the first BC image creation rather than device creation).
 2. Firebase/RTL follow-up for 116 on v6/v7/v10/v14 (fills the empty PERF-PROGRESS columns; 0149 and 0151 touch

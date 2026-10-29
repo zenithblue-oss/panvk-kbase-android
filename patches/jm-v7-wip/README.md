@@ -819,7 +819,7 @@ s3/s5/s6/s7/s8 all ok, no deviceLost. Gains vs the previous series (through 0148
 2.96 ms to 2.39 ms, `xfb` 322 to 223 ms, sum 122.2 s to 119.4 s. Full tables: `docs/PERF-PROGRESS.md`.
 v6/v7/v10/v14 untested with 116.
 
-## Build 118 (perf) (2026-10-29): 0152-0153, not yet default (v9 run pending)
+## Build 118 (perf) (2026-10-29): 0152-0153, default bundled driver
 
 "117" is the Firebase build of jm-v7-wip through 0148 (`git-1a0a81aa00`); this perf build is 118.
 
@@ -852,5 +852,7 @@ the dev worktree `/var/tmp/panvk/mesa-116-dev` (branch p117-dev). Driver
 
 Tests: X6 Pro (G615 v11) PanProbe 40/40 twice with the final build, no DEVICE_LOST, within noise of 116 (sum
 119.2 s vs 119.4 s; 0152 is v9-only, 0153 changes only compute BC decode, which v11 uses for 3D images).
-**Pending:** full PanProbe on TB336FU (v9) with the final build (device disconnected during the run); until it
-passes, 118 is not the default bundled driver (pins stay on 116). v6/v7/v10/v14 untested.
+v9 gate: the TB336FU stayed disconnected, so the final build ran on Firebase oriole (Pixel 6, Mali-G78, v9 JM):
+PanProbe 40/40, `draw_params` and `bc_decode` PASS, no DEVICE_LOST
+(`worklogs/g615-dxvk/device-runs/2026-10-29-ftl-v9-oriole-118-panprobe/`). **118 is the default bundled driver**
+(both pins, `prepare-rc5-tree.sh` default `--wip-max 0153`). v6/v7/v10/v14 untested.

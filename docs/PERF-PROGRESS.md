@@ -9,8 +9,9 @@ Drivers:
 - **116**: build 116 (perf), jm-v7-wip through 0151 on top of 0148, `Mesa 26.3.0-devel (git-f7e78953ac)`,
   .so sha256 `d5817e51...`. Default bundled driver since 2026-10-29.
 - **118**: build 118 (perf), jm-v7-wip through 0153 (0152 v9 merged-VS attribute fix, 0153 BC compute decode per
-  block), `Mesa 26.3.0-devel (git-a0412457ab)`, .so sha256 `7a09e925...`. Not default yet: the TB336FU (v9) run is
-  pending. ("117" is the Firebase build through 0148.)
+  block), `Mesa 26.3.0-devel (git-a0412457ab)`, .so sha256 `7a09e925...`. Default bundled driver since 2026-10-29
+  (v9 gate passed on Firebase oriole, Pixel 6 G78, in place of the disconnected TB336FU). ("117" is the Firebase
+  build through 0148.)
 
 Devices: TB336FU = Lenovo, Mali-G57 (v9 JM). X6 Pro = POCO X6 Pro, Mali-G615 (v11 CSF). The v6, v7, v10 and v14
 columns are empty until 116 runs there (Firebase / RTL).
@@ -149,3 +150,20 @@ v11 is within noise of 116, as expected: 0152 is v9-only and v11 uses the fragme
 | PanProbe full, final build | | | 40/40 | **pending** |
 
 BC is now 2.2-2.5x an RGBA8 upload on v9 (was 6-18x); BC6H stays about 6x (RGBA16F output, 10.8 ms reference).
+
+### v9 gate: Firebase oriole (Pixel 6, Mali-G78 MC20, v9 JM), final 118
+
+One FTL run (`worklogs/g615-dxvk/device-runs/2026-10-29-ftl-v9-oriole-118-panprobe/`): **PanProbe 40/40**,
+`draw_params` PASS (0152), `bc_decode` PASS (0153), no DEVICE_LOST. 118 is the default bundled driver from here.
+Per-test wall-clock seconds (log deltas, so a different method from the ms tables above; earlier oriole run =
+115pre-d, `git-8a4d9f8e50`, another unit):
+
+| Test | oriole 115pre-d (s) | oriole 118 (s) |
+|---|---|---|
+| tess_perf | 91.8 | 34.8 (-62 %) |
+| large_draw | 32.2 | 9.6 (-70 %) |
+| bc_perf | 36.0 | 32.4 (-10 %) |
+| robust_image_access2 | | 8.1 |
+| tessellation | | 2.4 |
+| geometry | | 1.4 |
+| bc_decode | 0.3 | 0.9 |

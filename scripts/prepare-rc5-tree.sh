@@ -13,7 +13,7 @@
 #   scripts/prepare-rc5-tree.sh --mesa /home/flux/src/mesa-115g-final [--csf-max 233] [--wip-max 0144] [--base-tag <tag>]
 set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MESA=""; CSF_MAX=233; WIP_MAX=0151; BASE_TAG=""
+MESA=""; CSF_MAX=233; WIP_MAX=0153; BASE_TAG=""
 while [ $# -gt 0 ]; do case "$1" in
   --mesa) MESA="$2"; shift 2;;
   --csf-max) CSF_MAX="$2"; shift 2;;
@@ -74,5 +74,8 @@ for p in "$ROOT"/patches/jm-v7-wip/0*.patch; do
   fi
   git -C "$MESA" am -q "$p"
   M=$((M+1))
+  LAST="${b%%-*}"
 done
+# driverInfo patch level (read by bin/git_sha1_gen.py, jm-v7-wip 0154); untracked, outside the tree hash
+[ -z "${LAST:-}" ] || printf 'p%s\n' "$LAST" > "$MESA/.panvk-patchlevel"
 echo "OK base=$N jm-v7-wip=$M head=$(git -C "$MESA" rev-parse --short HEAD)"
