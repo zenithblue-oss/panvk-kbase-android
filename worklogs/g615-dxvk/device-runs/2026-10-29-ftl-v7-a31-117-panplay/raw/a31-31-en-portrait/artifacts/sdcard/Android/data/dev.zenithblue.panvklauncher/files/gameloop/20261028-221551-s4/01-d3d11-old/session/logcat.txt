@@ -1,0 +1,759 @@
+--------- beginning of main
+10-28 22:15:47.138 20100 24140 W System.err: java.io.IOException: Failed to write data.
+10-28 22:15:47.139 20100 24140 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-28 22:15:47.139 20100 24140 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-28 22:15:47.139 20100 24140 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-28 22:15:47.139 20100 24140 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-28 22:15:47.139 20100 24140 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-28 22:15:47.139 20100 24140 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-28 22:15:47.139 20100 24140 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-28 22:15:47.139 20100 24140 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-28 22:15:47.139 20100 24140 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-28 22:15:47.139 20100 24140 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-28 22:15:47.139 20100 24140 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-28 22:15:47.140 20100 24140 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-28 22:15:47.140 20100 24140 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-28 22:15:47.140 20100 24140 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-28 22:15:47.140 20100 24140 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-28 22:15:47.140 20100 24140 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-28 22:15:47.141 20100 24140 W System.err: java.io.IOException: Failed to write data.
+10-28 22:15:47.141 20100 24140 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-28 22:15:47.141 20100 24140 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-28 22:15:47.141 20100 24140 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-28 22:15:47.141 20100 24140 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-28 22:15:47.141 20100 24140 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-28 22:15:47.141 20100 24140 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-28 22:15:47.141 20100 24140 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-28 22:15:47.141 20100 24140 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-28 22:15:47.142 20100 24140 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-28 22:15:47.142 20100 24140 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-28 22:15:47.142 20100 24140 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-28 22:15:47.142 20100 24140 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-28 22:15:47.142 20100 24140 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-28 22:15:47.142 20100 24140 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-28 22:15:47.142 20100 24140 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-28 22:15:47.142 20100 24140 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-28 22:15:47.317 20100 21228 W e.panvklaunche: Long monitor contention with owner panplay-gameloop (23545) at int java.io.BufferedInputStream.read(byte[], int, int)(BufferedInputStream.java:349) waiters=0 in void java.lang.UNIXProcess$ProcessPipeInputStream.processExited() for 630ms
+--------- beginning of events
+10-28 22:15:47.317 20100 21228 I dvm_lock_sample: [dev.zenithblue.panvklauncher,0,process reaper,630,UNIXProcess.java,-1,void java.lang.UNIXProcess$ProcessPipeInputStream.processExited(),BufferedInputStream.java,349,int java.io.BufferedInputStream.read(byte[], int, int),100]
+10-28 22:15:47.404 20100 20100 I wm_on_top_resumed_lost_called: [185860879,dev.zenithblue.panvklauncher.XServerActivity,topStateChangedWhenResumed]
+10-28 22:15:47.410 20100 24147 I BufferQueueProducer: [SurfaceView - dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.XServerActivity@1f2051a@0#13(BLAST Consumer)13](id:4e840000000d,api:1,p:20100,c:20100) disconnect: api 1
+10-28 22:15:47.413 20100 20100 I wm_on_paused_called: [185860879,dev.zenithblue.panvklauncher.XServerActivity,performPause]
+10-28 22:15:47.444 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: handleAppVisibility mAppVisible=false visible=true
+10-28 22:15:47.449 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: stopped(false) old=true
+10-28 22:15:47.449 20100 20100 I wm_on_restart_called: [81945281,dev.zenithblue.panvklauncher.MainActivity,performRestartActivity]
+10-28 22:15:47.450 20100 20100 I wm_on_start_called: [81945281,dev.zenithblue.panvklauncher.MainActivity,handleStartActivity]
+10-28 22:15:47.453 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: stopped(false) old=false
+10-28 22:15:47.454 20100 20100 I wm_on_resume_called: [81945281,dev.zenithblue.panvklauncher.MainActivity,RESUME_ACTIVITY]
+10-28 22:15:47.457 20100 20100 I wm_on_top_resumed_gained_called: [81945281,dev.zenithblue.panvklauncher.MainActivity,topWhenResuming]
+10-28 22:15:47.465 20100 20129 D OpenGLRenderer: setSurface called with nullptr
+10-28 22:15:47.474 20100 20159 I ViewRootImpl@96b7aec[MainActivity]: Resizing android.view.ViewRootImpl@b0e9486: frame=[0,0][1080,2400] reportDraw=true forceLayout=true backDropFrame=Rect(0, 0 - 1080, 2400)
+10-28 22:15:47.480 20100 20100 I BufferQueueConsumer: [](id:4e840000000e,api:0,p:-1,c:20100) connect: controlledByApp=false
+10-28 22:15:47.481 20100 20100 I BLASTBufferQueue: [ViewRootImpl@96b7aec[MainActivity]#14] constructor()
+10-28 22:15:47.483 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: Relayout returned: old=(0,0,1080,2400) new=(0,0,1080,2400) req=(1080,2400)0 dur=13 res=0x7 s={true 526707146752} ch=true fn=-1
+10-28 22:15:47.484 20100 20129 I BufferQueueProducer: [ViewRootImpl@96b7aec[MainActivity]#14(BLAST Consumer)14](id:4e840000000e,api:1,p:20100,c:20100) connect: api=1 producerControlledByApp=true
+10-28 22:15:47.484 20100 20129 D OpenGLRenderer: eglCreateWindowSurface
+10-28 22:15:47.491 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: [DP] dp(1) 1 android.view.ViewRootImpl.reportNextDraw:11420 android.view.ViewRootImpl.performTraversals:4193 android.view.ViewRootImpl.doTraversal:2919 
+10-28 22:15:47.491 20100 20100 D ViewRootImpl@96b7aec[MainActivity]: Creating frameDrawingCallback nextDrawUseBlastSync=false reportNextDraw=true hasBlurUpdates=false
+10-28 22:15:47.491 20100 20100 D ViewRootImpl@96b7aec[MainActivity]: Creating frameCompleteCallback
+10-28 22:15:47.504 20100 20162 D ViewRootImpl@96b7aec[MainActivity]: Received frameDrawingCallback frameNum=1. Creating transactionCompleteCallback=false
+10-28 22:15:47.511 20100 20129 D ViewRootImpl@96b7aec[MainActivity]: Received frameCompleteCallback  lastAcquiredFrameNum=1 lastAttemptedDrawFrameNum=1
+10-28 22:15:47.513 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: [DP] pdf(0) 1 android.view.ViewRootImpl.lambda$addFrameCompleteCallbackIfNeeded$3$ViewRootImpl:4995 android.view.ViewRootImpl$$ExternalSyntheticLambda16.run:6 android.os.Handler.handleCallback:938 
+10-28 22:15:47.513 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: [DP] rdf()
+10-28 22:15:47.513 20100 20100 D ViewRootImpl@96b7aec[MainActivity]: reportDrawFinished (fn: -1) 
+10-28 22:15:47.514 20100 20100 I ViewRootImpl@60fab1f[XServerActivity]: MSG_WINDOW_FOCUS_CHANGED 0 1
+10-28 22:15:47.518 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: handleResized, msg = 5 frames=ClientWindowFrames{frame=[0,0][1080,2400] display=[0,0][1080,2400] backdrop=[0,0][1080,2400]} forceNextWindowRelayout=true displayId=0 frameChanged=false backdropFrameChanged=false configChanged=false displayChanged=false mNextDrawUseBlastSync=false mergedConfiguration={mGlobalConfig={1.1 ?mcc?mnc [en] ldltr sw411dp w411dp h836dp 420dpi nrml long port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 79 - 1080, 2274) mMaxBounds=Rect(0, 0 - 1080, 2400) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0 mPopOver=off mFreeformTaskPinningState=unpinned} s.789 fontWeightAdjustment=0 ff=0 bf=0 bts=0 enb/d themeSeq=0} mOverrideConfig={1.1 ?mcc?mnc [en] ldltr sw411dp w411dp h836dp 420dpi nrml long port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 79 - 1080, 2274) mMaxBounds=Rect(0, 0 - 1080, 2400) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mPopOver=off mFreeformTaskPinningState=unpinned} s.6 fontWeightAdjustment=0 ff=0 bf=0 bts=0 enb/d themeSeq=0}}
+10-28 22:15:47.520 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: [DP] dp(1) 1 android.view.ViewRootImpl.reportNextDraw:11420 android.view.ViewRootImpl.handleResized:2230 android.view.ViewRootImpl.access$1200:302 
+10-28 22:15:47.545 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: Relayout returned: old=(0,0,1080,2400) new=(0,0,1080,2400) req=(1080,2400)0 dur=11 res=0x1 s={true 526707146752} ch=false fn=2
+10-28 22:15:47.545 20100 20129 D OpenGLRenderer: setSurface() destroyed EGLSurface
+10-28 22:15:47.545 20100 20129 D OpenGLRenderer: destroyEglSurface
+10-28 22:15:47.545 20100 20100 D ViewRootImpl@96b7aec[MainActivity]: Creating frameDrawingCallback nextDrawUseBlastSync=false reportNextDraw=true hasBlurUpdates=false
+10-28 22:15:47.545 20100 20100 D ViewRootImpl@96b7aec[MainActivity]: Creating frameCompleteCallback
+10-28 22:15:47.547 20100 20129 I BufferQueueProducer: [ViewRootImpl@96b7aec[MainActivity]#14(BLAST Consumer)14](id:4e840000000e,api:1,p:20100,c:20100) disconnect: api 1
+10-28 22:15:47.548 20100 20129 I BufferQueueProducer: [ViewRootImpl@96b7aec[MainActivity]#14(BLAST Consumer)14](id:4e840000000e,api:1,p:20100,c:20100) connect: api=1 producerControlledByApp=true
+10-28 22:15:47.549 20100 20129 D OpenGLRenderer: eglCreateWindowSurface
+10-28 22:15:47.550 20100 20163 D ViewRootImpl@96b7aec[MainActivity]: Received frameDrawingCallback frameNum=2. Creating transactionCompleteCallback=false
+10-28 22:15:47.563 20100 20129 D ViewRootImpl@96b7aec[MainActivity]: Received frameCompleteCallback  lastAcquiredFrameNum=2 lastAttemptedDrawFrameNum=2
+10-28 22:15:47.563 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: [DP] pdf(0) 1 android.view.ViewRootImpl.lambda$addFrameCompleteCallbackIfNeeded$3$ViewRootImpl:4995 android.view.ViewRootImpl$$ExternalSyntheticLambda16.run:6 android.os.Handler.handleCallback:938 
+10-28 22:15:47.564 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: [DP] rdf()
+10-28 22:15:47.564 20100 20100 D ViewRootImpl@96b7aec[MainActivity]: reportDrawFinished (fn: 2) 
+10-28 22:15:47.564 20100 20100 I ViewRootImpl@60fab1f[XServerActivity]: handleAppVisibility mAppVisible=true visible=false
+10-28 22:15:47.566 20100 20100 I ViewRootImpl@60fab1f[XServerActivity]: stopped(true) old=false
+10-28 22:15:47.568 20100 20129 I SurfaceView@1f2051a: 201896098 wPL, frameNr = 0
+10-28 22:15:47.569 20100 20129 I SurfaceView@1f2051a: aOrMT: uB = true t = android.view.SurfaceControl$Transaction@4d0c133 fN = 0 android.view.SurfaceView.access$500:124 android.view.SurfaceView$SurfaceViewPositionUpdateListener.positionLost:1785 android.graphics.RenderNode$CompositePositionUpdateListener.positionLost:326 
+10-28 22:15:47.569 20100 20129 I SurfaceView@1f2051a: aOrMT: vR.mWNT, vR = ViewRootImpl@60fab1f[XServerActivity]
+10-28 22:15:47.569 20100 20129 I ViewRootImpl@60fab1f[XServerActivity]: mWNT: t = android.view.SurfaceControl$Transaction@4d0c133 fN = 0 android.view.SurfaceView.applyOrMergeTransaction:1628 android.view.SurfaceView.access$500:124 android.view.SurfaceView$SurfaceViewPositionUpdateListener.positionLost:1785 
+10-28 22:15:47.569 20100 20129 I ViewRootImpl@60fab1f[XServerActivity]: mWNT: merge t to BBQ
+10-28 22:15:47.570 20100 20100 I SurfaceView@1f2051a: windowStopped(true) false com.winlator.widget.XServerView{1f2051a V.E...... ........ 0,0-2400,1080} of ViewRootImpl@60fab1f[XServerActivity]
+10-28 22:15:47.571 20100 20100 I SurfaceView@1f2051a: pST: mTmpTransaction.apply, mTmpTransaction = android.view.SurfaceControl$Transaction@a7c7aea
+10-28 22:15:47.572 20100 20100 I SurfaceView@1f2051a: surfaceDestroyed callback.size 1 #1 com.winlator.widget.XServerView{1f2051a V.E...... ........ 0,0-2400,1080}
+10-28 22:15:47.579 20100 20100 I BufferQueueProducer: [SurfaceView - dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.XServerActivity@1f2051a@0#13(BLAST Consumer)13](id:4e840000000d,api:0,p:-1,c:20100) disconnect: api -1
+10-28 22:15:47.580 20100 20100 I SurfaceView@1f2051a: updateSurface: mVisible = false mSurface.isValid() = true
+10-28 22:15:47.580 20100 20100 I BLASTBufferQueue: [SurfaceView - dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.XServerActivity@1f2051a@0#13] destructor()
+10-28 22:15:47.580 20100 20100 I BufferQueueConsumer: [SurfaceView - dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.XServerActivity@1f2051a@0#13(BLAST Consumer)13](id:4e840000000d,api:0,p:-1,c:20100) disconnect
+10-28 22:15:47.581 20100 20100 I SurfaceView@1f2051a: remove() com.winlator.widget.XServerView{1f2051a V.E...... ........ 0,0-2400,1080} Surface(name=SurfaceView - dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.XServerActivity@1f2051a@0)/@0x831fcf0
+10-28 22:15:47.582 20100 20100 I wm_on_stop_called: [185860879,dev.zenithblue.panvklauncher.XServerActivity,LIFECYCLER_STOP_ACTIVITY]
+10-28 22:15:47.591 20100 20100 I wm_on_destroy_called: [185860879,dev.zenithblue.panvklauncher.XServerActivity,performDestroy]
+10-28 22:15:47.593 20100 20100 I SurfaceView@1f2051a: onWindowVisibilityChanged(8) false com.winlator.widget.XServerView{1f2051a V.E...... ........ 0,0-2400,1080} of ViewRootImpl@60fab1f[XServerActivity]
+10-28 22:15:47.593 20100 20100 D SurfaceView@1f2051a: updateSurface: surface is not valid
+10-28 22:15:47.597 20100 20100 D SurfaceView@1f2051a: updateSurface: surface is not valid
+10-28 22:15:47.597 20100 20100 I SurfaceView@1f2051a: onDetachedFromWindow: tryReleaseSurfaces()
+10-28 22:15:47.601 20100 20129 D OpenGLRenderer: setSurface called with nullptr
+10-28 22:15:47.601 20100 20129 D OpenGLRenderer: setSurface() destroyed EGLSurface
+10-28 22:15:47.601 20100 20129 D OpenGLRenderer: destroyEglSurface
+10-28 22:15:47.602 20100 20129 I BufferQueueProducer: [ViewRootImpl@60fab1f[XServerActivity]#12(BLAST Consumer)12](id:4e840000000c,api:1,p:20100,c:20100) disconnect: api 1
+10-28 22:15:47.604 20100 20129 I BLASTBufferQueue: [ViewRootImpl@60fab1f[XServerActivity]#12] destructor()
+10-28 22:15:47.604 20100 20129 I BufferQueueConsumer: [ViewRootImpl@60fab1f[XServerActivity]#12(BLAST Consumer)12](id:4e840000000c,api:0,p:-1,c:20100) disconnect
+10-28 22:15:47.605 20100 20100 I ViewRootImpl@60fab1f[XServerActivity]: dispatchDetachedFromWindow
+10-28 22:15:47.633 20100 21227 I ViewRootImpl@96b7aec[MainActivity]: Resizing android.view.ViewRootImpl@b0e9486: frame=[0,0][1080,2400] reportDraw=false forceLayout=true backDropFrame=Rect(0, 0 - 1080, 2400)
+10-28 22:15:47.651 20100 20100 D InputTransport: Input channel destroyed: 'b70b683', fd=148
+10-28 22:15:47.653 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: MSG_WINDOW_FOCUS_CHANGED 1 1
+10-28 22:15:47.656 20100 20100 D InputMethodManager: startInputInner - Id : 0
+10-28 22:15:47.656 20100 20100 I InputMethodManager: startInputInner - mService.startInputOrWindowGainedFocus
+10-28 22:15:47.692 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: handleResized, msg = 4 frames=ClientWindowFrames{frame=[0,0][1080,2400] display=[0,0][1080,2400] backdrop=[0,0][1080,2400]} forceNextWindowRelayout=true displayId=0 frameChanged=false backdropFrameChanged=false configChanged=false displayChanged=false mNextDrawUseBlastSync=false mergedConfiguration={mGlobalConfig={1.1 ?mcc?mnc [en] ldltr sw411dp w411dp h836dp 420dpi nrml long port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 79 - 1080, 2274) mMaxBounds=Rect(0, 0 - 1080, 2400) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0 mPopOver=off mFreeformTaskPinningState=unpinned} s.790 fontWeightAdjustment=0 ff=0 bf=0 bts=0 enb/d themeSeq=0} mOverrideConfig={1.1 ?mcc?mnc [en] ldltr sw411dp w411dp h836dp 420dpi nrml long port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 79 - 1080, 2274) mMaxBounds=Rect(0, 0 - 1080, 2400) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mPopOver=off mFreeformTaskPinningState=unpinned} s.7 fontWeightAdjustment=0 ff=0 bf=0 bts=0 enb/d themeSeq=0}}
+10-28 22:15:47.724 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: Relayout returned: old=(0,0,1080,2400) new=(0,0,1080,2400) req=(1080,2400)0 dur=18 res=0x1 s={true 526707146752} ch=false fn=3
+10-28 22:15:47.724 20100 20129 D OpenGLRenderer: setSurface() destroyed EGLSurface
+10-28 22:15:47.724 20100 20129 D OpenGLRenderer: destroyEglSurface
+10-28 22:15:47.725 20100 20129 I BufferQueueProducer: [ViewRootImpl@96b7aec[MainActivity]#14(BLAST Consumer)14](id:4e840000000e,api:1,p:20100,c:20100) disconnect: api 1
+10-28 22:15:47.725 20100 20129 I BufferQueueProducer: [ViewRootImpl@96b7aec[MainActivity]#14(BLAST Consumer)14](id:4e840000000e,api:1,p:20100,c:20100) connect: api=1 producerControlledByApp=true
+10-28 22:15:47.726 20100 20129 D OpenGLRenderer: eglCreateWindowSurface
+10-28 22:15:47.737 20100 20100 D InsetsSourceConsumer: ensureControlPosition: Point(0, 2274) for ITYPE_NAVIGATION_BAR on dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.MainActivity from android.view.InsetsSourceConsumer.notifyAnimationFinished:384
+10-28 22:15:47.738 20100 20100 D InsetsSourceConsumer: ensureControlPosition: Point(0, 0) for ITYPE_STATUS_BAR on dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.MainActivity from android.view.InsetsSourceConsumer.notifyAnimationFinished:384
+10-28 22:15:47.746 20100 20100 I wm_on_idle_called: {dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.MainActivity}
+10-28 22:15:48.128 20100 23545 I MESA    : kbase: JM driver, uAPI version 11.27, page_size=4096
+10-28 22:15:48.129 20100 23545 I MESA    : kbase: stock JM atom layout (stride 72 refused), stride 56
+10-28 22:15:48.129 20100 23545 I MESA    : kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+10-28 22:15:48.129 20100 23545 I MESA    : kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+10-28 22:15:48.129 20100 23545 I MESA    : kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+10-28 22:15:48.129 20100 23545 I MESA    : kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+10-28 22:15:48.141 20100 23545 W MESA    : kbase: GPU timestamp counter measured at 26000002 Hz (26000004 / 26000000), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)
+10-28 22:15:48.141 20100 23545 I MESA    : kbase: no usable ION system heap
+10-28 22:15:48.141 20100 23545 I MESA    : panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6
+10-28 22:15:48.141 20100 23545 W MESA    : panvk: v7 (Bifrost) support is experimental
+10-28 22:15:48.141 20100 23545 I MESA    : panvk: BC emulation on (native compressed mask 0xf7fe03fe)
+10-28 22:15:48.233 20100 23545 I PanPlayGameLoop: pass 2: ok  fps=36.104513064133016
+10-28 22:15:48.274 20100 23545 I PanPlayGameLoop: done: ok=true
+10-28 22:15:48.297 20100 20100 I wm_on_top_resumed_lost_called: [81945281,dev.zenithblue.panvklauncher.MainActivity,topStateChangedWhenResumed]
+10-28 22:15:48.298 20100 20100 I wm_on_paused_called: [81945281,dev.zenithblue.panvklauncher.MainActivity,performPause]
+10-28 22:15:48.366 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: MSG_WINDOW_FOCUS_CHANGED 0 1
+10-28 22:15:48.414 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: handleAppVisibility mAppVisible=true visible=false
+10-28 22:15:48.421 20100 20129 D OpenGLRenderer: setSurface called with nullptr
+10-28 22:15:48.421 20100 20129 D OpenGLRenderer: setSurface() destroyed EGLSurface
+10-28 22:15:48.422 20100 20129 D OpenGLRenderer: destroyEglSurface
+10-28 22:15:48.430 20100 20129 I BufferQueueProducer: [ViewRootImpl@96b7aec[MainActivity]#14(BLAST Consumer)14](id:4e840000000e,api:1,p:20100,c:20100) disconnect: api 1
+10-28 22:15:48.454 20100 20100 I BLASTBufferQueue: [ViewRootImpl@96b7aec[MainActivity]#14] destructor()
+10-28 22:15:48.454 20100 20100 I BufferQueueConsumer: [ViewRootImpl@96b7aec[MainActivity]#14(BLAST Consumer)14](id:4e840000000e,api:0,p:-1,c:20100) disconnect
+10-28 22:15:48.456 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: Relayout returned: old=(0,0,1080,2400) new=(0,0,1080,2400) req=(1080,2400)8 dur=18 res=0x5 s={false 0} ch=true fn=9
+10-28 22:15:48.461 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: stopped(true) old=false
+10-28 22:15:48.461 20100 20100 I wm_on_stop_called: [81945281,dev.zenithblue.panvklauncher.MainActivity,LIFECYCLER_STOP_ACTIVITY]
+10-28 22:15:48.489 20100 20100 I wm_on_destroy_called: [81945281,dev.zenithblue.panvklauncher.MainActivity,performDestroy]
+10-28 22:15:48.495 20100 20129 D OpenGLRenderer: setSurface called with nullptr
+10-28 22:15:48.496 20100 20100 I ViewRootImpl@96b7aec[MainActivity]: dispatchDetachedFromWindow
+10-28 22:15:48.502 20100 20100 D InputTransport: Input channel destroyed: '6a7f4ee', fd=93
+10-28 22:15:48.511 20100 20100 D InputTransport: Input channel destroyed: 'ClientS', fd=124
+--------- beginning of system
+10-28 22:15:49.189 20100 20100 I ActivityThread: Removing dead content provider:android.content.ContentProviderProxy@5646a8c
+10-28 22:15:51.170 20100 20100 I DecorView: [INFO] isPopOver=false, config=true
+10-28 22:15:51.171 20100 20100 I DecorView: updateCaptionType >> DecorView@fc36990[], isFloating=false, isApplication=true, hasWindowControllerCallback=true, hasWindowDecorCaption=false
+10-28 22:15:51.171 20100 20100 D DecorView: setCaptionType = 0, this = DecorView@fc36990[]
+10-28 22:15:51.171 20100 24779 I PanPlayGameLoop: scenario 4, results in /storage/emulated/0/Android/data/dev.zenithblue.panvklauncher/files/gameloop/20261028-221551-s4, results file content://com.google.testing.platform.android.driver.testloop.companion/files/game_loop_results/results_scenario_4.json
+10-28 22:15:51.173 20100 20100 I DecorView: getCurrentDensityDpi: from real metrics. densityDpi=420 msg=resources_loaded
+10-28 22:15:51.177 20100 20100 I wm_on_create_called: [172075020,dev.zenithblue.panvklauncher.MainActivity,performCreate]
+10-28 22:15:51.180 20100 20100 I wm_on_start_called: [172075020,dev.zenithblue.panvklauncher.MainActivity,handleStartActivity]
+10-28 22:15:51.180 20100 20100 I wm_on_resume_called: [172075020,dev.zenithblue.panvklauncher.MainActivity,RESUME_ACTIVITY]
+10-28 22:15:51.191 20100 20100 I ViewRootImpl@67420a7[MainActivity]: setView = com.android.internal.policy.DecorView@fc36990 TM=true
+10-28 22:15:51.192 20100 20100 I wm_on_top_resumed_gained_called: [172075020,dev.zenithblue.panvklauncher.MainActivity,topStateChangedWhenResumed]
+10-28 22:15:51.255 20100 20100 I BufferQueueConsumer: [](id:4e840000000f,api:0,p:-1,c:20100) connect: controlledByApp=false
+10-28 22:15:51.256 20100 20100 I BLASTBufferQueue: [ViewRootImpl@67420a7[MainActivity]#15] constructor()
+10-28 22:15:51.258 20100 20100 I ViewRootImpl@67420a7[MainActivity]: Relayout returned: old=(0,0,1080,2400) new=(0,0,1080,2400) req=(1080,2400)0 dur=15 res=0x7 s={true 528903737344} ch=true fn=-1
+10-28 22:15:51.259 20100 20129 I BufferQueueProducer: [ViewRootImpl@67420a7[MainActivity]#15(BLAST Consumer)15](id:4e840000000f,api:1,p:20100,c:20100) connect: api=1 producerControlledByApp=true
+10-28 22:15:51.260 20100 20129 D OpenGLRenderer: eglCreateWindowSurface
+10-28 22:15:51.267 20100 20100 I ViewRootImpl@67420a7[MainActivity]: [DP] dp(1) 1 android.view.ViewRootImpl.reportNextDraw:11420 android.view.ViewRootImpl.performTraversals:4193 android.view.ViewRootImpl.doTraversal:2919 
+10-28 22:15:51.267 20100 20100 D ViewRootImpl@67420a7[MainActivity]: Creating frameDrawingCallback nextDrawUseBlastSync=false reportNextDraw=true hasBlurUpdates=false
+10-28 22:15:51.267 20100 20100 D ViewRootImpl@67420a7[MainActivity]: Creating frameCompleteCallback
+10-28 22:15:51.274 20100 20162 D ViewRootImpl@67420a7[MainActivity]: Received frameDrawingCallback frameNum=1. Creating transactionCompleteCallback=false
+10-28 22:15:51.281 20100 20129 D ViewRootImpl@67420a7[MainActivity]: Received frameCompleteCallback  lastAcquiredFrameNum=1 lastAttemptedDrawFrameNum=1
+10-28 22:15:51.284 20100 20100 I ViewRootImpl@67420a7[MainActivity]: [DP] pdf(0) 1 android.view.ViewRootImpl.lambda$addFrameCompleteCallbackIfNeeded$3$ViewRootImpl:4995 android.view.ViewRootImpl$$ExternalSyntheticLambda16.run:6 android.os.Handler.handleCallback:938 
+10-28 22:15:51.284 20100 20100 I ViewRootImpl@67420a7[MainActivity]: [DP] rdf()
+10-28 22:15:51.284 20100 20100 D ViewRootImpl@67420a7[MainActivity]: reportDrawFinished (fn: -1) 
+10-28 22:15:51.310 20100 20100 D InsetsSourceConsumer: ensureControlAlpha: for ITYPE_NAVIGATION_BAR on dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.MainActivity
+10-28 22:15:51.312 20100 20100 D InsetsSourceConsumer: ensureControlAlpha: for ITYPE_STATUS_BAR on dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.MainActivity
+10-28 22:15:51.323 20100 24779 I PanPlayGameLoop: pass 1/4: d3d11 (D3D11 cube (ARM64EC)), env set old
+10-28 22:15:51.324 20100 20100 I ViewRootImpl@67420a7[MainActivity]: MSG_WINDOW_FOCUS_CHANGED 1 1
+10-28 22:15:51.326 20100 20100 D InputMethodManager: startInputInner - Id : 0
+10-28 22:15:51.326 20100 20100 I InputMethodManager: startInputInner - mService.startInputOrWindowGainedFocus
+10-28 22:15:51.380 20100 20100 I wm_on_idle_called: {dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.MainActivity}
+10-28 22:15:51.437 20100 20110 W e.panvklaunche: Cleared Reference was only reachable from finalizer (only reported once)
+10-28 22:15:51.456 20100 20100 I wm_on_top_resumed_lost_called: [172075020,dev.zenithblue.panvklauncher.MainActivity,topStateChangedWhenResumed]
+10-28 22:15:51.458 20100 20129 D OpenGLRenderer: setSurface called with nullptr
+10-28 22:15:51.459 20100 20129 D OpenGLRenderer: setSurface called with nullptr
+10-28 22:15:51.471 20100 20111 D InputTransport: Input channel destroyed: 'ClientS', fd=100
+10-28 22:15:51.475 20100 20100 I wm_on_paused_called: [172075020,dev.zenithblue.panvklauncher.MainActivity,performPause]
+10-28 22:15:51.633 20100 20110 I e.panvklaunche: Background concurrent copying GC freed 28087(1502KB) AllocSpace objects, 58(17MB) LOS objects, 40% free, 34MB/58MB, paused 8.967ms,48us total 102.919ms
+10-28 22:15:51.677 20100 20100 I DecorView: [INFO] isPopOver=false, config=true
+10-28 22:15:51.677 20100 20100 I DecorView: updateCaptionType >> DecorView@f3bf13a[], isFloating=false, isApplication=true, hasWindowControllerCallback=true, hasWindowDecorCaption=false
+10-28 22:15:51.677 20100 20100 D DecorView: setCaptionType = 0, this = DecorView@f3bf13a[]
+10-28 22:15:51.679 20100 20100 I DecorView: getCurrentDensityDpi: from real metrics. densityDpi=420 msg=resources_loaded
+10-28 22:15:51.683 20100 20100 I wm_on_create_called: [18048913,dev.zenithblue.panvklauncher.XServerActivity,performCreate]
+10-28 22:15:51.685 20100 20100 I wm_on_start_called: [18048913,dev.zenithblue.panvklauncher.XServerActivity,handleStartActivity]
+10-28 22:15:51.687 20100 20100 I wm_on_resume_called: [18048913,dev.zenithblue.panvklauncher.XServerActivity,RESUME_ACTIVITY]
+10-28 22:15:51.695 20100 20100 I DecorView: notifyKeepScreenOnChanged: keepScreenOn=true
+10-28 22:15:51.696 20100 20100 D InsetsSourceConsumer: setRequestedVisible: visible=false, type=21, host=dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.XServerActivity, from=android.view.InsetsSourceConsumer.hide:253 android.view.InsetsController.collectSourceControls:1215 android.view.InsetsController.controlAnimationUnchecked:1077 android.view.InsetsController.applyAnimation:1456 android.view.InsetsController.applyAnimation:1437 android.view.InsetsController.hide:1006 android.view.InsetsController.hide:981 android.view.ViewRootImpl.controlInsetsForCompatibility:3142 android.view.ViewRootImpl.setView:1555 android.view.WindowManagerGlobal.addView:509 
+10-28 22:15:51.696 20100 20100 D InsetsSourceConsumer: setRequestedVisible: visible=false, type=20, host=dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.XServerActivity, from=android.view.InsetsSourceConsumer.hide:253 android.view.InsetsController.collectSourceControls:1215 android.view.InsetsController.controlAnimationUnchecked:1077 android.view.InsetsController.applyAnimation:1456 android.view.InsetsController.applyAnimation:1437 android.view.InsetsController.hide:1006 android.view.InsetsController.hide:981 android.view.ViewRootImpl.controlInsetsForCompatibility:3142 android.view.ViewRootImpl.setView:1555 android.view.WindowManagerGlobal.addView:509 
+10-28 22:15:51.696 20100 20100 D InsetsSourceConsumer: setRequestedVisible: visible=false, type=1, host=dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.XServerActivity, from=android.view.InsetsSourceConsumer.hide:253 android.view.InsetsController.collectSourceControls:1215 android.view.InsetsController.controlAnimationUnchecked:1077 android.view.InsetsController.applyAnimation:1456 android.view.InsetsController.applyAnimation:1437 android.view.InsetsController.hide:1006 android.view.InsetsController.hide:981 android.view.ViewRootImpl.controlInsetsForCompatibility:3142 android.view.ViewRootImpl.setView:1555 android.view.WindowManagerGlobal.addView:509 
+10-28 22:15:51.696 20100 20100 D InsetsSourceConsumer: setRequestedVisible: visible=false, type=0, host=dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.XServerActivity, from=android.view.InsetsSourceConsumer.hide:253 android.view.InsetsController.collectSourceControls:1215 android.view.InsetsController.controlAnimationUnchecked:1077 android.view.InsetsController.applyAnimation:1456 android.view.InsetsController.applyAnimation:1437 android.view.InsetsController.hide:1006 android.view.InsetsController.hide:981 android.view.ViewRootImpl.controlInsetsForCompatibility:3142 android.view.ViewRootImpl.setView:1555 android.view.WindowManagerGlobal.addView:509 
+10-28 22:15:51.705 20100 20100 I ViewRootImpl@2a1c224[XServerActivity]: setView = com.android.internal.policy.DecorView@f3bf13a TM=true
+10-28 22:15:51.707 20100 20100 I wm_on_top_resumed_gained_called: [18048913,dev.zenithblue.panvklauncher.XServerActivity,topStateChangedWhenResumed]
+10-28 22:15:51.708 20100 20100 I ViewRootImpl@67420a7[MainActivity]: handleAppVisibility mAppVisible=true visible=false
+10-28 22:15:51.711 20100 20100 I SurfaceView@297e671: onWindowVisibilityChanged(0) true com.winlator.widget.XServerView{297e671 V.E...... ......I. 0,0-0,0} of ViewRootImpl@2a1c224[XServerActivity]
+10-28 22:15:51.809 20100 20100 I BufferQueueConsumer: [](id:4e8400000010,api:0,p:-1,c:20100) connect: controlledByApp=false
+10-28 22:15:51.810 20100 20100 I BLASTBufferQueue: [ViewRootImpl@2a1c224[XServerActivity]#16] constructor()
+10-28 22:15:51.810 20100 21869 I ViewRootImpl@2a1c224[XServerActivity]: Resizing android.view.ViewRootImpl@eb55711: frame=[0,0][2400,1080] reportDraw=true forceLayout=true backDropFrame=Rect(0, 0 - 2400, 1080)
+10-28 22:15:51.812 20100 20100 I ViewRootImpl@2a1c224[XServerActivity]: Relayout returned: old=(0,0,2400,1080) new=(0,0,2400,1080) req=(2400,1080)0 dur=32 res=0x7 s={true 526760525824} ch=true fn=-1
+10-28 22:15:51.820 20100 20129 I BufferQueueProducer: [ViewRootImpl@2a1c224[XServerActivity]#16(BLAST Consumer)16](id:4e8400000010,api:1,p:20100,c:20100) connect: api=1 producerControlledByApp=true
+10-28 22:15:51.820 20100 20129 D OpenGLRenderer: eglCreateWindowSurface
+10-28 22:15:51.832 20100 20100 I SurfaceView@297e671: windowStopped(false) true com.winlator.widget.XServerView{297e671 V.E...... ......ID 0,0-2400,1080} of ViewRootImpl@2a1c224[XServerActivity]
+10-28 22:15:51.841 20100 20100 I ViewRootImpl@2a1c224[XServerActivity]: [DP] dp(1) 1 android.view.ViewRootImpl.reportNextDraw:11420 android.view.ViewRootImpl.performTraversals:4193 android.view.ViewRootImpl.doTraversal:2919 
+10-28 22:15:51.849 20100 20100 I BufferQueueConsumer: [](id:4e8400000011,api:0,p:-1,c:20100) connect: controlledByApp=false
+10-28 22:15:51.851 20100 20100 I BLASTBufferQueue: [SurfaceView - dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.XServerActivity@297e671@0#17] constructor()
+10-28 22:15:51.851 20100 20100 I SurfaceView@297e671: pST: sr = Rect(0, 0 - 2400, 1080) sw = 2400 sh = 1080
+10-28 22:15:51.851 20100 20100 I SurfaceView@297e671: onSSPAndSRT: pl = 0 pt = 0 sx = 1.0 sy = 1.0
+10-28 22:15:51.852 20100 20100 I SurfaceView@297e671: pST: mTmpTransaction.apply, mTmpTransaction = android.view.SurfaceControl$Transaction@a092681
+10-28 22:15:51.853 20100 20100 I SurfaceView@297e671: updateSurface: mVisible = true mSurface.isValid() = true
+10-28 22:15:51.853 20100 20100 I SurfaceView@297e671: updateSurface: mSurfaceCreated = false surfaceChanged = true visibleChanged = true
+10-28 22:15:51.854 20100 20100 I SurfaceView@297e671: surfaceCreated 1 #8 com.winlator.widget.XServerView{297e671 V.E...... ......ID 0,0-2400,1080}
+10-28 22:15:51.854 20100 20100 I SurfaceView@297e671: surfaceChanged (2400,1080) 1 #8 com.winlator.widget.XServerView{297e671 V.E...... ......ID 0,0-2400,1080}
+10-28 22:15:51.855 20100 20100 I ViewRootImpl@2a1c224[XServerActivity]: [DP] dp(2) 1 android.view.SurfaceView.updateSurface:1375 android.view.SurfaceView.lambda$new$1$SurfaceView:254 android.view.SurfaceView$$ExternalSyntheticLambda2.onPreDraw:2 
+10-28 22:15:51.857 20100 24800 I BufferQueueProducer: [SurfaceView - dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.XServerActivity@297e671@0#17(BLAST Consumer)17](id:4e8400000011,api:1,p:20100,c:20100) connect: api=1 producerControlledByApp=true
+10-28 22:15:51.857 20100 20100 D ViewRootImpl@2a1c224[XServerActivity]: Creating frameDrawingCallback nextDrawUseBlastSync=false reportNextDraw=true hasBlurUpdates=false
+10-28 22:15:51.857 20100 20100 D ViewRootImpl@2a1c224[XServerActivity]: Creating frameCompleteCallback
+10-28 22:15:51.862 20100 20163 D ViewRootImpl@2a1c224[XServerActivity]: Received frameDrawingCallback frameNum=1. Creating transactionCompleteCallback=false
+10-28 22:15:51.862 20100 20162 I SurfaceView@297e671: uSP: rtp = Rect(0, 0 - 2400, 1080) rtsw = 2400 rtsh = 1080
+10-28 22:15:51.863 20100 20162 I SurfaceView@297e671: onSSPAndSRT: pl = 0 pt = 0 sx = 1.0 sy = 1.0
+10-28 22:15:51.863 20100 20162 I SurfaceView@297e671: aOrMT: uB = true t = android.view.SurfaceControl$Transaction@866e326 fN = 1 android.view.SurfaceView.access$500:124 android.view.SurfaceView$SurfaceViewPositionUpdateListener.positionChanged:1728 android.graphics.RenderNode$CompositePositionUpdateListener.positionChanged:319 
+10-28 22:15:51.863 20100 20162 I SurfaceView@297e671: aOrMT: vR.mWNT, vR = ViewRootImpl@2a1c224[XServerActivity]
+10-28 22:15:51.863 20100 20162 I ViewRootImpl@2a1c224[XServerActivity]: mWNT: t = android.view.SurfaceControl$Transaction@866e326 fN = 1 android.view.SurfaceView.applyOrMergeTransaction:1628 android.view.SurfaceView.access$500:124 android.view.SurfaceView$SurfaceViewPositionUpdateListener.positionChanged:1728 
+10-28 22:15:51.863 20100 20162 I ViewRootImpl@2a1c224[XServerActivity]: mWNT: merge t to BBQ
+10-28 22:15:51.885 20100 20129 D ViewRootImpl@2a1c224[XServerActivity]: Received frameCompleteCallback  lastAcquiredFrameNum=1 lastAttemptedDrawFrameNum=1
+10-28 22:15:51.887 20100 20129 D OpenGLRenderer: setSurface called with nullptr
+10-28 22:15:51.887 20100 20129 D OpenGLRenderer: setSurface() destroyed EGLSurface
+10-28 22:15:51.887 20100 20129 D OpenGLRenderer: destroyEglSurface
+10-28 22:15:51.892 20100 20129 I BufferQueueProducer: [ViewRootImpl@67420a7[MainActivity]#15(BLAST Consumer)15](id:4e840000000f,api:1,p:20100,c:20100) disconnect: api 1
+10-28 22:15:51.905 20100 20100 I BLASTBufferQueue: [ViewRootImpl@67420a7[MainActivity]#15] destructor()
+10-28 22:15:51.905 20100 20100 I BufferQueueConsumer: [ViewRootImpl@67420a7[MainActivity]#15(BLAST Consumer)15](id:4e840000000f,api:0,p:-1,c:20100) disconnect
+10-28 22:15:51.908 20100 20100 I ViewRootImpl@67420a7[MainActivity]: Relayout returned: old=(0,0,1080,2400) new=(0,0,1080,2400) req=(1080,2400)8 dur=10 res=0x5 s={false 0} ch=true fn=4
+10-28 22:15:51.909 20100 20100 I ViewRootImpl@2a1c224[XServerActivity]: [DP] pdf(1) 1 android.view.ViewRootImpl.lambda$addFrameCompleteCallbackIfNeeded$3$ViewRootImpl:4995 android.view.ViewRootImpl$$ExternalSyntheticLambda16.run:6 android.os.Handler.handleCallback:938 
+10-28 22:15:51.909 20100 20100 D ViewRootImpl@2a1c224[XServerActivity]: pendingDrawFinished. Waiting on draw reported mDrawsNeededToReport=1
+10-28 22:15:51.911 20100 20100 D InsetsSourceConsumer: ensureControlAlpha: for ITYPE_NAVIGATION_BAR on dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.MainActivity
+10-28 22:15:51.913 20100 20100 D InsetsSourceConsumer: ensureControlAlpha: for ITYPE_STATUS_BAR on dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.MainActivity
+10-28 22:15:51.914 20100 20100 I ViewRootImpl@67420a7[MainActivity]: MSG_WINDOW_FOCUS_CHANGED 0 1
+10-28 22:15:51.922 20100 20100 V ViewRootImpl@2a1c224[XServerActivity]: updateAppliedLetterboxDirection, direction=1, Caller=android.view.ViewRootImpl.handleDispatchLetterboxDirectionChanged:12773
+10-28 22:15:51.925 20100 20100 I ViewRootImpl@2a1c224[XServerActivity]: handleResized, msg = 5 frames=ClientWindowFrames{frame=[0,0][2400,1080] display=[0,0][2400,1080] backdrop=[0,0][2400,1080]} forceNextWindowRelayout=true displayId=0 frameChanged=false backdropFrameChanged=false configChanged=false displayChanged=false mNextDrawUseBlastSync=false mergedConfiguration={mGlobalConfig={1.1 ?mcc?mnc [en] ldltr sw411dp w836dp h387dp 420dpi nrml long land finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 2400, 1080) mAppBounds=Rect(79, 0 - 2274, 1080) mMaxBounds=Rect(0, 0 - 2400, 1080) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_90 mPopOver=off mFreeformTaskPinningState=unpinned} s.865 fontWeightAdjustment=0 ff=0 bf=0 bts=0 enb/d themeSeq=0} mOverrideConfig={1.1 ?mcc?mnc [en] ldltr sw411dp w836dp h387dp 420dpi nrml long land finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 2400, 1080) mAppBounds=Rect(79, 0 - 2274, 1080) mMaxBounds=Rect(0, 0 - 2400, 1080) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_90 mPopOver=off mFreeformTaskPinningState=unpinned} s.3 fontWeightAdjustment=0 ff=0 bf=0 bts=0 enb/d themeSeq=0}}
+10-28 22:15:51.926 20100 20100 I ViewRootImpl@2a1c224[XServerActivity]: [DP] dp(2) 1 android.view.ViewRootImpl.reportNextDraw:11420 android.view.ViewRootImpl.handleResized:2230 android.view.ViewRootImpl.access$1200:302 
+10-28 22:15:51.951 20100 20100 I ViewRootImpl@2a1c224[XServerActivity]: Relayout returned: old=(0,0,2400,1080) new=(0,0,2400,1080) req=(2400,1080)0 dur=13 res=0x3 s={true 526760525824} ch=false fn=2
+10-28 22:15:51.952 20100 20100 D ViewRootImpl@2a1c224[XServerActivity]: Creating frameDrawingCallback nextDrawUseBlastSync=false reportNextDraw=true hasBlurUpdates=false
+10-28 22:15:51.952 20100 20129 D OpenGLRenderer: setSurface() destroyed EGLSurface
+10-28 22:15:51.952 20100 20100 D ViewRootImpl@2a1c224[XServerActivity]: Creating frameCompleteCallback
+10-28 22:15:51.952 20100 20129 D OpenGLRenderer: destroyEglSurface
+10-28 22:15:51.957 20100 20129 I BufferQueueProducer: [ViewRootImpl@2a1c224[XServerActivity]#16(BLAST Consumer)16](id:4e8400000010,api:1,p:20100,c:20100) disconnect: api 1
+10-28 22:15:51.957 20100 20129 I BufferQueueProducer: [ViewRootImpl@2a1c224[XServerActivity]#16(BLAST Consumer)16](id:4e8400000010,api:1,p:20100,c:20100) connect: api=1 producerControlledByApp=true
+10-28 22:15:51.958 20100 20129 D OpenGLRenderer: eglCreateWindowSurface
+10-28 22:15:51.961 20100 20163 D ViewRootImpl@2a1c224[XServerActivity]: Received frameDrawingCallback frameNum=2. Creating transactionCompleteCallback=false
+10-28 22:15:51.974 20100 20129 D ViewRootImpl@2a1c224[XServerActivity]: Received frameCompleteCallback  lastAcquiredFrameNum=2 lastAttemptedDrawFrameNum=2
+10-28 22:15:51.975 20100 20100 I ViewRootImpl@2a1c224[XServerActivity]: [DP] pdf(1) 1 android.view.ViewRootImpl.lambda$addFrameCompleteCallbackIfNeeded$3$ViewRootImpl:4995 android.view.ViewRootImpl$$ExternalSyntheticLambda16.run:6 android.os.Handler.handleCallback:938 
+10-28 22:15:51.975 20100 20100 D ViewRootImpl@2a1c224[XServerActivity]: pendingDrawFinished. Waiting on draw reported mDrawsNeededToReport=1
+10-28 22:15:51.976 20100 20100 I ViewRootImpl@2a1c224[XServerActivity]: [DP] pdf(0) 1 android.view.SurfaceView.notifyDrawFinished:599 android.view.SurfaceView.performDrawFinished:586 android.view.SurfaceView.$r8$lambda$st27mCkd9jfJkTrN_P3qIGKX6NY:0 
+10-28 22:15:51.976 20100 20100 I ViewRootImpl@2a1c224[XServerActivity]: [DP] rdf()
+10-28 22:15:51.976 20100 20100 D ViewRootImpl@2a1c224[XServerActivity]: reportDrawFinished (fn: 2) 
+10-28 22:15:51.992 20100 20100 I ViewRootImpl@2a1c224[XServerActivity]: MSG_WINDOW_FOCUS_CHANGED 1 1
+10-28 22:15:51.994 20100 20100 D InputMethodManager: startInputInner - Id : 0
+10-28 22:15:51.994 20100 20100 I InputMethodManager: startInputInner - mService.startInputOrWindowGainedFocus
+10-28 22:15:52.003 20100 20100 I ViewRootImpl@67420a7[MainActivity]: stopped(true) old=false
+10-28 22:15:52.007 20100 20100 I wm_on_stop_called: [172075020,dev.zenithblue.panvklauncher.MainActivity,STOP_ACTIVITY_ITEM]
+10-28 22:15:52.016 20100 20100 I wm_on_idle_called: {dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.XServerActivity}
+10-28 22:15:52.231 20100 20162 I ViewRootImpl@2a1c224[XServerActivity]: mWNT: t = android.view.SurfaceControl$Transaction@c0bf680 fN = 5 android.view.SyncRtSurfaceTransactionApplier.applyTransaction:94 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0$SyncRtSurfaceTransactionApplier:71 android.view.SyncRtSurfaceTransactionApplier$$ExternalSyntheticLambda0.onFrameDraw:4 
+10-28 22:15:52.231 20100 20162 I ViewRootImpl@2a1c224[XServerActivity]: mWNT: merge t to BBQ
+10-28 22:15:52.237 20100 20100 V ViewRootImpl@2a1c224[XServerActivity]: updateAppliedLetterboxDirection, direction=0, Caller=android.view.ViewRootImpl.handleDispatchLetterboxDirectionChanged:12773
+10-28 22:15:52.246 20100 20163 I ViewRootImpl@2a1c224[XServerActivity]: mWNT: t = android.view.SurfaceControl$Transaction@979faac fN = 6 android.view.SyncRtSurfaceTransactionApplier.applyTransaction:94 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0$SyncRtSurfaceTransactionApplier:71 android.view.SyncRtSurfaceTransactionApplier$$ExternalSyntheticLambda0.onFrameDraw:4 
+10-28 22:15:52.246 20100 20163 I ViewRootImpl@2a1c224[XServerActivity]: mWNT: merge t to BBQ
+10-28 22:15:53.406 24858 24859 I padshim : winebus.so loaded, SDL ready, polling 0x77ac543000
+10-28 22:15:53.406 24858 24859 I padshim : virtual joystick attached idx=0 inst=0 gamecontroller=1
+10-28 22:15:55.575 24891 24891 E libc    : Access denied finding property "vendor.mesa.vk.version.override"
+10-28 22:15:55.575 24891 24891 E libc    : Access denied finding property "vendor.mesa.panvk.debug"
+10-28 22:15:55.575 24891 24891 E libc    : Access denied finding property "vendor.mesa.panvk.depth.bounds"
+10-28 22:15:55.575 24891 24891 E libc    : Access denied finding property "vendor.mesa.log"
+10-28 22:15:55.575 24891 24891 E libc    : Access denied finding property "vendor.mesa.log.level"
+10-28 22:15:55.575 24891 24891 E libc    : Access denied finding property "vendor.mesa.log.prefix"
+10-28 22:15:55.575 24891 24891 E libc    : Access denied finding property "vendor.mesa.gallium.print.options"
+10-28 22:15:55.575 24891 24891 E libc    : Access denied finding property "vendor.mesa.log.file.auto"
+10-28 22:15:55.575 24891 24891 E libc    : Access denied finding property "vendor.mesa.log.file"
+10-28 22:15:55.575 24891 24891 I MESA    : panvk: 114 behaviour restored for: PANVK_CSF_FS_IDLE_CLEAN PANVK_DB_ALT PANVK_CSF_INDIRECT_REEMIT PANVK_CSF_DESC_DIRTY PANVK_VB_DIRTY_CMP PANVK_PRERAST_FAST_SKIP PANVK_DESC_POOL_HINT PANVK_WSI_SW_CACHED PANVK_WSI_SW_DEFER_REPLY PANVK_ANDROID_PRESENT_FENCE PANVK_ANDROID_PRESENT_THREAD PANVK_PRELOAD_BARRIER_TRACK
+10-28 22:15:55.575 24891 24891 E libc    : Access denied finding property "vendor.mesa.pan.cpu.trace"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.vk.trace"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.vk.trace.per.submit"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.vk.trace.frame"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.vk.trace.trigger"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.force.vk.vendor"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.force.vk.devicename"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.vk.wsi.force.bgra8.unorm.first"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.vk.wsi.force.swapchain.to.current.extent"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.vk.wsi.disable.unordered.submits"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.vk.x11.ignore.suboptimal"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.adaptive.sync"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.vk.x11.override.min.image.count"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.vk.x11.strict.image.count"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.vk.x11.ensure.min.image.count"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.vk.google.display.timing"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.pan.compute.core.mask"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.pan.fragment.core.mask"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.pan.enable.vertex.pipeline.stores.atomics"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.pan.force.enable.shader.atomics"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.heap.memory.percent"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.driconf.executable.override"
+10-28 22:15:55.576 24891 24891 E libc    : Access denied finding property "vendor.mesa.process.name"
+10-28 22:15:55.577 24891 24891 I MESA    : kbase: JM driver, uAPI version 11.27, page_size=4096
+10-28 22:15:55.579 24891 24891 I MESA    : kbase: stock JM atom layout (stride 72 refused), stride 56
+10-28 22:15:55.579 24891 24891 I MESA    : kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+10-28 22:15:55.579 24891 24891 I MESA    : kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+10-28 22:15:55.579 24891 24891 I MESA    : kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+10-28 22:15:55.579 24891 24891 E libc    : Access denied finding property "vendor.mesa.panvk.kbase.coherent.pools"
+10-28 22:15:55.579 24891 24891 I MESA    : kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+10-28 22:15:55.590 24891 24891 W MESA    : kbase: GPU timestamp counter measured at 26000198 Hz (26000001 / 26000395), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)
+10-28 22:15:55.591 24891 24891 I MESA    : kbase: no usable ION system heap
+10-28 22:15:55.591 24891 24891 E libc    : Access denied finding property "vendor.mesa.panvk.kbase.dvfs"
+10-28 22:15:55.591 24891 24891 I MESA    : panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6
+10-28 22:15:55.591 24891 24891 W MESA    : panvk: v7 (Bifrost) support is experimental
+10-28 22:15:55.591 24891 24891 E libc    : Access denied finding property "vendor.mesa.panvk.bc.mode"
+10-28 22:15:55.591 24891 24891 I MESA    : panvk: BC emulation on (native compressed mask 0xf7fe03fe)
+10-28 22:15:55.591 24891 24891 E libc    : Access denied finding property "vendor.mesa.panvk.mem.budget.reserve.mb"
+10-28 22:15:55.591 24891 24891 E libc    : Access denied finding property "vendor.mesa.vk.ignore.conformance.warning"
+10-28 22:15:55.592 24891 24891 W MESA    : No gralloc hwmodule detected (video buffers won't be supported)
+10-28 22:15:55.592 24891 24891 I MESA    : Using fallback gralloc implementation
+10-28 22:15:55.592 24891 24891 E libc    : Access denied finding property "vendor.mesa.panvk.v7.ria2"
+10-28 22:15:55.593 24891 24891 E libc    : Access denied finding property "vendor.mesa.bifrost.mesa.debug"
+10-28 22:15:55.593 24891 24891 E libc    : Access denied finding property "vendor.mesa.disk.cache.single.file"
+10-28 22:15:55.593 24891 24891 E libc    : Access denied finding property "vendor.mesa.disk.cache.database"
+10-28 22:15:55.593 24891 24891 E libc    : Access denied finding property "vendor.mesa.disk.cache.multi.file"
+10-28 22:15:55.593 24891 24891 E libc    : Access denied finding property "vendor.mesa.glsl.disable.io.opt"
+10-28 22:15:55.593 24891 24891 E libc    : Access denied finding property "vendor.mesa.shader.cache.show.stats"
+10-28 22:15:55.593 24891 24891 E libc    : Access denied finding property "vendor.mesa.gallium.override.cpu.caps"
+10-28 22:15:55.594 24891 24891 E libc    : Access denied finding property "vendor.mesa.gallium.dump.cpu"
+10-28 22:15:55.594 24891 24891 E libc    : Access denied finding property "vendor.mesa.disk.cache.combine.rw.with.ro.foz"
+10-28 22:15:55.594 24891 24891 E libc    : Access denied finding property "vendor.mesa.panvk.di.tex.max"
+10-28 22:15:55.594 24891 24891 E libc    : Access denied finding property "vendor.mesa.vk.wsi.debug"
+10-28 22:15:55.594 24891 24891 E libc    : Access denied finding property "vendor.mesa.vk.wsi.present.mode"
+10-28 22:15:55.594 24891 24891 E libc    : Access denied finding property "vendor.mesa.vk.wsi.headless.swapchain"
+10-28 22:15:56.966 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.version.override"
+10-28 22:15:56.966 24802 24802 E libc    : Access denied finding property "vendor.mesa.panvk.debug"
+10-28 22:15:56.966 24802 24802 E libc    : Access denied finding property "vendor.mesa.panvk.depth.bounds"
+10-28 22:15:56.966 24802 24802 E libc    : Access denied finding property "vendor.mesa.log"
+10-28 22:15:56.966 24802 24802 E libc    : Access denied finding property "vendor.mesa.log.level"
+10-28 22:15:56.966 24802 24802 E libc    : Access denied finding property "vendor.mesa.log.prefix"
+10-28 22:15:56.966 24802 24802 E libc    : Access denied finding property "vendor.mesa.gallium.print.options"
+10-28 22:15:56.966 24802 24802 E libc    : Access denied finding property "vendor.mesa.log.file.auto"
+10-28 22:15:56.966 24802 24802 E libc    : Access denied finding property "vendor.mesa.log.file"
+10-28 22:15:56.966 24802 24802 I MESA    : panvk: 114 behaviour restored for: PANVK_CSF_FS_IDLE_CLEAN PANVK_DB_ALT PANVK_CSF_INDIRECT_REEMIT PANVK_CSF_DESC_DIRTY PANVK_VB_DIRTY_CMP PANVK_PRERAST_FAST_SKIP PANVK_DESC_POOL_HINT PANVK_WSI_SW_CACHED PANVK_WSI_SW_DEFER_REPLY PANVK_ANDROID_PRESENT_FENCE PANVK_ANDROID_PRESENT_THREAD PANVK_PRELOAD_BARRIER_TRACK
+10-28 22:15:56.966 24802 24802 E libc    : Access denied finding property "vendor.mesa.pan.cpu.trace"
+10-28 22:15:56.966 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.trace"
+10-28 22:15:56.966 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.trace.per.submit"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.trace.frame"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.trace.trigger"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.force.vk.vendor"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.force.vk.devicename"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.wsi.force.bgra8.unorm.first"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.wsi.force.swapchain.to.current.extent"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.wsi.disable.unordered.submits"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.x11.ignore.suboptimal"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.adaptive.sync"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.x11.override.min.image.count"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.x11.strict.image.count"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.x11.ensure.min.image.count"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.google.display.timing"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.pan.compute.core.mask"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.pan.fragment.core.mask"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.pan.enable.vertex.pipeline.stores.atomics"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.pan.force.enable.shader.atomics"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.heap.memory.percent"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.driconf.executable.override"
+10-28 22:15:56.967 24802 24802 E libc    : Access denied finding property "vendor.mesa.process.name"
+10-28 22:15:56.968 24802 24802 I MESA    : kbase: JM driver, uAPI version 11.27, page_size=4096
+10-28 22:15:56.969 24802 24802 I MESA    : kbase: stock JM atom layout (stride 72 refused), stride 56
+10-28 22:15:56.969 24802 24802 I MESA    : kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+10-28 22:15:56.969 24802 24802 I MESA    : kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+10-28 22:15:56.969 24802 24802 I MESA    : kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+10-28 22:15:56.970 24802 24802 E libc    : Access denied finding property "vendor.mesa.panvk.kbase.coherent.pools"
+10-28 22:15:56.970 24802 24802 I MESA    : kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+10-28 22:15:56.981 24802 24802 W MESA    : kbase: GPU timestamp counter measured at 25999600 Hz (25998404 / 26000797), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)
+10-28 22:15:56.981 24802 24802 I MESA    : kbase: no usable ION system heap
+10-28 22:15:56.981 24802 24802 E libc    : Access denied finding property "vendor.mesa.panvk.kbase.dvfs"
+10-28 22:15:56.981 24802 24802 I MESA    : panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6
+10-28 22:15:56.981 24802 24802 W MESA    : panvk: v7 (Bifrost) support is experimental
+10-28 22:15:56.981 24802 24802 E libc    : Access denied finding property "vendor.mesa.panvk.bc.mode"
+10-28 22:15:56.981 24802 24802 I MESA    : panvk: BC emulation on (native compressed mask 0xf7fe03fe)
+10-28 22:15:56.981 24802 24802 E libc    : Access denied finding property "vendor.mesa.panvk.mem.budget.reserve.mb"
+10-28 22:15:56.981 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.ignore.conformance.warning"
+10-28 22:15:56.982 24802 24802 W MESA    : No gralloc hwmodule detected (video buffers won't be supported)
+10-28 22:15:56.982 24802 24802 I MESA    : Using fallback gralloc implementation
+10-28 22:15:56.982 24802 24802 E libc    : Access denied finding property "vendor.mesa.panvk.v7.ria2"
+10-28 22:15:56.982 24802 24802 E libc    : Access denied finding property "vendor.mesa.bifrost.mesa.debug"
+10-28 22:15:56.982 24802 24802 E libc    : Access denied finding property "vendor.mesa.disk.cache.single.file"
+10-28 22:15:56.982 24802 24802 E libc    : Access denied finding property "vendor.mesa.disk.cache.database"
+10-28 22:15:56.982 24802 24802 E libc    : Access denied finding property "vendor.mesa.disk.cache.multi.file"
+10-28 22:15:56.982 24802 24802 E libc    : Access denied finding property "vendor.mesa.glsl.disable.io.opt"
+10-28 22:15:56.982 24802 24802 E libc    : Access denied finding property "vendor.mesa.shader.cache.show.stats"
+10-28 22:15:56.983 24802 24802 E libc    : Access denied finding property "vendor.mesa.gallium.override.cpu.caps"
+10-28 22:15:56.983 24802 24802 E libc    : Access denied finding property "vendor.mesa.gallium.dump.cpu"
+10-28 22:15:56.983 24802 24802 E libc    : Access denied finding property "vendor.mesa.disk.cache.combine.rw.with.ro.foz"
+10-28 22:15:56.983 24802 24802 E libc    : Access denied finding property "vendor.mesa.panvk.di.tex.max"
+10-28 22:15:56.983 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.wsi.debug"
+10-28 22:15:56.984 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.wsi.present.mode"
+10-28 22:15:56.984 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.wsi.headless.swapchain"
+10-28 22:15:56.987 24802 24802 E libc    : Access denied finding property "vendor.mesa.panvk.mem.budget"
+10-28 22:15:56.987 24802 24802 E libc    : Access denied finding property "vendor.mesa.panvk.mem.budget.headroom.mb"
+10-28 22:15:56.989 24802 24802 I MESA    : kbase: JM driver, uAPI version 11.27, page_size=4096
+10-28 22:15:56.990 24802 24802 I MESA    : kbase: stock JM atom layout (stride 72 refused), stride 56
+10-28 22:15:56.990 24802 24802 I MESA    : kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+10-28 22:15:56.990 24802 24802 I MESA    : kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+10-28 22:15:56.990 24802 24802 I MESA    : kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+10-28 22:15:56.990 24802 24802 I MESA    : kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+10-28 22:15:57.002 24802 24802 W MESA    : kbase: GPU timestamp counter measured at 25998826 Hz (25998829 / 25998822), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)
+10-28 22:15:57.002 24802 24802 I MESA    : kbase: no usable ION system heap
+10-28 22:15:57.002 24802 24802 I MESA    : panvk: gpu_id 0x74021000 variant 0x2 arch v7 model Mali-G52 r1 texture_features 0xf7fe03fe 0xc3fff7ff 0xbfe1ff9f 0x10c6
+10-28 22:15:57.002 24802 24802 W MESA    : panvk: v7 (Bifrost) support is experimental
+10-28 22:15:57.002 24802 24802 I MESA    : panvk: BC emulation on (native compressed mask 0xf7fe03fe)
+10-28 22:15:57.018 24802 24802 I MESA    : kbase: JM driver, uAPI version 11.27, page_size=4096
+10-28 22:15:57.020 24802 24802 I MESA    : kbase: stock JM atom layout (stride 72 refused), stride 56
+10-28 22:15:57.020 24802 24802 I MESA    : kbase: JM warm-up off (PANVK_KBASE_JM_WARMUP=0, _MS=2000; =1 = 2 s once per process as in 114)
+10-28 22:15:57.020 24802 24802 I MESA    : kbase: v7 JM, KBASE_IOCTL_MEM_JIT_INIT skipped; tiler heap is a GROW_ON_GPF region
+10-28 22:15:57.020 24802 24802 I MESA    : kbase: Bifrost JM atom stride 56 (base_jd_atom_v2)
+10-28 22:15:57.020 24802 24802 I MESA    : kbase: coherency mode 31 (none), shaderDeviceClock on (114 rule, coherency mode != 0), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+10-28 22:15:57.031 24802 24802 W MESA    : kbase: GPU timestamp counter measured at 26000398 Hz (26001186 / 25999610), cntfrq 13000000 Hz: using 26000000 Hz (PANVK_KBASE_TS_CALIBRATE=0 = cntfrq)
+10-28 22:15:57.031 24802 24802 I MESA    : kbase: no usable ION system heap
+10-28 22:15:57.031 24802 24802 E libc    : Access denied finding property "vendor.mesa.panvk.cmd.slab.cache.ms"
+10-28 22:15:57.032 24802 24802 E libc    : Access denied finding property "vendor.mesa.panvk.kbase.evictable"
+10-28 22:15:57.032 24802 24802 E libc    : Access denied finding property "vendor.mesa.panvk.v7.fs.copy.once"
+10-28 22:15:57.032 24802 24802 E libc    : Access denied finding property "vendor.mesa.panvk.jm.reset.flush"
+10-28 22:15:57.032 24802 24802 E libc    : Access denied finding property "vendor.mesa.panvk.tess.winding.inline"
+10-28 22:15:57.032 24802 24802 E libc    : Access denied finding property "vendor.mesa.panvk.v7.tess.batch.draws"
+10-28 22:15:57.032 24802 24802 I MESA    : kbase: v7 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+10-28 22:15:57.033 24802 24802 I MESA    : kbase: mem_alloc via ALLOC
+10-28 22:15:57.033 24802 24802 I MESA    : kbase: v7 growable BO, GROW_ON_GPF, 256 of 16384 pages committed
+10-28 22:15:57.033 24802 24802 I MESA    : kbase: v7 growable BO, GROW_ON_GPF, 256 of 70313 pages committed
+10-28 22:15:57.034 24802 24802 I MESA    : kbase: v7 growable BO, GROW_ON_GPF, 256 of 40960 pages committed
+10-28 22:15:57.035 24802 24802 I MESA    : kbase: v7 growable BO, GROW_ON_GPF, 256 of 70313 pages committed
+10-28 22:15:57.036 24802 24802 I MESA    : kbase: v7 growable BO, GROW_ON_GPF, 256 of 65536 pages committed
+10-28 22:15:57.037 24802 24802 I MESA    : kbase: v7 growable BO, GROW_ON_GPF, 256 of 65536 pages committed
+10-28 22:15:57.037 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.enable.pipeline.cache"
+10-28 22:15:57.041 24802 24802 E libc    : Access denied finding property "vendor.mesa.bifrost.mesa.dump.dir"
+10-28 22:15:57.041 24802 24802 E libc    : Access denied finding property "vendor.mesa.panvk.nullimg.inbounds"
+10-28 22:15:57.189 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.wsi.create.log"
+10-28 22:15:57.193 24802 24802 E libc    : Access denied finding property "vendor.mesa.vk.x11.sw.timing"
+10-28 22:15:57.200 24802 24935 I MESA    : panvk: v7 batch TLS 512 KiB (stack 232 B/thread), half 0, shared per half
+10-28 22:15:57.200 24802 24935 I MESA    : panvk: v7 batch WLS 4 KiB, half 0, shared per half
+10-28 22:15:57.203 24802 24934 E libc    : Access denied finding property "vendor.mesa.vk.max.timeout"
+10-28 22:15:57.209 24802 24934 E libc    : Access denied finding property "vendor.mesa.panvk.cmd.pool.autotrim"
+10-28 22:15:57.244 24802 24935 I MESA    : panvk: v7 batch WLS 8 KiB, half 0, shared per half
+10-28 22:15:57.246 20100 24779 I PanPlayGameLoop: first frame after 5 s: CUBE: d3d11 Present frame=0 hr=0x00000000
+10-28 22:15:57.248 24802 24935 I MESA    : panvk: v7 batch TLS 512 KiB (stack 224 B/thread), half 1, shared per half
+10-28 22:15:57.256 24802 24935 I MESA    : panvk: v7 batch TLS 512 KiB (stack 232 B/thread), half 1, shared per half
+10-28 22:15:57.256 24802 24935 I MESA    : panvk: v7 batch WLS 4 KiB, half 1, shared per half
+10-28 22:15:57.268 24802 24933 I MESA    : panvk: PANVK_FPS_LOG=/data/user/0/dev.zenithblue.panvklauncher/files/gameloop/20261028-221551-s4/01-d3d11-old/panvk-fps-24802.log, one line per 1000 ms
+10-28 22:15:57.273 24802 24935 I MESA    : panvk: v7 batch WLS 8 KiB, half 0, shared per half
+10-28 22:15:57.275 24802 24935 I MESA    : panvk: v7 batch TLS 512 KiB (stack 224 B/thread), half 0, shared per half
+10-28 22:15:57.633 20100 20110 I e.panvklaunche: Background concurrent copying GC freed 54034(3321KB) AllocSpace objects, 135(37MB) LOS objects, 50% free, 18MB/36MB, paused 223us,62us total 125.038ms
+10-28 22:15:57.647 20100 20111 D InputTransport: Input channel destroyed: 'ClientS', fd=125
+10-28 22:16:17.873 20100 24789 I PanPlayGameLoop: screenshot screen.png
+10-28 22:16:45.192 20100 24779 I PanPlayGameLoop: CUBE: PASS api=d3d11 frames=2606 (check pixels)
+10-28 22:16:45.253 20100 24793 W System.err: java.io.IOException: Failed to write data.
+10-28 22:16:45.254 20100 24793 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-28 22:16:45.254 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-28 22:16:45.254 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-28 22:16:45.254 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-28 22:16:45.254 20100 24793 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-28 22:16:45.254 20100 24793 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-28 22:16:45.254 20100 24793 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-28 22:16:45.254 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-28 22:16:45.254 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-28 22:16:45.254 20100 24793 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-28 22:16:45.254 20100 24793 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-28 22:16:45.254 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-28 22:16:45.254 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-28 22:16:45.254 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-28 22:16:45.255 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-28 22:16:45.255 20100 24793 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-28 22:16:45.255 20100 24793 W System.err: java.io.IOException: Failed to write data.
+10-28 22:16:45.255 20100 24793 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-28 22:16:45.255 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-28 22:16:45.255 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-28 22:16:45.255 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-28 22:16:45.256 20100 24793 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-28 22:16:45.256 20100 24793 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-28 22:16:45.256 20100 24793 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-28 22:16:45.256 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-28 22:16:45.256 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-28 22:16:45.256 20100 24793 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-28 22:16:45.256 20100 24793 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-28 22:16:45.256 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-28 22:16:45.256 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-28 22:16:45.256 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-28 22:16:45.256 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-28 22:16:45.256 20100 24793 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-28 22:16:45.256 20100 24793 W System.err: java.io.IOException: Failed to write data.
+10-28 22:16:45.257 20100 24793 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-28 22:16:45.257 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-28 22:16:45.257 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-28 22:16:45.257 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-28 22:16:45.257 20100 24793 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-28 22:16:45.257 20100 24793 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-28 22:16:45.257 20100 24793 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-28 22:16:45.257 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-28 22:16:45.257 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-28 22:16:45.257 20100 24793 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-28 22:16:45.257 20100 24793 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-28 22:16:45.257 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-28 22:16:45.257 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-28 22:16:45.257 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-28 22:16:45.257 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-28 22:16:45.257 20100 24793 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-28 22:16:45.258 20100 24793 W System.err: java.io.IOException: Failed to write data.
+10-28 22:16:45.258 20100 24793 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-28 22:16:45.258 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-28 22:16:45.258 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-28 22:16:45.258 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-28 22:16:45.258 20100 24793 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-28 22:16:45.258 20100 24793 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-28 22:16:45.258 20100 24793 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-28 22:16:45.258 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-28 22:16:45.258 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-28 22:16:45.258 20100 24793 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-28 22:16:45.258 20100 24793 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-28 22:16:45.258 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-28 22:16:45.259 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-28 22:16:45.259 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-28 22:16:45.259 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-28 22:16:45.259 20100 24793 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-28 22:16:45.260 20100 24793 W System.err: java.io.IOException: Failed to write data.
+10-28 22:16:45.260 20100 24793 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-28 22:16:45.260 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-28 22:16:45.260 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-28 22:16:45.260 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-28 22:16:45.260 20100 24793 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-28 22:16:45.261 20100 24793 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-28 22:16:45.261 20100 24793 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-28 22:16:45.261 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-28 22:16:45.261 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-28 22:16:45.261 20100 24793 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-28 22:16:45.261 20100 24793 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-28 22:16:45.261 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-28 22:16:45.261 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:116)
+10-28 22:16:45.261 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-28 22:16:45.261 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-28 22:16:45.261 20100 24793 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-28 22:16:45.262 20100 24793 W System.err: java.io.IOException: Failed to write data.
+10-28 22:16:45.262 20100 24793 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-28 22:16:45.262 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-28 22:16:45.262 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-28 22:16:45.263 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-28 22:16:45.263 20100 24793 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-28 22:16:45.263 20100 24793 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-28 22:16:45.263 20100 24793 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-28 22:16:45.263 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-28 22:16:45.263 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-28 22:16:45.263 20100 24793 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-28 22:16:45.263 20100 24793 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-28 22:16:45.263 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-28 22:16:45.263 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:116)
+10-28 22:16:45.263 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-28 22:16:45.263 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-28 22:16:45.263 20100 24793 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-28 22:16:45.264 20100 24793 W System.err: java.io.IOException: Failed to write data.
+10-28 22:16:45.264 20100 24793 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-28 22:16:45.264 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-28 22:16:45.264 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-28 22:16:45.264 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-28 22:16:45.264 20100 24793 W System.err: 	at com.winlator.xserver.events.UnmapNotify.send(UnmapNotify.java:29)
+10-28 22:16:45.264 20100 24793 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-28 22:16:45.264 20100 24793 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-28 22:16:45.264 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.unmapWindow(WindowManager.java:113)
+10-28 22:16:45.264 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:76)
+10-28 22:16:45.265 20100 24793 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-28 22:16:45.265 20100 24793 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-28 22:16:45.265 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-28 22:16:45.265 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:116)
+10-28 22:16:45.265 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-28 22:16:45.265 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-28 22:16:45.265 20100 24793 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-28 22:16:45.266 20100 24793 W System.err: java.io.IOException: Failed to write data.
+10-28 22:16:45.266 20100 24793 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-28 22:16:45.266 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-28 22:16:45.266 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-28 22:16:45.266 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-28 22:16:45.266 20100 24793 W System.err: 	at com.winlator.xserver.events.FocusEvent.send(FocusEvent.java:27)
+10-28 22:16:45.266 20100 24793 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-28 22:16:45.266 20100 24793 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-28 22:16:45.266 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.setFocus(WindowManager.java:147)
+10-28 22:16:45.266 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.revertFocus(WindowManager.java:135)
+10-28 22:16:45.266 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.unmapWindow(WindowManager.java:115)
+10-28 22:16:45.267 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:76)
+10-28 22:16:45.267 20100 24793 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-28 22:16:45.267 20100 24793 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-28 22:16:45.267 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-28 22:16:45.267 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:116)
+10-28 22:16:45.267 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-28 22:16:45.267 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-28 22:16:45.267 20100 24793 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-28 22:16:45.267 20100 24793 W System.err: java.io.IOException: Failed to write data.
+10-28 22:16:45.268 20100 24793 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-28 22:16:45.268 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-28 22:16:45.268 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-28 22:16:45.268 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-28 22:16:45.268 20100 24793 W System.err: 	at com.winlator.xserver.events.PropertyNotify.send(PropertyNotify.java:34)
+10-28 22:16:45.268 20100 24793 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-28 22:16:45.268 20100 24793 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-28 22:16:45.268 20100 24793 W System.err: 	at com.winlator.xserver.Window.modifyProperty(Window.java:142)
+10-28 22:16:45.268 20100 24793 W System.err: 	at com.winlator.xserver.DesktopHelper.setWMState(DesktopHelper.java:43)
+10-28 22:16:45.268 20100 24793 W System.err: 	at com.winlator.xserver.DesktopHelper.-$$Nest$smsetWMState(Unknown Source:0)
+10-28 22:16:45.268 20100 24793 W System.err: 	at com.winlator.xserver.DesktopHelper$2.onUnmapWindow(DesktopHelper.java:29)
+10-28 22:16:45.268 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.triggerOnUnmapWindow(WindowManager.java:320)
+10-28 22:16:45.268 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.unmapWindow(WindowManager.java:116)
+10-28 22:16:45.268 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:76)
+10-28 22:16:45.269 20100 24793 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-28 22:16:45.269 20100 24793 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-28 22:16:45.269 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-28 22:16:45.269 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:116)
+10-28 22:16:45.269 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-28 22:16:45.269 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-28 22:16:45.269 20100 24793 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-28 22:16:45.269 20100 24793 W System.err: java.io.IOException: Failed to write data.
+10-28 22:16:45.270 20100 24793 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-28 22:16:45.270 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-28 22:16:45.270 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-28 22:16:45.270 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-28 22:16:45.270 20100 24793 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-28 22:16:45.270 20100 24793 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-28 22:16:45.270 20100 24793 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-28 22:16:45.271 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-28 22:16:45.271 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-28 22:16:45.271 20100 24793 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-28 22:16:45.271 20100 24793 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-28 22:16:45.271 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-28 22:16:45.271 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:116)
+10-28 22:16:45.271 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-28 22:16:45.271 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-28 22:16:45.271 20100 24793 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-28 22:16:45.708 20100 24793 W System.err: java.io.IOException: Failed to write data.
+10-28 22:16:45.708 20100 24793 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-28 22:16:45.708 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-28 22:16:45.708 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-28 22:16:45.708 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-28 22:16:45.708 20100 24793 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-28 22:16:45.708 20100 24793 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-28 22:16:45.709 20100 24793 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-28 22:16:45.709 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-28 22:16:45.709 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-28 22:16:45.709 20100 24793 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-28 22:16:45.709 20100 24793 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-28 22:16:45.709 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-28 22:16:45.709 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-28 22:16:45.709 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-28 22:16:45.709 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-28 22:16:45.709 20100 24793 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-28 22:16:45.710 20100 24793 W System.err: java.io.IOException: Failed to write data.
+10-28 22:16:45.710 20100 24793 W System.err: 	at com.winlator.xconnector.ClientSocket.write(ClientSocket.java:52)
+10-28 22:16:45.710 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.flush(XOutputStream.java:89)
+10-28 22:16:45.710 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream.-$$Nest$mflush(Unknown Source:0)
+10-28 22:16:45.710 20100 24793 W System.err: 	at com.winlator.xconnector.XOutputStream$OutputStreamLock.close(XOutputStream.java:119)
+10-28 22:16:45.710 20100 24793 W System.err: 	at com.winlator.xserver.events.DestroyNotify.send(DestroyNotify.java:28)
+10-28 22:16:45.710 20100 24793 W System.err: 	at com.winlator.xserver.EventListener.sendEvent(EventListener.java:26)
+10-28 22:16:45.710 20100 24793 W System.err: 	at com.winlator.xserver.Window.sendEvent(Window.java:256)
+10-28 22:16:45.710 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.removeAllSubwindowsAndWindow(WindowManager.java:86)
+10-28 22:16:45.710 20100 24793 W System.err: 	at com.winlator.xserver.WindowManager.destroyWindow(WindowManager.java:77)
+10-28 22:16:45.710 20100 24793 W System.err: 	at com.winlator.xserver.XClient.freeResources(XClient.java:90)
+10-28 22:16:45.710 20100 24793 W System.err: 	at com.winlator.xserver.XClientConnectionHandler.handleConnectionShutdown(XClientConnectionHandler.java:22)
+10-28 22:16:45.710 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.killConnection(XConnectorEpoll.java:131)
+10-28 22:16:45.710 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.handleExistingConnection(XConnectorEpoll.java:121)
+10-28 22:16:45.710 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.doEpollIndefinitely(Native Method)
+10-28 22:16:45.711 20100 24793 W System.err: 	at com.winlator.xconnector.XConnectorEpoll.run(XConnectorEpoll.java:83)
+10-28 22:16:45.711 20100 24793 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+10-28 22:16:45.865 20100 21228 W e.panvklaunche: Long monitor contention with owner panplay-gameloop (24779) at int java.io.BufferedInputStream.read(byte[], int, int)(BufferedInputStream.java:349) waiters=0 in void java.lang.UNIXProcess$ProcessPipeInputStream.processExited() for 610ms
+10-28 22:16:45.865 20100 21228 I dvm_lock_sample: [dev.zenithblue.panvklauncher,0,process reaper,610,UNIXProcess.java,-1,void java.lang.UNIXProcess$ProcessPipeInputStream.processExited(),BufferedInputStream.java,349,int java.io.BufferedInputStream.read(byte[], int, int),100]
+10-28 22:16:45.948 20100 20100 I wm_on_top_resumed_lost_called: [18048913,dev.zenithblue.panvklauncher.XServerActivity,topStateChangedWhenResumed]
+10-28 22:16:45.954 20100 24800 I BufferQueueProducer: [SurfaceView - dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.XServerActivity@297e671@0#17(BLAST Consumer)17](id:4e8400000011,api:1,p:20100,c:20100) disconnect: api 1
+10-28 22:16:45.956 20100 20100 I wm_on_paused_called: [18048913,dev.zenithblue.panvklauncher.XServerActivity,performPause]
+10-28 22:16:45.989 20100 20100 I ViewRootImpl@67420a7[MainActivity]: handleAppVisibility mAppVisible=false visible=true
+10-28 22:16:45.992 20100 20100 I ViewRootImpl@67420a7[MainActivity]: stopped(false) old=true
+10-28 22:16:45.993 20100 20100 I wm_on_restart_called: [172075020,dev.zenithblue.panvklauncher.MainActivity,performRestartActivity]
+10-28 22:16:45.993 20100 20100 I wm_on_start_called: [172075020,dev.zenithblue.panvklauncher.MainActivity,handleStartActivity]
+10-28 22:16:45.996 20100 20100 I ViewRootImpl@67420a7[MainActivity]: stopped(false) old=false
+10-28 22:16:45.997 20100 20100 I wm_on_resume_called: [172075020,dev.zenithblue.panvklauncher.MainActivity,RESUME_ACTIVITY]
+10-28 22:16:45.999 20100 20100 I wm_on_top_resumed_gained_called: [172075020,dev.zenithblue.panvklauncher.MainActivity,topWhenResuming]
+10-28 22:16:46.005 20100 20129 D OpenGLRenderer: setSurface called with nullptr
+10-28 22:16:46.017 20100 20100 I BufferQueueConsumer: [](id:4e8400000012,api:0,p:-1,c:20100) connect: controlledByApp=false
+10-28 22:16:46.018 20100 20100 I BLASTBufferQueue: [ViewRootImpl@67420a7[MainActivity]#18] constructor()
+10-28 22:16:46.019 20100 20100 I ViewRootImpl@67420a7[MainActivity]: Relayout returned: old=(0,0,1080,2400) new=(0,0,1080,2400) req=(1080,2400)0 dur=11 res=0x7 s={true 528903737344} ch=true fn=-1
+10-28 22:16:46.021 20100 20115 I ViewRootImpl@67420a7[MainActivity]: Resizing android.view.ViewRootImpl@72081ae: frame=[0,0][1080,2400] reportDraw=true forceLayout=true backDropFrame=Rect(0, 0 - 1080, 2400)
+10-28 22:16:46.021 20100 20129 I BufferQueueProducer: [ViewRootImpl@67420a7[MainActivity]#18(BLAST Consumer)18](id:4e8400000012,api:1,p:20100,c:20100) connect: api=1 producerControlledByApp=true
+10-28 22:16:46.021 20100 20129 D OpenGLRenderer: eglCreateWindowSurface
+10-28 22:16:46.029 20100 20100 I ViewRootImpl@67420a7[MainActivity]: [DP] dp(1) 1 android.view.ViewRootImpl.reportNextDraw:11420 android.view.ViewRootImpl.performTraversals:4193 android.view.ViewRootImpl.doTraversal:2919 
+10-28 22:16:46.029 20100 20100 D ViewRootImpl@67420a7[MainActivity]: Creating frameDrawingCallback nextDrawUseBlastSync=false reportNextDraw=true hasBlurUpdates=false
+10-28 22:16:46.029 20100 20100 D ViewRootImpl@67420a7[MainActivity]: Creating frameCompleteCallback
+10-28 22:16:46.039 20100 20162 D ViewRootImpl@67420a7[MainActivity]: Received frameDrawingCallback frameNum=1. Creating transactionCompleteCallback=false
+10-28 22:16:46.046 20100 20129 D ViewRootImpl@67420a7[MainActivity]: Received frameCompleteCallback  lastAcquiredFrameNum=1 lastAttemptedDrawFrameNum=1
+10-28 22:16:46.047 20100 20100 I ViewRootImpl@67420a7[MainActivity]: [DP] pdf(0) 1 android.view.ViewRootImpl.lambda$addFrameCompleteCallbackIfNeeded$3$ViewRootImpl:4995 android.view.ViewRootImpl$$ExternalSyntheticLambda16.run:6 android.os.Handler.handleCallback:938 
+10-28 22:16:46.047 20100 20100 I ViewRootImpl@67420a7[MainActivity]: [DP] rdf()
+10-28 22:16:46.047 20100 20100 D ViewRootImpl@67420a7[MainActivity]: reportDrawFinished (fn: -1) 
+10-28 22:16:46.047 20100 20100 I ViewRootImpl@2a1c224[XServerActivity]: MSG_WINDOW_FOCUS_CHANGED 0 1
+10-28 22:16:46.051 20100 20100 I ViewRootImpl@67420a7[MainActivity]: handleResized, msg = 5 frames=ClientWindowFrames{frame=[0,0][1080,2400] display=[0,0][1080,2400] backdrop=[0,0][1080,2400]} forceNextWindowRelayout=true displayId=0 frameChanged=false backdropFrameChanged=false configChanged=false displayChanged=false mNextDrawUseBlastSync=false mergedConfiguration={mGlobalConfig={1.1 ?mcc?mnc [en] ldltr sw411dp w411dp h836dp 420dpi nrml long port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 79 - 1080, 2274) mMaxBounds=Rect(0, 0 - 1080, 2400) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0 mPopOver=off mFreeformTaskPinningState=unpinned} s.939 fontWeightAdjustment=0 ff=0 bf=0 bts=0 enb/d themeSeq=0} mOverrideConfig={1.1 ?mcc?mnc [en] ldltr sw411dp w411dp h836dp 420dpi nrml long port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 79 - 1080, 2274) mMaxBounds=Rect(0, 0 - 1080, 2400) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mPopOver=off mFreeformTaskPinningState=unpinned} s.3 fontWeightAdjustment=0 ff=0 bf=0 bts=0 enb/d themeSeq=0}}
+10-28 22:16:46.051 20100 20100 I ViewRootImpl@67420a7[MainActivity]: [DP] dp(1) 1 android.view.ViewRootImpl.reportNextDraw:11420 android.view.ViewRootImpl.handleResized:2230 android.view.ViewRootImpl.access$1200:302 
+10-28 22:16:46.071 20100 20100 I ViewRootImpl@67420a7[MainActivity]: Relayout returned: old=(0,0,1080,2400) new=(0,0,1080,2400) req=(1080,2400)0 dur=8 res=0x1 s={true 528903737344} ch=false fn=2
+10-28 22:16:46.072 20100 20100 D ViewRootImpl@67420a7[MainActivity]: Creating frameDrawingCallback nextDrawUseBlastSync=false reportNextDraw=true hasBlurUpdates=false
+10-28 22:16:46.072 20100 20100 D ViewRootImpl@67420a7[MainActivity]: Creating frameCompleteCallback
+10-28 22:16:46.073 20100 20129 D OpenGLRenderer: setSurface() destroyed EGLSurface
+10-28 22:16:46.074 20100 20129 D OpenGLRenderer: destroyEglSurface
+10-28 22:16:46.076 20100 20129 I BufferQueueProducer: [ViewRootImpl@67420a7[MainActivity]#18(BLAST Consumer)18](id:4e8400000012,api:1,p:20100,c:20100) disconnect: api 1
+10-28 22:16:46.077 20100 20129 I BufferQueueProducer: [ViewRootImpl@67420a7[MainActivity]#18(BLAST Consumer)18](id:4e8400000012,api:1,p:20100,c:20100) connect: api=1 producerControlledByApp=true
+10-28 22:16:46.078 20100 20129 D OpenGLRenderer: eglCreateWindowSurface
+10-28 22:16:46.079 20100 20163 D ViewRootImpl@67420a7[MainActivity]: Received frameDrawingCallback frameNum=2. Creating transactionCompleteCallback=false
+10-28 22:16:46.093 20100 20129 D ViewRootImpl@67420a7[MainActivity]: Received frameCompleteCallback  lastAcquiredFrameNum=2 lastAttemptedDrawFrameNum=2
+10-28 22:16:46.094 20100 20100 I ViewRootImpl@67420a7[MainActivity]: [DP] pdf(0) 1 android.view.ViewRootImpl.lambda$addFrameCompleteCallbackIfNeeded$3$ViewRootImpl:4995 android.view.ViewRootImpl$$ExternalSyntheticLambda16.run:6 android.os.Handler.handleCallback:938 
+10-28 22:16:46.094 20100 20100 I ViewRootImpl@67420a7[MainActivity]: [DP] rdf()
+10-28 22:16:46.094 20100 20100 D ViewRootImpl@67420a7[MainActivity]: reportDrawFinished (fn: 2) 
+10-28 22:16:46.095 20100 20100 I ViewRootImpl@2a1c224[XServerActivity]: handleAppVisibility mAppVisible=true visible=false
+10-28 22:16:46.097 20100 20100 I ViewRootImpl@2a1c224[XServerActivity]: stopped(true) old=false
+10-28 22:16:46.101 20100 20129 I SurfaceView@297e671: 31834484 wPL, frameNr = 0
+10-28 22:16:46.101 20100 20129 I SurfaceView@297e671: aOrMT: uB = true t = android.view.SurfaceControl$Transaction@37ce69d fN = 0 android.view.SurfaceView.access$500:124 android.view.SurfaceView$SurfaceViewPositionUpdateListener.positionLost:1785 android.graphics.RenderNode$CompositePositionUpdateListener.positionLost:326 
+10-28 22:16:46.101 20100 20129 I SurfaceView@297e671: aOrMT: vR.mWNT, vR = ViewRootImpl@2a1c224[XServerActivity]
+10-28 22:16:46.101 20100 20129 I ViewRootImpl@2a1c224[XServerActivity]: mWNT: t = android.view.SurfaceControl$Transaction@37ce69d fN = 0 android.view.SurfaceView.applyOrMergeTransaction:1628 android.view.SurfaceView.access$500:124 android.view.SurfaceView$SurfaceViewPositionUpdateListener.positionLost:1785 
+10-28 22:16:46.101 20100 20129 I ViewRootImpl@2a1c224[XServerActivity]: mWNT: merge t to BBQ
+10-28 22:16:46.103 20100 20100 I SurfaceView@297e671: windowStopped(true) false com.winlator.widget.XServerView{297e671 V.E...... ........ 0,0-2400,1080} of ViewRootImpl@2a1c224[XServerActivity]
+10-28 22:16:46.104 20100 20100 I SurfaceView@297e671: pST: mTmpTransaction.apply, mTmpTransaction = android.view.SurfaceControl$Transaction@a092681
+10-28 22:16:46.105 20100 20100 I SurfaceView@297e671: surfaceDestroyed callback.size 1 #1 com.winlator.widget.XServerView{297e671 V.E...... ........ 0,0-2400,1080}
+10-28 22:16:46.106 20100 20100 I BufferQueueProducer: [SurfaceView - dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.XServerActivity@297e671@0#17(BLAST Consumer)17](id:4e8400000011,api:0,p:-1,c:20100) disconnect: api -1
+10-28 22:16:46.106 20100 20100 I SurfaceView@297e671: updateSurface: mVisible = false mSurface.isValid() = true
+10-28 22:16:46.107 20100 20100 I BLASTBufferQueue: [SurfaceView - dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.XServerActivity@297e671@0#17] destructor()
+10-28 22:16:46.107 20100 20100 I BufferQueueConsumer: [SurfaceView - dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.XServerActivity@297e671@0#17(BLAST Consumer)17](id:4e8400000011,api:0,p:-1,c:20100) disconnect
+10-28 22:16:46.113 20100 20100 I SurfaceView@297e671: remove() com.winlator.widget.XServerView{297e671 V.E...... ........ 0,0-2400,1080} Surface(name=SurfaceView - dev.zenithblue.panvklauncher/dev.zenithblue.panvklauncher.XServerActivity@297e671@0)/@0x4e03712
+10-28 22:16:46.115 20100 20100 I wm_on_stop_called: [18048913,dev.zenithblue.panvklauncher.XServerActivity,LIFECYCLER_STOP_ACTIVITY]
+10-28 22:16:46.127 20100 20100 I wm_on_destroy_called: [18048913,dev.zenithblue.panvklauncher.XServerActivity,performDestroy]
+10-28 22:16:46.129 20100 20100 I SurfaceView@297e671: onWindowVisibilityChanged(8) false com.winlator.widget.XServerView{297e671 V.E...... ........ 0,0-2400,1080} of ViewRootImpl@2a1c224[XServerActivity]
+10-28 22:16:46.129 20100 20100 D SurfaceView@297e671: updateSurface: surface is not valid
+10-28 22:16:46.132 20100 20100 D SurfaceView@297e671: updateSurface: surface is not valid
+10-28 22:16:46.133 20100 20100 I SurfaceView@297e671: onDetachedFromWindow: tryReleaseSurfaces()
+10-28 22:16:46.140 20100 20129 D OpenGLRenderer: setSurface called with nullptr
+10-28 22:16:46.140 20100 20129 D OpenGLRenderer: setSurface() destroyed EGLSurface
+10-28 22:16:46.140 20100 20129 D OpenGLRenderer: destroyEglSurface
+10-28 22:16:46.145 20100 20129 I BufferQueueProducer: [ViewRootImpl@2a1c224[XServerActivity]#16(BLAST Consumer)16](id:4e8400000010,api:1,p:20100,c:20100) disconnect: api 1
+10-28 22:16:46.148 20100 20129 I BLASTBufferQueue: [ViewRootImpl@2a1c224[XServerActivity]#16] destructor()
+10-28 22:16:46.148 20100 20129 I BufferQueueConsumer: [ViewRootImpl@2a1c224[XServerActivity]#16(BLAST Consumer)16](id:4e8400000010,api:0,p:-1,c:20100) disconnect
+10-28 22:16:46.150 20100 20100 I ViewRootImpl@2a1c224[XServerActivity]: dispatchDetachedFromWindow
+10-28 22:16:46.154 20100 20159 I ViewRootImpl@67420a7[MainActivity]: Resizing android.view.ViewRootImpl@72081ae: frame=[0,0][1080,2400] reportDraw=false forceLayout=true backDropFrame=Rect(0, 0 - 1080, 2400)
+10-28 22:16:46.171 20100 20100 D InputTransport: Input channel destroyed: '945b9a8', fd=99
+10-28 22:16:46.173 20100 20100 I ViewRootImpl@67420a7[MainActivity]: MSG_WINDOW_FOCUS_CHANGED 1 1
+10-28 22:16:46.182 20100 20100 D InputMethodManager: startInputInner - Id : 0
+10-28 22:16:46.182 20100 20100 I InputMethodManager: startInputInner - mService.startInputOrWindowGainedFocus
+10-28 22:16:46.216 20100 20100 I ViewRootImpl@67420a7[MainActivity]: handleResized, msg = 4 frames=ClientWindowFrames{frame=[0,0][1080,2400] display=[0,0][1080,2400] backdrop=[0,0][1080,2400]} forceNextWindowRelayout=true displayId=0 frameChanged=false backdropFrameChanged=false configChanged=false displayChanged=false mNextDrawUseBlastSync=false mergedConfiguration={mGlobalConfig={1.1 ?mcc?mnc [en] ldltr sw411dp w411dp h836dp 420dpi nrml long port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 79 - 1080, 2274) mMaxBounds=Rect(0, 0 - 1080, 2400) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0 mPopOver=off mFreeformTaskPinningState=unpinned} s.940 fontWeightAdjustment=0 ff=0 bf=0 bts=0 enb/d themeSeq=0} mOverrideConfig={1.1 ?mcc?mnc [en] ldltr sw411dp w411dp h836dp 420dpi nrml long port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 79 - 1080, 2274) mMaxBounds=Rect(0, 0 - 1080, 2400) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mPopOver=off mFreeformTaskPinningState=unpinned} s.4 fontWeightAdjustment=0 ff=0 bf=0 bts=0 enb/d themeSeq=0}}
+10-28 22:16:46.232 20100 20100 I ViewRootImpl@67420a7[MainActivity]: Relayout returned: old=(0,0,1080,2400) new=(0,0,1080,2400) req=(1080,2400)0 dur=8 res=0x1 s={true 528903737344} ch=false fn=3
+10-28 22:16:46.242 20100 20129 D OpenGLRenderer: setSurface() destroyed EGLSurface
+10-28 22:16:46.243 20100 20129 D OpenGLRenderer: destroyEglSurface
+10-28 22:16:46.244 20100 20129 I BufferQueueProducer: [ViewRootImpl@67420a7[MainActivity]#18(BLAST Consumer)18](id:4e8400000012,api:1,p:20100,c:20100) disconnect: api 1
+10-28 22:16:46.245 20100 20129 I BufferQueueProducer: [ViewRootImpl@67420a7[MainActivity]#18(BLAST Consumer)18](id:4e8400000012,api:1,p:20100,c:20100) connect: api=1 producerControlledByApp=true

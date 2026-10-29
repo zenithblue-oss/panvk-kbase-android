@@ -1,0 +1,103 @@
+MESA: info: kbase: CSF driver, uAPI version 1.14, page_size=4096
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 24576000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: info: kbase: GPU not IO-coherent: HOST_COHERENT dma-heap BOs from /dev/dma_heap/system-uncached (PANVK_KBASE_UNCACHED_HEAP=0 = 115)
+MESA: info: panvk: gpu_id 0xa8620004 variant 0 arch v10 model Mali-G710 texture_features 0xc1fe001e 0 0 0
+MESA: info: panvk: BC emulation on, lowmem (native compressed mask 0xc1fe001e)
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+ICD device=Mali-G710 MC7 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+INFO robustImageAccess2=1 robustBufferAccess2=1 nullDescriptor=1
+MESA: info: kbase: CSF driver, uAPI version 1.14, page_size=4096
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 24576000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: info: kbase: GPU not IO-coherent: HOST_COHERENT dma-heap BOs from /dev/dma_heap/system-uncached (PANVK_KBASE_UNCACHED_HEAP=0 = 115)
+MESA: info: kbase: mem_alloc via ALLOC_EX
+MESA: info: kbase: queue_group_create layout=32 bytes
+MESA: info: kbase: tiler heaps 4 initial / 400 max chunks of 1024 KiB
+MESA: info: kbase: tiler_heap_init layout=16 bytes
+PASS case r32ui.load
+PASS case r32ui.load_x
+PASS case r32ui.load_y
+PASS case r32ui.load_layer
+PASS case r32ui.load_neg_x
+PASS case r32ui.load_x_alias65537
+PASS case r32ui.load_layer_alias65536
+PASS case r32ui.fetch
+PASS case r32ui.fetch_lod
+PASS case r32ui.fetch_x_lod1
+PASS case r32ui.fetch_layer
+PASS case r32ui.fetch_neg_y
+PASS case r32ui.fetch_lod31
+PASS case r32ui.tbuf
+PASS case r32ui.tbuf_oob
+PASS case r32ui.tbuf_alias65537
+PASS case r32ui.store
+PASS case r32ui.store_atomic
+PASS case r32ui.store_oob
+PASS case r32ui.atomic
+PASS case r32ui.atomic_x
+PASS case r32ui.atomic_layer
+PASS case r32ui.atomic_xchg_neg
+PASS case r32ui.atomic_cas_alias
+PASS case r32ui.atomic_max_y
+PASS case r32ui.sanity
+PASS case rgba8.load
+PASS case rgba8.load_x
+PASS case rgba8.load_y
+PASS case rgba8.load_layer
+PASS case rgba8.load_neg_x
+PASS case rgba8.load_x_alias65537
+PASS case rgba8.load_layer_alias65536
+PASS case rgba8.fetch
+PASS case rgba8.fetch_lod
+PASS case rgba8.fetch_x_lod1
+PASS case rgba8.fetch_layer
+PASS case rgba8.fetch_neg_y
+PASS case rgba8.fetch_lod31
+PASS case rgba8.tbuf
+PASS case rgba8.tbuf_oob
+PASS case rgba8.tbuf_alias65537
+PASS case rgba8.store
+PASS case rgba8.store_oob
+PASS case rgba8.sanity
+PASS case r32ui_nofmt.load
+PASS case r32ui_nofmt.load_x
+PASS case r32ui_nofmt.load_y
+PASS case r32ui_nofmt.load_layer
+PASS case r32ui_nofmt.load_neg_x
+PASS case r32ui_nofmt.load_x_alias65537
+PASS case r32ui_nofmt.load_layer_alias65536
+PASS case r32ui_nofmt.fetch
+PASS case r32ui_nofmt.fetch_lod
+PASS case r32ui_nofmt.fetch_x_lod1
+PASS case r32ui_nofmt.fetch_layer
+PASS case r32ui_nofmt.fetch_neg_y
+PASS case r32ui_nofmt.fetch_lod31
+PASS case r32ui_nofmt.tbuf
+PASS case r32ui_nofmt.tbuf_oob
+PASS case r32ui_nofmt.tbuf_alias65537
+PASS case r32ui_nofmt.store
+PASS case r32ui_nofmt.store_oob
+PASS case r32ui_nofmt.sanity
+PASS case rgba8_nofmt.load
+PASS case rgba8_nofmt.load_x
+PASS case rgba8_nofmt.load_y
+PASS case rgba8_nofmt.load_layer
+PASS case rgba8_nofmt.load_neg_x
+PASS case rgba8_nofmt.load_x_alias65537
+PASS case rgba8_nofmt.load_layer_alias65536
+PASS case rgba8_nofmt.fetch
+PASS case rgba8_nofmt.fetch_lod
+PASS case rgba8_nofmt.fetch_x_lod1
+PASS case rgba8_nofmt.fetch_layer
+PASS case rgba8_nofmt.fetch_neg_y
+PASS case rgba8_nofmt.fetch_lod31
+PASS case rgba8_nofmt.tbuf
+PASS case rgba8_nofmt.tbuf_oob
+PASS case rgba8_nofmt.tbuf_alias65537
+PASS case rgba8_nofmt.store
+PASS case rgba8_nofmt.store_oob
+PASS case rgba8_nofmt.sanity
+BENCH 4096x4096x16 rgba8 loads ria2=25.73ms ria1=25.64ms delta=+0.4% stats(ria2/ria1): Instructions=229/187 Code size=1920/1536 Constant data size=0/0 Threads=2/2 Loops=0/0 Spills=0/0 Fills=0/0 Spill cost=0/0 Registers used=16/12 Uniforms used=3/3
+RESULT PASS

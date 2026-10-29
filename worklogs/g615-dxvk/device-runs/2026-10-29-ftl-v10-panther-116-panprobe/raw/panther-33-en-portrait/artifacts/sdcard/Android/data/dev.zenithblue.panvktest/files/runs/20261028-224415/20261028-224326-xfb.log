@@ -1,0 +1,40 @@
+MESA: info: kbase: CSF driver, uAPI version 1.14, page_size=4096
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 24576000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: info: kbase: GPU not IO-coherent: HOST_COHERENT dma-heap BOs from /dev/dma_heap/system-uncached (PANVK_KBASE_UNCACHED_HEAP=0 = 115)
+MESA: info: panvk: gpu_id 0xa8620004 variant 0 arch v10 model Mali-G710 texture_features 0xc1fe001e 0 0 0
+MESA: info: panvk: BC emulation on, lowmem (native compressed mask 0xc1fe001e)
+MESA: warning: No gralloc hwmodule detected (video buffers won't be supported)
+MESA: info: Using fallback gralloc implementation
+ICD device=Mali-G710 MC7 geometryShader=1 fillModeNonSolid=1 multiViewport=1 shaderClipDistance=1 shaderCullDistance=1 maxViewports=16 maxClip=8 maxCull=8 maxCombined=8
+MESA: info: kbase: CSF driver, uAPI version 1.14, page_size=4096
+MESA: info: kbase: coherency mode 31 (none), shaderDeviceClock off (strict, PANVK_KBASE_STRICT_DEVICE_CLOCK=0 = 114), coherent pools off (PANVK_KBASE_COHERENT_POOLS=1 enables)
+MESA: info: kbase: timestamp calibration: CSF, keeping cntfrq 24576000 Hz (PANVK_KBASE_TS_CALIBRATE=1 = measure)
+MESA: info: kbase: GPU not IO-coherent: HOST_COHERENT dma-heap BOs from /dev/dma_heap/system-uncached (PANVK_KBASE_UNCACHED_HEAP=0 = 115)
+MESA: info: kbase: mem_alloc via ALLOC_EX
+MESA: info: kbase: queue_group_create layout=32 bytes
+MESA: info: kbase: tiler heaps 4 initial / 400 max chunks of 1024 KiB
+MESA: info: kbase: tiler_heap_init layout=16 bytes
+XFB features: transformFeedback=1 geometryStreams=1
+XFB props: maxStreams=4 maxBuffers=4 maxBufferSize=4294967295 queries=1 draw=1
+MESA: info: panvk: gpu_prerast draw arena committed (64 MiB)
+MESA: info: panvk: device TLS 2048 B/thread x 2048 threads x 25 core IDs (7 cores, mask 0x1110055) = 100 MiB of VA, 28 MiB backed
+CASE vs_capture_tri_list mismatch=0 PASS
+CASE vs_capture_tri_strip mismatch=0 PASS
+CASE gs_streams s0_cnt=64 s1_cnt=32 mismatch=0 PASS
+MESA: info: panvk: gpu_prerast tessellation arena committed (72 MiB)
+CASE tes_capture counter=96 mismatch=0 PASS
+CASE pause_resume counter=96 mismatch=0 PASS
+CASE overflow written=2 needed=4 counter=96 mismatch=0 PASS
+CASE draw_indirect_byte_count count=5 mismatch=0 PASS
+CASE queries host_written=3 copy_written=3 avail=1 mismatch=0 PASS
+CASE vs_nopos mismatch=0 PASS
+CASE gs_nopos mismatch=0 PASS
+CASE vs_adj_line_list mismatch=0 PASS
+CASE vs_adj_line_strip mismatch=0 PASS
+CASE vs_adj_tri_list mismatch=0 PASS
+CASE vs_adj_tri_strip mismatch=0 PASS
+CASE vs_clip_cull_capture mismatch=0 PASS
+CASE cond_render_p0 counter=32 mismatch=0 PASS
+CASE cond_render_p1 counter=80 mismatch=0 PASS
+XFB_FAILS=0
