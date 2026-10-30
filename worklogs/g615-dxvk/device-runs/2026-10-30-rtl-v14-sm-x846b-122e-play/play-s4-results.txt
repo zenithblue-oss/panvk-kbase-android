@@ -1,0 +1,14 @@
+PanPlay game loop, scenario 4 (ab), run 20261030-060953-s4
+Device: samsung SM-X846B (gts12p), SDK 37, SoC MT6993
+Driver: Mesa 26.3.0-devel (git-8e8e6b5813, p0169, 2026-10-30), sha256 7e21827df00e5aa4
+App: dev.zenithblue.panvklauncher 1.3.0 (44)
+Window: 20 s warm-up, 60 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d11    old       ok       260.8   255.9   266.8    14.7    260.7    120.1    3.7    5.4    7.1    120.0  CUBE: PASS api=d3d11 frames=22921 (check pixels)
+02  d3d11    default   ok       824.1   674.8   993.4    24.4    824.3     86.3    1.0    2.5    4.2    119.7  CUBE: PASS api=d3d11 frames=71873 (check pixels)
+03  d3d9     old       ok       120.0   119.2   120.6    21.3    120.0     64.8    8.3   11.3   13.9    120.0  CUBE: PASS api=d3d9 frames=10552 (check pixels)
+04  d3d9     default   ok       120.0   118.8   122.0    23.3    120.0     61.1    8.3   11.2   14.3    120.0  CUBE: PASS api=d3d9 frames=10554 (check pixels)
+
+A/B d3d11: old 260.8 fps, default 824.1 fps (+216.0%) (change vs old)
+A/B d3d9: old 120.0 fps, default 120.0 fps (-0.0%) (change vs old)
