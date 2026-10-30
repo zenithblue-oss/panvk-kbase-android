@@ -37,3 +37,19 @@ Comparison: no 116 or rc4 run exists on this model. The SM-X946B (also v14) sing
 | s6 PSS MB | 218.3 |  |
 | s6 Graphics MB | 110.5 |  |
 
+
+## Session 5 (same SM-X846B): same-device cube A/B, s3 D3D11 cube, one 20 s pass each, alternating
+
+| WSI | 122e | 116 |
+|---|---|---|
+| default, round a | 740 | 685 |
+| default, round b | 748 | 747 |
+| `PANVK_WSI_SW_CACHED=1`, round c | 768 | 756 |
+| `PANVK_WSI_SW_CACHED=1`, round d | 777 | 719 |
+| mean default / cached | 744 / 772 | 716 / 737 |
+
+122e is at or above 116 in every pair. 122e default (cached on v14 by 0169) is +4 %; with CACHED=1 on both it is +5 %.
+
+## Session 5: s7 D3D12 FL (122e, no env)
+
+FL 11_0 388, 11_1 379, 12_0 393, 12_1 376, 12_2 378 fps, all ok (`play-s7-partial.txt`). s8, s9 and PanProbe were not run: the session was stopped at 25 min.

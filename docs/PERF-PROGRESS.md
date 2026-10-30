@@ -721,7 +721,7 @@ Raw data and full tables: `worklogs/g615-dxvk/device-runs/2026-10-30-local-122e-
 | check | X6 Pro v11 | TB336FU v9 | RTL v14 SM-X946B |
 |---|---|---|---|
 | PanProbe pass | 41/41 x4 | (122c run holds, see above) | 41/41 |
-| D3D11 cube fps vs rc4 / 116 | 276 vs 279-294 / 312-333 (worse) | 156-160 vs 162-163 / 156-162 (same) | 707-823, same as 116 (747-771) in one session |
+| D3D11 cube fps vs rc4 / 116 | 276 vs 279-294 / 312-333 (worse) | 156-160 vs 162-163 / 156-162 (same) | SM-X846B same-device A/B: 744 vs 116 716 (better) |
 | D3D11 FL fps vs rc4 / 116 | 771-801 vs 459-620 / 404-443 (better) | 214-218 vs 197-202 / 212-218 (same) | - |
 | D3D12 vs 116 | better or same (gears 236 vs 181) | same (s5 23 vs 25) | - |
 | D3D9 | same | same | - |
