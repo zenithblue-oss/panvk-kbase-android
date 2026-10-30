@@ -1,0 +1,70 @@
+{
+ "#": "v12 same-device A/B 116 vs 122f, PANVK_WSI_SW_CACHED=1 forced on both: scenario 3 = D3D11 cube x2 alternating, scenario 6 = D3D12 gears on 122f (no 0171 flipping). .so files at the files dir root.",
+ "warmupSec": 5,
+ "measureSec": 20,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-116": "bisect-116.so",
+  "bisect-122f": "bisect-122f.so"
+ },
+ "envSets": {
+  "a122f": {
+   "note": "build 122f PANVK_WSI_SW_CACHED=1",
+   "driver": "bisect-122f",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "a116": {
+   "note": "build 116 PANVK_WSI_SW_CACHED=1",
+   "driver": "bisect-116",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "b122f": {
+   "note": "build 122f PANVK_WSI_SW_CACHED=1",
+   "driver": "bisect-122f",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "b116": {
+   "note": "build 116 PANVK_WSI_SW_CACHED=1",
+   "driver": "bisect-116",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "g122f": {
+   "note": "build 122f PANVK_WSI_SW_CACHED=1",
+   "driver": "bisect-122f",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  }
+ },
+ "scenarios": {
+  "3": {
+   "name": "cube 122f vs 116 cached",
+   "tasks": [
+    "d3d11"
+   ],
+   "envSets": [
+    "a122f",
+    "a116",
+    "b122f",
+    "b116"
+   ]
+  },
+  "6": {
+   "name": "gears 122f cached",
+   "tasks": [
+    "d3d12gears"
+   ],
+   "envSets": [
+    "g122f"
+   ]
+  }
+ }
+}
