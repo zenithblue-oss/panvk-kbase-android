@@ -1,0 +1,78 @@
+{
+ "#": "v14 same-device A/B 122e vs 116 on s3 cube: default WSI x2 alternating, then PANVK_WSI_SW_CACHED=1 x2. .so files at the files dir root (bisect-<b>.so).",
+ "warmupSec": 5,
+ "measureSec": 20,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-116": "bisect-116.so",
+  "bisect-122e": "bisect-122e.so"
+ },
+ "envSets": {
+  "a122e": {
+   "note": "build 122e",
+   "driver": "bisect-122e",
+   "env": {}
+  },
+  "a116": {
+   "note": "build 116",
+   "driver": "bisect-116",
+   "env": {}
+  },
+  "b122e": {
+   "note": "build 122e",
+   "driver": "bisect-122e",
+   "env": {}
+  },
+  "b116": {
+   "note": "build 116",
+   "driver": "bisect-116",
+   "env": {}
+  },
+  "c122e": {
+   "note": "build 122e PANVK_WSI_SW_CACHED=1",
+   "driver": "bisect-122e",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "c116": {
+   "note": "build 116 PANVK_WSI_SW_CACHED=1",
+   "driver": "bisect-116",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "d122e": {
+   "note": "build 122e PANVK_WSI_SW_CACHED=1",
+   "driver": "bisect-122e",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "d116": {
+   "note": "build 116 PANVK_WSI_SW_CACHED=1",
+   "driver": "bisect-116",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  }
+ },
+ "scenarios": {
+  "3": {
+   "name": "cube 122e vs 116",
+   "tasks": [
+    "d3d11"
+   ],
+   "envSets": [
+    "a122e",
+    "a116",
+    "b122e",
+    "b116",
+    "c122e",
+    "c116",
+    "d122e",
+    "d116"
+   ]
+  }
+ }
+}
