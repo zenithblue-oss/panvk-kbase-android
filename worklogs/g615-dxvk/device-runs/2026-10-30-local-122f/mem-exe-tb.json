@@ -1,0 +1,21 @@
+{
+ "#": "TB336FU (v9): rc4 / 116 / 122e / dev8 in one APK and session; per pass the launcher's and the game process' (EXE) dumpsys meminfo.",
+ "warmupSec": 10,
+ "measureSec": 20,
+ "screenshotAtSec": 15,
+ "installDrivers": {
+  "bisect-rc4": "bisect/rc4.so",
+  "bisect-116": "bisect/116.so",
+  "bisect-122e": "bisect/122e.so",
+  "bisect-dev8": "bisect/dev8.so"
+ },
+ "envSets": {
+  "rc4": { "note": "rc4", "driver": "bisect-rc4", "env": {} },
+  "b116": { "note": "116", "driver": "bisect-116", "env": {} },
+  "e": { "note": "122e", "driver": "bisect-122e", "env": {} },
+  "d8": { "note": "dev8", "driver": "bisect-dev8", "env": {} }
+ },
+ "scenarios": {
+  "6": { "name": "mem exe", "tasks": ["d3d11", "d3d9", "d3d11fl_11_0"], "envSets": ["rc4", "b116", "e", "d8", "d8", "e", "b116", "rc4"] }
+ }
+}

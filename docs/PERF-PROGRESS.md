@@ -778,3 +778,30 @@ Measured on 122e, 2 rounds, alternating modes, with `PANVK_WSI_SW_CACHED`:
    - Isolated reruns: 180-192 us. With `PANVK_KBASE_TILER_IR=0` it was 228-275, so 0167 is not the cause.
    - Noisy, under 0.1 ms per op. Open.
 6. Small flags under 20 ms on 75-140 ms PanProbe tests vs 116 (warm `vmr_secondary`, `robustness2`, `blend`, `sampler`). These are within the spread of other runs.
+
+## Build 122f (2026-10-30): 0170 BC cold compile, 0171 sw readback per swapchain (not the default)
+
+Raw data, tables and method: `worklogs/g615-dxvk/device-runs/2026-10-30-local-122f/`.
+- Build 122f = 0006-0171, `Mesa 26.3.0-devel (git-e1d5a21c4a, p0171, 2026-10-30)`, sha256 `6ca4bb85...9041b`, BuildID `5dff0d01...`.
+- **The pins stay on 122e.** The TB336FU PanPlay gate did not finish (the device dropped), and the X6 cube is only level with 116.
+
+| check | X6 Pro v11 | TB336FU v9 |
+|---|---|---|
+| PanProbe pass | 41/41 x4 | 41/41 x4 |
+| D3D11 cube fps vs rc4 / 116 | 326-354 vs 286-296 / 320-353 (same as 116) | 155-161 vs 158 / 159-161 (tbmem2, dev8) |
+| D3D11 FL fps vs rc4 / 116 | 605-747 vs 581-655 / 434-468 (better) | 199-215 vs 208-212 / 216-220 (tbmem2) |
+| D3D12 vs 116 | gears 198 vs 161, FL 261-307 vs 200-231 | not run |
+| D3D9 | same | same |
+| game process memory vs rc4 | GL 63-74 vs 259-344 MB | PSS 90-142 vs 250-299 MB, GL 24-65 vs 185-225 MB |
+| cold `bc_decode` vs 116 | 5184 vs 5046 ms (rc4 554) | 654 vs 653 ms (imported slot: 877-886 vs 900-937) |
+| warm `bc_decode` vs 116 | 148 vs 196 ms | 133 vs 123 ms (imported slot: 189-246 vs 177-182) |
+
+- 0171: on the X6 the auto mode gives cube 352-383 (cached 370, uncached 271) and FL 11_1 709-753 (uncached 759, cached 562).
+- 0170: v9 cold BC is back at the 116 level (122e: 1830 ms `bc_decode`, `bc_level` 2x).
+- PanPlay memory: the gate's launcher PSS / Graphics is the in-process X server (EGL + GL mtrack ~210 MB, the same with rc4 and 122e). The driver's memory is in the game process: about 160 MB below rc4 since 116. No change needed.
+
+Open:
+1. TB336FU PanPlay 1-9 rc4c / 116c / 122f (`scripts/gate-play.sh tb336fu <serial> <lock>`).
+2. v11 cold BC transcoder compile: `bc_decode` 5.2 s and `bc_level` 449 ms/op vs rc4 0.55 s / 46 ms (since 116).
+3. 1 % lows on X6 D3D11 / FL below rc4.
+4. RTL v12/v13/v14 and Firebase v6/v7/v10 runs of 122f.

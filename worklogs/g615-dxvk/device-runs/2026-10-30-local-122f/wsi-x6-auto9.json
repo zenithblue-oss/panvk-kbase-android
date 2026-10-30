@@ -1,0 +1,18 @@
+{
+ "#": "X6 Pro (v11): 0171 auto readback with time-based A/B/A windows (dev9) vs 122e cached / uncached; auto passes log their decision to files/mesa-auto.log.",
+ "warmupSec": 10,
+ "measureSec": 30,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-122e": "bisect/122e.so",
+  "bisect-dev9": "bisect/dev9.so"
+ },
+ "envSets": {
+  "e0": { "note": "122e uncached", "driver": "bisect-122e", "env": { "PANVK_WSI_SW_CACHED": "0" } },
+  "e1": { "note": "122e cached", "driver": "bisect-122e", "env": { "PANVK_WSI_SW_CACHED": "1" } },
+  "auto": { "note": "dev9 auto", "driver": "bisect-dev9", "env": { "MESA_LOG_FILE": "/sdcard/Android/data/dev.zenithblue.panvklauncher/files/mesa-auto.log" } }
+ },
+ "scenarios": {
+  "6": { "name": "wsi auto", "tasks": ["d3d11", "d3d11fl_11_1", "d3d9"], "envSets": ["auto", "e1", "e0", "auto"] }
+ }
+}

@@ -1,0 +1,29 @@
+{
+ "#": "TB336FU (v9) PanPlay memory: rc4 vs 122e default vs 122e with single 115-era knobs at their 114 value, D3D11 cube.",
+ "warmupSec": 10,
+ "measureSec": 20,
+ "screenshotAtSec": 15,
+ "installDrivers": {
+  "bisect-rc4": "bisect/rc4.so",
+  "bisect-122e": "bisect/122e.so"
+ },
+ "envSets": {
+  "rc4": { "note": "rc4", "driver": "bisect-rc4", "env": {} },
+  "def": { "note": "122e default", "driver": "bisect-122e", "env": {} },
+  "old": { "note": "122e, all 115 knobs at 114 values", "driver": "bisect-122e", "env": {
+    "PANVK_CSF_FS_IDLE_CLEAN": "0", "PANVK_DB_ALT": "0", "PANVK_CSF_INDIRECT_REEMIT": "0", "PANVK_CSF_DESC_DIRTY": "0",
+    "PANVK_VB_DIRTY_CMP": "0", "PANVK_PRERAST_FAST_SKIP": "0", "PANVK_KBASE_STRICT_DEVICE_CLOCK": "0", "PANVK_DESC_POOL_HINT": "0",
+    "PANVK_KBASE_HEAP_EAGER_TERM": "0", "PANVK_TESS_VS_REGION_MB": "32", "PANVK_KBASE_ZERO_ALL": "1", "PANVK_CS_FLUSH_USED": "0",
+    "PANVK_JM_CMD_POOL_AUTOTRIM": "0", "PANVK_MEM_BUDGET_PRESSURE": "0", "PANVK_CS_CHUNK_KB": "64", "PANVK_CMD_SLAB_CACHE": "0",
+    "PANVK_WSI_SW_CACHED": "0", "PANVK_WSI_SW_DEFER_REPLY": "0", "PANVK_ANDROID_PRESENT_FENCE": "0", "PANVK_ANDROID_PRESENT_THREAD": "0",
+    "PANVK_PRELOAD_BARRIER_TRACK": "0" } },
+  "slab": { "note": "CMD_SLAB_CACHE=0", "driver": "bisect-122e", "env": { "PANVK_CMD_SLAB_CACHE": "0" } },
+  "tess": { "note": "TESS_VS_REGION_MB=32", "driver": "bisect-122e", "env": { "PANVK_TESS_VS_REGION_MB": "32" } },
+  "trim": { "note": "JM_CMD_POOL_AUTOTRIM=0", "driver": "bisect-122e", "env": { "PANVK_JM_CMD_POOL_AUTOTRIM": "0" } },
+  "desc": { "note": "DESC_POOL_HINT=0", "driver": "bisect-122e", "env": { "PANVK_DESC_POOL_HINT": "0" } },
+  "budget": { "note": "MEM_BUDGET_PRESSURE=0", "driver": "bisect-122e", "env": { "PANVK_MEM_BUDGET_PRESSURE": "0" } }
+ },
+ "scenarios": {
+  "6": { "name": "mem knobs", "tasks": ["d3d11"], "envSets": ["rc4", "def", "old", "slab", "tess", "trim", "desc", "budget", "def", "rc4"] }
+ }
+}

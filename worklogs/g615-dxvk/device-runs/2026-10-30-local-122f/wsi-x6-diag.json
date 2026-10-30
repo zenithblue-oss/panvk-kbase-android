@@ -1,0 +1,18 @@
+{
+ "#": "X6 Pro (v11) sw WSI readback: 122e uncached / cached with MESA_VK_X11_SW_TIMING, and dev7 (0171 auto). D3D11 cube + D3D11 FL 11_1.",
+ "warmupSec": 10,
+ "measureSec": 30,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-122e": "bisect/122e.so",
+  "bisect-dev7": "bisect/dev7.so"
+ },
+ "envSets": {
+  "e0t": { "note": "122e uncached, timing", "driver": "bisect-122e", "env": { "PANVK_WSI_SW_CACHED": "0", "MESA_VK_X11_SW_TIMING": "1" } },
+  "e1t": { "note": "122e cached, timing", "driver": "bisect-122e", "env": { "PANVK_WSI_SW_CACHED": "1", "MESA_VK_X11_SW_TIMING": "1" } },
+  "auto": { "note": "dev7 auto", "driver": "bisect-dev7", "env": {} }
+ },
+ "scenarios": {
+  "6": { "name": "wsi diag", "tasks": ["d3d11", "d3d11fl_11_1"], "envSets": ["e0t", "e1t", "auto"] }
+ }
+}

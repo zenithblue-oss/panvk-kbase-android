@@ -1,0 +1,436 @@
+From 3e17670cf5c55897f9610cc58aedaaceccdee992 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Fri, 30 Oct 2026 10:24:29 +0530
+Subject: [PATCH 171/171] wsi/x11: pick the sw readback memory type per
+ swapchain from its frame rate
+
+Whether the cached readback type (with a full-frame invalidate) or the
+uncached one is faster depends on the workload, not on the frame size: on
+the X6 Pro (v11), with the same 640x360 swapchain, the D3D11 cube runs 382
+fps cached vs 271 uncached, but D3D11 FL 11_1 505 vs 708. The per-arch
+default of 0168/0169 can only win one of them.
+
+With MIT-SHM and the deferred reply (the sw present path of 0160), each
+BUFFER_BLIT swapchain now measures its mean frame interval in the starting
+mode, the other mode and the starting mode again (A, B, A), each window at
+least 120 frames and 500 ms after a 30 frame / 250 ms settle, starting 1 s
+after the first present. It switches if B is 3 % faster than the mean of the
+A windows, then holds, and measures again when the interval drifts by 25 %
+(at most every 10 s). wsi_image_set_cpu_readback_cached() moves one image
+to the other type right after its CPU copy, while it is idle.
+
+The arch default stays the starting mode. PANVK_WSI_SW_CACHED=0/1 forces a
+mode and disables the measurement.
+
+X6 Pro, PanPlay, auto vs 122e cached / uncached (fps): D3D11 cube 352 and
+383 vs 370 / 271; D3D11 FL 11_1 753 and 709 vs 562 / 759; D3D9 118 vs 118
+/ 118. Build 116: cube 312-333, FL 11_1 404-443.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/panvk_wsi.c     |   7 +-
+ src/vulkan/wsi/wsi_common.c         | 121 ++++++++++++++++++++-
+ src/vulkan/wsi/wsi_common.h         |   5 +
+ src/vulkan/wsi/wsi_common_private.h |   4 +
+ src/vulkan/wsi/wsi_common_x11.c     | 157 ++++++++++++++++++++++++++++
+ 5 files changed, 290 insertions(+), 4 deletions(-)
+
+diff --git a/src/panfrost/vulkan/panvk_wsi.c b/src/panfrost/vulkan/panvk_wsi.c
+index c338801e592..f7ff5449c0f 100644
+--- a/src/panfrost/vulkan/panvk_wsi.c
++++ b/src/panfrost/vulkan/panvk_wsi.c
+@@ -773,11 +773,16 @@ panvk_wsi_init(struct panvk_physical_device *physical_device)
+     * lost the same way as v14 (TB336FU .so bisect, 119 -> 120: D3D12 gears
+     * 259 -> 220 fps, D3D11 FL 11_0 214 -> 196).  So uncached only on v11,
+     * the one arch where 0160 measured a gain; cached everywhere else, as
+-    * before 0160.  PANVK_WSI_SW_CACHED=1/0 forces it.
++    * before 0160.  The arch default is only the starting mode now: with
++    * MIT-SHM present each swapchain measures its frame rate in both modes
++    * and keeps the faster (0171, wsi_common_x11.c x11_sw_ab_frame()).
++    * PANVK_WSI_SW_CACHED=1/0 forces one mode.
+     */
+    physical_device->wsi_device.sw_cached_noncoherent = debug_get_bool_option(
+       "PANVK_WSI_SW_CACHED",
+       pan_arch(physical_device->kmod.dev->props.gpu_id) != 11);
++   physical_device->wsi_device.sw_cached_auto =
++      os_get_option("PANVK_WSI_SW_CACHED") == NULL;
+ 
+    /* MIT-SHM sw present: the event thread collects each put's GetGeometry
+     * reply, so the present thread copies and sends the next frame while
+diff --git a/src/vulkan/wsi/wsi_common.c b/src/vulkan/wsi/wsi_common.c
+index d7bcd784271..61965de9c70 100644
+--- a/src/vulkan/wsi/wsi_common.c
++++ b/src/vulkan/wsi/wsi_common.c
+@@ -3118,10 +3118,10 @@ wsi_select_host_memory_type(const struct wsi_device *wsi,
+ /* Memory only this process reads, through wsi_image::cpu_map, after the
+  * blit fence (no alloc_shm: no other process maps it). */
+ static uint32_t
+-wsi_select_cpu_readback_memory_type(const struct wsi_device *wsi,
+-                                    uint32_t type_bits)
++wsi_select_cpu_readback_memory_type_mode(const struct wsi_device *wsi,
++                                         uint32_t type_bits, bool cached_mode)
+ {
+-   if (wsi->sw && wsi->sw_cached_noncoherent) {
++   if (wsi->sw && cached_mode) {
+       /* The CPU reads every frame back: a cached type that needs an
+        * invalidate beats an uncached coherent one, but a cached coherent
+        * type beats both. */
+@@ -3148,6 +3148,14 @@ wsi_select_cpu_readback_memory_type(const struct wsi_device *wsi,
+    return wsi_select_host_memory_type(wsi, type_bits);
+ }
+ 
++static uint32_t
++wsi_select_cpu_readback_memory_type(const struct wsi_device *wsi,
++                                    uint32_t type_bits)
++{
++   return wsi_select_cpu_readback_memory_type_mode(wsi, type_bits,
++                                                   wsi->sw_cached_noncoherent);
++}
++
+ static bool
+ wsi_memory_type_is_noncoherent(const struct wsi_device *wsi, uint32_t type)
+ {
+@@ -3155,6 +3163,113 @@ wsi_memory_type_is_noncoherent(const struct wsi_device *wsi, uint32_t type)
+             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+ }
+ 
++static void
++wsi_image_free_blit_cmd_buffers(const struct wsi_swapchain *chain,
++                                VkCommandBuffer *cmd_buffers)
++{
++   const struct wsi_device *wsi = chain->wsi;
++
++   if (!cmd_buffers)
++      return;
++   const int cmd_buffer_count =
++      chain->blit.queue != NULL ? 1 : wsi->queue_family_count;
++   for (int i = 0; i < cmd_buffer_count; i++) {
++      if (chain->cmd_pools[i] && cmd_buffers[i])
++         wsi->FreeCommandBuffers(chain->device, chain->cmd_pools[i], 1,
++                                 &cmd_buffers[i]);
++   }
++   vk_free(&chain->alloc, cmd_buffers);
++}
++
++/* 0171: move the CPU readback buffer of a buffer-blit CPU image (no
++ * alloc_shm) to the cached (cached = true) or the uncached readback memory
++ * type: a new buffer, memory, mapping and blit command buffers, then the
++ * old ones are freed. The image must be idle (blit done, no CPU read in
++ * flight, not acquired). On failure the image keeps its old buffer. */
++VkResult
++wsi_image_set_cpu_readback_cached(const struct wsi_swapchain *chain,
++                                  struct wsi_image *image, bool cached)
++{
++   const struct wsi_device *wsi = chain->wsi;
++   const struct wsi_image_info *info = &chain->image_info;
++
++   if (chain->blit.type != WSI_SWAPCHAIN_BUFFER_BLIT || info->alloc_shm ||
++       !image->cpu_map || image->blit.buffer == VK_NULL_HANDLE ||
++       (chain->create_flags & VK_SWAPCHAIN_CREATE_PROTECTED_BIT_KHR))
++      return VK_ERROR_FEATURE_NOT_PRESENT;
++
++   const VkBuffer old_buffer = image->blit.buffer;
++   const VkDeviceMemory old_memory = image->blit.memory;
++   VkCommandBuffer *const old_cmd_buffers = image->blit.cmd_buffers;
++   void *const old_map = image->cpu_map;
++   const bool old_noncoherent = image->cpu_map_noncoherent;
++
++   image->blit.buffer = VK_NULL_HANDLE;
++   image->blit.memory = VK_NULL_HANDLE;
++   image->blit.cmd_buffers = NULL;
++   image->cpu_map = NULL;
++
++   const VkBufferCreateInfo buffer_info = {
++      .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
++      .size = info->linear_size,
++      .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
++      .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
++   };
++   VkResult result = wsi->CreateBuffer(chain->device, &buffer_info,
++                                       &chain->alloc, &image->blit.buffer);
++   if (result != VK_SUCCESS)
++      goto fail;
++
++   VkMemoryRequirements reqs;
++   wsi->GetBufferMemoryRequirements(chain->device, image->blit.buffer, &reqs);
++   const VkMemoryDedicatedAllocateInfo dedicated_info = {
++      .sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO,
++      .buffer = image->blit.buffer,
++   };
++   const VkMemoryAllocateInfo mem_info = {
++      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
++      .pNext = &dedicated_info,
++      .allocationSize = info->linear_size,
++      .memoryTypeIndex = wsi_select_cpu_readback_memory_type_mode(
++         wsi, reqs.memoryTypeBits, cached),
++   };
++   result = wsi->AllocateMemory(chain->device, &mem_info, &chain->alloc,
++                                &image->blit.memory);
++   if (result != VK_SUCCESS)
++      goto fail;
++   image->cpu_map_noncoherent =
++      wsi_memory_type_is_noncoherent(wsi, mem_info.memoryTypeIndex);
++
++   result = wsi->BindBufferMemory(chain->device, image->blit.buffer,
++                                  image->blit.memory, 0);
++   if (result == VK_SUCCESS)
++      result = wsi->MapMemory(chain->device, image->blit.memory, 0,
++                              VK_WHOLE_SIZE, 0, &image->cpu_map);
++   if (result == VK_SUCCESS)
++      result = wsi_finish_create_blit_context(chain, info, image);
++   if (result != VK_SUCCESS)
++      goto fail;
++
++   wsi->UnmapMemory(chain->device, old_memory);
++   wsi_image_free_blit_cmd_buffers(chain, old_cmd_buffers);
++   wsi->DestroyBuffer(chain->device, old_buffer, &chain->alloc);
++   wsi->FreeMemory(chain->device, old_memory, &chain->alloc);
++   return VK_SUCCESS;
++
++fail:
++   wsi_image_free_blit_cmd_buffers(chain, image->blit.cmd_buffers);
++   if (image->cpu_map)
++      wsi->UnmapMemory(chain->device, image->blit.memory);
++   wsi->DestroyBuffer(chain->device, image->blit.buffer, &chain->alloc);
++   wsi->FreeMemory(chain->device, image->blit.memory, &chain->alloc);
++   image->blit.buffer = old_buffer;
++   image->blit.memory = old_memory;
++   image->blit.cmd_buffers = old_cmd_buffers;
++   image->cpu_map = old_map;
++   image->cpu_map_noncoherent = old_noncoherent;
++   return result;
++}
++
+ void
+ wsi_image_invalidate_cpu_map(const struct wsi_swapchain *chain,
+                              const struct wsi_image *image)
+diff --git a/src/vulkan/wsi/wsi_common.h b/src/vulkan/wsi/wsi_common.h
+index 056285ca7f2..576f1fe66bd 100644
+--- a/src/vulkan/wsi/wsi_common.h
++++ b/src/vulkan/wsi/wsi_common.h
+@@ -177,6 +177,11 @@ struct wsi_device {
+     */
+    bool sw_cached_noncoherent;
+ 
++   /* sw X11 MIT-SHM present only: sw_cached_noncoherent is the starting
++    * mode, and each swapchain measures its frame interval in both modes and
++    * keeps the faster (re-measured when the frame rate drifts). */
++   bool sw_cached_auto;
++
+    /* Set to true if the implementation is ok with linear WSI images. */
+    bool wants_linear;
+ 
+diff --git a/src/vulkan/wsi/wsi_common_private.h b/src/vulkan/wsi/wsi_common_private.h
+index 58cf4af0356..6b14ef2d147 100644
+--- a/src/vulkan/wsi/wsi_common_private.h
++++ b/src/vulkan/wsi/wsi_common_private.h
+@@ -465,6 +465,10 @@ void
+ wsi_image_invalidate_cpu_map(const struct wsi_swapchain *chain,
+                              const struct wsi_image *image);
+ 
++VkResult
++wsi_image_set_cpu_readback_cached(const struct wsi_swapchain *chain,
++                                  struct wsi_image *image, bool cached);
++
+ VkResult
+ wsi_swapchain_wait_for_present_semaphore(const struct wsi_swapchain *chain,
+                                          uint64_t present_id, uint64_t timeout);
+diff --git a/src/vulkan/wsi/wsi_common_x11.c b/src/vulkan/wsi/wsi_common_x11.c
+index 0aa9249f7ea..adca10269db 100644
+--- a/src/vulkan/wsi/wsi_common_x11.c
++++ b/src/vulkan/wsi/wsi_common_x11.c
+@@ -1277,6 +1277,8 @@ struct x11_image {
+    /* MESA_VK_X11_SW_TIMING: when the app queued it, when its put went out */
+    uint64_t                                  sw_t_queued_ns;
+    uint64_t                                  sw_t_put_ns;
++   /* sw_ab: the readback buffer is in the cached memory type */
++   bool                                      sw_cached;
+    uint64_t                                  present_id;
+    VkPresentModeKHR                          present_mode;
+    xcb_rectangle_t                           rects[MAX_DAMAGE_RECTS];
+@@ -1328,6 +1330,20 @@ struct x11_swapchain {
+    bool                                         sw_timing;
+    uint64_t                                     sw_t_start_ns, sw_t_frames;
+    uint64_t                                     sw_t_n[8], sw_t_sum[8], sw_t_max[8];
++   /* sw_defer_reply with wsi_device::sw_cached_auto: readback memory type
++    * chosen from this swapchain's frame interval, see x11_sw_ab_frame().
++    * Present thread only. */
++   bool                                         sw_ab;
++   bool                                         sw_cached;     /* target mode */
++   uint32_t                                     sw_ab_pending; /* images not in it */
++   uint32_t                                     sw_ab_phase;
++   bool                                         sw_ab_measuring;
++   uint32_t                                     sw_ab_n;
++   uint64_t                                     sw_ab_start_ns; /* first present */
++   uint64_t                                     sw_ab_t0;
++   uint64_t                                     sw_ab_ns[2];   /* [cached] */
++   uint64_t                                     sw_ab_ref_ns;
++   uint64_t                                     sw_ab_decided_ns;
+ 
+    xcb_connection_t *                           conn;
+    xcb_window_t                                 window;
+@@ -2012,6 +2028,137 @@ x11_sw_t_frame(struct x11_swapchain *chain)
+  * behind the present thread. */
+ #define X11_SW_MAX_PENDING_REPLIES 2
+ 
++/* 0171: which readback memory type is faster depends on the device and on
++ * the workload, not on the frame size or the CPU read alone. On the X6 Pro
++ * (v11), with the same 640x360 swapchain, the cached type + full-frame
++ * invalidate gives the D3D11 cube 382 fps vs 271 uncached, but D3D11 FL
++ * 11_1 505 vs 708. A one-off timing of the invalidate + read at the first
++ * swapchain picked cached for both. So each swapchain measures its own
++ * mean frame interval: the starting mode, the other one, the starting one
++ * again (A, B, A cancels a linear drift), each window X11_SW_AB_WINDOW
++ * frames and at least X11_SW_AB_WINDOW_NS after X11_SW_AB_SETTLE frames /
++ * X11_SW_AB_SETTLE_NS in the mode, the first one X11_SW_AB_START_NS after
++ * the swapchain's first present. It keeps the starting mode unless the
++ * other one is X11_SW_AB_MARGIN faster, and measures again when the
++ * interval drifts by X11_SW_AB_DRIFT (at most every X11_SW_AB_REPROBE_NS).
++ * An image moves to the other type right after its CPU copy, while it is
++ * idle. */
++#define X11_SW_AB_SETTLE 30
++#define X11_SW_AB_SETTLE_NS (250ull * 1000 * 1000)
++#define X11_SW_AB_WINDOW 120
++#define X11_SW_AB_WINDOW_NS (500ull * 1000 * 1000)
++#define X11_SW_AB_START_NS (1000ull * 1000 * 1000)
++#define X11_SW_AB_MARGIN 0.03
++#define X11_SW_AB_DRIFT 0.25
++#define X11_SW_AB_REPROBE_NS (10ull * 1000 * 1000 * 1000)
++
++static void
++x11_sw_ab_set_mode(struct x11_swapchain *chain, bool cached)
++{
++   chain->sw_cached = cached;
++   chain->sw_ab_n = 0;
++   chain->sw_ab_measuring = false;
++   chain->sw_ab_pending = 0;
++   for (uint32_t i = 0; i < chain->base.image_count; i++)
++      chain->sw_ab_pending += chain->images[i].sw_cached != cached;
++}
++
++/* Mean frame interval of a finished window, else 0. */
++static uint64_t
++x11_sw_ab_window(struct x11_swapchain *chain, uint64_t now)
++{
++   if (chain->sw_ab_n++ == 0)
++      chain->sw_ab_t0 = now; /* mode settled from here on, or not yet */
++   if (!chain->sw_ab_measuring) {
++      if (chain->sw_ab_n < X11_SW_AB_SETTLE ||
++          now - chain->sw_ab_t0 < X11_SW_AB_SETTLE_NS)
++         return 0;
++      chain->sw_ab_measuring = true;
++      chain->sw_ab_n = 1;
++      chain->sw_ab_t0 = now;
++      return 0;
++   }
++   if (chain->sw_ab_n <= X11_SW_AB_WINDOW ||
++       now - chain->sw_ab_t0 < X11_SW_AB_WINDOW_NS)
++      return 0;
++   const uint64_t ns = (now - chain->sw_ab_t0) / (chain->sw_ab_n - 1);
++   chain->sw_ab_n = 0;
++   chain->sw_ab_measuring = false;
++   return ns;
++}
++
++/* Present thread, after the CPU copy of image, before it is released. */
++static void
++x11_sw_ab_frame(struct x11_swapchain *chain, struct x11_image *image)
++{
++   if (image->sw_cached != chain->sw_cached) {
++      if (wsi_image_set_cpu_readback_cached(&chain->base, &image->base,
++                                            chain->sw_cached) != VK_SUCCESS) {
++         /* Keep what each image has; stop switching. */
++         mesa_logw("wsi/x11 sw readback: moving an image failed, mode stays");
++         chain->sw_ab = false;
++         return;
++      }
++      image->sw_cached = chain->sw_cached;
++      chain->sw_ab_pending--;
++      chain->sw_ab_n = 0;
++      chain->sw_ab_measuring = false;
++      return;
++   }
++
++   const uint64_t now = os_time_get_nano();
++   if (!chain->sw_ab_start_ns)
++      chain->sw_ab_start_ns = now;
++   if (chain->sw_ab_pending || now - chain->sw_ab_start_ns < X11_SW_AB_START_NS)
++      return;
++   const uint64_t ns = x11_sw_ab_window(chain, now);
++   if (!ns)
++      return;
++   const bool cur = chain->sw_cached;
++
++   switch (chain->sw_ab_phase) {
++   case 0: /* A measured: try B. */
++      chain->sw_ab_ns[cur] = ns;
++      chain->sw_ab_phase = 1;
++      x11_sw_ab_set_mode(chain, !cur);
++      break;
++   case 1: /* B measured: A again. */
++      chain->sw_ab_ns[cur] = ns;
++      chain->sw_ab_phase = 2;
++      x11_sw_ab_set_mode(chain, !cur);
++      break;
++   case 2: {
++      /* cur is A: the mean of both of its windows against B. */
++      const uint64_t a = (chain->sw_ab_ns[cur] + ns) / 2;
++      const uint64_t b = chain->sw_ab_ns[!cur];
++      const bool best = b < a * (1.0 - X11_SW_AB_MARGIN) ? !cur : cur;
++      mesa_logi("wsi/x11 sw readback %ux%u: %s %.1f fps, %s %.1f fps -> %s",
++                chain->extent.width, chain->extent.height,
++                cur ? "cached" : "uncached", 1e9 / a,
++                cur ? "uncached" : "cached", 1e9 / b,
++                best ? "cached" : "uncached");
++      chain->sw_ab_ref_ns = best == cur ? a : b;
++      chain->sw_ab_decided_ns = now;
++      chain->sw_ab_phase = 3;
++      if (best != cur)
++         x11_sw_ab_set_mode(chain, best);
++      break;
++   }
++   default: {
++      /* Hold: measure again when the frame rate has moved; this window is
++       * the first A. */
++      const double d = (double)ns / chain->sw_ab_ref_ns;
++      if ((d > 1.0 + X11_SW_AB_DRIFT || d < 1.0 - X11_SW_AB_DRIFT) &&
++          now - chain->sw_ab_decided_ns > X11_SW_AB_REPROBE_NS) {
++         chain->sw_ab_ns[cur] = ns;
++         chain->sw_ab_phase = 1;
++         x11_sw_ab_set_mode(chain, !cur);
++      }
++      break;
++   }
++   }
++}
++
+ /* Event thread, thread_state_lock held: collect the oldest outstanding
+  * GetGeometry reply.  Returns false when none is outstanding. */
+ static bool
+@@ -2196,6 +2343,10 @@ x11_present_to_x11_sw(struct x11_swapchain *chain, uint32_t image_index)
+       image->sw_reply_present_id = image->present_id;
+       chain->sw_replies_pending++;
+ 
++      /* The server reads only the segment: the readback buffer is idle. */
++      if (chain->sw_ab)
++         x11_sw_ab_frame(chain, image);
++
+       wsi_queue_push(&chain->acquire_queue, image_index);
+       return VK_SUCCESS;
+    }
+@@ -3790,6 +3941,12 @@ x11_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
+ 
+    /* After the images: a failed segment attach drops sw_shm. */
+    chain->sw_defer_reply = chain->sw_shm && wsi_device->x11.sw_defer_reply;
++   chain->sw_cached = wsi_device->sw_cached_noncoherent;
++   for (uint32_t i = 0; i < chain->base.image_count; i++)
++      chain->images[i].sw_cached = chain->sw_cached;
++   chain->sw_ab = chain->sw_defer_reply && wsi_device->sw_cached_auto &&
++                  chain->base.blit.type == WSI_SWAPCHAIN_BUFFER_BLIT &&
++                  !chain->base.image_info.alloc_shm;
+ 
+    /* The queues have a length of base.image_count + 1 because we will
+     * occasionally use UINT32_MAX to signal the other thread that an error
+-- 
+2.56.0
+
