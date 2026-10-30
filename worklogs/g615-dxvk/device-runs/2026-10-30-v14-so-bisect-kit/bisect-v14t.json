@@ -1,0 +1,109 @@
+{
+ "#": "v14 suspect A/B for the 116-120 cube regression (0152-0159): scenario 3 = D3D11 cube, PANVK_WSI_SW_CACHED=1 everywhere (removes 0160). 119rNNNN = build 119 tree with jm-v7-wip NNNN reverted (/var/tmp/panvk/b122/v14x.sh). 116 runs first and last to show thermal drift. Run: CFG=bisect-v14s.json SC=3 run.sh <serial> <lock> 116 118 119 119r0156 119r0157 119r0158 119r0155 v14t: .so files at the files dir root (bisect-<b>.so): on a fresh install the app could not read the shell-created bisect/ dir.",
+ "warmupSec": 5,
+ "measureSec": 20,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-116": "bisect-116.so",
+  "bisect-118": "bisect-118.so",
+  "bisect-119": "bisect-119.so",
+  "bisect-119r0156": "bisect-119r0156.so",
+  "bisect-119r0157": "bisect-119r0157.so",
+  "bisect-119r0158": "bisect-119r0158.so",
+  "bisect-119r0155": "bisect-119r0155.so"
+ },
+ "envSets": {
+  "b116": {
+   "note": "build 116",
+   "driver": "bisect-116",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "b118": {
+   "note": "build 118",
+   "driver": "bisect-118",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "b119": {
+   "note": "build 119",
+   "driver": "bisect-119",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "b119r0156": {
+   "note": "build 119r0156",
+   "driver": "bisect-119r0156",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "b119r0158": {
+   "note": "build 119r0158",
+   "driver": "bisect-119r0158",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "b119r0157": {
+   "note": "build 119r0157",
+   "driver": "bisect-119r0157",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "b119gs0": {
+   "note": "build 119 PANVK_GS_PT_SKIP=0",
+   "driver": "bisect-119",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1",
+    "PANVK_GS_PT_SKIP": "0"
+   }
+  },
+  "b119r0155": {
+   "note": "build 119r0155",
+   "driver": "bisect-119r0155",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "b119bc0": {
+   "note": "build 119 PANVK_BC_PREWARM=0",
+   "driver": "bisect-119",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1",
+    "PANVK_BC_PREWARM": "0"
+   }
+  },
+  "b116z": {
+   "note": "build 116",
+   "driver": "bisect-116",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  }
+ },
+ "scenarios": {
+  "3": {
+   "name": "cube suspect A/B",
+   "tasks": [
+    "d3d11"
+   ],
+   "envSets": [
+    "b116",
+    "b118",
+    "b119",
+    "b119r0156",
+    "b119r0158",
+    "b119r0157",
+    "b119gs0",
+    "b119r0155",
+    "b119bc0",
+    "b116z"
+   ]
+  }
+ }
+}
