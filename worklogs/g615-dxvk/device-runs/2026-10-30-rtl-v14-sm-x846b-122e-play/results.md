@@ -53,3 +53,10 @@ Comparison: no 116 or rc4 run exists on this model. The SM-X946B (also v14) sing
 ## Session 5: s7 D3D12 FL (122e, no env)
 
 FL 11_0 388, 11_1 379, 12_0 393, 12_1 376, 12_2 378 fps, all ok (`play-s7-partial.txt`). s8, s9 and PanProbe were not run: the session was stopped at 25 min.
+
+## Session 6 (same SM-X846B): PanProbe and s8/s9 (122e, no env)
+
+- PanProbe 122e: 41/41, no DEVICE_LOST, driverInfo p0169.
+- s8: D3D11 FL 10_0 1230, 10_1 1224, 11_0 1177, 11_1 1209, D3D10 829, D3D9 120 (vsync) fps, all ok.
+- s9: D3D12 FL all 379, D3D11 FL all 1193 fps, all ok.
+- PanPlay s1-s9 are now complete on v14 for 122e. Pushed configs were removed at the end (cleanup rc=0).
