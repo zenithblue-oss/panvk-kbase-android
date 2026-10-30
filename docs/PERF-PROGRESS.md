@@ -721,7 +721,7 @@ Raw data and full tables: `worklogs/g615-dxvk/device-runs/2026-10-30-local-122e-
 | check | X6 Pro v11 | TB336FU v9 | RTL v14 SM-X946B |
 |---|---|---|---|
 | PanProbe pass | 41/41 x4 | (122c run holds, see above) | 41/41 |
-| D3D11 cube fps vs rc4 / 116 | 276 vs 279-294 / 312-333 (worse) | 156-160 vs 162-163 / 156-162 (same) | 882 vs - / 967 (worse) |
+| D3D11 cube fps vs rc4 / 116 | 276 vs 279-294 / 312-333 (worse) | 156-160 vs 162-163 / 156-162 (same) | 707-823, same as 116 (747-771) in one session |
 | D3D11 FL fps vs rc4 / 116 | 771-801 vs 459-620 / 404-443 (better) | 214-218 vs 197-202 / 212-218 (same) | - |
 | D3D12 vs 116 | better or same (gears 236 vs 181) | same (s5 23 vs 25) | - |
 | D3D9 | same | same | - |
@@ -731,6 +731,8 @@ Raw data and full tables: `worklogs/g615-dxvk/device-runs/2026-10-30-local-122e-
 | FO4 smoke (sound) | in game, 34 fps, audio pk -12..-23 dB, no DEVICE_LOST | - | - |
 
 On v9, 0169 restores the 116 PanPlay fps. The 0160 rows (gears -15 %, FL -5..-8 %) are gone.
+
+Firebase PanProbe 122e: starlte v6, a31 v7 and panther v10 all 41/41, no DEVICE_LOST (`2026-10-30-ftl-v6-v7-v10-122e-panprobe`).
 
 ### X6 Pro v11: the sw WSI readback is a per-content tradeoff
 
@@ -751,7 +753,19 @@ Measured on 122e, 2 rounds, alternating modes, with `PANVK_WSI_SW_CACHED`:
 2. **v14 cube vs 116** (RTL, cached everywhere: 116 863, 120 765, 122e 798):
    - The cause is in 0152-0159.
    - Code read: 0152 is v9 only, 0153/0155 are BC only, 0154 is the string only, 0158 is inert without MangoHud, and 0159 removes a flush.
-   - Suspect .so builds 119r0155..119r0158 and `bisect-v14s.json` are in the bisect kit, waiting for the next RTL session.
+   - Suspect .so builds 119r0155..119r0158 were made for the bisect kit.
+   - **RTL session 3 (same SM-X946B), result: no regression; the gap is run-to-run noise.**
+     - Control run: by accident, all 10 passes ran the bundled 122e (on a fresh install the app could not read the shell-created `bisect/` dir). Same driver: 678-884 fps.
+     - Real round (`bisect-v14t.json`, CACHED=1):
+
+       | 116 | 118 | 119 | 119r0156 | 119r0158 | 119r0157 | 119 GS_PT_SKIP=0 | 119r0155 | 119 BC_PREWARM=0 | 116 again |
+       |---|---|---|---|---|---|---|---|---|---|
+       | 771 | 767 | 762 | 730 | 721 | 823 | 707 | 730 | 763 | 747 |
+
+     - 116 and 119 are within 1 %. Pass 6 is the fastest pass in both runs, whichever driver it runs, so run order matters more than the driver.
+     - The earlier single-pass bisect (116 863 / 120 765) was inside this noise.
+     - The reversed-order round 2 and the full PanPlay did not run: the RTL session ended.
+   - Raw data: `worklogs/g615-dxvk/device-runs/2026-10-30-rtl-v14-sm-x946b-suspects/`.
 3. **`bc_level` cold and `bc_decode` cold** (shader cache disabled by the test):
    - TB v9: 122e 273-295 ms per op vs 116 138.
    - `PANVK_BC_PREWARM=0` gives 287-295, `PANVK_BC_LM_BATCH=0` 283, and both off 281.
