@@ -708,3 +708,59 @@ The cached FL loss is not in the CPU read. A timing of an invalidate + frame rea
 
 TB336FU PanPlay s1-s9 `vram` now reads 56-395 MiB. With 122 it read 1349-1684 MiB, because it counted the full size of the grow-on-fault BOs.
 PanPlay 1-9 on 122b and 122c pass with no DEVICE_LOST. PanProbe 41/41 on 122b and 122c, cold and warm.
+
+## Build 122e gate (2026-10-30): rc4 vs 116 vs 122e, X6 Pro v11, TB336FU v9, RTL v14
+
+Raw data and full tables: `worklogs/g615-dxvk/device-runs/2026-10-30-local-122e-gate/`.
+- X6 Pro: PanProbe 2 cold + 2 warm runs per build, alternating. PanPlay one full 1-9 pass per build.
+- TB336FU: PanPlay rc4c and 116c once each, 122e twice.
+- Battery 28-31 C before every run. The same flag rule applies as above.
+
+### Summary
+
+| check | X6 Pro v11 | TB336FU v9 | RTL v14 SM-X946B |
+|---|---|---|---|
+| PanProbe pass | 41/41 x4 | (122c run holds, see above) | 41/41 |
+| D3D11 cube fps vs rc4 / 116 | 276 vs 279-294 / 312-333 (worse) | 156-160 vs 162-163 / 156-162 (same) | 882 vs - / 967 (worse) |
+| D3D11 FL fps vs rc4 / 116 | 771-801 vs 459-620 / 404-443 (better) | 214-218 vs 197-202 / 212-218 (same) | - |
+| D3D12 vs 116 | better or same (gears 236 vs 181) | same (s5 23 vs 25) | - |
+| D3D9 | same | same | - |
+| PanPlay PSS / Graphics vs rc4 | +0..+20 MB s1/s8 | +10..+50 MB / +13..+40 MB | - |
+| PanPlay PSS / Graphics vs 116 | same | same | - |
+| PanProbe memory | same or lower | same | - |
+| FO4 smoke (sound) | in game, 34 fps, audio pk -12..-23 dB, no DEVICE_LOST | - | - |
+
+On v9, 0169 restores the 116 PanPlay fps. The 0160 rows (gears -15 %, FL -5..-8 %) are gone.
+
+### X6 Pro v11: the sw WSI readback is a per-content tradeoff
+
+Measured on 122e, 2 rounds, alternating modes, with `PANVK_WSI_SW_CACHED`:
+
+| mode | cube s1 | FL 10_0 | FL 10_1 | FL 11_0 | FL 11_1 | D3D10 |
+|---|---|---|---|---|---|---|
+| auto (122e default = uncached on v11) | 274 | 797 | 781 | 775 | 735 | 271 |
+| uncached `=0` | 271 | 775 | 754 | 751 | 751 | 276 |
+| cached `=1` | 354 | 504 | 501 | 480 | 474 | 367 |
+
+- Cached reads make the cube and D3D10 30 % faster, but FL 35 % slower. Neither default beats 116 (cached) and 122e on both.
+- To fix it, the choice has to be made per swapchain or per content, not per arch. It is not fixed in 122e.
+
+### Regressions left, cause and status
+
+1. **v11 cube / D3D10 vs 116**: the WSI readback tradeoff above. Open.
+2. **v14 cube vs 116** (RTL, cached everywhere: 116 863, 120 765, 122e 798):
+   - The cause is in 0152-0159.
+   - Code read: 0152 is v9 only, 0153/0155 are BC only, 0154 is the string only, 0158 is inert without MangoHud, and 0159 removes a flush.
+   - Suspect .so builds 119r0155..119r0158 and `bisect-v14s.json` are in the bisect kit, waiting for the next RTL session.
+3. **`bc_level` cold and `bc_decode` cold** (shader cache disabled by the test):
+   - TB v9: 122e 273-295 ms per op vs 116 138.
+   - `PANVK_BC_PREWARM=0` gives 287-295, `PANVK_BC_LM_BATCH=0` 283, and both off 281.
+   - So the cost is 0153 (bigger one-block-per-invocation decoders), not prewarm or batching.
+   - Tradeoff: runtime decode is 2.7-5x faster, and warm `bc_decode` is better than 116.
+   - X6 v11: 122e 450 ms vs 116 790 and rc4 46. The rc4 gap predates 116.
+4. **PanPlay memory vs rc4** (TB +10..+50 MB PSS, +13..+40 MB Graphics): 116 is the same as 122e, so the cause predates 116. Open.
+5. **`workload_perf` `xfb_vs` on v11**:
+   - Gate runs: 217 us vs 116 170 and rc4 130.
+   - Isolated reruns: 180-192 us. With `PANVK_KBASE_TILER_IR=0` it was 228-275, so 0167 is not the cause.
+   - Noisy, under 0.1 ms per op. Open.
+6. Small flags under 20 ms on 75-140 ms PanProbe tests vs 116 (warm `vmr_secondary`, `robustness2`, `blend`, `sampler`). These are within the spread of other runs.
