@@ -1,0 +1,60 @@
+From 6bde870b4a3a847659d7c77e9a2f75af10e0c7af Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Sat, 31 Oct 2026 09:01:12 +0530
+Subject: [PATCH] panvk/csf: kbase incremental rendering (0161) on by default
+ on v12
+
+0167 turned 0161 on only for v11 and v13 and left v12 untested. On v12
+(SM-X926B, RTL) PanProbe workload_perf on 122g with
+PANVK_KBASE_TILER_IR=1 (3 runs, against 5 default runs, alternating) is
+faster in every case, with no failures and no DEVICE_LOST:
+gs_layer 42 vs 77 us (ranges 41-53 vs 64-84), msaa_sshade 61 vs 71,
+msaa_a2one 109 vs 118, msaa_ref 23 vs 27, pg_query 1.9 vs 2.2,
+tex_rgba 23.9 vs 24.6.
+
+v10 and v14 keep the old layout. PANVK_KBASE_TILER_IR=0 restores it on
+v12, =1 forces 0161 on.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c  | 5 +++--
+ src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c | 5 +++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+index bbf8bdee2af..f6039b68437 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_cmd_draw.c
+@@ -77,9 +77,10 @@ cmdbuf_skips_gpu_heap_ops(const struct panvk_cmd_buffer *cmdbuf)
+ /* jm-v7-wip 0167: on by default only where verified (v11 X6 Pro, v13 S11
+  * Ultra).  On v14 G1-Ultra the first submit hangs (subqueue 1 timeout,
+  * DEVICE_LOST at vkCreateDevice); v10/v12 are untested.  PANVK_KBASE_TILER_IR
+- * =1 forces it on, =0 off. */
++ * =1 forces it on, =0 off.  jm-v7-wip 0174: also on for v12 (SM-X926B
++ * workload_perf: gs_layer -45 %, msaa -8 to -14 %, no failures). */
+ DEBUG_GET_ONCE_BOOL_OPTION(kbase_tiler_ir, "PANVK_KBASE_TILER_IR",
+-                           PAN_ARCH == 11 || PAN_ARCH == 13)
++                           PAN_ARCH == 11 || PAN_ARCH == 12 || PAN_ARCH == 13)
+ 
+ static bool
+ render_needs_zs_crc_ext(struct panvk_cmd_buffer *cmdbuf)
+diff --git a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+index 3bad68077d2..a960824bb5f 100644
+--- a/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
++++ b/src/panfrost/vulkan/csf/panvk_vX_gpu_queue.c
+@@ -1118,9 +1118,10 @@ kbase_queue_wait_current(struct panvk_gpu_queue *queue,
+ /* jm-v7-wip 0167: on by default only where verified (v11 X6 Pro, v13 S11
+  * Ultra).  On v14 G1-Ultra the first submit hangs (subqueue 1 timeout,
+  * DEVICE_LOST at vkCreateDevice); v10/v12 are untested.  PANVK_KBASE_TILER_IR
+- * =1 forces it on, =0 off. */
++ * =1 forces it on, =0 off.  jm-v7-wip 0174: also on for v12 (SM-X926B
++ * workload_perf: gs_layer -45 %, msaa -8 to -14 %, no failures). */
+ DEBUG_GET_ONCE_BOOL_OPTION(kbase_one_group, "PANVK_KBASE_TILER_IR",
+-                           PAN_ARCH == 11 || PAN_ARCH == 13)
++                           PAN_ARCH == 11 || PAN_ARCH == 12 || PAN_ARCH == 13)
+ 
+ static void
+ kbase_destroy_group(struct panvk_gpu_queue *queue)
+-- 
+2.56.0
+
