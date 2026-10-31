@@ -1,0 +1,133 @@
+{
+ "#": "v14 122i and 116, no env, default window (20 s warm-up, 60 s measured). 5/6/7/8/9 on 122i; 15/16/18 = 5/6/8 on 116; 20 = FL 10_0 repeats 122i/116/122i/116.",
+ "warmupSec": 20,
+ "measureSec": 60,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-116": "bisect-116.so",
+  "bisect-122i": "bisect-122i.so"
+ },
+ "envSets": {
+  "a122i": {
+   "note": "122i",
+   "driver": "bisect-122i",
+   "env": {}
+  },
+  "a116": {
+   "note": "116",
+   "driver": "bisect-116",
+   "env": {}
+  },
+  "b122i": {
+   "note": "122i",
+   "driver": "bisect-122i",
+   "env": {}
+  },
+  "b116": {
+   "note": "116",
+   "driver": "bisect-116",
+   "env": {}
+  }
+ },
+ "scenarios": {
+  "5": {
+   "name": "d3d12 122i",
+   "tasks": [
+    "d3d12"
+   ],
+   "envSets": [
+    "a122i"
+   ]
+  },
+  "6": {
+   "name": "gears 122i",
+   "tasks": [
+    "d3d12gears"
+   ],
+   "envSets": [
+    "a122i"
+   ]
+  },
+  "7": {
+   "name": "d3d12fl 122i",
+   "tasks": [
+    "d3d12fl_11_0",
+    "d3d12fl_11_1",
+    "d3d12fl_12_0",
+    "d3d12fl_12_1",
+    "d3d12fl_12_2"
+   ],
+   "envSets": [
+    "a122i"
+   ]
+  },
+  "8": {
+   "name": "d3d11fl 122i",
+   "tasks": [
+    "d3d11fl_10_0",
+    "d3d11fl_10_1",
+    "d3d11fl_11_0",
+    "d3d11fl_11_1",
+    "d3d10",
+    "d3d9"
+   ],
+   "envSets": [
+    "a122i"
+   ]
+  },
+  "9": {
+   "name": "fl-quick 122i",
+   "tasks": [
+    "d3d12fl_all",
+    "d3d11fl_all"
+   ],
+   "envSets": [
+    "a122i"
+   ]
+  },
+  "15": {
+   "name": "d3d12 116",
+   "tasks": [
+    "d3d12"
+   ],
+   "envSets": [
+    "a116"
+   ]
+  },
+  "16": {
+   "name": "gears 116",
+   "tasks": [
+    "d3d12gears"
+   ],
+   "envSets": [
+    "a116"
+   ]
+  },
+  "18": {
+   "name": "d3d11fl 116",
+   "tasks": [
+    "d3d11fl_10_0",
+    "d3d11fl_10_1",
+    "d3d11fl_11_0",
+    "d3d11fl_11_1",
+    "d3d10",
+    "d3d9"
+   ],
+   "envSets": [
+    "a116"
+   ]
+  },
+  "20": {
+   "name": "FL 10_0 repeats",
+   "tasks": [
+    "d3d11fl_10_0"
+   ],
+   "envSets": [
+    "a122i",
+    "a116",
+    "b122i",
+    "b116"
+   ]
+  }
+ }
+}

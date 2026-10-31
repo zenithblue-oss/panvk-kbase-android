@@ -1,0 +1,46 @@
+{
+ "#": "v14 cube A/B 122i vs 116, no env: scenario 3 = D3D11 cube 122i/116/122i/116.",
+ "warmupSec": 5,
+ "measureSec": 20,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-116": "bisect-116.so",
+  "bisect-122i": "bisect-122i.so"
+ },
+ "envSets": {
+  "a122i": {
+   "note": "122i",
+   "driver": "bisect-122i",
+   "env": {}
+  },
+  "a116": {
+   "note": "116",
+   "driver": "bisect-116",
+   "env": {}
+  },
+  "b122i": {
+   "note": "122i",
+   "driver": "bisect-122i",
+   "env": {}
+  },
+  "b116": {
+   "note": "116",
+   "driver": "bisect-116",
+   "env": {}
+  }
+ },
+ "scenarios": {
+  "3": {
+   "name": "cube 122i vs 116",
+   "tasks": [
+    "d3d11"
+   ],
+   "envSets": [
+    "a122i",
+    "a116",
+    "b122i",
+    "b116"
+   ]
+  }
+ }
+}
