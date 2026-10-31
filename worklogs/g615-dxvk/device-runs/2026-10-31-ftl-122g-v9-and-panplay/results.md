@@ -20,3 +20,20 @@ No earlier PanPlay Firebase run existed; flags chosen per GameLoop.kt.
 | starlte (SM-G960F, API 29) | v6 | matrix-32iknc08sa4fc | 95.8 / 60.2 | 60.0 / 43.3 | CUBE: PASS x2 |
 
 Notes: D3D9 fps looks vsync/frame-cap bound (60/90) on v9/v10/v6. First starlte submit hung during the 415 MB upload and created no matrix; panther/a31 first attempt failed 403 (wrong gcloud account), no matrix created. Each matrix submitted once.
+
+## 122g (p0173) vs 116c baseline, PanPlay s3 (whole-run perfSummary: avgFps / 1% low fps; ram = peak MB)
+116c = panplay-116c.apk / panprobe-116c.apk (newest 116 build, git-f7e78953ac). Runs: abhay-byte and phone-finder-hub, one matrix each, all FINISHED SUCCESS.
+
+| device (arch) | test | 116c fps / 1% low / ram | 122g fps / 1% low / ram | fps delta |
+|---|---|---|---|---|
+| bluejay (v9) | D3D11 | 169.4 / 97.0 / 241 | 169.3 / 93.2 / 242 | 0 % |
+| bluejay (v9) | D3D9 | 60.0 / 35.9 / 433 | 60.0 / 35.0 / 440 | 0 % |
+| panther (v10) | D3D11 | 576.3 / 230.1 / 246 | 511.1 / 179.9 / 248 | -11 % |
+| panther (v10) | D3D9 | 90.0 / 48.6 / 323 | 90.0 / 47.9 / 299 | 0 % |
+| a31 (v7) | D3D11 | 67.8 / 39.2 / 246 | 54.2 / 33.0 / 244 | -20 % |
+| a31 (v7) | D3D9 | 36.2 / 22.7 / 244 | 26.9 / 17.7 / 249 | -26 % |
+| starlte (v6) | D3D11 | 100.3 / 64.6 / 257 | 96.0 / 57.6 / 257 | -4 % |
+| starlte (v6) | D3D9 | 59.9 / 41.3 / 292 | 59.8 / 39.8 / 293 | 0 % |
+
+PanProbe 41/41 pass, 0 DEVICE_LOST: bluejay 116c 155.9 s total vs 122g 145.3 s; panther 116c 139.4 s (122g panther not re-run on bluejay-style timing, ms sums only in the new runs).
+Single runs, no repeats: a31 (-20/-26 %) and panther D3D11 (-11 %) are worth an RTL/local A/B before treating as real regressions.
