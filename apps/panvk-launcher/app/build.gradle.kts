@@ -61,6 +61,17 @@ val copyPanvkSo = tasks.register<Copy>("copyPanvkSo") {
     from(panvkSoFile)
     into(file("build/generated/panvkJni/arm64-v8a"))
     rename { "libvulkan_panfrost.so" }
+    // Extra drivers for game-loop driver A/B (-PpanvkSoAb=<id>=<path>[,<id>=<path>]): packed as
+    // libvulkan_panfrost_<id>.so, installDrivers {"<id>": "lib:libvulkan_panfrost_<id>.so"} installs them.
+    val ab = providers.gradleProperty("panvkSoAb").orNull.orEmpty().split(',').filter { it.contains('=') }
+    inputs.property("panvkSoAb", ab.joinToString(","))
+    doFirst { fileTree("build/generated/panvkJni/arm64-v8a") { include("libvulkan_panfrost_*.so") }.forEach { it.delete() } }
+    doLast {
+        for (e in ab) {
+            val (id, path) = e.split('=', limit = 2)
+            file(path).copyTo(file("build/generated/panvkJni/arm64-v8a/libvulkan_panfrost_$id.so"), overwrite = true)
+        }
+    }
 }
 
 tasks.named("preBuild") {

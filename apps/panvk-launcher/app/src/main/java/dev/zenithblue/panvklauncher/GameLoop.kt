@@ -269,7 +269,9 @@ object GameLoop {
     /** config installDrivers: copy each .so into drivers/<id> (meta.json like an imported driver). Missing files are logged. */
     private fun installDrivers(ctx: Context, cfg: GameLoopMath.Config, ext: File) {
         for ((id, path) in cfg.installDrivers) {
-            val src = File(path).let { if (it.isAbsolute) it else File(ext, path) }
+            // "lib:<name>": a .so packed in this APK (-PpanvkSoAb), for driver A/B on Firebase.
+            val src = if (path.startsWith("lib:")) File(ctx.applicationInfo.nativeLibraryDir, path.removePrefix("lib:"))
+                else File(path).let { if (it.isAbsolute) it else File(ext, path) }
             if (!src.isFile) { log("installDrivers $id: ${src.path} not found"); continue }
             val dir = File(ctx.filesDir, "drivers/$id").apply { mkdirs() }
             src.copyTo(File(dir, "libvulkan_panfrost.so"), overwrite = true)
