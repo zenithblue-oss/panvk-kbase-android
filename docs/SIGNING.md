@@ -1,20 +1,20 @@
 # Signing the release APKs
 
-PanPlay and PanProbe 1.3.0 are built as **unsigned release APKs** and signed only by the holder of the release key.
+PanPlay 1.3.1 and PanProbe 1.3.2 (build 122i) are built as **unsigned release APKs** and signed only by the holder of the release key.
 The key never enters this repo or the build output. Android installs an update only when the new APK is signed with
 the same certificate as the installed one. The shipped 1.2.x releases use the certificate with SHA-256
-`8b10fde8c12eff4a29e99ae669ba88854e6003178d9c3ec299254fe87c76f3bf` ([RELEASE.md](RELEASE.md)), so 1.3.0 must be
+`8b10fde8c12eff4a29e99ae669ba88854e6003178d9c3ec299254fe87c76f3bf` ([RELEASE.md](RELEASE.md)), so 1.3.1/1.3.2 must be
 signed with that key. An APK signed with another key installs only after an uninstall, which deletes the app's data
 (PanPlay: containers and games).
 
 ## Inputs
 
-`/home/flux/build-out/release-115/` (build 115c driver, `Mesa 26.3.0-devel (git-15fd70c7c4)`):
+`/var/tmp/panvk/release-122i/` (build 122i driver, `Mesa 26.3.0-devel (git-795ca7ff3e, p0175, 2026-10-31)`):
 
 | file | package | version |
 |---|---|---|
-| `PanPlay-1.3.0-unsigned.apk` | `dev.zenithblue.panvklauncher` | 1.3.0, versionCode 44 |
-| `PanProbe-1.3.0-unsigned.apk` | `dev.zenithblue.panvktest` | 1.3.0, versionCode 19 |
+| `PanPlay-1.3.1-unsigned.apk` | `dev.zenithblue.panvklauncher` | 1.3.1, versionCode 45 |
+| `PanProbe-1.3.2-unsigned.apk` | `dev.zenithblue.panvktest` | 1.3.2, versionCode 21 |
 | `SHA256SUMS` | sha256 of both unsigned APKs | |
 
 They are `assembleRelease` outputs: release build type with the projects' release settings (neither app has a
@@ -28,12 +28,12 @@ not work in these builds; the Firebase game loop does not use them.
 apksigner is `/opt/android-sdk/build-tools/36.1.0/apksigner`. It asks for the keystore and key passwords.
 
 ```sh
-cd /home/flux/build-out/release-115
+cd /var/tmp/panvk/release-122i
 sha256sum -c SHA256SUMS
-apksigner sign --ks <keystore> --ks-key-alias <alias> --out PanPlay-1.3.0.apk PanPlay-1.3.0-unsigned.apk
-apksigner sign --ks <keystore> --ks-key-alias <alias> --out PanProbe-1.3.0.apk PanProbe-1.3.0-unsigned.apk
-apksigner verify --print-certs PanPlay-1.3.0.apk
-apksigner verify --print-certs PanProbe-1.3.0.apk
+apksigner sign --ks <keystore> --ks-key-alias <alias> --out PanPlay-1.3.1.apk PanPlay-1.3.1-unsigned.apk
+apksigner sign --ks <keystore> --ks-key-alias <alias> --out PanProbe-1.3.2.apk PanProbe-1.3.2-unsigned.apk
+apksigner verify --print-certs PanPlay-1.3.1.apk
+apksigner verify --print-certs PanProbe-1.3.2.apk
 ```
 
 Each `verify` must print

@@ -119,8 +119,8 @@ android {
         providers.gradleProperty("panprobeSuffix").orNull?.let { applicationIdSuffix = "." + it.lowercase().replace(Regex("[^a-z0-9_]"), "_") }
         minSdk = 29
         targetSdk = 36
-        versionCode = 20
-        versionName = "1.3.1"
+        versionCode = 21
+        versionName = "1.3.2"
 
         ndk {
             abiFilters.add("arm64-v8a")

@@ -25,10 +25,10 @@ version from build 115 on (`26.3.0-devel`, was `0.1.0-rc5`). `DriverUpdate.isNew
 compares major.minor.patch, then beta/rc, so only a tag above 26.3.0 (for example
 `panvk-kbase-v26.3.1`) is offered as an update to these builds; a `0.1.x` tag is not.
 
-App versions: PanPlay 1.3.0 (versionCode 44) and PanProbe 1.3.0 (versionCode 19), tagged
+App versions: PanPlay 1.3.1 (versionCode 45) and PanProbe 1.3.2 (versionCode 21), build 122i, tagged
 `panplay-v<version>` and `panprobe-v<version>` in their repos. A new versionCode must be above
 every APK handed out: PanPlay 33 (1.2.7), 34 (1.2.8, sideloaded), 35-40 (1.2.9-rc5 test
-builds), 41 (1.3.0 build 115 test APK), 42 (build 115 unsigned release APK) and 43 (build 115b); PanProbe 15 (1.2.7), 16 (1.3.0 build 115 test APK), 17 (build 115 unsigned release APK) and 18 (build 115b). The `-PpanprobeSuffix=rc5u` test APKs are a separate package
+builds), 41 (1.3.0 build 115 test APK), 42 (build 115 unsigned release APK), 43 (build 115b), 44 (1.3.0: build 115c unsigned release APK and the build 116-122i test/Firebase APKs) and 45 (1.3.1 build 122i unsigned release APK); PanProbe 15 (1.2.7), 16 (1.3.0 build 115 test APK), 17 (build 115 unsigned release APK), 18 (build 115b), 19 (1.3.0 build 115c unsigned release APK), 20 (1.3.1, the build 116-122i test/Firebase APKs) and 21 (1.3.2 build 122i unsigned release APK). The `-PpanprobeSuffix=rc5u` test APKs are a separate package
 (`dev.zenithblue.panvktest.rc5u`). Android installs an update only when it is signed with the
 same key as the installed APK. The releases up to 1.2.7 are signed with the certificate
 SHA-256 `8b10fde8c12eff4a29e99ae669ba88854e6003178d9c3ec299254fe87c76f3bf`, so 1.3.0 must be
