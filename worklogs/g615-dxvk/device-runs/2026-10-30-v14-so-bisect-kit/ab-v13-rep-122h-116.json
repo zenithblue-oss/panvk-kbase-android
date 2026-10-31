@@ -1,0 +1,58 @@
+{
+ "#": "v13 repeats 122h vs 116 in one session, short window (10 s / 30 s): 6 = gears 122h/116/122h/116; 8 = FL 10_0 and 11_1 only, 122h/116/122h.",
+ "warmupSec": 10,
+ "measureSec": 30,
+ "screenshotAtSec": 10,
+ "installDrivers": {
+  "bisect-116": "bisect-116.so",
+  "bisect-122h": "bisect-122h.so"
+ },
+ "envSets": {
+  "a122h": {
+   "note": "122h",
+   "driver": "bisect-122h",
+   "env": {}
+  },
+  "a116": {
+   "note": "116",
+   "driver": "bisect-116",
+   "env": {}
+  },
+  "b122h": {
+   "note": "122h",
+   "driver": "bisect-122h",
+   "env": {}
+  },
+  "b116": {
+   "note": "116",
+   "driver": "bisect-116",
+   "env": {}
+  }
+ },
+ "scenarios": {
+  "6": {
+   "name": "gears 122h vs 116 x2",
+   "tasks": [
+    "d3d12gears"
+   ],
+   "envSets": [
+    "a122h",
+    "a116",
+    "b122h",
+    "b116"
+   ]
+  },
+  "8": {
+   "name": "FL 10_0/11_1 122h vs 116",
+   "tasks": [
+    "d3d11fl_10_0",
+    "d3d11fl_11_1"
+   ],
+   "envSets": [
+    "a122h",
+    "a116",
+    "b122h"
+   ]
+  }
+ }
+}
