@@ -20,6 +20,8 @@
   "#envSets": "one per pass. A/B (scenario 4): 'old' = every default-on 115 perf knob (staging-115 pa, pb, pc NOTES.md) at its 114 value, 'default' = driver defaults. Opt-in knobs (PANVK_KBASE_COHERENT_POOLS, PANVK_KBASE_EVICTABLE, PANVK_KBASE_HEAP_SLOTS) stay unset in both. PANVK_ZS_PRELOAD_ALWAYS is not in 'old': 114 already used INTERSECT on v11 (csf-v11 061); on a v9/v10 device add PANVK_ZS_PRELOAD_ALWAYS=1 for a full 114 set.",
   "envSets": {
     "default": { "note": "driver defaults", "env": {} },
+    "c1": { "note": "sw WSI readback forced cached, no per-swapchain probe", "env": { "PANVK_WSI_SW_CACHED": "1" } },
+    "c0": { "note": "sw WSI readback forced uncached, no per-swapchain probe", "env": { "PANVK_WSI_SW_CACHED": "0" } },
     "old": {
       "note": "115 perf knobs at their 114 values (pa 8, pb 8, pc 5)",
       "env": {
@@ -212,6 +214,7 @@
     "6": { "name": "d3d12gears", "tasks": ["d3d12gears"] },
     "7": { "name": "d3d12fl", "tasks": ["d3d12fl_11_0", "d3d12fl_11_1", "d3d12fl_12_0", "d3d12fl_12_1", "d3d12fl_12_2"] },
     "8": { "name": "d3d11fl", "tasks": ["d3d11fl_10_0", "d3d11fl_10_1", "d3d11fl_11_0", "d3d11fl_11_1", "d3d10", "d3d9"] },
-    "9": { "name": "fl-quick", "tasks": ["d3d12fl_all", "d3d11fl_all"] }
+    "9": { "name": "fl-quick", "tasks": ["d3d12fl_all", "d3d11fl_all"] },
+    "10": { "name": "wsi-ab", "tasks": ["d3d11", "d3d9"], "envSets": ["default", "c1", "c0"] }
   }
 }
