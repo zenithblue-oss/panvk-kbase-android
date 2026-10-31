@@ -19,15 +19,15 @@
   <img src="https://img.shields.io/badge/Mesa-26.3--devel-6E4C9A" alt="Mesa 26.3-devel">
 </p>
 
-<!-- release screenshots: panprobe.png, panplay.png -->
 <!-- Release rule: every release embeds the PanProbe (apps/panvk-test) and PanPlay (apps/panvk-launcher) 3D screenshots here, at the top. -->
 
 <p align="center">
-  <img src="apps/panvk-launcher/tests/results/samevaresults/cube/x86_64-d3d11-cube-hud.png" alt="Direct3D 11 cube demo running through DXVK on PanVK" width="100%">
+  <img src="https://github.com/zenithblue-oss/panvk-kbase-android/releases/download/panvk-kbase-v26.3.1/panplay.png" alt="PanPlay 1.3.1 on build 122i: Poco X6 Pro (v11), DXVK D3D11 cube, 763 fps" width="49%">
+  <img src="https://github.com/zenithblue-oss/panvk-kbase-android/releases/download/panvk-kbase-v26.3.1/panprobe.png" alt="PanProbe 1.3.2 on build 122i: Lenovo TB336FU (v9), 41/41 pass" width="49%">
 </p>
 
 > [!IMPORTANT]
-> **New release: Mesa PanVK v26.3.1, universal v6 to v14** (build 122i), with **PanPlay 1.3.1** and **PanProbe 1.3.2**. It replaces the 0.1.0 RC4 driver and the 1.2.7 apps. `driverInfo` reads `Mesa 26.3.0-devel (git-795ca7ff3e, p0175, 2026-10-31)`. For the exact `.so` and checksum, see the release notes.
+> **Latest release: [Mesa PanVK v26.3.1](https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v26.3.1), universal v6 to v14** (build 122i), with **[PanPlay 1.3.1](https://github.com/zenithblue-oss/panplay/releases/tag/panplay-v1.3.1)** and **[PanProbe 1.3.2](https://github.com/zenithblue-oss/panprobe/releases/tag/panprobe-v1.3.2)**. It replaces the 0.1.0 RC4 driver and the 1.2.7 apps. `driverInfo` reads `Mesa 26.3.0-devel (git-795ca7ff3e, p0175, 2026-10-31)`. Checksums are in the release notes.
 
 > [!NOTE]
 > **Testers wanted.**
