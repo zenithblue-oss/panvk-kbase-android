@@ -1,0 +1,36 @@
+GAMELOOP scenario=2
+INFO devices=1 exts=188 formats=196
+DRIVER slot=RC5 driverInfo=Mesa 26.3.0-devel (git-a0ae06e7ac, p0173, 2026-10-31)
+COMPLIANCE DXVK compliance PASS items=94 missingHard=[] missingSoft=["tiled resources tier 2 (FL12_0)","fragmentShaderPixelInterlock (FL12_1)","D16_UNORM_S8_UINT (D3D9)","shaderFloat64","VK_EXT_sample_locations"]
+COMPLIANCE Bachata S4 compliance PASS items=114 missingHard=[] missingSoft=["primitiveTopologyPatchListRestart","VK_KHR_fragment_shader_barycentric","VK_AMD_shader_image_load_store_lod","VK_EXT_shader_atomic_float2","VK_EXT_depth_range_unrestricted","shaderFloat64","subgroup_wave64"]
+COMPLIANCE vkd3d compliance PASS items=100 missingHard=[] missingSoft=["viewportSubPixelBits >= 8","VK_EXT_fragment_shader_interlock pixel+sample (ROVs)","VK_EXT_shader_viewport_index_layer","shaderFloat64","proton: tiled resources tier 2 (sparse residency + sparse queue)","proton: ROVs (pixel+sample interlock)","proton: VK_EXT_descriptor_buffer path","proton: VK_KHR_fragment_shading_rate","proton: VK_EXT_mesh_shader","proton: VK_KHR_ray_query + acceleration_structure"]
+COMPLIANCE D3D feature levels PASS items=20 missingHard=[] missingSoft=["D3D12 FL12_0","D3D12 FL12_1","D3D12 FL12_2","D3D11 FL12_0","D3D11 FL12_1","D3D12 FL12_0 needs TiledResourcesTier >= 2 (have 0)","D3D12 FL12_1 needs ROVsSupported","D3D12 FL12_2 needs ConservativeRasterizationTier 3 (have 1)","D3D12 FL12_2 needs TiledResourcesTier >= 3 (have 0)","D3D12 FL12_2 needs RaytracingTier >= 1.1","D3D12 FL12_2 needs VariableShadingRateTier 2","D3D12 FL12_2 needs MeshShaderTier 1","D3D11 FL12_0 needs TiledResourcesTier >= 2 (have 0)","D3D11 FL12_1 needs ROVsSupported"]
+RESULT workload_perf PASS mismatch=0 fps=13.8 ms=7825 extra=workload_perf case=bc_level ms=125.5 us_op=20923 fps=7.97 ops=6 device_ms=5.3 create_ms=2.7 record_ms=117.1 gpu_wait_ms=5.7 | workload_perf case=ref ms=0.980 us_op=1.91 fps=1020.0 ops=512 frames=409 | workload_perf case=gs_pass ms=0.967 us_op=1.89 fps=1034.0 ops=512 frames=414 | workload_perf case=gs_layer ms=41.847 us_op=81.73 fps=23.9 ops=512 frames=10 | workload_perf case=xfb_vs ms=50.461 us_op=98.56 fps=19.8 ops=512 frames=8 | workload_perf case=xfb_gs ms=72.684 us_op=141.96 fps=13.8 ops=512 frames=6 | workload_perf case=strip_ref ms=0.807 us_op=3.15 fps=1239.4 ops=256 frames=496 | workload_perf case=strip_gs ms=0.814 us_op=3.18 fps=1229.0 ops=256 frames=492 | workload_perf case=cond_true ms=1.203 us_op=2.35 fps=831.2 ops=512 frames=333 | workload_perf case=cond_false ms=0.622 us_op=1.22 fps=1606.8 ops=512 frames=643 | workload_perf case=pg_query ms=0.996 us_op=1.94 fps=1004.4 ops=512 frames=402 | workload_perf case=ts_ref ms=0.237 us_op=237.49 fps=4210.7 ops=1 frames=1685 | workload_perf case=ts_pair ms=0.326 us_op=325.75 fps=3069.9 ops=1 frames=1229 | workload_perf case=msaa_ref ms=0.380 us_op=23.72 fps=2634.5 ops=16 frames=1054 | workload_perf case=msaa_a2one ms=1.887 us_op=117.96 fps=529.8 ops=16 frames=212 | workload_perf case=msaa_sshade ms=1.146 us_op=71.62 fps=872.7 ops=16 frames=350 | workload_perf case=tex_rgba ms=0.506 us_op=31.65 fps=1974.7 ops=16 frames=790 | workload_perf case=tex_bgra ms=0.462 us_op=28.85 fps=2166.2 ops=16 frames=867
+SPARSE_KBASE INFO sparse_kbase S0: own /dev/mali0 context, CPU-side kbase ioctls only, no GPU jobs
+SPARSE_KBASE PASS setup CSF uAPI 1.21 gpu_id=0xc8700000 arch=v12 va_bits=48: own kbase context
+SPARSE_KBASE PASS T1 SAME_VA BO H0 at 0x733dff6000 (64 KiB), CPU write/readback ok
+SPARSE_KBASE PASS T1 growable SAME_VA BO H1 at 0x733de21000 (64 of 128 KiB committed)
+SPARSE_KBASE PASS T2 MEM_ALIAS [H0,sink,H1,sink] created (64 pages)
+SPARSE_KBASE PASS T3 alias at 0x70cdb27000: entry 0 reads H0's pages
+SPARSE_KBASE PASS T4 per-entry mmap of alias entry 2 reads H1's pages
+SPARSE_KBASE PASS T5 sink entry CPU mmap refused (Invalid argument): sink contents are GPU-only
+SPARSE_KBASE PASS T6 MEM_COMMIT on an alias source refused while aliased (Invalid argument), accepted once the alias is freed
+SPARSE_KBASE PASS T7 alias dropped BASE_MEM_FIXED (SAME_VA cookie 0x41000): no alias at a fixed VA
+SPARSE_KBASE PASS T8 SAME_VA alloc/munmap x64: first VA came back 63/63 times (quiet process; Wine/ART can take it)
+SPARSE_KBASE PASS T9 arena commit grew 16->1024 pages and shrank back from the end, newest tile CPU-writable
+SPARSE_KBASE BENCH sparse_arena_commit=4.1us sparse_arena_uncommit=1.4us (per 64KiB tile, n=63)
+SPARSE_KBASE PASS T10a MEM_ALLOC_EX FIXED landed at the requested VA 0x800400000000
+SPARSE_KBASE INFO T10a CPU write/readback through mmap(offset=VA) ok
+SPARSE_KBASE PASS T10b overlapping FIXED alloc refused (Out of memory)
+SPARSE_KBASE PASS T10c freed and re-allocated at the same FIXED VA (3.9 us)
+SPARSE_KBASE PASS T10d per-tile commit 0->16->0->16 took effect (MEM_QUERY); re-committed page NOT zero (unbind must zero it)
+SPARSE_KBASE PASS T10e FIXABLE refused while a FIXED alloc is live (Invalid argument)
+SPARSE_KBASE BENCH sparse_tile_bind=1.4us sparse_tile_unbind=0.7us sparse_tile_reserve=0.6us sparse_tile_free=0.4us (64KiB FIXED tiles, n=256 x 8 cycles)
+SPARSE_KBASE PASS T10f 256 tiles x 8 bind/unbind cycles: no commit errors, every tile back at 0 pages
+SPARSE_KBASE BENCH sparse_alias_rebuild24=3.0us (n=256)
+SPARSE_KBASE PASS T11 rebuilt a 24-entry alias 256 times
+SPARSE_KBASE VERDICT v12 lazy-tile possible -- 64 KiB FIXED tiles commit 16->0->16 and re-alloc at the same VA (CSF 1.21)
+SPARSE_KBASE SUMMARY pass=18 fail=0 skip=0
+SPARSE_KBASE status=PASS ms=39 informational (not in pass/fail)
+AUTORUN DONE pass=1 fail=0 skip=0 total=1 (1 pass / 0 fail / 0 skip)
+EXTERNAL READY run=20261031-031314
