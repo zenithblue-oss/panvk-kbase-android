@@ -1,0 +1,66 @@
+{
+ "#": "v12 TILER_IR A/B on 122g: scenario 3 = D3D11 cube default/TILER_IR=1 x2 alternating; scenario 5 = D3D12 122g default, 122g TILER_IR=1, 116 default. .so files at the files dir root.",
+ "warmupSec": 5,
+ "measureSec": 20,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-116": "bisect-116.so",
+  "bisect-122g": "bisect-122g.so"
+ },
+ "envSets": {
+  "d1": {
+   "note": "122g default",
+   "driver": "bisect-122g",
+   "env": {}
+  },
+  "t1": {
+   "note": "122g TILER_IR=1",
+   "driver": "bisect-122g",
+   "env": {
+    "PANVK_KBASE_TILER_IR": "1"
+   }
+  },
+  "d2": {
+   "note": "122g default",
+   "driver": "bisect-122g",
+   "env": {}
+  },
+  "t2": {
+   "note": "122g TILER_IR=1",
+   "driver": "bisect-122g",
+   "env": {
+    "PANVK_KBASE_TILER_IR": "1"
+   }
+  },
+  "g116": {
+   "note": "116 default",
+   "driver": "bisect-116",
+   "env": {}
+  }
+ },
+ "scenarios": {
+  "3": {
+   "name": "cube 122g default vs TILER_IR=1",
+   "tasks": [
+    "d3d11"
+   ],
+   "envSets": [
+    "d1",
+    "t1",
+    "d2",
+    "t2"
+   ]
+  },
+  "5": {
+   "name": "d3d12 122g default vs TILER_IR=1 vs 116",
+   "tasks": [
+    "d3d12"
+   ],
+   "envSets": [
+    "d1",
+    "t1",
+    "g116"
+   ]
+  }
+ }
+}

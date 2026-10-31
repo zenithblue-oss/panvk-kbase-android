@@ -1,0 +1,13 @@
+PanPlay game loop, scenario 3 (cube 122g default vs TILER_IR=1), run 20261031-033022-s3
+Device: samsung SM-X926B (gts10u), SDK 35, SoC MT6989
+Driver: Mesa 26.3.0-devel (git-a0ae06e7ac, p0173, 2026-10-31), sha256 6ca4bb85e0395ccd
+App: dev.zenithblue.panvklauncher 1.3.0 (44)
+Window: 5 s warm-up, 20 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d11    d1        ok       487.9   384.9   619.9   121.5    489.6     59.9    1.6    4.2    7.7    119.4  CUBE: PASS api=d3d11 frames=15985 (check pixels)
+02  d3d11    t1        ok       487.1   412.5   567.8    44.6    492.5     65.8    1.6    4.4    7.6    119.8  CUBE: PASS api=d3d11 frames=16666 (check pixels)
+03  d3d11    d2        ok       464.8   400.4   563.0    28.7    463.1     56.4    1.7    4.5    8.6    120.0  CUBE: PASS api=d3d11 frames=15022 (check pixels)
+04  d3d11    t2        ok       497.2   416.2   577.9    42.8    497.6     60.1    1.6    4.3    7.8    119.9  CUBE: PASS api=d3d11 frames=16175 (check pixels)
+
+A/B d3d11: d1 487.9 fps, t1 487.1 fps (-0.2%), d2 464.8 fps (-4.7%), t2 497.2 fps (+1.9%) (change vs d1)

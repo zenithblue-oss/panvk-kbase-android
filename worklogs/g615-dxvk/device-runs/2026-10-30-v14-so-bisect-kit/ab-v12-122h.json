@@ -1,0 +1,50 @@
+{
+ "#": "v12 122h (0174 TILER_IR default on v12) vs 116, no env: scenario 3 = D3D11 cube 122h/116/122h; scenario 5 = D3D12 122h then 116. .so files at the files dir root.",
+ "warmupSec": 5,
+ "measureSec": 20,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-116": "bisect-116.so",
+  "bisect-122h": "bisect-122h.so"
+ },
+ "envSets": {
+  "h1": {
+   "note": "122h",
+   "driver": "bisect-122h",
+   "env": {}
+  },
+  "a116": {
+   "note": "116",
+   "driver": "bisect-116",
+   "env": {}
+  },
+  "h2": {
+   "note": "122h",
+   "driver": "bisect-122h",
+   "env": {}
+  }
+ },
+ "scenarios": {
+  "3": {
+   "name": "cube 122h vs 116",
+   "tasks": [
+    "d3d11"
+   ],
+   "envSets": [
+    "h1",
+    "a116",
+    "h2"
+   ]
+  },
+  "5": {
+   "name": "d3d12 122h vs 116",
+   "tasks": [
+    "d3d12"
+   ],
+   "envSets": [
+    "h1",
+    "a116"
+   ]
+  }
+ }
+}
