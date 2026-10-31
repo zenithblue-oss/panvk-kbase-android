@@ -1,0 +1,12 @@
+PanPlay game loop, scenario 7 (d3d12fl 116), run 20261031-133800-s7
+Device: samsung SM-X930 (gts11uwifi), SDK 36, SoC MT6991
+Driver: Mesa 26.3.0-devel (git-f7e78953ac), sha256 84dd4dfce6710684
+App: dev.zenithblue.panvklauncher 1.3.0 (44)
+Window: 10 s warm-up, 30 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d12fl_11_0 a116      ok       611.6   490.1   791.6    28.4        -        -      -      -      -    118.4  D3DFL: PASS api=d3d12 level=11_0 created tess:PASS,gs:PASS,compute:PASS,mrt:PASS,msaa4x:PASS frames=29478 secs=48.0 fps=614.1 startup=0.8
+02  d3d12fl_11_1 a116      ok       612.1   464.9   819.9    27.4        -        -      -      -      -    118.0  D3DFL: PASS api=d3d12 level=11_1 created uav_vs:PASS,logic_op:PASS,tir:REPORTED frames=28926 secs=48.0 fps=602.4 startup=2.2
+03  d3d12fl_12_0 a116      ok       600.0   432.5   778.0    29.7        -        -      -      -      -    117.2  D3DFL: UNSUPPORTED api=d3d12 level=12_0 not_created typed_uav_load:PASS,binding_tier2:PASS,tiled_tier2:UNSUPPORTED frames=28939 secs=48.0 fps=602.9 startup=0.7
+04  d3d12fl_12_1 a116      ok       616.7   412.5   859.9    40.2        -        -      -      -      -    118.2  D3DFL: UNSUPPORTED api=d3d12 level=12_1 not_created rov:UNSUPPORTED,conservative:PASS frames=29115 secs=48.0 fps=606.5 startup=2.1
+05  d3d12fl_12_2 a116      ok       616.9   411.4   861.9    28.5        -        -      -      -      -    117.9  D3DFL: UNSUPPORTED api=d3d12 level=12_2 not_created sm6_5:REPORTED,mesh_shader:UNSUPPORTED,dxr1_1:UNSUPPORTED,vrs_tier2:UNSUPPORTED,sampler_feedback:REPORTED frames=28997 secs=48.0 fps=604.0 startup=0.7
