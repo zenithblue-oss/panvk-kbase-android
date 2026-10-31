@@ -94,15 +94,15 @@ Builds 115 to 122i, 2026-10-29 to 2026-10-31. Raw data: `worklogs/g615-dxvk/devi
 | v9 | Mali-G57 MC2 | Lenovo TB336FU | local | 41/41 | 1-9 pass | PanProbe much faster; see `docs/PERF-PROGRESS.md` |
 | v9 | Mali-G78 | Pixel 6a (bluejay) | Firebase Test Lab | 41/41, 146.7 s vs 155.9 s | pass (122g/122h) | cube equal; D3D10, FL 10_0 to 11_1, D3D12 pass |
 | v10 | Mali-G710 MC7 | Pixel 7 (panther) | Firebase Test Lab | 41/41 (116c, 122e/g) | cube pass (122g) | D3D11 cube -11 % on one run; not confirmed |
-| v11 | Mali-G615 MC6 | Poco X6 Pro | local | 41/41 cold and warm | all passes | 122f: FL 10_0 to 11_1 +37 to +72 %, D3D10 +20 %, D3D11 cube about equal (-3 %) |
+| v11 | Mali-G615 MC6 | Poco X6 Pro | local | 41/41 cold and warm | all passes | 122g: D3D11 cube 686 vs 505 fps (+36 %), FL 10_0 to 11_1 +45 to +80 %, D3D10 +58 %, D3D12 +27 to +50 %, cold BC decode 540 vs 5027 ms |
 | v12 | Immortalis-G720 MC12 | Galaxy Tab S10 Ultra SM-X926B, SM-X920 | RTL | 41/41 | pass | 122h: D3D12 +7 %, PanProbe 8 % faster, FL fps within noise |
-| v13 | Immortalis-G925 MC12 | Galaxy Tab S11 Ultra SM-X930 | RTL | 41/41 | pass | 122h: D3D11 cube +19 %, FL +11 to +17 %, D3D12 +13 %, PanProbe 9 % faster; gears -5.5 % (one run) |
+| v13 | Immortalis-G925 MC12 | Galaxy Tab S11 Ultra SM-X930 | RTL | 41/41 | pass | 122h: D3D11 cube +19 %, FL +11 to +17 %, D3D12 +13 %, PanProbe 9 % faster; gears equal on repeat runs |
 | v14 | Mali-G1-Ultra | Galaxy Tab S12+ SM-X846B, S12 Ultra SM-X946B, S12 SM-X940 | RTL | 41/41 | scenarios 1-9 pass | 122i: equal to slightly faster, PanProbe 8 % faster (X940) |
 
 Notes:
 - "RTL" is Samsung Remote Test Lab. Firebase runs use Firebase Test Lab.
 - Not every build ran on every device. Some Firebase matrices came back invalid and were not retried (see `2026-10-31-ftl-122h-vs-116/results.md`).
-- On v11, a cold shader cache makes the first BC decode slow (about 5 s on the X6 Pro for builds 116 and 122f); warm runs are fast.
+- On v11 the first BC decode with a cold shader cache took about 5 s on build 116; build 122g brings it down to about 0.5 s.
 - No fps comparison against the older RC4 release is claimed here.
 
 ## Known issues
