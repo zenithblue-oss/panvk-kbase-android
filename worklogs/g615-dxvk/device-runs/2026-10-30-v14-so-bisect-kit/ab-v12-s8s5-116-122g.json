@@ -1,0 +1,49 @@
+{
+ "#": "v12 s8 and s5 A/B 122g vs 116, no env, default PanPlay window (20 s warm-up, 60 s measured). .so files at the files dir root.",
+ "warmupSec": 20,
+ "measureSec": 60,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-116": "bisect-116.so",
+  "bisect-122g": "bisect-122g.so"
+ },
+ "envSets": {
+  "g122g": {
+   "note": "build 122g no env",
+   "driver": "bisect-122g",
+   "env": {}
+  },
+  "g116": {
+   "note": "build 116 no env",
+   "driver": "bisect-116",
+   "env": {}
+  }
+ },
+ "scenarios": {
+  "8": {
+   "name": "d3d11fl 122g vs 116",
+   "tasks": [
+    "d3d11fl_10_0",
+    "d3d11fl_10_1",
+    "d3d11fl_11_0",
+    "d3d11fl_11_1",
+    "d3d10",
+    "d3d9"
+   ],
+   "envSets": [
+    "g122g",
+    "g116"
+   ]
+  },
+  "5": {
+   "name": "d3d12 122g vs 116",
+   "tasks": [
+    "d3d12"
+   ],
+   "envSets": [
+    "g122g",
+    "g116"
+   ]
+  }
+ }
+}
