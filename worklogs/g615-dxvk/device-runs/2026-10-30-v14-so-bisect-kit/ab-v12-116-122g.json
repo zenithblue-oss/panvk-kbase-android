@@ -1,0 +1,60 @@
+{
+ "#": "v12 same-device A/B 116 vs 122g, no env (tests 0173 WSI decide-once): scenario 3 = D3D11 cube x2 alternating, scenario 6 = D3D12 gears on 122g. .so files at the files dir root.",
+ "warmupSec": 5,
+ "measureSec": 20,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-116": "bisect-116.so",
+  "bisect-122g": "bisect-122g.so"
+ },
+ "envSets": {
+  "a116": {
+   "note": "build 116 no env",
+   "driver": "bisect-116",
+   "env": {}
+  },
+  "a122g": {
+   "note": "build 122g no env",
+   "driver": "bisect-122g",
+   "env": {}
+  },
+  "b116": {
+   "note": "build 116 no env",
+   "driver": "bisect-116",
+   "env": {}
+  },
+  "b122g": {
+   "note": "build 122g no env",
+   "driver": "bisect-122g",
+   "env": {}
+  },
+  "g122g": {
+   "note": "build 122g no env",
+   "driver": "bisect-122g",
+   "env": {}
+  }
+ },
+ "scenarios": {
+  "3": {
+   "name": "cube 116 vs 122g",
+   "tasks": [
+    "d3d11"
+   ],
+   "envSets": [
+    "a116",
+    "a122g",
+    "b116",
+    "b122g"
+   ]
+  },
+  "6": {
+   "name": "gears 122g",
+   "tasks": [
+    "d3d12gears"
+   ],
+   "envSets": [
+    "g122g"
+   ]
+  }
+ }
+}
