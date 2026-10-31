@@ -6,9 +6,9 @@
 
 <p align="center">
   <a href="https://t.me/+E-NhUATmkqE5ODg1"><img src="https://img.shields.io/badge/Telegram-Join%20testers-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Join the Telegram testers group"></a>
-  <a href="https://github.com/zenithblue-oss/panvk-kbase-android/releases"><img src="https://img.shields.io/badge/driver-Mesa%20PanVK%2026.3.0--devel-orange?style=for-the-badge" alt="Driver: Mesa PanVK 26.3.0-devel"></a>
-  <a href="https://github.com/zenithblue-oss/panplay/releases"><img src="https://img.shields.io/badge/PanPlay-releases-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanPlay releases"></a>
-  <a href="https://github.com/zenithblue-oss/panprobe/releases"><img src="https://img.shields.io/badge/PanProbe-releases-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanProbe releases"></a>
+  <a href="https://github.com/zenithblue-oss/panvk-kbase-android/releases"><img src="https://img.shields.io/github/v/release/zenithblue-oss/panvk-kbase-android?include_prereleases&sort=date&style=for-the-badge&label=driver&color=orange" alt="Latest driver release"></a>
+  <a href="https://github.com/zenithblue-oss/panplay/releases"><img src="https://img.shields.io/github/v/release/zenithblue-oss/panplay?include_prereleases&sort=date&style=for-the-badge&label=PanPlay&logo=android&logoColor=white" alt="Latest PanPlay release"></a>
+  <a href="https://github.com/zenithblue-oss/panprobe/releases"><img src="https://img.shields.io/github/v/release/zenithblue-oss/panprobe?include_prereleases&sort=date&style=for-the-badge&label=PanProbe&logo=android&logoColor=white" alt="Latest PanProbe release"></a>
 </p>
 
 <p align="center">
@@ -27,7 +27,7 @@
 </p>
 
 > [!IMPORTANT]
-> **Release candidate, build 122i.** `driverInfo` reads `Mesa 26.3.0-devel (git-795ca7ff3e, p0175, 2026-10-31)`. For the exact `.so` and checksum, see the release notes.
+> **New release: Mesa PanVK 26.3.0-devel, universal v6 to v14** (build 122i), with **PanPlay 1.3.0** and **PanProbe 1.3.0**. It replaces the 0.1.0 RC4 driver and the 1.2.7 apps. `driverInfo` reads `Mesa 26.3.0-devel (git-795ca7ff3e, p0175, 2026-10-31)`. For the exact `.so` and checksum, see the release notes.
 
 > [!NOTE]
 > **Testers wanted.**
@@ -39,7 +39,7 @@
 
 A patch and build layer around pinned upstream Mesa. It produces one **universal** Mesa PanVK driver for Android Mali GPUs, which talks to Android's proprietary `mali_kbase` kernel interface (`/dev/mali0`). One patch stack serves every supported GPU; per-arch profiles select the right code paths. It is not tied to any single device or launcher.
 
-**Driver identity.** `driverName` is `panvk`. `driverInfo` is `Mesa 26.3.0-devel (git-<sha>, p<patch>, <date>)`, and `deviceName` is the upstream name (for example `Mali-G615 MC6`). The apps show it as **Mesa PanVK 26.3.0-devel**.
+**Driver identity.** `driverName` is `panvk`. `driverInfo` is `Mesa 26.3.0-devel (git-<sha>, p<patch>, <date>)`, and `deviceName` is the upstream name (for example `Mali-G1-Ultra` or `Mali-G72 MP18`). The apps show it as **Mesa PanVK 26.3.0-devel**.
 
 ## Supported GPUs
 
@@ -48,7 +48,7 @@ A patch and build layer around pinned upstream Mesa. It produces one **universal
 | v6, v7 | Bifrost | Mali-G72, Mali-G52 |
 | v9 | Valhall, 1st gen (JM frontend) | Mali-G57, Mali-G78 |
 | v10 | Valhall, 3rd gen (CSF) | Mali-G710 |
-| v11 | Valhall, 4th gen | Mali-G615, Mali-G715 |
+| v11 | Valhall, 4th gen | Mali-G715, Mali-G615 |
 | v12, v13 | 5th Gen | Immortalis-G720, Immortalis-G925 |
 | v14 | 5th Gen | Mali-G1-Ultra |
 
@@ -85,7 +85,7 @@ PanPlay also offers: Render API per game (Auto, DXVK, VKD3D, WineD3D, OpenGL (Zi
 
 ## Tested devices
 
-Builds 115 to 122i, 2026-10-29 to 2026-10-31. Raw data: `worklogs/g615-dxvk/device-runs/` (each run folder has a `results.md`) and [`docs/PERF-PROGRESS.md`](docs/PERF-PROGRESS.md). "Baseline" is build 116. Each run was done on the build named in its row; most figures are single runs, so treat small percentages as noise.
+Builds 115 to 122i, 2026-10-29 to 2026-10-31. Raw data: the device-run folders under `worklogs/` (each has a `results.md`) and [`docs/PERF-PROGRESS.md`](docs/PERF-PROGRESS.md). "Baseline" is build 116. Each run was done on the build named in its row; most figures are single runs, so treat small percentages as noise.
 
 | Arch | GPU | Device | How tested | PanProbe | PanPlay | Result vs build 116 |
 |---|---|---|---|---|---|---|
@@ -123,7 +123,7 @@ Notes:
 ./scripts/package-android-adpkg.sh --profile <profile>
 ```
 
-Profiles live in `profiles/` (for example `g615-v11-csf`). See [`docs/BUILD-POCO-X6-PRO.md`](docs/BUILD-POCO-X6-PRO.md) for a worked example and [`docs/RELEASE.md`](docs/RELEASE.md) for the release process. The exact Mesa commit is pinned in `sources.lock`.
+The release driver is one universal `.so` for v6 to v14, built from the tree that `scripts/prepare-rc5-tree.sh` prepares (all patch families applied in strict mode). The per-arch profiles in `profiles/` (`g52-v7-jm`, `g57-v9-jm`, `g610-v10-csf`, `g615-v11-csf`, `g720-v12-csf`) are for single-arch development builds. See [`docs/RELEASE.md`](docs/RELEASE.md) for the release process and tags (`panvk-kbase-v<version>` for the driver, `panplay-v<version>` and `panprobe-v<version>` for the apps). The exact Mesa commit is pinned in `sources.lock`.
 
 ## Layout
 
