@@ -69,7 +69,7 @@ object MangoHudSettings {
             n("table_columns", "Table columns", "3"), n("cellpadding_y", "Cell padding Y", "-0.085"),
             n("round_corners", "Round corners", "0"),
             t("preset", "Preset (-1 custom, 0-4)", "-1"),
-            b("full", "Show everything (full)"), b("fps_only", "FPS only"), b("legacy_layout", "Legacy layout", true),
+            b("full", "Show everything (full)", true), b("fps_only", "FPS only"), b("legacy_layout", "Legacy layout", true),
             b("hud_no_margin", "No margin"), b("hud_compact", "Compact"), b("horizontal", "Horizontal"),
             b("horizontal_stretch", "Horizontal stretch", true), b("no_display", "Start hidden (no_display)")
         ),
@@ -175,7 +175,7 @@ object MangoHudSettings {
             "reset_fps_metrics", "upload_log").forEach { put(it, "Not available on this device: the X server has no keyboard state query (QueryKeymap)") }
     }
 
-    data class Cfg(val enabled: Boolean = false, val values: Map<String, String> = emptyMap()) {
+    data class Cfg(val enabled: Boolean = true, val values: Map<String, String> = emptyMap()) {
         fun get(o: Opt) = values[o.key] ?: o.def
     }
 
@@ -188,7 +188,7 @@ object MangoHudSettings {
         return try {
             val j = JSONObject(s)
             val v = j.optJSONObject("values")
-            Cfg(j.optBoolean("enabled"), v?.keys()?.asSequence()?.associateWith { v.optString(it) } ?: emptyMap())
+            Cfg(j.optBoolean("enabled", true), v?.keys()?.asSequence()?.associateWith { v.optString(it) } ?: emptyMap())
         } catch (_: Exception) { Cfg() }
     }
 

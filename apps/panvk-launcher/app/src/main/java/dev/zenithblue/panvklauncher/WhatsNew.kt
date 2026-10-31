@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 /** Release notes shown once per versionCode. Update these two lists each release. */
 object WhatsNew {
     val added = listOf(
-        "MangoHud 0.8.4 overlay, built from source: install it in Components",
+        "MangoHud 0.8.4 overlay, built from source: install it in Components; on with every item (full) by default",
         "MangoHud page (Settings > Graphics, and per game in Edit game): on/off and every MangoHud option, global or per game",
         "DXVK HUD on/off switch and HUD items in Settings > Graphics, plus a DXVK HUD choice per game",
         "Mesa PanVK 26.3.0-devel driver, now also for Mali Bifrost GPUs (v6/v7)",

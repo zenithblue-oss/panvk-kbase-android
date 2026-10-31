@@ -512,7 +512,8 @@ object ContainerManager {
         launchOpts.get()?.env?.forEach { (k, v) -> if (k != "DISPLAY" && k != "DXVK_HUD") envMap[k] = v }
         envMap.remove(EXTRA_DLL_OVERRIDES)?.let { envMap["WINEDLLOVERRIDES"] = envMap["WINEDLLOVERRIDES"] + it }
         // MangoHud Vulkan layer (graphical runs): global or per-game settings from the MangoHud page.
-        if (extra?.containsKey("DISPLAY") == true) envMap.putAll(MangoHudSettings.env(ctx, launchOpts.get()?.gameId, containerDir))
+        // MangoHud is on by default for games; benchmark runs stay overlay-free.
+        if (extra?.containsKey("DISPLAY") == true && !GameLoop.active) envMap.putAll(MangoHudSettings.env(ctx, launchOpts.get()?.gameId, containerDir))
         // OpenGL for Wine: winex11's EGL backend (HKCU X11 Driver UseEGL) loads libEGL.so.1 from the Mesa-Zink component,
         // which renders through Zink on PanVK. Appended last so imagefs libs (libexpat, libxcb...) keep priority.
         envMap.remove(GL_LIB_KEY)?.let { lib ->
