@@ -1,0 +1,26 @@
+PanPlay game loop, scenario 8 (d3d11fl 122g vs 116), run 20261031-024415-s8
+Device: samsung SM-X926B (gts10u), SDK 35, SoC MT6989
+Driver: Mesa 26.3.0-devel (git-a0ae06e7ac, p0173, 2026-10-31), sha256 6ca4bb85e0395ccd
+App: dev.zenithblue.panvklauncher 1.3.0 (44)
+Window: 20 s warm-up, 60 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d11fl_10_0 g122g     ok       719.8   557.1  1132.9    23.2    717.8    152.4    1.2    3.1    4.7    120.0  D3DFL: PASS api=d3d11 level=10_0 created gs:PASS,stream_out:PASS frames=63625 secs=88.0 fps=723.0 startup=1.4
+02  d3d11fl_10_0 g116      ok       668.7   461.7  1168.8    27.8    669.8    138.7    1.2    3.4    5.2    120.0  D3DFL: PASS api=d3d11 level=10_0 created gs:PASS,stream_out:PASS frames=59693 secs=88.0 fps=678.3 startup=0.8
+03  d3d11fl_10_1 g122g     ok       693.7   503.8  1153.0    26.0    695.2    125.4    1.2    3.3    5.2    120.0  D3DFL: PASS api=d3d11 level=10_1 created cube_array:PASS,gather4:PASS frames=60788 secs=88.0 fps=690.8 startup=1.7
+04  d3d11fl_10_1 g116      ok       696.4   484.8  1085.8    26.6    695.2    127.6    1.2    3.3    5.2    120.0  D3DFL: PASS api=d3d11 level=10_1 created cube_array:PASS,gather4:PASS frames=59029 secs=88.0 fps=670.8 startup=1.3
+05  d3d11fl_11_0 g122g     ok       742.1   569.2  1231.9    26.1    750.0    156.5    1.1    2.9    4.6    120.0  D3DFL: PASS api=d3d11 level=11_0 created tess:PASS,compute:PASS frames=64047 secs=88.0 fps=727.8 startup=1.0
+06  d3d11fl_11_0 g116      ok       646.6   485.1  1018.3    25.8    653.8    128.3    1.3    3.4    5.4    120.0  D3DFL: PASS api=d3d11 level=11_0 created tess:PASS,compute:PASS frames=58398 secs=88.0 fps=663.6 startup=0.9
+07  d3d11fl_11_1 g122g     ok       638.9   469.0  1120.0    23.1    636.7    139.3    1.3    3.5    5.3    120.0  D3DFL: PASS api=d3d11 level=11_1 created uav_vs:PASS,logic_op:PASS,tir:PASS frames=55613 secs=88.0 fps=631.9 startup=0.8
+08  d3d11fl_11_1 g116      ok       654.9   485.0  1062.5    24.8    654.8    126.6    1.3    3.4    5.3    120.0  D3DFL: PASS api=d3d11 level=11_1 created uav_vs:PASS,logic_op:PASS,tir:PASS frames=58018 secs=88.0 fps=659.3 startup=2.2
+09  d3d10    g122g     ok       490.0   385.7   710.5    80.2    490.3     63.8    1.7    4.3    7.3    119.8  CUBE: PASS api=d3d10 frames=42925 (check pixels)
+10  d3d10    g116      ok       476.1   376.3   591.8    35.7    475.6     63.5    1.7    4.4    7.7    119.9  CUBE: PASS api=d3d10 frames=41827 (check pixels)
+11  d3d9     g122g     ok       119.8   117.8   120.8    34.9    119.8     43.8    8.3   12.1   17.9    119.8  CUBE: PASS api=d3d9 frames=10491 (check pixels)
+12  d3d9     g116      ok       119.8   117.8   121.5    36.6    119.8     45.3    8.3   12.2   18.0    119.8  CUBE: PASS api=d3d9 frames=10491 (check pixels)
+
+A/B d3d11fl_10_0: g122g 719.8 fps, g116 668.7 fps (-7.1%) (change vs g122g)
+A/B d3d11fl_10_1: g122g 693.7 fps, g116 696.4 fps (+0.4%) (change vs g122g)
+A/B d3d11fl_11_0: g122g 742.1 fps, g116 646.6 fps (-12.9%) (change vs g122g)
+A/B d3d11fl_11_1: g122g 638.9 fps, g116 654.9 fps (+2.5%) (change vs g122g)
+A/B d3d10: g122g 490.0 fps, g116 476.1 fps (-2.8%) (change vs g122g)
+A/B d3d9: g122g 119.8 fps, g116 119.8 fps (+0.0%) (change vs g122g)
