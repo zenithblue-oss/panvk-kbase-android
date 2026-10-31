@@ -1,638 +1,145 @@
 <h1 align="center">Mesa PanVK for Android (mali_kbase)</h1>
 
 <p align="center">
-  Open Mesa <b>PanVK</b> Vulkan driver for Android Mali GPUs, talking directly to the vendor <code>mali_kbase</code> kernel driver.
+  Open Mesa <b>PanVK</b> Vulkan driver for Android Mali GPUs (Bifrost, Valhall and 5th Gen, arch v6 to v14), talking directly to the vendor <code>mali_kbase</code> kernel driver.
 </p>
 
 <p align="center">
   <a href="https://t.me/+E-NhUATmkqE5ODg1"><img src="https://img.shields.io/badge/Telegram-Join%20testers-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Join the Telegram testers group"></a>
   <a href="https://github.com/zenithblue-oss/panvk-kbase-android/releases"><img src="https://img.shields.io/badge/driver-Mesa%20PanVK%2026.3.0--devel-orange?style=for-the-badge" alt="Driver: Mesa PanVK 26.3.0-devel"></a>
-  <a href="https://github.com/zenithblue-oss/panplay/releases"><img src="https://img.shields.io/badge/PanPlay-1.3.0-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanPlay 1.3.0"></a>
-  <a href="https://github.com/zenithblue-oss/panprobe/releases"><img src="https://img.shields.io/badge/PanProbe-1.3.0-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanProbe 1.3.0"></a>
+  <a href="https://github.com/zenithblue-oss/panplay/releases"><img src="https://img.shields.io/badge/PanPlay-releases-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanPlay releases"></a>
+  <a href="https://github.com/zenithblue-oss/panprobe/releases"><img src="https://img.shields.io/badge/PanProbe-releases-blue?style=for-the-badge&logo=android&logoColor=white" alt="PanProbe releases"></a>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Vulkan-1.4-AC162C?logo=vulkan&logoColor=white" alt="Vulkan 1.4">
-  <img src="https://img.shields.io/badge/GPU-Mali--G615%20(v11)-0091BD?logo=arm&logoColor=white" alt="Mali-G615 v11">
-  <img src="https://img.shields.io/badge/supported-v9%20%7C%20v10%20%7C%20v11%20%7C%20v12%20%7C%20v13-0091BD?logo=arm&logoColor=white" alt="Supported: v9, v10, v11, v12, v13">
+  <img src="https://img.shields.io/badge/Mali-v6%20to%20v14-0091BD?logo=arm&logoColor=white" alt="Mali arch v6 to v14">
   <img src="https://img.shields.io/badge/DXVK-D3D9%20%7C%2010%20%7C%2011-555" alt="DXVK D3D9, D3D10, D3D11">
+  <img src="https://img.shields.io/badge/vkd3d--proton-D3D12%20FL%2011__x-555" alt="vkd3d-proton D3D12 FL 11_x">
   <img src="https://img.shields.io/badge/Mesa-26.3--devel-6E4C9A" alt="Mesa 26.3-devel">
 </p>
 
-> [!IMPORTANT]
-> **🧪 Testers wanted!**
->
-> 1. Install [PanPlay](https://github.com/zenithblue-oss/panplay/releases/latest) and play your games.
-> 2. After **every** run, whether the game crashed or not, open the session logs screen and tap **Send to cloud** (or **Share as ZIP**).
-> 3. Send the link or ZIP to the **[Telegram testers group](https://t.me/+E-NhUATmkqE5ODg1)**, with the game name, your GPU, the FPS you saw and any glitches.
+<!-- release screenshots: panprobe.png, panplay.png -->
+<!-- Release rule: every release embeds the PanProbe (apps/panvk-test) and PanPlay (apps/panvk-launcher) 3D screenshots here, at the top. -->
 
 <p align="center">
-  <img src="apps/panvk-launcher/tests/results/samevaresults/cube/x86_64-d3d11-cube-hud.png" alt="Direct3D 11 cube demo running through DXVK on PanVK (Mali-G615)" width="100%">
+  <img src="apps/panvk-launcher/tests/results/samevaresults/cube/x86_64-d3d11-cube-hud.png" alt="Direct3D 11 cube demo running through DXVK on PanVK" width="100%">
 </p>
+
+> [!IMPORTANT]
+> **Release candidate, build 122i.** `driverInfo` reads `Mesa 26.3.0-devel (git-795ca7ff3e, p0175, 2026-10-31)`. For the exact `.so` and checksum, see the release notes.
+
+> [!NOTE]
+> **Testers wanted.**
+> 1. Install [PanPlay](https://github.com/zenithblue-oss/panplay/releases/latest) and play your games.
+> 2. After **every** run, crashed or not, open the session logs screen and tap **Send to cloud** (or **Share as ZIP**).
+> 3. Send the link or ZIP to the [Telegram testers group](https://t.me/+E-NhUATmkqE5ODg1) with the game name, your GPU, the FPS you saw and any glitches.
 
 ## About
 
-A standalone patch and build layer around pinned upstream Mesa. It produces an
-open Mesa PanVK driver that talks directly to Android's proprietary
-`mali_kbase` kernel interface (`/dev/mali0`).
+A patch and build layer around pinned upstream Mesa. It produces one **universal** Mesa PanVK driver for Android Mali GPUs, which talks to Android's proprietary `mali_kbase` kernel interface (`/dev/mali0`). One patch stack serves every supported GPU; per-arch profiles select the right code paths. It is not tied to any single device or launcher.
 
-It is **not** a Samba-specific or Winlator-specific fork: one driver
-source/patch stack, with adapter packages around it.
-
-**Driver identity.** Builds from 115 on (the first GitHub release) identify
-themselves like an upstream Mesa PanVK development build: `driverName` `panvk`,
-`driverInfo` `Mesa 26.3.0-devel (git-<sha>)` (the Mesa base version and the
-git sha of the patched tree, e.g. `Mesa 26.3.0-devel (git-6a5d4e2756)`), and
-the upstream `deviceName` (e.g. `Mali-G615 MC6`, `Mali-G715 MC7`). The apps
-show it as **Mesa PanVK 26.3.0-devel**. Packages are named after it: meta name
-`Mesa-PanVK-26.3.0-devel-<sha8>`, launcher zips
-`Mesa-PanVK-Android-<version>-<sha8>-<launcher>.zip`. RC4 and earlier reported
-`PanVK-kbase <release> (Mesa 26.3.0-devel (git-<sha>))`; their release names
-below are unchanged.
-
-**Primary consumers**
-
-| # | Consumer | Integration |
-|---|---|---|
-| 1 | **Samba S3** | Android/Bionic, in-process custom Vulkan driver |
-| 2 | **Bachata S4** | ARM64 glibc Vulkan ICD inside the managed runtime |
-| 3 | **NativeCode AI** | ARM64 glibc PRoot validation and development |
-
-**Secondary** (only once the primary driver is correct): Winlator or
-AdrenoTools-style loaders, GameHub or component injectors, and other Android
-apps that can load an alternate Vulkan ICD.
-
-## Apps
-
-| | App | What it is | Download |
-|---|---|---|---|
-| <img src="apps/panvk-launcher/docs/panplay-logo-512.png" width="48" alt="PanPlay logo"> | **PanPlay** (`apps/panvk-launcher`) | Windows game launcher (Wine + DXVK + built-in X server) with the PanVK driver bundled | [Latest release](https://github.com/zenithblue-oss/panplay/releases/latest) · [all releases](https://github.com/zenithblue-oss/panplay/releases) · [repo](https://github.com/zenithblue-oss/panplay) |
-| <img src="apps/panvk-test/docs/panprobe-logo-512.png" width="48" alt="PanProbe logo"> | **PanProbe** (`apps/panvk-test`) | Vulkan feature/extension info and on-device driver tests | [Latest release](https://github.com/zenithblue-oss/panprobe/releases/latest) · [all releases](https://github.com/zenithblue-oss/panprobe/releases) · [repo](https://github.com/zenithblue-oss/panprobe) |
-
-Both apps are tested on the Mali-G615. PanProbe also runs on the other devices in [Tested devices](#tested-devices). See [apps/panvk-launcher/docs](apps/panvk-launcher/docs) for launcher usage.
-
-## Reference device
-
-| | |
-|---|---|
-| **Phone** | Poco X6 Pro (2311DRK48I, `duchamp`) |
-| **SoC** | MediaTek Dimensity 8300-Ultra (MT6897) |
-| **GPU** | Mali-G615 MC6, Pan arch v11, CSF frontend |
-| **Kernel interface** | `/dev/mali0` (`mali_kbase`) |
-| **GPU ID string** | `Mali-G615 6 cores r1p3 0xB8A3` |
-
-## Tested devices
-
-### Build 115b on Firebase Test Lab (2026-10-28)
-
-Build 115b (`driverInfo` `Mesa 26.3.0-devel (git-ad5cd69141)`, `.so` sha256 `d72e3059...`) fixes the build 115 GPU
-queue hang on the Pixel 7 and the first-frame DEVICE_LOST and D3D9 placed-map failure on the Galaxy A31
-(`patches/jm-v7-wip/README.md`, Build 115b). PanPlay 1.3.0 (vc 43) ran game-loop scenarios 3, 5, 6, 7 and 8 with a 30 s
-window (a31: 3, 6, 7, 8); PanProbe 1.3.0 (vc 18) ran once on the Pixel 7.
-
-| Device | Arch | D3D11 cube | D3D9 cube | SquidRoom | gears | D3D12 FL 11_0 / 11_1 / 12_0 / 12_1 | D3D11 FL 10_0-11_0 / 11_1 |
-|---|---|---|---|---|---|---|---|
-| Galaxy A31 | v7 (JM) | 65.8 fps | 35.7 fps | not run | 109 fps, **red gear twice** | PASS / FAIL (logic_op) / **DEVICE_LOST** (typed UAV load, JM `event=0x51`) / unsupported | PASS / FAIL (tir) |
-| Pixel 6 (oriole) | v9 (JM) | 170.4 fps | 89.8 fps | 27.2 fps | 323.0 fps | PASS / FAIL (logic_op) / unsupported / unsupported | PASS / FAIL (tir) |
-| Pixel 7 (panther) | v10 (CSF) | 572.1 fps | 90.0 fps | 85.0 fps | 431.1 fps | PASS / **DEVICE_LOST** (tir: CSF tiler heap OOM) / unsupported / unsupported | PASS / FAIL (tir) |
-| Pixel 8 (shiba) | v11 (CSF) | 414.3 fps | 119.2 fps | 78.6 fps | 187.2 fps | PASS / **DEVICE_LOST** (tir) / unsupported / **DEVICE_LOST** (conservative) | PASS / FAIL (tir) |
-
-PanProbe on the Pixel 7: 40/40 PASS; sparse_kbase `VERDICT v10 lazy-tile possible`. The D3D12 feature level device
-losts are open: on v10/v11 a draw without a render target ends in a kbase tiler heap OOM that terminates the queue
-group. Per-run data: `worklogs/g615-dxvk/device-runs/2026-10-28-ftl-<arch>-<model>-115b[-panplay]/results.md`.
-
-### Build 115 on Firebase Test Lab (2026-10-27)
-
-The current build (`driverInfo` `Mesa 26.3.0-devel (git-9dde9e7a18)`, Android `.so` sha256 `73709644...`) ran on five
-Firebase Test Lab phones, one run at a time. Each phone ran PanProbe 1.3.0 and then PanPlay 1.3.0:
-- PanProbe runs its 39 tests twice in one session: `defaults`, then `114-knobs` (the 114 value of every default-on 115
-  change).
-- PanPlay runs the game-loop scenarios 3 (D3D11 and D3D9 cubes, DXVK), 5 (D3D12 Multithreading "SquidRoom",
-  vkd3d-proton) and 6 (vkd3d-proton gears). It measures 60 s after a 20 s warm-up.
-
-Per-run data is in
-`worklogs/g615-dxvk/device-runs/2026-10-26-ftl-<arch>-<model>-115[-panplay]/results.md`. Screenshots are in the same folders.
-
-| Device | GPU | Arch | Android | PanProbe `defaults` | PanProbe `114-knobs` | D3D11 cube | D3D9 cube | D3D12 SquidRoom | D3D12 gears | D3D12 max FL / SM |
-|---|---|---|---|---|---|---|---|---|---|---|
-| Galaxy S9 (starlte) | Mali-G72 MC18 | v6 (JM) | 10 | 39/39, 216.5 s | 39/39, 292.5 s | not run: Wine prefix setup fails on Android 10 | not run | not run | not run | 11_0 / 6.5 |
-| Galaxy A31 | Mali-G52 r1 MC2 | v7 (JM) | 12 | 39/39, 323.1 s | 39/39, 431.9 s | **FAIL**: first frame's JM atoms terminated, DEVICE_LOST | **FAIL**: WoW64 placed map `VK_ERROR_MEMORY_MAP_FAILED` | PASS, **0.9 fps** | PASS line, 101.9 fps, **wrong picture** | 11_0 / 6.5 |
-| Pixel 6 (oriole) | Mali-G78 MC20 | v9 (JM) | 13 | 39/39, 214.0 s | 39/39, 302.1 s | 168.1 fps | 90.0 fps (vsync) | 27.0 fps | 232.7 fps | 11_1 / 6.8 |
-| Pixel 7 (panther) | Mali-G710 MC7 | v10 (CSF) | 13 | 39/39, 167.5 s | 39/39, 136.6 s | **FAIL**: GPU queue hang after 1.5 s | **FAIL**: GPU queue hang after 17.7 s | 85.8 fps | **FAIL**: GPU queue hang after 1.5 s | 11_1 / 6.8 |
-| Pixel 8 (shiba) | Mali-G715 MC7 | v11 (CSF) | 14 | 39/39, 187.4 s | 39/39, 164.0 s | 395.0 fps | 117.9 fps (vsync) | 74.3 fps | 166.4 fps | 11_1 / 6.8 |
-
-Cube fps is the driver's present rate over the 60 s window. D3D12 fps is the test's own number. On panther and a31 the
-D3D12 PASS lines count presents, not correct frames.
-
-- **PanProbe:** every phone passes 39/39 in both passes. The `defaults` times are within 3 % of the previous build, except
-  on the A31 (+12.6 %). There `114-knobs` is slower by the same amount and matches build 112, so the FTL A31 itself ran
-  slower that day.
-- **Pixel 7 (v10):** the D3D11 cube, the D3D9 cube and gears hang the GPU queue: `kbase: timeout on subqueue 0`, all three
-  subqueues stopped at one seqno, `error 0x0`, no fault. DEVICE_LOST follows. SquidRoom passes. PanProbe passes on the
-  same phone, and the Pixel 8 runs the same tests without a hang. Open.
-- **v7 (first DXVK and vkd3d-proton run, Galaxy A31):** D3D12 device creation (FL 11_0, SM 6.5), the swapchain and
-  presentation work. The failures are listed in the table and in the run folder's `results.md`.
-- **v6 (Galaxy S9, Android 10):** PanPlay never reached a D3D test. `wineboot -u` times out and Wine reports
-  `could not load kernel32.dll` after SELinux denies its directory ioctl (0x7201) on the prefix. This is a
-  Wine/Android 10 problem; the driver was not loaded.
-- **D3D12 feature levels** (vkd3d-proton 2230755's own rules applied to each phone's Vulkan caps; its release build does
-  not log the level):
-  - 11_1 on v9-v11. 11_0 on v6/v7, because 11_1 needs `maxPerStageDescriptorStorageImages` >= 64 and the v6/v7 driver
-    reports 32.
-  - 12_0 needs tiled resources tier 2, which means sparse residency. No arch has it. Needed: `sparseBinding`,
-    `sparseResidencyBuffer`, `sparseResidencyImage2D`, `sparseResidencyAliased`, a queue with
-    `VK_QUEUE_SPARSE_BINDING_BIT`, `shaderResourceResidency`, `shaderResourceMinLod`, `residencyNonResidentStrict` and
-    `filterMinmaxSingleComponentFormats`. Typed UAV loads (all 18 formats) and resource binding tier 3 are already there.
-  - 12_1 also needs ROVs (`VK_EXT_fragment_shader_interlock`, pixel and sample interlock) and conservative rasterization
-    tier 1 (`VK_EXT_conservative_rasterization`, which only the v11 Pixel 8 exposes).
-  - v6/v7 stop at SM 6.5: SM 6.6 needs `VK_KHR_compute_shader_derivatives`.
-
-### RC3 and RC4
-
-The latest release is **0.1.0 RC4** (release candidate, 2026-10-20). RC4 adds
-experimental Mali v7 Bifrost support (`jm-v7` 001-005). Only the G615 was
-retested on RC4 (Poco X6 Pro, PanProbe 39/39); v7 was tested on the Mali-G52
-in the Galaxy A06 and A14 (14/38). The rows below are from RC3. All rows marked
-2026-10-11 ran the RC3 binary itself (Android `.so` BuildID `4ec75e25`,
-`driverInfo` `PanVK-kbase RC3 (Mesa 26.3.0-devel)`) with PanProbe 38 tests.
-The Galaxy Tab S11 Ultra (v13) was not rerun on RC3; its row is from beta.18
-RC1. RC3 adds the `jm-v9` 001-030 series (v9 JM: Vulkan 1.3, geometry
-shaders, tessellation, transform feedback, multiViewport, clip/cull
-distances, depth bounds, fill mode, conditional rendering, robustImageAccess2,
-GPU timestamps, kbase JM fixes) and the v10 robustImageAccess2 alpha fix-up
-on the GPU (csf-v11/184).
-
-| Device | SoC | GPU (deviceName) | gpu_id | Arch | Android / kernel / kbase | Tested on | Driver build | PanProbe | PanPlay D3D11 cube |
-|---|---|---|---|---|---|---|---|---|---|
-| Poco X6 Pro (reference) | Dimensity 8300-Ultra (MT6897) | Mali-G615 MC6 | `0xb8a31030` | v11 | 16 / 6.1 custom / CSF 1.21 | Own device, 2026-10-11 | RC3 | **38/38** | OK on beta.18 RC1; NFS: Most Wanted runs without stutter on a warm shader cache |
-| Lenovo Tab TB336FU | MediaTek (mt8755) | Mali-G57 MC2 | `0x90930010` | v9 (JM) | 16 / 5.15 / JM 11.38 | Own device, 2026-10-11 | RC3 | **38/38** (RC2 and earlier: 2/17) | OK: D3D11 FL11_0 used (max FL11_1), ~70-76 FPS; D3D8/9/10 cubes OK. NFS Most Wanted races at ~18 FPS (GPU-bound, no faults) |
-| Pixel 7 | Tensor G2 (GS201) | Mali-G710 MC7 | `0xa8620004` | v10 | 13 / 5.10.157 / CSF 1.14 | Firebase Test Lab, 2026-10-11 | RC3 | **38/38** | OK on beta.18 RC1 |
-| Pixel 7a | Tensor G2 (GS201) | Mali-G710 MC7 | `0xa8620004` | v10 | 13 / 5.10.149 / CSF 1.14 | Firebase Test Lab, 2026-10-11 | RC3 | **38/38** | n/a |
-| motorola edge 40 neo | MT6879 | Mali-G610 MC3 | `0xa8670000` | v10 | 14 / 5.10.218 / CSF 1.18 | Firebase Test Lab, 2026-10-11 | RC3 | **38/38** | 47 FPS on beta.18 RC1 |
-| Pixel 8 | Tensor G3 | Mali-G715 MC7 | `0xb8a21020` | v11 | 16 / 6.1.145 / CSF 1.38 | Firebase Test Lab, 2026-10-11 | RC3 | **38/38** | 48 FPS on beta.18 RC1 |
-| Pixel 9 | Tensor G4 | Mali-G715 MC7 | `0xb8a21030` | v11 | 16 / 6.1.145 / CSF 1.38 | Firebase Test Lab, 2026-10-11 | RC3 | **38/38** | n/a |
-| Galaxy Tab S10 Ultra (SM-X920) | Dimensity 9300+ (MT6989) | Mali-G720-Immortalis MC12 | `0xc8700000` | v12 | 14 / 6.1.75 / CSF 1.21 | Samsung Remote Test Lab, 2026-10-11 | RC3 | **38/38** (`gs_viewport_depth` 20/20) | OK: FL11_0, ~47 FPS, no GPU fault or DEVICE_LOST. beta.18 RC1: NFS: Most Wanted race 81.7 FPS |
-| Galaxy Tab S11 Ultra (SM-X930) | MT6991 | Mali-G925-Immortalis MC12 | `0xd8300015` | v13 | 16 / 6.6.102 / CSF 1.30 | Samsung Remote Test Lab, 2026-10-07 | beta.18-dev+combined (not rerun on RC3) | **37/37** | 48.1 FPS |
-| Xiaomi 2511FPC34G (user report) | MT6899 | Mali-G720 MC8 | `0xc8700010` | v12 | n/a | Tester, beta.17 | beta.17 (release) | 35-36/37, `gs_viewport_depth` fails intermittently | n/a |
-
-On the motorola edge 40 neo, kbase rejects `MEM_ALLOC_EX` with `ENOTTY`, and
-the `MEM_ALLOC` fallback from patch 110 works. More tester data (88 records
-from 19 devices, up to beta.15) is in
-[`docs/universal/DEVICES.md`](docs/universal/DEVICES.md). v9 details:
-[`worklogs/v9-jm/PROGRESS.md`](worklogs/v9-jm/PROGRESS.md); RC3 validation:
-[`worklogs/g615-dxvk/PROGRESS.md`](worklogs/g615-dxvk/PROGRESS.md).
-
-### Status per arch
-
-| Arch | Frontend | Status | Evidence |
-|---|---|---|---|
-| v7 | JM | **Experimental from RC4** | RC4 (`jm-v7` 001-005): no env gate, GPU variant ignored, no `MEM_JIT_INIT`, growable tiler heap, atom stride 56/64 check, ION fallback. Mali-G52 MC2 r1 (Galaxy A06, `0x74021000`) and G52 MC1 (Galaxy A14, `0x72120000`): device creation works, PanProbe 14/38. GS, XFB, tessellation, robustness2 and MDI are in `patches/jm-v7-wip`, not in RC4. v6 takes the same path but is untested |
-| v9 | JM | **Supported from RC3** (RC2 and earlier: experimental, partly broken) | RC3 (`jm-v9` 001-030): Vulkan 1.3 and the DXVK FL11_0/FL11_1 features. G57 MC2 passes PanProbe 38/38, the D3D8-D3D11 cubes and NFS Most Wanted. G68/G77/G78/G78AE have model rows but are untested. RC2 and earlier: 2/17 real PanProbe passes, Vulkan 1.1 |
-| v10 | CSF | Works on RC3 | G610 MC3 and G710 MC7 (Pixel 7, Pixel 7a) pass 38/38. G710 needs the model row from csf-v11/140, so beta.17 does not recognise it |
-| v11 | CSF | **Release target**; works on RC3 | G615 MC6 (reference) and G715 MC7 (Pixel 8, Pixel 9) pass 38/38 |
-| v12 | CSF | Works on RC3 | Immortalis-G720 MC12 passes 38/38 (`gs_viewport_depth` 20/20). The G720 MC8 user report has an intermittent `gs_viewport_depth` failure on beta.17 (open, untested since) |
-| v13 | CSF | Works on beta.18 RC1; not rerun on RC3 | Immortalis-G925 MC12 passes 37/37 on beta.18 RC1 (beta.17: 34/36) |
-| v14 | CSF | **Built, untested** | G1-Ultra (`0xe8800010`) matches its model row, but `vkCreateDevice` failed on beta.15 (`MEM_ALLOC_EX` `ENOTTY`). The 110 fallback is not yet tested on v14 |
-
-### Known gaps
-
-- **Missing gpu_id rows:** RC2 and earlier have no row for the G77
-  (`PAN_PROD_ID(9, 0, 0)`); `jm-v9/006` and `021` add G77, G78 and G78AE
-  in RC3. G510, G620, G625 and plain G725 have never been seen, so their
-  gpu_id values are unconfirmed. The G710 row only exists from csf-v11/140
-  (beta.18 RC1).
-- **v9 chunk caps:** gpu_prerast and tessellated draws on v9 are unrolled in a
-  fixed number of chunks (direct tess 1024 iterations, indirect tess 32,
-  direct restart strips 1024 chunks, other indirect draws 8). Larger draws are
-  cut short, with a one-time warning in logcat.
-- **v9 viewport ordering:** with multiViewport and different depth ranges per
-  viewport, v9 draws once per viewport, so primitives are reordered by
-  viewport. CSF keeps the original order.
-- **v14:** G1-Ultra needs a rerun with beta.17 or later to check the
-  `MEM_ALLOC_EX` fallback.
-- **G720 MC8:** intermittent `gs_viewport_depth` failure (PROGRESS item 40,
-  not started).
+**Driver identity.** `driverName` is `panvk`. `driverInfo` is `Mesa 26.3.0-devel (git-<sha>, p<patch>, <date>)`, and `deviceName` is the upstream name (for example `Mali-G615 MC6`). The apps show it as **Mesa PanVK 26.3.0-devel**.
 
 ## Supported GPUs
 
-The **Mali-G615** (Mesa `PAN_ARCH` v11, CSF frontend; Arm's 4th generation
-Valhall, announced 2022) on the reference device above is the validated
-release target. From **0.1.0 RC3**, **v9 to v13 are supported**: the v9 JM
-Mali-G57, G610 and G710 (v10), G615 and G715 (v11) and Immortalis-G720 (v12)
-pass PanProbe 38/38 on RC3, and Immortalis-G925 (v13) passed 37/37 on beta.18
-RC1 (see [Tested devices](#tested-devices)). v14 and the untested GPUs below
-are built but not validated. Arm's marketing generations (Utgard, Midgard,
-Bifrost, Valhall 1st to 4th gen, 5th Gen, G1) and Mesa `PAN_ARCH` numbers are
-different schemes; the full chronological GPU list, mappings, frontends and
-upstream driver status are in
-[`docs/MALI-GPU-ARCHITECTURES.md`](docs/MALI-GPU-ARCHITECTURES.md).
+| Arch | Family | Examples seen in testing |
+|---|---|---|
+| v6, v7 | Bifrost | Mali-G72, Mali-G52 |
+| v9 | Valhall, 1st gen (JM frontend) | Mali-G57, Mali-G78 |
+| v10 | Valhall, 3rd gen (CSF) | Mali-G710 |
+| v11 | Valhall, 4th gen | Mali-G615, Mali-G715 |
+| v12, v13 | 5th Gen | Immortalis-G720, Immortalis-G925 |
+| v14 | 5th Gen | Mali-G1-Ultra |
 
-Status key:
-- ✅ **Supported**: validated on a device.
-- 🧪 **Tested**: PanProbe 38/38 on RC3 (G925: 37/37 on beta.18 RC1) and the D3D11 cube on beta.18 or later; less coverage than the G615.
-- ⚠️ **Tested, known issue**: run on a device by us or a user; works, but with an open issue.
-- 🔨 **Built, untested**: compiled into the universal ICD and recognised by the Mesa model table, but never run on that GPU.
-- 📋 **TODO**: a profile exists in `profiles/` and the port is planned.
-- ❔ **Possible, not tried**: Mesa has a backend for this arch, but no profile or device test exists here.
-- ❌ **Not possible**: no PanVK (Vulkan) backend exists for the arch.
+v15 is not fully supported. Details per GPU: [`docs/MALI-GPU-ARCHITECTURES.md`](docs/MALI-GPU-ARCHITECTURES.md), [`docs/KBASE-PROFILES.md`](docs/KBASE-PROFILES.md). Untested here: Mali-G610, G510, G620, G625 and the other models not in the table below. They share an arch with tested GPUs but have not been run.
 
-One row per Mesa arch. Each GPU carries its own status mark.
+## Apps
 
-| Mesa arch | Arm family / generation | Frontend | GPUs (status per GPU) | Notes |
-|---|---|---|---|---|
-| n/a | Pre-Utgard (fixed function) | n/a | ❌ Mali-55, ❌ Mali-110 | No programmable shaders |
-| n/a (Lima) | Utgard | n/a | ❌ Mali-200, ❌ Mali-300, ❌ Mali-400 MP, ❌ Mali-450 MP, ❌ Mali-470 MP | GLES 2 only (Lima), no Vulkan |
-| v4 | Midgard 1st to 3rd gen | JM | ❌ Mali-T604, ❌ T658, ❌ T622, ❌ T624, ❌ T628, ❌ T678, ❌ T720 | No PanVK backend |
-| v5 | Midgard 3rd/4th gen | JM | ❌ Mali-T760, ❌ T820, ❌ T830, ❌ T860, ❌ T880 | No PanVK backend |
-| v6 | Bifrost 1st/2nd gen | JM | ❌ Mali-G71, ❔ G72 | Mesa marks G71 unsupported; G72 experimental upstream |
-| v7 | Bifrost 1st to 3rd gen | JM | 🧪 Mali-G52, ❔ G31, ❔ G51, ❔ G76 | **Experimental from RC4** (`jm-v7` 001-005). G52 MC2 (Galaxy A06) and G52 MC1 (Galaxy A14): PanProbe 14/38. GS/XFB/tessellation still in `patches/jm-v7-wip` |
-| v9 | Valhall 1st/2nd gen | JM | ✅ Mali-G57 (MC2), 🔨 G68, 🔨 G77, 🔨 G78, 🔨 G78AE | **Supported from RC3.** The `jm-v9` 001-030 series implements Vulkan 1.3, GS, tessellation, XFB, multiViewport, depth bounds, fill mode, conditional rendering, robustImageAccess2 and timestamps, and adds model rows for G77 (`0x9000`), G78 (`0x9002`) and G78AE (`0x9005`); G68 (`0x9004`) comes from upstream. G57 MC2: PanProbe 38/38, D3D8-D3D11 cubes and NFS Most Wanted on RC3. Other v9 parts not validated. RC2 and earlier: experimental, PanProbe 1-2/17, Vulkan 1.1 |
-| v10 | Valhall 3rd gen | CSF | 🧪 Mali-G610, 🧪 G710, 🔨 G310, ❔ G510 | G610 MC3 (motorola edge 40 neo) and G710 MC7 (Pixel 7, Pixel 7a) pass PanProbe 38/38 on RC3 (Firebase Test Lab, 2026-10-11). G710 gets its model row in csf-v11/140 (beta.18 RC1). G310 is built, untested; G510 needs a tester's gpu_id |
-| **v11** | **Valhall 4th gen** | **CSF** | ✅ **Mali-G615**, 🧪 G715, ❔ Immortalis-G715 | G615 validated on Poco X6 Pro (Dimensity 8300). G715 MC7 (Pixel 8, Pixel 9) passes PanProbe 38/38 on RC3. Immortalis-G715 is untested |
-| v12 | 5th Gen | CSF | 🧪 Immortalis-G720, ⚠️ Mali-G720 (MC8, user report), ❔ G620 | Immortalis-G720 MC12 (Galaxy Tab S10 Ultra) passes PanProbe 36/36 on beta.17, 37/37 on beta.18-dev and 38/38 on RC3. beta.18 names it by core count (131). A user's G720 MC8 scores 35-36/37 on beta.17 (intermittent `gs_viewport_depth`, open). G620 is built, untested |
-| v13 | 5th Gen | CSF | 🧪 Immortalis-G925, 🔨 Mali-G725, 🔨 G625 | Immortalis-G925 MC12 (Galaxy Tab S11 Ultra) passes PanProbe 37/37 on beta.18-dev (beta.17: 34/36, fixed by 130 and 132). G725 and G625 share the product id and are built, untested |
-| v14 | 5th Gen, G1 series | CSF | 🔨 Mali G1-Ultra, 🔨 G1-Premium, 🔨 G1-Pro | **Built, untested** (beta.13 universal ICD). All three are in the Mesa model table; experimental upstream |
-| v15 (unconfirmed) | G2 series | CSF | ❌ Mali G2-Ultra NX, ❌ G2-Premium NX (rumoured), ❌ G2-Pro NX (rumoured) | Not in Mesa yet |
+| | App | What it is |
+|---|---|---|
+| <img src="apps/panvk-launcher/docs/panplay-logo-512.png" width="48" alt="PanPlay logo"> | **PanPlay** (`apps/panvk-launcher`) | Windows game launcher for Android: Wine/Proton with FEX-Emu, a built-in X server, and the PanVK driver bundled. |
+| <img src="apps/panvk-test/docs/panprobe-logo-512.png" width="48" alt="PanProbe logo"> | **PanProbe** (`apps/panvk-test`) | Vulkan feature, conformance-style and performance test app. 41 tests. |
 
-"Possible" means Mesa has code for the arch. It does not mean the arch works
-here: each one still needs a kbase profile, its kbase frontend path (JM or
-CSF) and device validation. The driver has a job-manager kbase path for v9,
-and from RC4 an experimental one for v7 (Bifrost); v6 takes the same path but
-is untested.
+**Direct3D through PanPlay**
+
+| API | Path | Support |
+|---|---|---|
+| D3D9, D3D10, D3D11 | DXVK | D3D11 feature levels 10_0, 10_1, 11_0, 11_1 |
+| D3D12 | vkd3d-proton | Feature level 11_x. FL 12_x is reported unsupported and falls back to 11_1; FL 12 is deferred. |
+| D3D9 to D3D11 | WineD3D-Zink | Through OpenGL, Zink and PanVK (D3D12 stays on vkd3d-proton) |
+| OpenGL | Mesa Zink 26.2.4 | OpenGL games |
+
+PanPlay also offers: Render API per game (Auto, DXVK, VKD3D, WineD3D, OpenGL (Zink), Vulkan, cnc-ddraw), a launch sheet that shows the detected graphics API, built-in Direct3D feature-level tests (D3D12 11_0 to 12_2, D3D11 10_0 to 11_1), Default or EGL present path, and MangoHud 0.8.4 (install in Components; on with every item, "full", by default; global or per-game options). The full list is in `apps/panvk-launcher/app/src/main/kotlin/dev/zenithblue/panvklauncher/WhatsNew.kt` (shown in the app after each update).
+
+## Install
+
+1. Download **PanPlay** from the [releases page](https://github.com/zenithblue-oss/panplay/releases/latest). The PanVK driver is bundled; the device needs `mali_kbase` (most Android phones and tablets with Mali) and Vulkan.
+2. Optional: install **PanProbe** from its [releases](https://github.com/zenithblue-oss/panprobe/releases) to check your device (run all tests; 41/41 is a full pass).
+3. Standalone driver packages are on the [driver releases page](https://github.com/zenithblue-oss/panvk-kbase-android/releases), for other loaders that can load an alternate Vulkan ICD. Check the checksum in the release notes.
+
+## Usage
+
+- **PanPlay:** add a Windows game or `.exe`, pick a Render API (Auto is fine), and launch. The Controls page and Settings > Graphics hold the HUD and MangoHud options. After a run, use the session logs screen to share logs.
+- **PanProbe:** open it and run all tests. Scenario runs for automation are described in `apps/panvk-test`. Results show the `driverInfo` string so you can confirm which build ran.
+
+## Tested devices
+
+Builds 115 to 122i, 2026-10-29 to 2026-10-31. Raw data: `worklogs/g615-dxvk/device-runs/` (each run folder has a `results.md`) and [`docs/PERF-PROGRESS.md`](docs/PERF-PROGRESS.md). "Baseline" is build 116. Each run was done on the build named in its row; most figures are single runs, so treat small percentages as noise.
+
+| Arch | GPU | Device | How tested | PanProbe | PanPlay | Result vs build 116 |
+|---|---|---|---|---|---|---|
+| v6 | Mali-G72 MP18 | Galaxy S9 SM-G960F (starlte) | Firebase Test Lab | 41/41 | cube pass (122g) | D3D11 cube 96 vs 100 fps (-4 %), D3D9 equal |
+| v7 | Mali-G52 MC2 | Galaxy A31 SM-A315N | Firebase Test Lab | 41/41 | cube pass (122g) | D3D11 cube -20 %, D3D9 -26 % on one run; not confirmed |
+| v9 | Mali-G57 MC2 | Lenovo TB336FU | local | 41/41 | 1-9 pass | PanProbe much faster; see `docs/PERF-PROGRESS.md` |
+| v9 | Mali-G78 | Pixel 6a (bluejay) | Firebase Test Lab | 41/41, 146.7 s vs 155.9 s | pass (122g/122h) | cube equal; D3D10, FL 10_0 to 11_1, D3D12 pass |
+| v10 | Mali-G710 MC7 | Pixel 7 (panther) | Firebase Test Lab | 41/41 (116c, 122e/g) | cube pass (122g) | D3D11 cube -11 % on one run; not confirmed |
+| v11 | Mali-G615 MC6 | Poco X6 Pro | local | 41/41 cold and warm | all passes | 122f: FL 10_0 to 11_1 +37 to +72 %, D3D10 +20 %, D3D11 cube about equal (-3 %) |
+| v12 | Immortalis-G720 MC12 | Galaxy Tab S10 Ultra SM-X926B, SM-X920 | RTL | 41/41 | pass | 122h: D3D12 +7 %, PanProbe 8 % faster, FL fps within noise |
+| v13 | Immortalis-G925 MC12 | Galaxy Tab S11 Ultra SM-X930 | RTL | 41/41 | pass | 122h: D3D11 cube +19 %, FL +11 to +17 %, D3D12 +13 %, PanProbe 9 % faster; gears -5.5 % (one run) |
+| v14 | Mali-G1-Ultra | Galaxy Tab S12+ SM-X846B, S12 Ultra SM-X946B, S12 SM-X940 | RTL | 41/41 | scenarios 1-9 pass | 122i: equal to slightly faster, PanProbe 8 % faster (X940) |
+
+Notes:
+- "RTL" is Samsung Remote Test Lab. Firebase runs use Firebase Test Lab.
+- Not every build ran on every device. Some Firebase matrices came back invalid and were not retried (see `2026-10-31-ftl-122h-vs-116/results.md`).
+- On v11, a cold shader cache makes the first BC decode slow (about 5 s on the X6 Pro for builds 116 and 122f); warm runs are fast.
+- No fps comparison against the older RC4 release is claimed here.
+
+## Known issues
+
+- Fallout 4 on the DXVK path shows a black face.
+- D3D11 1 % low fps on v11 is below RC4 (an X server stall at high fps).
+- Direct3D 12 feature level 12_x is not supported (reported unsupported, runs as 11_1).
+- Small slowdowns in single runs on v6, v7 and v10 PanPlay cubes need an A/B on a second device.
+- v15 is not fully supported.
+
+## Building
+
+```sh
+./scripts/fetch-mesa.sh
+./scripts/apply-patches.sh --profile <profile>
+./scripts/build-android.sh --profile <profile>
+./scripts/validate-binary.sh --abi android dist/android-<profile>/libvulkan_panfrost.so
+./scripts/package-android-adpkg.sh --profile <profile>
+```
+
+Profiles live in `profiles/` (for example `g615-v11-csf`). See [`docs/BUILD-POCO-X6-PRO.md`](docs/BUILD-POCO-X6-PRO.md) for a worked example and [`docs/RELEASE.md`](docs/RELEASE.md) for the release process. The exact Mesa commit is pinned in `sources.lock`.
 
 ## Layout
 
 ```text
 sources.lock          exact Mesa commit + reference repos (no moving branches)
 profiles/             per-GPU Kbase profiles (arch/gpu-id/frontend/uapi)
-patches/              qualified patch families (never one unqualified blob)
+patches/              qualified patch families
 meson/                cross files (android-aarch64, linux-aarch64-native)
 scripts/              fetch / patch / build / package / validate / release
-tests/                kbase-probe, vulkan-smoke, compute, offscreen, ahb,
-                      android-surface, sync, android-loader-app, dxvk-vkd3d
-docs/                 architecture, build, portability, matrix, profiles,
-                      app-compat, release, Kbase sparse feasibility,
-                      Mali GPU architectures (MALI-GPU-ARCHITECTURES.md)
-validation/           G615 capability dumps, DXVK/vkd3d profiles and matrix
-.github/workflows/   build / release / source-drift
+tests/                kbase-probe, vulkan-smoke, compute, offscreen, ahb, ...
+apps/                 PanPlay (panvk-launcher) and PanProbe (panvk-test)
+docs/                 architecture, build, matrix, perf, runtime features, ...
+worklogs/             device run logs and results
 ```
 
-## Quick start (Poco X6 Pro)
-
-See `docs/BUILD-POCO-X6-PRO.md`.
-
-```sh
-./scripts/fetch-mesa.sh
-./scripts/apply-patches.sh --profile g615-v11-csf
-./scripts/build-android.sh --profile g615-v11-csf
-./scripts/validate-binary.sh --abi android dist/android-g615-v11-csf/libvulkan_panfrost.so
-./scripts/package-android-adpkg.sh --profile g615-v11-csf
-```
-
-## Release policy
-
-Tiers: `dev` (build only) < `alpha` (compute/offscreen) < `beta` (WSI +
-app-loader on one profile) < `rc` (primary consumer) < `stable` (multi-device
-+ soak). First Poco build is never `stable`. Releases are immutable; a patch
-change creates a new release even if the Mesa SHA is unchanged.
-
-### Current status
-
-Current build: **Mesa PanVK 26.3.0-devel** (build 115), the build for the project's first official GitHub release. One
-Android `.so` covers v6/v7 (Bifrost JM), v9 (Valhall JM) and v10-v14 (CSF). Its source is the patch series plus
-`patches/jm-v7-wip` 0006-0131, as `scripts/prepare-rc5-tree.sh` applies them on Mesa `5a07217f`. Changes are in
-[`CHANGELOG.md`](CHANGELOG.md), test results under [Tested devices](#tested-devices). PanPlay 1.3.0 and PanProbe 1.3.0 bundle it.
-
-Previous releases: **[`panvk-kbase-v0.1.0-rc4`](https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc4)**
-and **[`panvk-kbase-v0.1.0-rc4-lowmem`](https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc4-lowmem)**
-(release candidates: experimental v7 Bifrost; only the G615 was retested, 39/39). The RC4 binaries were
-recovered from the reference device; their exact source was not committed. The last release tested on every GPU is
-[`panvk-kbase-v0.1.0-rc3`](https://github.com/zenithblue-oss/panvk-kbase-android/releases/tag/panvk-kbase-v0.1.0-rc3)
-(Mesa `5a07217f` plus the committed series up to csf-v11/184 and `jm-v9` 030; v9 to v13 supported,
-PanProbe 38/38 on G57, G610, G710, G615, G715 and Immortalis-G720; v13 not rerun on RC3). Tags no longer carry the `g615` prefix; older releases keep theirs. Each
-release ships the Android and glibc drivers, an `.adpkg` package, an EMULATOR
-zip, the test APK and screenshots. Full history: [`CHANGELOG.md`](CHANGELOG.md).
-
-| Release | Highlights |
-|---|---|
-| **0.1.0 RC4** | **Experimental v7 Bifrost** (`jm-v7` 001-005: no env gate, no `MEM_JIT_INIT`, growable tiler heap, atom stride check, ION fallback); G52 MC2/MC1 (Galaxy A06/A14) PanProbe 14/38. Mesa `5a07217f`, API 29 build. `driverInfo` RC4. Android BuildID `6654fada`. Retested on G615 only: PanProbe 39/39. Six launcher zips (adrenotools, Winlator, cmod, Ludashi, bannerlator, GameHub). Binary recovered from the reference device; exact source not committed. |
-| **0.1.0 RC4 lowmem** | Separate RC4 build (Mesa tree `git-5437602824`), same v7 support. **Lowmem BC mode on by default** (binary-patched; the original build needed `PANVK_BC_MODE=lowmem`; `PANVK_BC_MODE=exact` turns it off): BC1-BC5/BC7 use about half to a third of the memory (BC7 10.9 → 5.5 MB, BC1 8.2 → 2.7 MB at 2048²), sampling about 11% faster, BC1-BC5 slightly lossy (39-50 dB vs RC4). **Known issue:** BC image-to-image copy and raw BC readback fail with lowmem on. All other tests match RC4 (direct run, G615). `.so` SHA-256 `c395db09`, BuildID `aff7a07f`. Launcher zips repackaged from the RC4 layouts. Exact source not committed. |
-| **0.1.0 RC3 lowmem** | RC3 plus csf-v11/185: BC1 RGB (no alpha) and BC7 shadows are stored as AFRC at 8 bpp instead of 12/16 bpp. About 25% less memory for BC1 RGB and 33% less for BC7; sampling speed is unchanged (not faster); quality is lower (about 48 dB against the exact decode, RC3 was 57-64 dB; 0.1-0.5 dB loss against the source). BC1 RGBA, BC2 and BC3 keep the RC3 rates. BC7 with alpha at 8 bpp is untested. `PANVK_BC_AFRC=0` restores exact decode; `PANVK_BC_AFRC=24` or `32` forces that rate for all BC formats (RC3 used 24 for BC1/BC2 and 32 for BC3/BC7). `driverInfo` RC3-lowmem. Android BuildID `9d975491`. Retested on G615 only: PanProbe 38/38, `bc_decode` device checks, NFS Most Wanted with the DXVK HUD. PanProbe 1.2.7 bundles it; PanPlay 1.2.7 still bundles RC3. |
-| **0.1.0 RC3** | **v9 to v13 supported.** v9 JM (`jm-v9` 001-030): Vulkan 1.3, GS, tessellation, XFB, multiViewport, clip/cull, depth bounds, fill mode, conditional rendering, robustImageAccess2, GPU timestamps, G77/G78/G78AE rows and kbase JM fixes; G57 MC2 PanProbe 38/38, D3D8-D3D11 cubes, NFS Most Wanted. v10 GPU-emulated robustImageAccess2 alpha fix (184; G610 and G710 38/38 on Firebase). `driverInfo` RC3. Android BuildID `4ec75e25`. PanProbe 38/38 on G57 (v9), G610, G710 x2 (v10), G615, G715 x2 (v11) and Immortalis-G720 MC12 (v12, `gs_viewport_depth` 20/20); v13 G925 not rerun (37/37 on RC1). |
-| **0.1.0 RC2** | `robustImageAccess2` on v10 and later (181): G615 PanProbe 38/38, CTS robustness2 image 4332/0, `D3D12CreateDevice` OK. Mali-G77 model row (jm-v9/006, variant 0 from a tester log, unproven on G77). `driverInfo` beta.18-rc2. Tag prefix `g615` dropped (`panvk-kbase-v`). RC2 binary not yet device-tested. |
-| **beta.18 RC1** | First release tested on v10, v11, v12 and v13 hardware: PanProbe 37/37 on G610, G710, G615, G715, Immortalis-G720 and Immortalis-G925. BCn rework: BC textures decode into a compact tiled AFBC/AFRC shadow, about 2x faster bandwidth-bound sampling and 38-65% less shadow memory (150, 151, 180; AFRC is lossy, `PANVK_BC_AFRC=0` for exact). Shader compile stalls: faster register allocation, NFS: Most Wanted pipelines 3.6 s to about 0.3 s, identical output (152-154, 160-164). Mesa disk shader cache on by default on Android (170), each Android property looked up once (171). `robustBufferAccess2` on v10 (122), v13 vertex stores (130, 132), core-count GPU names (131), G710 model row (140). Known: G720 MC8 `gs_viewport_depth` intermittent (untested on beta.18), v14 untested. |
-| **beta.17** | Correctness and reach. G615: GS draws with primitive restart no longer fault the GPU (120); zero depth-range viewports keep exact depth (121); depth bounds keeps FPK/early ZS while off (116); FS `gl_PrimitiveID` survives viewport runs (115); VMR secondaries (114); prerast fan splits (112); `SetEvent`/`ResetEvent` never return DEVICE_LOST (111); X11 software present over MIT-SHM (117). Universal: BC emulation unless all BC formats are native (108), v12+ viewport depth (109), kbase CSF uAPI layouts and 16K pages (110), vertex stores on v13/v14 (119), vendor-neutral gralloc mapper (android/014). PanProbe 36/36 x3; CTS 32339 pass / 115 fail, sync + memory gate unchanged. Fixes for G610/G720/G925/G1-Ultra and stock ROMs untested on hardware. |
-| **beta.16** | Removes the remaining CPU waits on the v11 kbase path. Software WSI present no longer blocks the app's submit thread until the GPU finishes the frame (106). Up to three retired tiler heaps can be in flight, so `vkQueueSubmit` no longer stalls 35-55 ms on heap backpressure (107). NFS: Most Wanted race: 85.5 to 90.6 fps (DXVK HUD), p99 frame time 22 to 16 ms. NFS is now limited by Wine, not the GPU. CTS sync + memory gate: same 56 failures; PanProbe 17/17. |
-| **beta.15** | Faster kbase submission on v11: no CPU graphics drain on tiler heap renewal (102), same-queue semaphores waited on the GPU (103), next tiler heap created on a worker thread (104). NFS: Most Wanted on G615 goes from 24 to 38-40 fps, p99 frame time 102 to 58 ms, >50 ms frames 650 to ~80. `PANVK_DEBUG=trace` works on kbase again (101, 105). CTS sync + memory: no new failures; PanProbe 17/17. v9 still experimental. Fallout 4 hangs before loading the driver (also on beta.14). |
-| **beta.14** | Adds **EXPERIMENTAL, partly broken** Mali v9 (Valhall JM: G57/G68/G77/G78 class) support to the universal ICD (`jm-v9` series: kbase JM atom submission, v9 backend ported from FristOneRR-Panvk-Source, Vulkan 1.1 reporting). Tested only on Mali-G57 MC2: CTS `api.smoke` 4/6, `simple_draw` 4/4, `synchronization.basic` 21 pass/8 not supported, PanProbe 1/17. v10/v12/v13/v14 untested; v11 was tested on beta.13. `driverInfo` reads `PanVK-kbase beta.14`. |
-| **beta.13** | One universal Android ICD for v10-v14. **Only v11 (G615) is tested; v10/v12/v13/v14 are built but untested, and testers are needed.** The kbase path now admits v14 without `PAN_I_WANT_A_BROKEN_VULKAN_DRIVER`; v13 was already admitted. Fixes PanProbe `gs_viewport_depth` case A, which regressed in beta.11 (100). On kbase, `gpu_prerast` arenas are committed up front again. GPU-fault growth lost the first GS draw. The shared-TLS memory fix from 097 stays. The kbase CS register-count fallback is now 128 on v12+; 96 was too small. `driverInfo` now reads `PanVK-kbase beta.13 (Mesa 26.3.0-devel ...)`, shown in the DXVK HUD and PanProbe. |
-| **beta.12** | One universal Android ICD for v10, v11 and v12. **Only v11 (G615) is tested; v10 and v12 are built but untested, and testers are needed.** The release notes give the command that reports your GPU ID. |
-| **beta.11** | Fixes `VK_ERROR_DEVICE_LOST` on tiler heap OOM (098). Fixes the memory blow-up from per-pool TLS and eagerly committed prerast arenas (097). |
-| **beta.10** | Fast and correct 32-bit WoW64 games: placed maps now map the BO's dma-buf again at the requested address (091) instead of a shadow copy. Need for Speed Most Wanted (DXVK D3D9) went from 0.5 fps to 39-66 fps, with clean HUD and text. Also GPU chunking of large and indirect prerast draws (094, 096), the tessellation conditional-state fix (093), and the sample count for attachment-less secondaries (095). |
-| **beta.9** | `depthBounds` (092), `shaderOutputViewportIndex` from VS/TES (090), per-viewport depth clamp/clip (089), CSF event-memory sync words (085). |
-| **beta.8** | X11 surfaces (`VK_KHR_xlib_surface`, `VK_KHR_xcb_surface`) for Wine/Proton launchers that display through Termux:X11. The X11/XCB libraries load at runtime from the launcher's library path and are not bundled. Presentation is a software copy (X11 `PutImage`). |
-
-`g615-v11-csf-v0.1.0-beta.3` (code commit
-`fc8a759e7d1b2b8de01c0e96f1fdc5e3950ba1a3`, published 2026-09-19) and its
-assets stay frozen by project policy. See
-`validation/g615-v11-csf/BETA3-PUBLICATION-ADDENDUM.md`.
-
-## Capability truth
-
-Two separate sets are stored per release: `UPSTREAM_MATRIX_CAPABILITIES`
-(from `docs/features.txt` of the exact Mesa checkout) and
-`RUNTIME_DEVICE_CAPABILITIES` (from on-device `vulkaninfo`/probe). Only
-runtime-tested capabilities may be used for compatibility claims. No fake
-feature bits.
-
-## Runtime Features & Extensions (beta.3)
-
-Full specification and per-capability test breakdown:
-[`docs/RUNTIME-FEATURES.md`](docs/RUNTIME-FEATURES.md). Canonical
-machine-readable evidence:
-[`validation/g615-v11-csf/runtime-feature-matrix.json`](validation/g615-v11-csf/runtime-feature-matrix.json).
-
-- **Vulkan API Version**: `1.4.363`
-- **Total Extensions Exposed**: `194` (13 instance, 181 device); beta.2 tag: `178`
-- **Driver**: Mesa `26.3.0-devel` (commit `5a07217f034b3e50d8c7c7794f97a2df1742613b`)
-- **GPU**: Mali-G615 MC6 (`0xb8a31030`)
-- **Kernel Interface**: `mali_kbase` (CSF uAPI 1.21, `/dev/mali0`)
-- **Patch Series ID**: `sha256:c0bbdeef591b206a2f3ae36dc6191c08854399039075f8d69f103e33c0eca2f8`
-
-### Phase 5 feature workloads
-
-All 13 target groups are natively exposed and passed real Poco X6 Pro
-workloads. Enumeration alone is not counted as a test.
-
-| Feature group | Status | Concise workload evidence |
-|---|:---:|---|
-| Descriptor indexing | **PASS** | Runtime array, partially-bound and variable-count descriptors; non-uniform sampled-image/storage-buffer indexing; checksum `123` |
-| Timeline semaphore | **PASS** | GPU chain `1..64`, CPU wait/signal, CPU-to-GPU wait, final counter `66` |
-| Dynamic rendering | **PASS** | `vkCmdBeginRendering`/`vkCmdEndRendering`; 1,154 triangle pixels; checksum `0x9a7f1b8fec90af07` |
-| Synchronization2 | **PASS** | `vkCmdPipelineBarrier2` and `vkQueueSubmit2`; timeline completion `67` |
-| Buffer device address | **PASS** | Shader dereference at index 3; readback `0x2468ace0` |
-| Push descriptors | **PASS** | `vkCmdPushDescriptorSetKHR` storage buffers; readback `0xb791f3dd` |
-| Robust buffer access | **PASS** | Out-of-bounds index 64 from one bound uint returned `0x00000000` |
-| Anisotropy | **PASS** | 4x anisotropy across 9 sampled formats; two deterministic runs |
-| Wide lines | **PASS** | Width 5 rasterized 185 green pixels |
-| Large points | **PASS** | Size 11 rasterized 121 yellow pixels |
-| ETC2/EAC | **PASS** | ETC2 RGB/RGBA plus EAC R11/RG11 UNORM/SNORM sampling, filtering, and mip level 1 |
-| ASTC LDR | **PASS** | ASTC 4x4 UNORM/SRGB sampling, filtering, mip level 1, exact checksums |
-| ASTC HDR | **PASS** | `VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK_EXT`; pixel `[1, 2, 3, 1]`; filtering and mip level 1 |
-
-This table describes the beta.3 release. Since then `textureCompressionBC`
-has been exposed on `feature/g615-dxvk-complete` through GPU compute decode
-(G615 has no BC hardware); see the DXVK section below. Other unsupported
-features are listed in [`docs/RUNTIME-FEATURES.md`](docs/RUNTIME-FEATURES.md).
-
-## DXVK / vkd3d-proton compliance (G615)
-
-### Current state (after csf-v11/092)
-
-DXVK Native v3.1.1 on the Poco X6 Pro creates a D3D11 device at
-**feature level 11_0** (`D3D11 HRESULT=0x00000000 feature_level=0xb000`);
-D3D11 and D3D9 draw workloads pass. Every feature below runs on the GPU,
-with no CPU fallback or simulation, and is exposed only after device proof.
-
-| Feature | Implementation | Device proof (CTS Pass / Fail) |
-|---|---|---|
-| `geometryShader` | VS/GS run as compute on the GPU pre-raster path, 64 invocations (071) | geometry 193 / 0; instanced 20 / 0 |
-| `tessellationShader` | VS, TCS, tessellator and TES as compute, GPU chunking | tessellation 526 / 0 |
-| `VK_EXT_transform_feedback` | GPU capture kernel, 4 streams, counters, queries | transform_feedback 15793 / 0 (2 intermittent DeviceLost) |
-| `textureCompressionBC` | GPU compute decode of BC1-7 | BC subset 1863 / 0; copy_and_blit 9620 / 0 |
-| `shaderClipDistance`, `shaderCullDistance` | NIR lowering | device matrix 0 fail |
-| `multiViewport` | 16 viewports, GS viewport index honoured (076) | device matrix 0 fail, scissor 88 / 88 |
-| `fillModeNonSolid` | GPU kernel builds line/point primitives | 17/17 pixel-exact |
-| `pipelineStatisticsQuery` | 049-054 | statistics_query 15374 / 0 |
-| `VK_KHR_incremental_present`, `VK_EXT_swapchain_colorspace`, `VK_EXT_image_compression_control` | upstream backports | device probes 0 fail |
-| `VK_EXT_multi_draw` | 072 | multi_draw 12704 / 0 |
-| `VK_EXT_primitives_generated_query` | 073 | primitives_generated_query 75206 / 0 |
-| `VK_EXT_memory_priority`, `VK_EXT_pageable_device_local_memory` | 069 | 224 / 0, 202 / 0; api.info 7799 / 0 |
-| `alphaToOne` | 070 | alphaToOne 123 / 0 |
-| `variableMultisampleRate` | 074 | variable_rate 504 / 0 standalone (tmp/cts/p5-vmsr/summary.txt); combined regression run (geometry + tessellation + transform_feedback.simple + variable_rate: 15955 cases, 6210 pass, 9745 NotSupported, 0 fail; source tmp/cts/r6-geo/status.txt) |
-| `sync_fd` export | 075 (kbase KCPU queue) | sync_fd 1996 / 0 |
-| `vertexPipelineStoresAndAtomics` (v10-v12) | 078-082, vertex stage on the compute pre-raster path | atomic_operations `*_vertex*` 66 / 0; 12132-case tess/geometry/xfb/draw list 7940 / 0, 0 DeviceLost |
-| per-viewport depth clamp/clip (beta.9) | 089, GS-selected viewports drawn as ordered runs | panvk-test `gs_viewport_depth` exact (no CTS) |
-| `shaderOutputViewportIndex` from VS/TES (beta.9, v10/v11) | 090 | panvk-test `vs_viewport_index` 6/6 (no CTS) |
-| `depthBounds` (beta.9, v10/v11) | 092, fragment-shader emulation | 2059 depth-bounds CTS cases: 1774 pass / 0 fail / 285 NotSupported; panvk-test `depth_bounds` 6/6 |
-
-DXVK feature level 11_1 has not been re-checked on the beta.7 to beta.9
-builds yet. The Android driver has X11 surfaces (beta.8), but under Proton 11
-(i686 through wow64) Wine fails to create the Vulkan surface before the
-driver is called, so DXVK presentation there is still blocked. `depthBounds`
-lowered pipelines lose FPK, and `EarlyFragmentTests` shaders with depth writes
-compare against the fragment's new depth (see the beta.9 release notes).
-Still missing: `robustImageAccess2` (the vkd3d-proton device-create
-blocker) and
-sparse (FL12_0, `NO-GO` on Kbase). The X11 present teardown hang was seen once
-under Xvfb only and is unverified on Android. Progress and TODOs:
-[`worklogs/g615-dxvk/PROGRESS.md`](worklogs/g615-dxvk/PROGRESS.md). Roadmap:
-[`docs/plans/PANVK_MASTER_ROADMAP.md`](docs/plans/PANVK_MASTER_ROADMAP.md).
-
-### beta.3 evaluation (historical)
-
-Machine-evaluated against stock tagged profiles. No fake feature bits.
-Overall result: **FAIL**. DXVK 2.7.1/3.1.1 COMMON and vkd3d README hard
-gates PASS; D3D9/D3D10/D3D11 profiles and vkd3d 2.14.1/3.0.1 device/profile
-baseline FAIL. Stock DXVK/vkd3d smoke is BLOCKED (Android ICD is not a
-legal host for those Windows binaries). CTS is BLOCKED.
-
-Canonical report:
-[`validation/g615-v11-csf/P23-DXVK-VKD3D-COMPLIANCE-MATRIX.md`](validation/g615-v11-csf/P23-DXVK-VKD3D-COMPLIANCE-MATRIX.md).
-JSON:
-[`validation/g615-v11-csf/p23-dxvk-vkd3d-compliance-matrix.json`](validation/g615-v11-csf/p23-dxvk-vkd3d-compliance-matrix.json).
-Gap report:
-[`validation/g615-v11-csf/dxvk-vkd3d-gap-report.md`](validation/g615-v11-csf/dxvk-vkd3d-gap-report.md).
-Capability dump:
-[`validation/g615-v11-csf/consumer-capabilities.json`](validation/g615-v11-csf/consumer-capabilities.json).
-
-| Target | Result |
-|---|---|
-| DXVK 1.10.3 D3D9 / D3D10 / FL10.1 / FL11.0 | FAIL |
-| DXVK 2.7.1 COMMON | PASS |
-| DXVK 2.7.1 D3D9 / D3D10_10_1 / D3D11_11_0 / D3D11_11_1 | FAIL |
-| DXVK 3.1.1 COMMON | PASS |
-| DXVK 3.1.1 D3D9 / D3D10_10_1 / D3D11_11_0 / D3D11_11_1 | FAIL |
-| vkd3d-proton 2.0 HARD / DEVICE_CREATE | PASS |
-| vkd3d-proton 2.14.1 HARD | PASS |
-| vkd3d-proton 2.14.1 PROFILE_BASELINE / DEVICE_CREATE | FAIL |
-| vkd3d-proton 3.0.1 HARD | PASS |
-| vkd3d-proton 3.0.1 PROFILE_BASELINE / DEVICE_CREATE | FAIL |
-| MAX_FEATURE_LEVEL / D3D_FEATURE_LEVEL | NOT_AVAILABLE |
-
-At beta.3, still false (no spoofing): `geometryShader`, `tessellationShader`,
-`fillModeNonSolid`, `multiViewport`, `shaderClipDistance`,
-`shaderCullDistance`, `textureCompressionBC`, transform feedback,
-`pipelineStatisticsQuery`, `robustImageAccess2`, sparse.
-
-Proven on G615: `VK_EXT_robustness2` buffer + `nullDescriptor`,
-`maxPushConstantsSize=256`, `VK_KHR_push_descriptor` / `maxPushDescriptors=32`,
-DXVK/vkd3d common easy gates. Advertised UAB limits are 1,048,576; 1M
-descriptor stress is implemented but not yet run to completion on device.
-
-Phase evidence:
-[`P6`](validation/g615-v11-csf/P6-ROBUSTNESS2.md),
-[`P7`](validation/g615-v11-csf/P7-PUSH-CONSTANTS-DESCRIPTORS.md),
-[`P8`](validation/g615-v11-csf/P8-COMMON-GATES.md),
-[`P9`](validation/g615-v11-csf/P9-BC-COMPATIBILITY.md),
-[`P10`](validation/g615-v11-csf/P10-CLIP-CULL-DISTANCE.md),
-[`P11`](validation/g615-v11-csf/P11-FILL-MODE-NON-SOLID.md),
-[`P12`](validation/g615-v11-csf/P12-GEOMETRY-SHADER.md),
-[`P13`](validation/g615-v11-csf/P13-D3D9.md),
-[`P14`](validation/g615-v11-csf/P14-MULTI-VIEWPORT.md),
-[`P15`](validation/g615-v11-csf/P15-TRANSFORM-FEEDBACK.md),
-[`P16`](validation/g615-v11-csf/P16-D3D10.md),
-[`P17`](validation/g615-v11-csf/P17-TESSELLATION-SHADER.md),
-[`P18`](validation/g615-v11-csf/P18-D3D11-FL11.md),
-[`P19`](validation/g615-v11-csf/P19-VKD3D-PROFILE-BASELINE.md),
-[`P20`](validation/g615-v11-csf/P20-PIPELINE-STATISTICS.md),
-[`P21`](validation/g615-v11-csf/P21-D3D12-FEATURE-LEVEL.md),
-[`P22`](validation/g615-v11-csf/P22-KBASE-SPARSE-FEASIBILITY.md).
-Sparse: [`docs/KBASE-SPARSE-FEASIBILITY.md`](docs/KBASE-SPARSE-FEASIBILITY.md)
-(`NO-GO` on Kbase UAPI 1.21). Profiles:
-[`validation/requirements/`](validation/requirements/).
-Evaluators: `scripts/evaluate-vulkan-profile.py`,
-`scripts/evaluate-dxvk-vkd3d-compliance-matrix.py`.
-Workloads: [`tests/dxvk-vkd3d/`](tests/dxvk-vkd3d/).
-
-At beta.3 the next blocker was `robustImageAccess2` (vkd3d 2.14.1/3.0.1
-`DEVICE_CREATE`). It still is; geometry, fill, clip/cull and BC have since
-landed (see Current state above).
-
-### New extension workloads
-
-These 16 beta.3 additions are exposed and workload-tested:
-
-`VK_KHR_compute_shader_derivatives`, `VK_KHR_copy_memory_indirect`,
-`VK_KHR_internally_synchronized_queues`, `VK_KHR_maintenance7`,
-`VK_KHR_maintenance8`, `VK_KHR_maintenance9`, `VK_KHR_present_id2`,
-`VK_KHR_present_wait2`, `VK_KHR_shader_constant_data`, `VK_KHR_shader_fma`,
-`VK_KHR_shader_relaxed_extended_instruction`,
-`VK_KHR_shader_untyped_pointers`, `VK_KHR_surface_maintenance1`,
-`VK_KHR_swapchain_maintenance1`, `VK_KHR_unified_image_layouts`, and
-`VK_GOOGLE_user_type`.
-
-`VK_KHR_depth_clamp_zero_one`, `VK_KHR_pipeline_binary`, and
-`VK_KHR_robustness2` are disabled and not exposed because required workload
-proof is absent. `VK_GOOGLE_display_timing` is not exposed without a proven
-Android timing implementation.
-
-### beta.2 history
-
-The immutable beta.2 tag exposed 12 instance and 166 device extensions (178
-total). Its post-tag documentation commit is distinct from the tagged code as
-recorded under [Current status](#current-status). Everything below is the
-published beta.3 inventory generated from the canonical matrix.
-
-<details>
-<summary><b>Full beta.3 list: 194 extensions (13 instance + 181 device)</b></summary>
-
-#### Instance extensions (13)
-
-`VK_KHR_android_surface`, `VK_KHR_device_group_creation`,
-`VK_KHR_external_fence_capabilities`, `VK_KHR_external_memory_capabilities`,
-`VK_KHR_external_semaphore_capabilities`,
-`VK_KHR_get_physical_device_properties2`,
-`VK_KHR_get_surface_capabilities2`, `VK_KHR_surface`,
-`VK_KHR_surface_maintenance1`, `VK_EXT_debug_report`, `VK_EXT_debug_utils`,
-`VK_EXT_headless_surface`, `VK_EXT_surface_maintenance1`.
-
-#### Device extensions (181)
-
-`VK_KHR_8bit_storage`, `VK_KHR_16bit_storage`, `VK_KHR_bind_memory2`,
-`VK_KHR_buffer_device_address`, `VK_KHR_calibrated_timestamps`,
-`VK_KHR_compute_shader_derivatives`, `VK_KHR_cooperative_matrix`,
-`VK_KHR_copy_commands2`, `VK_KHR_copy_memory_indirect`,
-`VK_KHR_create_renderpass2`, `VK_KHR_dedicated_allocation`,
-`VK_KHR_depth_stencil_resolve`, `VK_KHR_descriptor_update_template`,
-`VK_KHR_device_group`, `VK_KHR_draw_indirect_count`,
-`VK_KHR_driver_properties`, `VK_KHR_dynamic_rendering`,
-`VK_KHR_dynamic_rendering_local_read`, `VK_KHR_external_fence`,
-`VK_KHR_external_fence_fd`, `VK_KHR_external_memory`,
-`VK_KHR_external_memory_fd`, `VK_KHR_external_semaphore`,
-`VK_KHR_external_semaphore_fd`, `VK_KHR_format_feature_flags2`,
-`VK_KHR_get_memory_requirements2`, `VK_KHR_global_priority`,
-`VK_KHR_image_format_list`, `VK_KHR_imageless_framebuffer`,
-`VK_KHR_index_type_uint8`, `VK_KHR_internally_synchronized_queues`,
-`VK_KHR_line_rasterization`, `VK_KHR_load_store_op_none`,
-`VK_KHR_maintenance1`, `VK_KHR_maintenance2`, `VK_KHR_maintenance3`,
-`VK_KHR_maintenance4`, `VK_KHR_maintenance5`, `VK_KHR_maintenance6`,
-`VK_KHR_maintenance7`, `VK_KHR_maintenance8`, `VK_KHR_maintenance9`,
-`VK_KHR_map_memory2`, `VK_KHR_multiview`,
-`VK_KHR_pipeline_executable_properties`, `VK_KHR_pipeline_library`,
-`VK_KHR_present_id`, `VK_KHR_present_id2`, `VK_KHR_present_wait`,
-`VK_KHR_present_wait2`, `VK_KHR_push_descriptor`,
-`VK_KHR_relaxed_block_layout`, `VK_KHR_sampler_mirror_clamp_to_edge`,
-`VK_KHR_sampler_ycbcr_conversion`, `VK_KHR_separate_depth_stencil_layouts`,
-`VK_KHR_shader_atomic_int64`, `VK_KHR_shader_clock`,
-`VK_KHR_shader_constant_data`, `VK_KHR_shader_draw_parameters`,
-`VK_KHR_shader_expect_assume`, `VK_KHR_shader_float16_int8`,
-`VK_KHR_shader_float_controls`, `VK_KHR_shader_float_controls2`,
-`VK_KHR_shader_fma`, `VK_KHR_shader_integer_dot_product`,
-`VK_KHR_shader_maximal_reconvergence`, `VK_KHR_shader_non_semantic_info`,
-`VK_KHR_shader_quad_control`, `VK_KHR_shader_relaxed_extended_instruction`,
-`VK_KHR_shader_subgroup_extended_types`, `VK_KHR_shader_subgroup_rotate`,
-`VK_KHR_shader_subgroup_uniform_control_flow`,
-`VK_KHR_shader_terminate_invocation`, `VK_KHR_shader_untyped_pointers`,
-`VK_KHR_spirv_1_4`, `VK_KHR_storage_buffer_storage_class`,
-`VK_KHR_swapchain`, `VK_KHR_swapchain_maintenance1`,
-`VK_KHR_swapchain_mutable_format`, `VK_KHR_synchronization2`,
-`VK_KHR_timeline_semaphore`, `VK_KHR_unified_image_layouts`,
-`VK_KHR_uniform_buffer_standard_layout`, `VK_KHR_variable_pointers`,
-`VK_KHR_vertex_attribute_divisor`, `VK_KHR_vulkan_memory_model`,
-`VK_KHR_workgroup_memory_explicit_layout`,
-`VK_KHR_zero_initialize_workgroup_memory`, `VK_EXT_4444_formats`,
-`VK_EXT_astc_decode_mode`, `VK_EXT_attachment_feedback_loop_dynamic_state`,
-`VK_EXT_attachment_feedback_loop_layout`, `VK_EXT_border_color_swizzle`,
-`VK_EXT_buffer_device_address`, `VK_EXT_calibrated_timestamps`,
-`VK_EXT_color_write_enable`, `VK_EXT_conditional_rendering`,
-`VK_EXT_conservative_rasterization`, `VK_EXT_custom_border_color`,
-`VK_EXT_debug_marker`, `VK_EXT_depth_bias_control`,
-`VK_EXT_depth_clamp_control`, `VK_EXT_depth_clamp_zero_one`,
-`VK_EXT_depth_clip_control`, `VK_EXT_depth_clip_enable`,
-`VK_EXT_descriptor_indexing`, `VK_EXT_device_address_binding_report`,
-`VK_EXT_device_memory_report`, `VK_EXT_dynamic_rendering_unused_attachments`,
-`VK_EXT_extended_dynamic_state`, `VK_EXT_extended_dynamic_state2`,
-`VK_EXT_extended_dynamic_state3`,
-`VK_EXT_external_memory_acquire_unmodified`,
-`VK_EXT_external_memory_dma_buf`, `VK_EXT_global_priority`,
-`VK_EXT_global_priority_query`, `VK_EXT_graphics_pipeline_library`,
-`VK_EXT_hdr_metadata`, `VK_EXT_host_image_copy`, `VK_EXT_host_query_reset`,
-`VK_EXT_image_2d_view_of_3d`, `VK_EXT_image_drm_format_modifier`,
-`VK_EXT_image_robustness`, `VK_EXT_image_sliced_view_of_3d`,
-`VK_EXT_image_view_min_lod`, `VK_EXT_index_type_uint8`,
-`VK_EXT_inline_uniform_block`, `VK_EXT_legacy_dithering`,
-`VK_EXT_line_rasterization`, `VK_EXT_load_store_op_none`,
-`VK_EXT_map_memory_placed`, `VK_EXT_memory_budget`,
-`VK_EXT_multisampled_render_to_single_sampled`,
-`VK_EXT_mutable_descriptor_type`, `VK_EXT_nested_command_buffer`,
-`VK_EXT_non_seamless_cube_map`, `VK_EXT_physical_device_drm`,
-`VK_EXT_pipeline_creation_cache_control`,
-`VK_EXT_pipeline_creation_feedback`, `VK_EXT_pipeline_robustness`,
-`VK_EXT_present_timing`, `VK_EXT_primitive_topology_list_restart`,
-`VK_EXT_private_data`, `VK_EXT_provoking_vertex`,
-`VK_EXT_queue_family_foreign`,
-`VK_EXT_rasterization_order_attachment_access`, `VK_EXT_rgba10x6_formats`,
-`VK_EXT_robustness2`, `VK_EXT_sampler_filter_minmax`,
-`VK_EXT_scalar_block_layout`, `VK_EXT_separate_stencil_usage`,
-`VK_EXT_shader_atomic_float`, `VK_EXT_shader_demote_to_helper_invocation`,
-`VK_EXT_shader_image_atomic_int64`, `VK_EXT_shader_module_identifier`,
-`VK_EXT_shader_replicated_composites`, `VK_EXT_shader_stencil_export`,
-`VK_EXT_shader_subgroup_ballot`, `VK_EXT_shader_subgroup_vote`,
-`VK_EXT_shader_tile_image`, `VK_EXT_shader_uniform_buffer_unsized_array`,
-`VK_EXT_subgroup_size_control`, `VK_EXT_swapchain_maintenance1`,
-`VK_EXT_texel_buffer_alignment`, `VK_EXT_texture_compression_astc_hdr`,
-`VK_EXT_tooling_info`, `VK_EXT_vertex_attribute_divisor`,
-`VK_EXT_vertex_input_dynamic_state`, `VK_EXT_ycbcr_2plane_444_formats`,
-`VK_EXT_ycbcr_image_arrays`, `VK_EXT_zero_initialize_device_memory`,
-`VK_ANDROID_external_memory_android_hardware_buffer`,
-`VK_ANDROID_native_buffer`, `VK_ARM_rasterization_order_attachment_access`,
-`VK_ARM_scheduling_controls`, `VK_ARM_shader_core_builtins`,
-`VK_ARM_shader_core_properties`, `VK_GOOGLE_decorate_string`,
-`VK_GOOGLE_hlsl_functionality1`, `VK_GOOGLE_user_type`,
-`VK_VALVE_mutable_descriptor_type`.
-
-</details>
+More: [`docs/RUNTIME-FEATURES.md`](docs/RUNTIME-FEATURES.md) (Vulkan features and extensions, what is and is not supported), [`docs/APP-COMPATIBILITY.md`](docs/APP-COMPATIBILITY.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`CHANGELOG.md`](CHANGELOG.md).
 
 ## License
 
