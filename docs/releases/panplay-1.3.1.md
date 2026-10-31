@@ -105,8 +105,18 @@ Signing certificate SHA-256: `8b10fde8c12eff4a29e99ae669ba88854e6003178d9c3ec299
 
 | file | sha256 |
 |---|---|
-| `PanPlay-1.3.1.apk` | `71f8a5ae171ff4e91268ef87eb662983bb66ede50ad192f2ed42ac7a4d1638ee` |
 | `PanPlay-v1.3.1.apk` | `71f8a5ae171ff4e91268ef87eb662983bb66ede50ad192f2ed42ac7a4d1638ee` |
 | bundled `libvulkan_panfrost.so` | `62c2b3f98ca987d5ab50b6f01e2d2c1c5b3ee995fe93666aa5da9415f65c3348` |
 
+## More screenshots
+
+![tb336fu components](https://github.com/zenithblue-oss/panplay/releases/download/panplay-v1.3.1/tb336fu-components.png)
+
+![tb336fu controls editor](https://github.com/zenithblue-oss/panplay/releases/download/panplay-v1.3.1/tb336fu-controls-editor.png)
+
+![tb336fu cube d3d11](https://github.com/zenithblue-oss/panplay/releases/download/panplay-v1.3.1/tb336fu-cube-d3d11.png)
+
+![tb336fu ingame menu](https://github.com/zenithblue-oss/panplay/releases/download/panplay-v1.3.1/tb336fu-ingame-menu.png)
+
+![tb336fu whatsnew](https://github.com/zenithblue-oss/panplay/releases/download/panplay-v1.3.1/tb336fu-whatsnew.png)
 

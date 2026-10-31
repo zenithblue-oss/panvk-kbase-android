@@ -85,9 +85,17 @@ Signing certificate SHA-256: `8b10fde8c12eff4a29e99ae669ba88854e6003178d9c3ec299
 
 | file | sha256 |
 |---|---|
-| `PanProbe-1.3.2.apk` | `104801b565fd60fff3297e4698191124f61eb765f2d5c8965b7d78446e95bc73` |
 | `PanProbe-v1.3.2.apk` | `104801b565fd60fff3297e4698191124f61eb765f2d5c8965b7d78446e95bc73` |
 | bundled `libvulkan_panfrost_rc5.so` (build 122i) | `62c2b3f98ca987d5ab50b6f01e2d2c1c5b3ee995fe93666aa5da9415f65c3348` |
 | bundled `libvulkan_panfrost_rc4.so` | `977c0c4c0803b9940c453d691f50f14c9f8f732fe945d93bdde637880befd791` |
 
+## More screenshots
+
+![tb336fu panprobe driver](https://github.com/zenithblue-oss/panprobe/releases/download/panprobe-v1.3.2/tb336fu-panprobe-driver.png)
+
+![tb336fu panprobe results](https://github.com/zenithblue-oss/panprobe/releases/download/panprobe-v1.3.2/tb336fu-panprobe-results.png)
+
+![x6pro panprobe driver](https://github.com/zenithblue-oss/panprobe/releases/download/panprobe-v1.3.2/x6pro-panprobe-driver.png)
+
+![x6pro panprobe results](https://github.com/zenithblue-oss/panprobe/releases/download/panprobe-v1.3.2/x6pro-panprobe-results.png)
 
