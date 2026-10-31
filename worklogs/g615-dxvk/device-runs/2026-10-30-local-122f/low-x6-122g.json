@@ -1,0 +1,69 @@
+{
+ "#": "X6 Pro (v11): D3D11 cube 1% low, 122g vs rc4, fps cap and sw timing.",
+ "warmupSec": 10,
+ "measureSec": 30,
+ "screenshotAtSec": -1,
+ "installDrivers": {
+  "bisect-122g": "bisect/122g.so",
+  "bisect-rc4": "bisect/rc4.so"
+ },
+ "envSets": {
+  "g": {
+   "note": "122g",
+   "driver": "bisect-122g",
+   "env": {}
+  },
+  "gcap": {
+   "note": "122g capped at rc4 rate",
+   "driver": "bisect-122g",
+   "env": {
+    "DXVK_FRAME_RATE": "285"
+   }
+  },
+  "gtim": {
+   "note": "122g sw timing",
+   "driver": "bisect-122g",
+   "env": {
+    "MESA_VK_X11_SW_TIMING": "1",
+    "PANPLAY_XTIMING": "1"
+   }
+  },
+  "r4": {
+   "note": "rc4",
+   "driver": "bisect-rc4",
+   "env": {}
+  },
+  "r4cap": {
+   "note": "rc4 capped at 285",
+   "driver": "bisect-rc4",
+   "env": {
+    "DXVK_FRAME_RATE": "285"
+   }
+  },
+  "r4tim": {
+   "note": "rc4 X server timing",
+   "driver": "bisect-rc4",
+   "env": {
+    "PANPLAY_XTIMING": "1"
+   }
+  }
+ },
+ "scenarios": {
+  "6": {
+   "name": "low",
+   "tasks": [
+    "d3d11"
+   ],
+   "envSets": [
+    "g",
+    "r4",
+    "gcap",
+    "r4cap",
+    "gtim",
+    "r4tim",
+    "g",
+    "r4"
+   ]
+  }
+ }
+}

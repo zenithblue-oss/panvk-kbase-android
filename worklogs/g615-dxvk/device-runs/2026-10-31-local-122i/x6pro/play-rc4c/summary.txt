@@ -1,0 +1,43 @@
+s1 run=20261031-093220-s1
+01  d3d11    default   ok           -       -       -       -    265.7    102.6    3.6    5.4    7.1    113.8  CUBE: PASS api=d3d11 frames=12644 (check pixels)
+      1 "deviceLost": false
+s2 run=20261031-093320-s2
+01  d3d9     default   ok           -       -       -       -    120.0     72.7    8.3   10.3   12.5    114.2  CUBE: PASS api=d3d9 frames=5747 (check pixels)
+      1 "deviceLost": false
+s3 run=20261031-093420-s3
+01  d3d11    default   ok           -       -       -       -    285.0    103.0    3.5    5.4    7.1    101.4  CUBE: PASS api=d3d11 frames=13696 (check pixels)
+02  d3d9     default   ok           -       -       -       -    119.9     60.0    8.3   10.4   12.6    108.3  CUBE: PASS api=d3d9 frames=5745 (check pixels)
+      2 "deviceLost": false
+s4 run=20261031-093616-s4
+01  d3d11    old       ok           -       -       -       -    312.6    109.8    3.1    5.3    7.0     92.5  CUBE: PASS api=d3d11 frames=14768 (check pixels)
+02  d3d11    default   ok           -       -       -       -    239.5     78.3    4.0    6.4    8.7    112.5  CUBE: PASS api=d3d11 frames=11546 (check pixels)
+03  d3d9     old       ok           -       -       -       -    120.0     63.0    8.3   10.6   12.9     78.0  CUBE: PASS api=d3d9 frames=5745 (check pixels)
+04  d3d9     default   ok           -       -       -       -    119.8     62.2    8.3   10.6   13.1     84.1  CUBE: PASS api=d3d9 frames=5741 (check pixels)
+      4 "deviceLost": false
+s5 run=20261031-094008-s5
+01  d3d12    default   fail         -       -       -       -        -        -      -      -      -        -  no pass line (^DX12: PASS)
+      1 "deviceLost": false
+s6 run=20261031-094023-s6
+01  d3d12gears default   fail         -       -       -       -        -        -      -      -      -        -  no pass line (^DX12: PASS)
+      1 "deviceLost": false
+s7 run=20261031-094032-s7
+01  d3d12fl_11_0 default   fail         -       -       -       -        -        -      -      -      -        -  no pass line (^D3DFL: (PASS|UNSUPPORTED|DONE) )
+02  d3d12fl_11_1 default   fail         -       -       -       -        -        -      -      -      -        -  test failed: D3DFL: FAIL api=d3d12 level=11_1 device lost frames=0 secs=0.0 fps=0.0 startup=0.0
+03  d3d12fl_12_0 default   fail         -       -       -       -        -        -      -      -      -        -  no pass line (^D3DFL: (PASS|UNSUPPORTED|DONE) )
+04  d3d12fl_12_1 default   fail         -       -       -       -        -        -      -      -      -        -  test failed: D3DFL: FAIL api=d3d12 level=12_1 device lost frames=0 secs=0.0 fps=0.0 startup=0.0
+05  d3d12fl_12_2 default   fail         -       -       -       -        -        -      -      -      -        -  no pass line (^D3DFL: (PASS|UNSUPPORTED|DONE) )
+      3 "deviceLost": false
+      2 "deviceLost": true
+s8 run=20261031-094150-s8
+01  d3d11fl_10_0 default   ok           -       -       -       -    704.7    122.5    1.1    3.2    5.2     75.1  D3DFL: PASS api=d3d11 level=10_0 created gs:PASS,stream_out:PASS frames=33353 secs=48.0 fps=694.8 startup=1.5
+02  d3d11fl_10_1 default   ok           -       -       -       -    686.2    114.8    1.1    3.4    5.8     77.4  D3DFL: PASS api=d3d11 level=10_1 created cube_array:PASS,gather4:PASS frames=33141 secs=48.0 fps=690.4 startup=1.5
+03  d3d11fl_11_0 default   ok           -       -       -       -    668.3    118.6    1.1    3.5    5.8     77.5  D3DFL: PASS api=d3d11 level=11_0 created tess:PASS,compute:PASS frames=32751 secs=48.0 fps=682.3 startup=1.5
+04  d3d11fl_11_1 default   ok           -       -       -       -    680.8    129.6    1.1    3.4    5.4     75.5  D3DFL: PASS api=d3d11 level=11_1 created uav_vs:PASS,logic_op:PASS,tir:PASS frames=32073 secs=48.0 fps=668.2 startup=1.6
+05  d3d10    default   ok           -       -       -       -    256.0     83.0    3.8    6.3    9.0    112.3  CUBE: PASS api=d3d10 frames=12314 (check pixels)
+06  d3d9     default   ok           -       -       -       -    120.0     55.5    8.3   11.0   14.2    113.4  CUBE: PASS api=d3d9 frames=5738 (check pixels)
+      6 "deviceLost": false
+s9 run=20261031-094741-s9
+01  d3d12fl_all default   fail         -       -       -       -        -        -      -      -      -        -  test failed: D3DFL: FAIL api=d3d12 level=all device lost frames=0 secs=0.0 fps=0.0 startup=0.0
+02  d3d11fl_all default   ok           -       -       -       -    586.9    108.5    1.3    4.0    6.3     94.7  D3DFL: DONE api=d3d11 level=all 10_0=PASS 10_1=PASS 11_0=PASS 11_1=PASS frames=28335 secs=48.0 fps=590.3 startup=2.8
+      1 "deviceLost": false
+      1 "deviceLost": true

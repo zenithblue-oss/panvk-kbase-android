@@ -1,0 +1,41 @@
+s1 run=20261031-113833-s1
+01  d3d11    default   ok       156.2   145.6   164.3    30.7    156.3     78.7    6.2    8.2   10.3     90.0  CUBE: PASS api=d3d11 frames=7495 (check pixels)
+      1 "deviceLost": false
+s2 run=20261031-113936-s2
+01  d3d9     default   ok        89.9    88.4    91.4    43.9     89.9     47.1   11.0   13.7   17.8     89.9  CUBE: PASS api=d3d9 frames=4140 (check pixels)
+      1 "deviceLost": false
+s3 run=20261031-114034-s3
+01  d3d11    default   ok       159.5   149.6   168.0    33.1    159.8     82.6    6.0    8.1   10.1     90.0  CUBE: PASS api=d3d11 frames=7708 (check pixels)
+02  d3d9     default   ok        89.9    87.7    91.1    41.8     89.9     45.8   11.0   13.5   17.9     89.8  CUBE: PASS api=d3d9 frames=4307 (check pixels)
+      2 "deviceLost": false
+s4 run=20261031-114232-s4
+01  d3d11    old       ok       163.4   117.9   171.7    31.8    163.5     80.5    5.9    7.8   10.1     90.0  CUBE: PASS api=d3d11 frames=7855 (check pixels)
+02  d3d11    default   ok       159.4   108.0   168.8    37.1    159.6     69.5    6.0    8.2   11.3     90.0  CUBE: PASS api=d3d11 frames=7751 (check pixels)
+03  d3d9     old       ok        89.9    87.3    91.3    41.9     89.9     47.0   11.0   13.5   18.1     89.9  CUBE: PASS api=d3d9 frames=4304 (check pixels)
+04  d3d9     default   ok        89.9    87.4    91.3    41.6     89.9     46.8   11.0   13.7   17.5     89.8  CUBE: PASS api=d3d9 frames=4304 (check pixels)
+      4 "deviceLost": false
+s5 run=20261031-114623-s5
+01  d3d12    default   ok        24.6    23.7    25.1    50.6        -        -      -      -      -     24.6  DX12: PASS test=d3d12-multithreading frames=1184 secs=48.0 fps=24.6 startup=3.6
+      1 "deviceLost": false
+s6 run=20261031-114725-s6
+01  d3d12gears default   ok       257.5   205.9   272.8    34.8        -        -      -      -      -     90.0  DX12: PASS test=vkd3d-gears frames=12461 secs=48.0 fps=259.6 startup=0.9
+      1 "deviceLost": false
+s7 run=20261031-114822-s7
+01  d3d12fl_11_0 default   ok       462.7   395.2   532.5    31.3        -        -      -      -      -     90.0  D3DFL: PASS api=d3d12 level=11_0 created tess:PASS,gs:PASS,compute:PASS,mrt:PASS,msaa4x:PASS frames=22232 secs=48.0 fps=463.1 startup=1.7
+02  d3d12fl_11_1 default   ok       500.2   432.7   589.9    37.3        -        -      -      -      -     90.0  D3DFL: PASS api=d3d12 level=11_1 created uav_vs:PASS,logic_op:PASS,tir:REPORTED frames=23886 secs=48.0 fps=497.6 startup=2.5
+03  d3d12fl_12_0 default   ok       493.4   419.5   556.5    33.4        -        -      -      -      -     90.0  D3DFL: UNSUPPORTED api=d3d12 level=12_0 not_created typed_uav_load:PASS,binding_tier2:PASS,tiled_tier2:UNSUPPORTED frames=23559 secs=48.0 fps=490.8 startup=1.6
+04  d3d12fl_12_1 default   ok       429.4   399.3   500.0    30.1        -        -      -      -      -     90.0  D3DFL: UNSUPPORTED api=d3d12 level=12_1 not_created rov:UNSUPPORTED,conservative:UNSUPPORTED frames=20641 secs=48.0 fps=430.0 startup=1.5
+05  d3d12fl_12_2 default   ok       433.6   404.4   521.8    32.4        -        -      -      -      -     90.0  D3DFL: UNSUPPORTED api=d3d12 level=12_2 not_created sm6_5:REPORTED,mesh_shader:UNSUPPORTED,dxr1_1:UNSUPPORTED,vrs_tier2:UNSUPPORTED,sampler_feedback:REPORTED frames=20594 secs=48.0 fps=429.0 startup=1.4
+      5 "deviceLost": false
+s8 run=20261031-115317-s8
+01  d3d11fl_10_0 default   ok       204.5   189.0   221.4    37.7    204.4    102.0    4.6    7.0    8.2     90.0  D3DFL: PASS api=d3d11 level=10_0 created gs:PASS,stream_out:PASS frames=9862 secs=48.0 fps=205.4 startup=1.0
+02  d3d11fl_10_1 default   ok       206.8   194.5   229.7    31.1    207.1    104.7    4.6    6.9    8.0     90.0  D3DFL: PASS api=d3d11 level=10_1 created cube_array:PASS,gather4:PASS frames=10580 secs=48.0 fps=220.4 startup=1.1
+03  d3d11fl_11_0 default   ok       211.6   186.2   230.9    34.9    212.0    103.6    4.4    6.9    8.0     90.0  D3DFL: PASS api=d3d11 level=11_0 created tess:PASS,compute:PASS frames=11037 secs=48.0 fps=229.9 startup=1.0
+04  d3d11fl_11_1 default   ok       220.5   203.1   239.3    35.9    220.4    108.2    4.3    6.6    7.6     90.0  D3DFL: PASS api=d3d11 level=11_1 created uav_vs:PASS,logic_op:PASS,tir:PASS frames=10611 secs=48.0 fps=221.0 startup=1.0
+05  d3d10    default   ok       160.8   151.9   170.0    34.2    161.0     84.1    6.0    8.0    9.9     90.0  CUBE: PASS api=d3d10 frames=7742 (check pixels)
+06  d3d9     default   ok        89.8    87.6    91.6    41.9     89.9     46.7   11.0   13.6   17.7     89.8  CUBE: PASS api=d3d9 frames=4305 (check pixels)
+      6 "deviceLost": false
+s9 run=20261031-115907-s9
+01  d3d12fl_all default   ok       489.6   404.2   578.2    35.9        -        -      -      -      -     90.0  D3DFL: DONE api=d3d12 level=all 11_0=PASS 11_1=PASS 12_0=UNSUPPORTED 12_1=UNSUPPORTED 12_2=UNSUPPORTED highest=11_1 frames=23496 secs=48.0 fps=489.5 startup=2.7
+02  d3d11fl_all default   ok       212.8   199.3   226.3    33.9    212.6    101.1    4.4    6.8    8.0     90.0  D3DFL: DONE api=d3d11 level=all 10_0=PASS 10_1=PASS 11_0=PASS 11_1=PASS frames=10389 secs=48.0 fps=216.4 startup=1.4
+      2 "deviceLost": false

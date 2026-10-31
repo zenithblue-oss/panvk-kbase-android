@@ -971,3 +971,13 @@ Build 122f = 0006-0171, `Mesa 26.3.0-devel (git-e1d5a21c4a, p0171, 2026-10-30)`.
 - PanProbe 41/41 cold and warm on the X6 Pro and the TB336FU; PanPlay 1-9 on the X6 Pro only
   (`worklogs/g615-dxvk/device-runs/2026-10-30-local-122f`).
 - **Not the default.** The pins stay on 122e (`--wip-max 0169`) until the TB336FU PanPlay gate passes.
+
+Build 122i = 0006-0175, `Mesa 26.3.0-devel (git-795ca7ff3e, p0175, 2026-10-31)`.
+- .so: `/var/tmp/panvk/build-out/2026-10-30-122i/libvulkan_panfrost.so`, sha256
+  `62c2b3f98ca987d5ab50b6f01e2d2c1c5b3ee995fe93666aa5da9415f65c3348`, 34850936 bytes, BuildID
+  `054636abcd8b1e7344c0463556443b2a0944ab6e` (the tested binary is the pinned one).
+- Strict prepare (`--wip-max 0175`): `OK base=228 jm-v7-wip=170`, tree equal to the build tree.
+- PanProbe 41/41 cold and warm on the X6 Pro (v11), the TB336FU (v9), v12 SM-X926B (122h) and v14 (RTL);
+  PanPlay 1-9 on the TB336FU, s3 + s8 on the X6 Pro (1-9 on 122g, same v11 code except 0175), all pass, no DEVICE_LOST.
+- Known: D3D11 cube 1 % low on the X6 Pro below 116 (47 vs 56 fps, at 685 vs 505 fps average): in-process X server stalls, deferred.
+- **122i is the default bundled driver** (`prepare-rc5-tree.sh` default `--wip-max 0175`).
