@@ -20,7 +20,8 @@ import sys
 
 # Whole NUL-terminated string: the "# panvk-fps Mesa ..." fps-log header contains the same text but does not
 # start at a NUL.
-UPSTREAM = re.compile(rb"\x00(Mesa (\d+\.\d+\.\d+[-.0-9A-Za-z]*) \(git-([0-9a-f]{7,40})\))\x00")
+# Build 122i and later append the patch level and date: "Mesa 26.3.0-devel (git-795ca7ff3e, p0175, 2026-10-31)".
+UPSTREAM = re.compile(rb"\x00(Mesa (\d+\.\d+\.\d+[-.0-9A-Za-z]*) \(git-([0-9a-f]{7,40})(?:, [^)\x00]*)?\))\x00")
 LEGACY = re.compile(rb"PanVK-kbase ([^\x00]*?) \(Mesa (\d+\.\d+\.\d+[-.0-9A-Za-z]*) \(git-([0-9a-f]{7,40})\)\)\x00")
 
 

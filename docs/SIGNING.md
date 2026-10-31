@@ -15,13 +15,16 @@ signed with that key. An APK signed with another key installs only after an unin
 |---|---|---|
 | `PanPlay-1.3.1-unsigned.apk` | `dev.zenithblue.panvklauncher` | 1.3.1, versionCode 45 |
 | `PanProbe-1.3.2-unsigned.apk` | `dev.zenithblue.panvktest` | 1.3.2, versionCode 21 |
-| `SHA256SUMS` | sha256 of both unsigned APKs | |
+| `Mesa-PanVK-Android-v26.3.1-795ca7ff.adpkg.zip` | driver package (not signed) | |
+| `SHA256SUMS` | sha256 of the APKs, the adpkg and the screenshots | |
 
 They are `assembleRelease` outputs: release build type with the projects' release settings (neither app has a
 `release` block, so AGP defaults: no R8 minify, no resource shrinking, not debuggable), native libraries stored
 compressed (`useLegacyPackaging`), zipaligned (`zipalign -c -p 4` passes). Not being debuggable means `run-as` and the
 debug-only intent extras (PanPlay's launch-shortcut extra, PanProbe's upload dry run, the driver-version override) do
 not work in these builds; the Firebase game loop does not use them.
+In a clean worktree, PanProbe needs the Vulkan headers at `work/mesa-dxint/include` (untracked; link it from the main
+checkout), or NDK headers that lack `VK_ATTACHMENT_LOAD_OP_NONE_KHR` fail the build.
 
 ## Sign and verify
 
