@@ -1,0 +1,32 @@
+{
+ "#": "v12 s8 122h only, no env, default PanPlay window (20 s warm-up, 60 s measured) to match the 122g/116 s8 run of 2026-10-31.",
+ "warmupSec": 20,
+ "measureSec": 60,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-122h": "bisect-122h.so"
+ },
+ "envSets": {
+  "g122h": {
+   "note": "build 122h no env",
+   "driver": "bisect-122h",
+   "env": {}
+  }
+ },
+ "scenarios": {
+  "8": {
+   "name": "d3d11fl 122h",
+   "tasks": [
+    "d3d11fl_10_0",
+    "d3d11fl_10_1",
+    "d3d11fl_11_0",
+    "d3d11fl_11_1",
+    "d3d10",
+    "d3d9"
+   ],
+   "envSets": [
+    "g122h"
+   ]
+  }
+ }
+}
