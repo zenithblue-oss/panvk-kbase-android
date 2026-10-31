@@ -2,7 +2,7 @@ diff --git a/src/panfrost/lib/kmod/kbase_kmod.c b/src/panfrost/lib/kmod/kbase_km
 index 8322de67327..fc46dcce332 100644
 --- a/src/panfrost/lib/kmod/kbase_kmod.c
 +++ b/src/panfrost/lib/kmod/kbase_kmod.c
-@@ -60,6 +60,31 @@
+@@ -60,6 +60,52 @@
  #include "drm-uapi/panthor_drm.h"
  
  #include "kbase_kmod.h"
@@ -31,26 +31,49 @@ index 8322de67327..fc46dcce332 100644
 +#define KBASE_ION_IOC_ALLOC      _IOWR('I', 0, struct kbase_ion_alloc)
 +#define KBASE_ION_IOC_HEAP_QUERY _IOWR('I', 8, struct kbase_ion_heap_query)
 +
++/* ION legacy ABI (old vendor kernels such as MediaTek 4.14): there is no
++ * HEAP_QUERY, ALLOC returns a handle and SHARE turns it into a dma-buf fd. */
++struct kbase_ion_legacy_alloc {
++   uint64_t len;
++   uint64_t align;
++   uint32_t heap_id_mask;
++   uint32_t flags;
++   int32_t handle;
++   uint32_t pad;
++};
++struct kbase_ion_legacy_fd {
++   int32_t handle;
++   int32_t fd;
++};
++struct kbase_ion_legacy_free {
++   int32_t handle;
++};
++#define KBASE_ION_LEGACY_IOC_ALLOC _IOWR('I', 0, struct kbase_ion_legacy_alloc)
++#define KBASE_ION_LEGACY_IOC_FREE  _IOWR('I', 1, struct kbase_ion_legacy_free)
++#define KBASE_ION_LEGACY_IOC_SHARE _IOWR('I', 4, struct kbase_ion_legacy_fd)
++
  #include "pan_kmod_backend.h"
  #include "pan_props.h"
  #include "pan_trace.h"
-@@ -147,6 +172,11 @@ struct kbase_kmod_dev {
+@@ -147,6 +193,13 @@ struct kbase_kmod_dev {
     /* Android dma-heap used for BOs which need to be shared with WSI. */
     int dma_heap_fd;
  
 +   /* Kernels without dma-heap (4.14/5.4 ION) use /dev/ion through the same
 +    * fd field; ion_heap_mask is the system heap id mask. */
 +   bool heap_is_ion;
++   /* Old ION ABI (no HEAP_QUERY): ALLOC returns a handle, SHARE gives the fd. */
++   bool ion_legacy;
 +   uint32_t ion_heap_mask;
 +
     /* Set when the CSF notification stream reports a queue-group error.
      * Vulkan queue status queries use this latch instead of invalidating and
      * reading every GPU subqueue context on every submission. */
-@@ -1697,6 +1727,37 @@ kbase_kmod_dev_create(int fd, uint32_t flags,
+@@ -1697,6 +1750,53 @@ kbase_kmod_dev_create(int fd, uint32_t flags,
        mesa_logd("kbase: dma-heap unavailable at %s: %s", dma_heap,
                  strerror(errno));
  
-+   /* ION fallback (new ABI, kernels 4.14-5.4): placed maps need a dma-buf. */
++   /* ION fallback (kernels 4.14-5.4): placed maps need a dma-buf. */
 +   if (kbase_dev->dma_heap_fd < 0) {
 +      int ion = open("/dev/ion", O_RDONLY | O_CLOEXEC);
 +      if (ion >= 0) {
@@ -59,6 +82,12 @@ index 8322de67327..fc46dcce332 100644
 +            .cnt = ARRAY_SIZE(heaps),
 +            .heaps = (uintptr_t)heaps,
 +         };
++         struct kbase_ion_legacy_alloc la = {
++            .len = 4096,
++            .heap_id_mask = 1,
++         };
++         struct kbase_ion_legacy_free fr;
++
 +         if (!ioctl(ion, KBASE_ION_IOC_HEAP_QUERY, &q)) {
 +            for (uint32_t i = 0; i < q.cnt && i < ARRAY_SIZE(heaps); i++) {
 +               if (heaps[i].type == 0 /* ION_HEAP_TYPE_SYSTEM */) {
@@ -67,11 +96,21 @@ index 8322de67327..fc46dcce332 100644
 +               }
 +            }
 +         }
++         if (!kbase_dev->ion_heap_mask &&
++             !ioctl(ion, KBASE_ION_LEGACY_IOC_ALLOC, &la)) {
++            /* Old kernel without HEAP_QUERY: heap id 0 is the system heap
++             * and a one page legacy allocation worked, so use that ABI. */
++            fr.handle = la.handle;
++            ioctl(ion, KBASE_ION_LEGACY_IOC_FREE, &fr);
++            kbase_dev->ion_heap_mask = 1;
++            kbase_dev->ion_legacy = true;
++         }
 +         if (kbase_dev->ion_heap_mask) {
 +            kbase_dev->dma_heap_fd = ion;
 +            kbase_dev->heap_is_ion = true;
-+            mesa_logi("kbase: using ION system heap, mask 0x%x",
-+                      kbase_dev->ion_heap_mask);
++            mesa_logi("kbase: using ION system heap, mask 0x%x%s",
++                      kbase_dev->ion_heap_mask,
++                      kbase_dev->ion_legacy ? " (legacy ABI, uncached)" : "");
 +         } else {
 +            mesa_logi("kbase: no usable ION system heap");
 +            close(ion);
@@ -84,12 +123,37 @@ index 8322de67327..fc46dcce332 100644
     if (!kbase_dev->base.props.gpu_id) {
        mesa_loge("kbase: failed to determine GPU ID from properties");
        if (kbase_dev->dma_heap_fd >= 0)
-@@ -2138,7 +2199,18 @@ kbase_kmod_bo_alloc_dmabuf(struct pan_kmod_dev *dev, uint64_t size,
+@@ -2138,7 +2238,43 @@ kbase_kmod_bo_alloc_dmabuf(struct pan_kmod_dev *dev, uint64_t size,
        .fd_flags = O_RDWR | O_CLOEXEC,
     };
  
 -   if (ioctl(kbase_dev->dma_heap_fd, DMA_HEAP_IOCTL_ALLOC, &alloc)) {
-+   if (kbase_dev->heap_is_ion) {
++   if (kbase_dev->heap_is_ion && kbase_dev->ion_legacy) {
++      struct kbase_ion_legacy_alloc la = {
++         .len = alloc.len,
++         .heap_id_mask = kbase_dev->ion_heap_mask,
++         .flags = 0, /* uncached: the GPU is not coherent with the CPU cache */
++      };
++      struct kbase_ion_legacy_fd sh = { .fd = -1 };
++      struct kbase_ion_legacy_free fr;
++      int ret, share_errno;
++
++      if (ioctl(kbase_dev->dma_heap_fd, KBASE_ION_LEGACY_IOC_ALLOC, &la)) {
++         mesa_loge("kbase: legacy ION_IOC_ALLOC failed: %s", strerror(errno));
++         return NULL;
++      }
++      sh.handle = la.handle;
++      ret = ioctl(kbase_dev->dma_heap_fd, KBASE_ION_LEGACY_IOC_SHARE, &sh);
++      share_errno = errno;
++      fr.handle = la.handle;
++      ioctl(kbase_dev->dma_heap_fd, KBASE_ION_LEGACY_IOC_FREE, &fr);
++      if (ret) {
++         mesa_loge("kbase: legacy ION_IOC_SHARE failed: %s",
++                   strerror(share_errno));
++         return NULL;
++      }
++      alloc.fd = sh.fd;
++   } else if (kbase_dev->heap_is_ion) {
 +      struct kbase_ion_alloc ia = {
 +         .len = alloc.len,
 +         .heap_id_mask = kbase_dev->ion_heap_mask,
