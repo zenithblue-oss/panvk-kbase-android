@@ -1,0 +1,80 @@
+{
+ "#": "v13 116 no env, same short window as the 122h run (10 s warm-up, 30 s measured): 5 = d3d12, 7 = d3d12fl, 8 = d3d11fl+d3d10+d3d9 on 116; 6 = d3d12gears 122h then 116.",
+ "warmupSec": 10,
+ "measureSec": 30,
+ "screenshotAtSec": 10,
+ "installDrivers": {
+  "bisect-116": "bisect-116.so",
+  "bisect-122h": "bisect-122h.so"
+ },
+ "envSets": {
+  "a122h": {
+   "note": "122h",
+   "driver": "bisect-122h",
+   "env": {}
+  },
+  "a116": {
+   "note": "116",
+   "driver": "bisect-116",
+   "env": {}
+  },
+  "b122h": {
+   "note": "122h",
+   "driver": "bisect-122h",
+   "env": {}
+  },
+  "b116": {
+   "note": "116",
+   "driver": "bisect-116",
+   "env": {}
+  }
+ },
+ "scenarios": {
+  "5": {
+   "name": "d3d12 116",
+   "tasks": [
+    "d3d12"
+   ],
+   "envSets": [
+    "a116"
+   ]
+  },
+  "7": {
+   "name": "d3d12fl 116",
+   "tasks": [
+    "d3d12fl_11_0",
+    "d3d12fl_11_1",
+    "d3d12fl_12_0",
+    "d3d12fl_12_1",
+    "d3d12fl_12_2"
+   ],
+   "envSets": [
+    "a116"
+   ]
+  },
+  "8": {
+   "name": "d3d11fl 116",
+   "tasks": [
+    "d3d11fl_10_0",
+    "d3d11fl_10_1",
+    "d3d11fl_11_0",
+    "d3d11fl_11_1",
+    "d3d10",
+    "d3d9"
+   ],
+   "envSets": [
+    "a116"
+   ]
+  },
+  "6": {
+   "name": "gears 122h vs 116",
+   "tasks": [
+    "d3d12gears"
+   ],
+   "envSets": [
+    "a122h",
+    "a116"
+   ]
+  }
+ }
+}
