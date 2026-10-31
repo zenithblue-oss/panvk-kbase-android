@@ -1,0 +1,48 @@
+{
+ "#": "X6 Pro (v11): dev17 (0173 decide once) auto vs forced cached/uncached; auto logs its decision.",
+ "warmupSec": 10,
+ "measureSec": 30,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-dev17": "bisect/dev17.so"
+ },
+ "envSets": {
+  "auto": {
+   "note": "dev17 auto",
+   "driver": "bisect-dev17",
+   "env": {
+    "MESA_LOG_FILE": "/sdcard/Android/data/dev.zenithblue.panvklauncher/files/mesa-ab17.log"
+   }
+  },
+  "c1": {
+   "note": "dev17 cached",
+   "driver": "bisect-dev17",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "c0": {
+   "note": "dev17 uncached",
+   "driver": "bisect-dev17",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "0"
+   }
+  }
+ },
+ "scenarios": {
+  "6": {
+   "name": "ab once",
+   "tasks": [
+    "d3d11",
+    "d3d11fl_11_1",
+    "d3d12gears"
+   ],
+   "envSets": [
+    "auto",
+    "c1",
+    "c0",
+    "auto"
+   ]
+  }
+ }
+}

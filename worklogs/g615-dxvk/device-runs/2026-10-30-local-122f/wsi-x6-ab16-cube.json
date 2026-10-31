@@ -1,0 +1,43 @@
+{
+ "#": "X6 Pro (v11): dev16 auto, D3D11 cube only, for the decision log.",
+ "warmupSec": 10,
+ "measureSec": 30,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-dev16": "bisect/dev16.so"
+ },
+ "envSets": {
+  "auto": {
+   "note": "dev16 auto",
+   "driver": "bisect-dev16",
+   "env": {
+    "MESA_LOG_FILE": "/sdcard/Android/data/dev.zenithblue.panvklauncher/files/mesa-ab16.log"
+   }
+  },
+  "c1": {
+   "note": "dev16 cached",
+   "driver": "bisect-dev16",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "1"
+   }
+  },
+  "c0": {
+   "note": "dev16 uncached",
+   "driver": "bisect-dev16",
+   "env": {
+    "PANVK_WSI_SW_CACHED": "0"
+   }
+  }
+ },
+ "scenarios": {
+  "6": {
+   "name": "cube auto log",
+   "tasks": [
+    "d3d11"
+   ],
+   "envSets": [
+    "auto"
+   ]
+  }
+ }
+}

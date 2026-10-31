@@ -1,0 +1,46 @@
+{
+ "#": "X6 Pro (v11): D3D11 cube, dropping the put of a frame while the X server is behind (dev15, TMP173_DROP) vs not, rc4.",
+ "warmupSec": 10,
+ "measureSec": 30,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-dev15": "bisect/dev15.so",
+  "bisect-rc4": "bisect/rc4.so"
+ },
+ "envSets": {
+  "nd": {
+   "note": "dev15",
+   "driver": "bisect-dev15",
+   "env": {}
+  },
+  "dr": {
+   "note": "dev15 drop",
+   "driver": "bisect-dev15",
+   "env": {
+    "TMP173_DROP": "1"
+   }
+  },
+  "rc4": {
+   "note": "rc4",
+   "driver": "bisect-rc4",
+   "env": {}
+  }
+ },
+ "scenarios": {
+  "6": {
+   "name": "cube drop",
+   "tasks": [
+    "d3d11",
+    "d3d11fl_11_1"
+   ],
+   "envSets": [
+    "nd",
+    "dr",
+    "rc4",
+    "rc4",
+    "dr",
+    "nd"
+   ]
+  }
+ }
+}

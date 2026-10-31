@@ -1,0 +1,61 @@
+{
+ "#": "X6 Pro (v11): D3D11 cube, sw present in-flight puts 1-4 (dev14, TMP173_MAX_PENDING).",
+ "warmupSec": 10,
+ "measureSec": 30,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-dev14": "bisect/dev14.so"
+ },
+ "envSets": {
+  "mp1": {
+   "note": "max pending 1",
+   "driver": "bisect-dev14",
+   "env": {
+    "TMP173_MAX_PENDING": "1",
+    "MESA_LOG_FILE": "/sdcard/Android/data/dev.zenithblue.panvklauncher/files/mesa-mp.log"
+   }
+  },
+  "mp2": {
+   "note": "max pending 2",
+   "driver": "bisect-dev14",
+   "env": {
+    "TMP173_MAX_PENDING": "2",
+    "MESA_LOG_FILE": "/sdcard/Android/data/dev.zenithblue.panvklauncher/files/mesa-mp.log"
+   }
+  },
+  "mp3": {
+   "note": "max pending 3",
+   "driver": "bisect-dev14",
+   "env": {
+    "TMP173_MAX_PENDING": "3",
+    "MESA_LOG_FILE": "/sdcard/Android/data/dev.zenithblue.panvklauncher/files/mesa-mp.log"
+   }
+  },
+  "mp4": {
+   "note": "max pending 4",
+   "driver": "bisect-dev14",
+   "env": {
+    "TMP173_MAX_PENDING": "4",
+    "MESA_LOG_FILE": "/sdcard/Android/data/dev.zenithblue.panvklauncher/files/mesa-mp.log"
+   }
+  }
+ },
+ "scenarios": {
+  "6": {
+   "name": "cube pending",
+   "tasks": [
+    "d3d11"
+   ],
+   "envSets": [
+    "mp2",
+    "mp3",
+    "mp4",
+    "mp1",
+    "mp1",
+    "mp4",
+    "mp3",
+    "mp2"
+   ]
+  }
+ }
+}

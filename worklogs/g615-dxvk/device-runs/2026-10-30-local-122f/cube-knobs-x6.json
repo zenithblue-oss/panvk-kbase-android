@@ -1,0 +1,47 @@
+{
+ "#": "X6 Pro (v11): D3D11 cube 1% low vs kbase incremental rendering (0161) and the present-thread placement knobs (dev13).",
+ "warmupSec": 10,
+ "measureSec": 30,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-dev13": "bisect/dev13.so"
+ },
+ "envSets": {
+  "d": {
+   "note": "dev13",
+   "driver": "bisect-dev13",
+   "env": {}
+  },
+  "ir0": {
+   "note": "IR off",
+   "driver": "bisect-dev13",
+   "env": {
+    "PANVK_KBASE_TILER_IR": "0"
+   }
+  },
+  "pt0": {
+   "note": "no fps log, no gpu stats",
+   "driver": "bisect-dev13",
+   "env": {
+    "PANVK_GPU_STATS": "",
+    "PANVK_FPS_LOG": ""
+   }
+  }
+ },
+ "scenarios": {
+  "6": {
+   "name": "cube knobs",
+   "tasks": [
+    "d3d11"
+   ],
+   "envSets": [
+    "d",
+    "ir0",
+    "pt0",
+    "pt0",
+    "ir0",
+    "d"
+   ]
+  }
+ }
+}

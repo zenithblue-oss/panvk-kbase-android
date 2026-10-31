@@ -1016,9 +1016,14 @@ class MainActivity : ComponentActivity() {
         val fpsRegex = Regex("""FPS ([0-9.]+)""")
         val last40 = ArrayDeque<String>(40)
         val bench = mutableListOf<String>()
+        // The lines that made the test fail go first in extra: the RESULT line is cut after
+        // some segments, and a long BENCH list (tess_perf on v12) hid the failing check.
+        val failLines = mutableListOf<String>()
+        val failLineRegex = Regex("""^(FAIL|MISMATCH|LEVEL_IGNORED|LOWMEM|[A-Z_]+_FAILS=[1-9])""")
         if (logFile.exists()) scanLog(logFile) { line ->
             val trimmed = line.trimStart()
             if (trimmed.startsWith("FAIL") || trimmed.startsWith("RESULT FAIL")) hasFail = true
+            if (failLines.size < 8 && failLineRegex.containsMatchIn(trimmed)) failLines.add(trimmed.take(240))
             if (trimmed.startsWith("BENCH ")) bench.add(trimmed.removePrefix("BENCH "))
             if (trimmed.startsWith("RESULT SKIP")) hasSkip = true
             if (bifrost == null) bifrost = UploadLogs.bifrostMessage(line)
@@ -1059,7 +1064,7 @@ class MainActivity : ComponentActivity() {
             durationMs = durationMs,
             logFile = logFile,
             lastLines = last40.toList(),
-            extra = (listOfNotNull(bifrost ?: if (bifrostGpu && (status == "FAIL" || status == "SKIP")) UploadLogs.BIFROST_TAG else null, if (vendorIcd) "VENDOR ICD: test ran on the phone's own Vulkan driver, NOT PanVK (driver .so not used)" else null) + bench)
+            extra = ((if (status == "PASS") emptyList() else failLines + listOfNotNull(if (res != "exit:0") "exit=$res" else null)) + listOfNotNull(bifrost ?: if (bifrostGpu && (status == "FAIL" || status == "SKIP")) UploadLogs.BIFROST_TAG else null, if (vendorIcd) "VENDOR ICD: test ran on the phone's own Vulkan driver, NOT PanVK (driver .so not used)" else null) + bench)
                 .takeIf { it.isNotEmpty() }?.joinToString(" | ")
         )
     }

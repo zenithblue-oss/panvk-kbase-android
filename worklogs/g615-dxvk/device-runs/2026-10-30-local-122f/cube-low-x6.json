@@ -1,0 +1,19 @@
+{
+ "#": "X6 Pro (v11): D3D11 cube 1% low. dev13 default (with sw timing log), cached forced (no 0171 A/B), blocking reply (no 0160 defer), rc4.",
+ "warmupSec": 10,
+ "measureSec": 30,
+ "screenshotAtSec": 20,
+ "installDrivers": {
+  "bisect-rc4": "bisect/rc4.so",
+  "bisect-dev13": "bisect/dev13.so"
+ },
+ "envSets": {
+  "d": { "note": "dev13", "driver": "bisect-dev13", "env": { "MESA_VK_X11_SW_TIMING": "1", "MESA_LOG_FILE": "/sdcard/Android/data/dev.zenithblue.panvklauncher/files/mesa-cube.log" } },
+  "dc1": { "note": "dev13 cached", "driver": "bisect-dev13", "env": { "PANVK_WSI_SW_CACHED": "1" } },
+  "dd0": { "note": "dev13 no defer", "driver": "bisect-dev13", "env": { "PANVK_WSI_SW_DEFER_REPLY": "0", "PANVK_WSI_SW_CACHED": "1" } },
+  "rc4": { "note": "rc4", "driver": "bisect-rc4", "env": {} }
+ },
+ "scenarios": {
+  "6": { "name": "cube low", "tasks": ["d3d11"], "envSets": ["d", "dc1", "dd0", "rc4", "rc4", "dd0", "dc1", "d"] }
+ }
+}

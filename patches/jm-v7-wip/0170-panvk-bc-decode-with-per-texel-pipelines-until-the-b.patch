@@ -5538,9 +5538,9 @@ index 00fbd94a71a..7245424ab06 100644
 +bc_decode_texel_enabled(void)
 +{
 +   static int on = -1;
-+   if (on < 0)
-+      on = debug_get_bool_option("PANVK_BC_DECODE_TEXEL", true);
-+   return on;
++   if (p_atomic_read(&on) < 0)
++      p_atomic_set(&on, debug_get_bool_option("PANVK_BC_DECODE_TEXEL", true));
++   return p_atomic_read(&on);
 +}
 +
 +/* Queues the block decoder compile once (2 threads at minimum priority:
@@ -5552,7 +5552,7 @@ index 00fbd94a71a..7245424ab06 100644
 +      return true;
 +
 +   simple_mtx_lock(&dev->bc.prewarm_lock);
-+   bool ok = !!(dev->bc.dec_started & BITFIELD_BIT(shader));
++   bool ok = !!(p_atomic_read(&dev->bc.dec_started) & BITFIELD_BIT(shader));
 +   if (!ok && !dev->bc.dec_queue_ok) {
 +      for (unsigned i = 0; i < ARRAY_SIZE(dev->bc.dec_fence); i++)
 +         util_queue_fence_init(&dev->bc.dec_fence[i]);
@@ -5569,7 +5569,7 @@ index 00fbd94a71a..7245424ab06 100644
 +      util_queue_add_job(&dev->bc.dec_queue, job, &dev->bc.dec_fence[shader],
 +                         bc_dec_run, bc_dec_free, 0);
 +      p_atomic_set(&dev->bc.dec_started,
-+                   dev->bc.dec_started | BITFIELD_BIT(shader));
++                   p_atomic_read(&dev->bc.dec_started) | BITFIELD_BIT(shader));
 +      ok = true;
 +   }
 +   simple_mtx_unlock(&dev->bc.prewarm_lock);
@@ -5704,4 +5704,3 @@ index 54d7dc4cdff..55e2a6f1f63 100644
     VkResult result = compile_shaders(vk_dev, shader_count, infos, state,
 -- 
 2.56.0
-

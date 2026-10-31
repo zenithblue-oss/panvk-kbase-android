@@ -160,7 +160,7 @@ index d7bcd784271..61965de9c70 100644
 +   const VkMemoryAllocateInfo mem_info = {
 +      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 +      .pNext = &dedicated_info,
-+      .allocationSize = info->linear_size,
++      .allocationSize = reqs.size,
 +      .memoryTypeIndex = wsi_select_cpu_readback_memory_type_mode(
 +         wsi, reqs.memoryTypeBits, cached),
 +   };
@@ -433,4 +433,3 @@ index 0aa9249f7ea..adca10269db 100644
      * occasionally use UINT32_MAX to signal the other thread that an error
 -- 
 2.56.0
-
