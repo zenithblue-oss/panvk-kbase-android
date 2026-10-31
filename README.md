@@ -27,7 +27,7 @@
 </p>
 
 > [!IMPORTANT]
-> **New release: Mesa PanVK 26.3.0-devel, universal v6 to v14** (build 122i), with **PanPlay 1.3.0** and **PanProbe 1.3.0**. It replaces the 0.1.0 RC4 driver and the 1.2.7 apps. `driverInfo` reads `Mesa 26.3.0-devel (git-795ca7ff3e, p0175, 2026-10-31)`. For the exact `.so` and checksum, see the release notes.
+> **New release: Mesa PanVK v26.3.1, universal v6 to v14** (build 122i), with **PanPlay 1.3.1** and **PanProbe 1.3.2**. It replaces the 0.1.0 RC4 driver and the 1.2.7 apps. `driverInfo` reads `Mesa 26.3.0-devel (git-795ca7ff3e, p0175, 2026-10-31)`. For the exact `.so` and checksum, see the release notes.
 
 > [!NOTE]
 > **Testers wanted.**
