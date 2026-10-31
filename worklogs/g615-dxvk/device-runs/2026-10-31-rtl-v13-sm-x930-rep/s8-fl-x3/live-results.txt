@@ -1,0 +1,16 @@
+PanPlay game loop, scenario 8 (FL 10_0/11_1 122h vs 116), run 20261031-135242-s8
+Device: samsung SM-X930 (gts11uwifi), SDK 36, SoC MT6991
+Driver: Mesa 26.3.0-devel (git-6bde870b4a, p0174, 2026-10-31), sha256 84dd4dfce6710684
+App: dev.zenithblue.panvklauncher 1.3.0 (44)
+Window: 10 s warm-up, 30 s measured, from the first frame
+
+#   task     env       stat   drv-fps  1s-min  1s-max  max-ms dxvk-fps   1%-low    p50    p95    p99    drawn  test / reason
+01  d3d11fl_10_0 a122h     ok      1706.3  1625.3  1765.2    21.8   1703.8    248.9    0.5    1.1    1.8    119.9  D3DFL: PASS api=d3d11 level=10_0 created gs:PASS,stream_out:PASS frames=81331 secs=48.0 fps=1694.4 startup=0.5
+02  d3d11fl_10_0 a116      ok      1446.2  1308.6  1593.0    21.6   1446.3    274.2    0.6    1.2    2.1     97.1  D3DFL: PASS api=d3d11 level=10_0 created gs:PASS,stream_out:PASS frames=68752 secs=48.0 fps=1432.3 startup=0.4
+03  d3d11fl_10_0 b122h     ok      1709.3  1569.8  1878.6    21.4   1707.7    247.2    0.5    1.1    1.9    119.9  D3DFL: PASS api=d3d11 level=10_0 created gs:PASS,stream_out:PASS frames=80550 secs=48.0 fps=1678.1 startup=0.4
+04  d3d11fl_11_1 a122h     ok      1666.3  1558.0  1767.4    23.0   1664.9    225.4    0.5    1.1    1.9    119.8  D3DFL: PASS api=d3d11 level=11_1 created uav_vs:PASS,logic_op:PASS,tir:PASS frames=78208 secs=48.0 fps=1629.3 startup=0.5
+05  d3d11fl_11_1 a116      ok      1433.8  1276.7  1609.4    22.2   1429.9    235.5    0.6    1.3    2.1    101.9  D3DFL: PASS api=d3d11 level=11_1 created uav_vs:PASS,logic_op:PASS,tir:PASS frames=67609 secs=48.0 fps=1408.5 startup=0.5
+06  d3d11fl_11_1 b122h     ok      1718.4  1530.4  1946.8    22.4   1722.1    269.6    0.5    1.1    1.8    119.9  D3DFL: PASS api=d3d11 level=11_1 created uav_vs:PASS,logic_op:PASS,tir:PASS frames=82227 secs=48.0 fps=1713.0 startup=0.4
+
+A/B d3d11fl_10_0: a122h 1706.3 fps, a116 1446.2 fps (-15.2%), b122h 1709.3 fps (+0.2%) (change vs a122h)
+A/B d3d11fl_11_1: a122h 1666.3 fps, a116 1433.8 fps (-14.0%), b122h 1718.4 fps (+3.1%) (change vs a122h)
