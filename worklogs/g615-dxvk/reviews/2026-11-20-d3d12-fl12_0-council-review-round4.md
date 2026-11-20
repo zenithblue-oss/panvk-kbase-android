@@ -11,6 +11,7 @@ Detailed Per-Model Round 4 Reports:
 - [MiMo V2.6 Flash Free (8.5/10)](models/mimo-v2.6-flash-round4.md)
 - [Claude Opus 5.5 (8.4/10)](models/claude-opus-5-5-round4.md)
 - [Grok 4.7 High (8.4/10)](models/grok-4.7-high-round4.md)
+- [Gemini 4 Neon (8.2/10)](models/gemini-4-neon-round4.md)
 - [DeepSeek V4.1 Flash Free (8.0/10)](models/deepseek-v4.1-flash-round4.md)
 - [GPT-6.2 Astra (8.0/10)](models/gpt-6.2-astra-round4.md)
 
@@ -20,23 +21,23 @@ Detailed Per-Model Round 4 Reports:
 
 | Delegate | Provider | Round 1 | Round 2 | Round 3 | Round 4 | Total Delta (R1 ➔ R4) | Detailed Round 4 Report |
 |---|---|:---:|:---:|:---:|:---:|:---:|---|
-| Claude Sonnet 4.6 | Claude | 6.0/10 | 7.5/10 | 7.5/10 | **8.9/10** | [`claude-sonnet-4-6-round4.md`](models/claude-sonnet-4-6-round4.md) |
-| Hy4 Flash Free | OpenCode | 4.0/10 | 7.0/10 | 8.0/10 | **8.8/10** | [`hy4-flash-round4.md`](models/hy4-flash-round4.md) |
-| Beam Free | OpenCode | 6.0/10 | 7.0/10 | 8.5/10 | **8.5/10** | [`beam-free-round4.md`](models/beam-free-round4.md) |
-| MiMo V2.6 Flash Free | OpenCode | 6.0/10 | 8.0/10 | 8.0/10 | **8.5/10** | [`mimo-v2.6-flash-round4.md`](models/mimo-v2.6-flash-round4.md) |
-| Claude Opus 5.5 | Claude | 5.5/10 | 7.0/10 | 7.4/10 | **8.4/10** | [`claude-opus-5-5-round4.md`](models/claude-opus-5-5-round4.md) |
-| Grok 4.7 High | OpenCode | 4.0/10 | 7.0/10 | 7.5/10 | **8.4/10** | [`grok-4.7-high-round4.md`](models/grok-4.7-high-round4.md) |
-| DeepSeek V4.1 Flash Free | OpenCode | 4.0/10 | 7.5/10 | 8.0/10 | **8.0/10** | [`deepseek-v4.1-flash-round4.md`](models/deepseek-v4.1-flash-round4.md) |
-| GPT-6.2 Astra | Codex | 4.0/10 | 6.5/10 | 8.0/10 | **8.0/10** | [`gpt-6.2-astra-round4.md`](models/gpt-6.2-astra-round4.md) |
-| Gemini 4 Neon | Google | — | 6.5/10 | 7.6/10 | *(adopted)* | — | [`gemini-4-neon-round3.md`](models/gemini-4-neon-round3.md) |
+| Claude Sonnet 4.6 | Claude | 6.0/10 | 7.5/10 | 7.5/10 | **8.9/10** | +2.9 | [`claude-sonnet-4-6-round4.md`](models/claude-sonnet-4-6-round4.md) |
+| Hy4 Flash Free | OpenCode | 4.0/10 | 7.0/10 | 8.0/10 | **8.8/10** | +4.8 | [`hy4-flash-round4.md`](models/hy4-flash-round4.md) |
+| Beam Free | OpenCode | 6.0/10 | 7.0/10 | 8.5/10 | **8.5/10** | +2.5 | [`beam-free-round4.md`](models/beam-free-round4.md) |
+| MiMo V2.6 Flash Free | OpenCode | 6.0/10 | 8.0/10 | 8.0/10 | **8.5/10** | +2.5 | [`mimo-v2.6-flash-round4.md`](models/mimo-v2.6-flash-round4.md) |
+| Claude Opus 5.5 | Claude | 5.5/10 | 7.0/10 | 7.4/10 | **8.4/10** | +2.9 | [`claude-opus-5-5-round4.md`](models/claude-opus-5-5-round4.md) |
+| Grok 4.7 High | OpenCode | 4.0/10 | 7.0/10 | 7.5/10 | **8.4/10** | +4.4 | [`grok-4.7-high-round4.md`](models/grok-4.7-high-round4.md) |
+| Gemini 4 Neon | Google | — | 6.5/10 | 7.6/10 | **8.2/10** | +1.7 | [`gemini-4-neon-round4.md`](models/gemini-4-neon-round4.md) |
+| DeepSeek V4.1 Flash Free | OpenCode | 4.0/10 | 7.5/10 | 8.0/10 | **8.0/10** | +4.0 | [`deepseek-v4.1-flash-round4.md`](models/deepseek-v4.1-flash-round4.md) |
+| GPT-6.2 Astra | Codex | 4.0/10 | 6.5/10 | 8.0/10 | **8.0/10** | +4.0 | [`gpt-6.2-astra-round4.md`](models/gpt-6.2-astra-round4.md) |
 
-**Council Average: 4.72 / 10 (R1) ➔ 7.11 / 10 (R2) ➔ 7.83 / 10 (R3) ➔ 8.44 / 10 (R4)** (+3.72 total improvement across council passes)
+**Council Average: 4.72 / 10 (R1) ➔ 7.11 / 10 (R2) ➔ 7.83 / 10 (R3) ➔ 8.41 / 10 (R4)** (+3.69 total improvement across council passes)
 
 ---
 
 ## 2. Verdict on Round 4 Plan of Record
 
-**UNANIMOUS APPROVAL TO EXECUTE.** All 8 delegates approve the execution of Phase 0, Phase 1 (Title Census), and Phase 2 (S0-GPU Hardware Reality Gate). The internal contradictions from earlier rounds are fully closed.
+**UNANIMOUS APPROVAL TO EXECUTE.** All 9 delegates approve the execution of Phase 0, Phase 1 (Title Census), and Phase 2 (S0-GPU Hardware Reality Gate). The internal contradictions from earlier rounds are fully closed.
 
 ### Key Resolution Summary
 
