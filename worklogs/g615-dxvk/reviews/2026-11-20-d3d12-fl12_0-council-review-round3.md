@@ -5,8 +5,8 @@ Branch: `feature/dx12-12_0-implementation`
 Subject: Round 3 Architecture Council Review of adopted plan of record (Gemini 4 Neon Round 3 Decoupled Proposal)
 
 Detailed Per-Model Round 3 Reports:
+- [Gemini 4 Neon (7.6/10)](models/gemini-4-neon-round3.md)
 - [Beam Free (8.5/10)](models/beam-free-round3.md)
-- [Gemini 4 Neon (8.5/10)](models/gemini-4-neon.md)
 - [DeepSeek V4.1 Flash Free (8.0/10)](models/deepseek-v4.1-flash-round3.md)
 - [GPT-6.2 Astra (8.0/10)](models/gpt-6.2-astra-round3.md)
 - [Hy4 Flash Free (8.0/10)](models/hy4-flash-round3.md)
@@ -19,19 +19,19 @@ Detailed Per-Model Round 3 Reports:
 
 ## 1. Council Score Progression Across Rounds
 
-| Delegate | Provider | Round 1 | Round 2 | Round 3 | Delta (R1 ➔ R3) |
-|---|---|:---:|:---:|:---:|:---:|
-| Beam Free | OpenCode | 6.0/10 | 7.0/10 | **8.5/10** | +2.5 |
-| Gemini 4 Neon | Google | — | 6.5/10 | **8.5/10** | +2.0 |
-| DeepSeek V4.1 Flash Free | OpenCode | 4.0/10 | 7.5/10 | **8.0/10** | +4.0 |
-| GPT-6.2 Astra | Codex | 4.0/10 | 6.5/10 | **8.0/10** | +4.0 |
-| Hy4 Flash Free | OpenCode | 4.0/10 | 7.0/10 | **8.0/10** | +4.0 |
-| MiMo V2.6 Flash Free | OpenCode | 6.0/10 | 8.0/10 | **8.0/10** | +2.0 |
-| Claude Sonnet 4.6 | Claude | 6.0/10 | 7.5/10 | **7.5/10** | +1.5 |
-| Grok 4.7 High | OpenCode | 4.0/10 | 7.0/10 | **7.5/10** | +3.5 |
-| Claude Opus 5.5 | Claude | 5.5/10 | 7.0/10 | **7.4/10** | +1.9 |
+| Delegate | Provider | Round 1 | Round 2 | Round 3 | Delta (R1 ➔ R3) | Detailed Round 3 Report |
+|---|---|:---:|:---:|:---:|:---:|---|
+| Beam Free | OpenCode | 6.0/10 | 7.0/10 | **8.5/10** | +2.5 | [`beam-free-round3.md`](models/beam-free-round3.md) |
+| DeepSeek V4.1 Flash Free | OpenCode | 4.0/10 | 7.5/10 | **8.0/10** | +4.0 | [`deepseek-v4.1-flash-round3.md`](models/deepseek-v4.1-flash-round3.md) |
+| GPT-6.2 Astra | Codex | 4.0/10 | 6.5/10 | **8.0/10** | +4.0 | [`gpt-6.2-astra-round3.md`](models/gpt-6.2-astra-round3.md) |
+| Hy4 Flash Free | OpenCode | 4.0/10 | 7.0/10 | **8.0/10** | +4.0 | [`hy4-flash-round3.md`](models/hy4-flash-round3.md) |
+| MiMo V2.6 Flash Free | OpenCode | 6.0/10 | 8.0/10 | **8.0/10** | +2.0 | [`mimo-v2.6-flash-round3.md`](models/mimo-v2.6-flash-round3.md) |
+| Gemini 4 Neon | Google | — | 6.5/10 | **7.6/10** | +1.1 | [`gemini-4-neon-round3.md`](models/gemini-4-neon-round3.md) |
+| Claude Sonnet 4.6 | Claude | 6.0/10 | 7.5/10 | **7.5/10** | +1.5 | [`claude-sonnet-4-6-round3.md`](models/claude-sonnet-4-6-round3.md) |
+| Grok 4.7 High | OpenCode | 4.0/10 | 7.0/10 | **7.5/10** | +3.5 | [`grok-4.7-high-round3.md`](models/grok-4.7-high-round3.md) |
+| Claude Opus 5.5 | Claude | 5.5/10 | 7.0/10 | **7.4/10** | +1.9 | [`claude-opus-5-5-round3.md`](models/claude-opus-5-5-round3.md) |
 
-**Council Average: 4.72 / 10 (Round 1) ➔ 7.11 / 10 (Round 2) ➔ 7.93 / 10 (Round 3)** (+3.21 total improvement)
+**Council Average: 4.72 / 10 (Round 1) ➔ 7.11 / 10 (Round 2) ➔ 7.83 / 10 (Round 3)** (+3.11 total improvement)
 
 ---
 
