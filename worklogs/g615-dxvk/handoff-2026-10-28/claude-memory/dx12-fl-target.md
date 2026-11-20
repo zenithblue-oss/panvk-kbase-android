@@ -1,6 +1,6 @@
 ---
 name: dx12-fl-target
-description: "Target: D3D12 FL 12_0 and 12_1 on all Mali arches incl. v6/v7; FL 12_0 decoupled from sparse (Round 3 plan); sparse CSF v10-v14 only; FL 12_2 out of scope"
+description: "Target: D3D12 FL 12_0 on all Mali arches incl. v6/v7, decoupled from sparse (Round 3 plan of record, 7.83/10); sparse CSF v10-v14 only; FL 12_1 (ROV, conservative raster) deferred to separate branch; FL 12_2 out of scope"
 metadata:
   type: project
 ---
@@ -9,24 +9,25 @@ User (2026-10-27): v6/v7 should be fully DXVK-capable (per PanProbe) and run man
 
 **Why:** the user's goal is DX8-DX12 on every arch.
 
-**How to apply:** treat any D3D12 failure at FL 11_x-12_1 as a bug. Known gaps to close: 12_0 needs tiled resources tier 2, resource binding tier 2+, typed UAV loads; 12_1 needs ROVs + conservative rasterization tier 1. Don't call these hardware limits. Exception, stated honestly: stock kbase UAPI cannot give `sparseResidencyAliased` (MEM_ALIAS is immutable and never FIXED), so the honest tiled tier is **Tier 1-minus-Aliased**, not conformant Tier 2. Never claim Tier 2.
+**How to apply:** treat any D3D12 failure at FL 11_x-12_0 as a bug, not a hardware limit. Exception, stated honestly: stock kbase UAPI cannot give `sparseResidencyAliased` (MEM_ALIAS is immutable and never FIXED), so the honest tiled tier is **Tier 1-minus-Aliased**, not conformant Tier 2. Never claim Tier 2. FL 12_1 (ROV via `fragmentShaderPixelInterlock`, Conservative Rasterization Tier 1) is deferred to a separate investigation/branch and does not block FL 12_0.
 
-Plan agreed 2026-10-27 (user: "do all steps fast after hang fix"): after the v10 hang fix, (1) v6/v7 11_1: raise per-stage storage images 32->64; (2) FL 12_0 override for 12_0 games; (3) sparse feasibility on kbase via MEM_ALIAS + sink page, PanProbe test v6-v11; (4) PanProbe FL report + PanPlay FL tests on all 5 Firebase devices.
+Update 2026-10-27: full sparse implementation is a TODO (user: "make sparse full impl as todo with research"); TODO note at top of docs/KBASE-SPARSE-FEASIBILITY.md. Only the S0 PanProbe `sparse_kbase` CPU gate test exists.
 
-Revised 2026-11-20 after Review Council Round 1 (4.7/10, 9 models). Full detail in worklogs/g615-dxvk/sparse-kbase-2026-10-27/README.md, section "Council Round 1 corrections".
-- Override is opt-in, per title, never a global PanPlay default: Wine vkd3d 1.18 `VKD3D_CAPS_OVERRIDE=feature_level=12.0`, vkd3d-proton `VKD3D_FEATURE_LEVEL=12_0`. Only for titles that probe FL and never call `UpdateTileMappings` or alias tiles.
-- JM v6/v7/v9 and v14: no 16 GiB eager arena. One SAME_VA GROW_ON_GPF region per sparse resource, context cap 256 MiB (`PANVK_SPARSE_CAP_MB`) and heap budget; over-cap reservations fail with `VK_ERROR_OUT_OF_DEVICE_MEMORY`.
-- CSF lazy tiles: TMU filter/border taps on unbound tiles can fault the group. S0 GPU gate picks GPF growth or dummy zero sink (sink cannot be FIXED); else eager. No GPU zero fill on CSF uncommit (kernel zeroes on recommit).
-- Bind engine: per-tile dirty bits (write back dirty tiles only); deferred uncommit worker gated on the bind fence, generation counter, frees wait on fence.
-- Order: S-Pre (`robustImageAccess2` all arches + SM 6.2+ float controls) -> census of tiled-resource calls per target title -> S0 GPU kill-switch gate (read-0, boundary sampling, context survival on HW) -> S1-S6 only if the gate passes and the census shows a title needs it.
+## Plan of record: Council Round 3 (2026-11-20, 7.83/10 across 9 models)
 
-Plan of record since 2026-11-20: Council Round 3 (Gemini 4 Neon proposal). Overrides the Round 1 bullets above where they conflict. Full detail: README.md section "Round 3 authoritative plan".
-- FL 12_0 is decoupled from sparse. Non-tiled titles get native FL 12_0 now via Phase 0 + per-title overrides.
-- Sparse work is CSF v10-v14 only. JM v6/v7/v9 dropped from sparse scope.
-- Phase 0 (S-Pre): robustness2 (`robustImageAccess2` + `nullDescriptor`), mutable descriptors, binding tier 2/3 limits; SM 6.2+ (float16/int16, float_controls, subgroups); per-title override profiles for Bucket A.
-- Phase 1: census buckets A (non-tiled), B (narrow read-only SRV streaming), C (true Tier 2/aliasing, out of scope on kbase), D (non-sparse failures). Audit whether vkd3d allows `CreateReservedResource` with `sparseResidencyAliased=false`.
-- Phase 2 S0-GPU on CSF v10/v11 + v14: A prefix commit/fault survival at 60 MiB in a 64 MiB region (`used_pages` +1 page or ~60 MiB?); B recycled-pool zero leak; C shrink latency under 60 FPS load; D mip-tail footprint on one `kbase_va_region`.
-- Phase 3A (default): <2 Bucket B titles, or prefix explosion / CSG faults -> archive S1-S6, ship Phase 0 + overrides only.
-- Phase 3B (bounded SRV-first shadow sparse): charge full virtual size on first mip-tail bind against `PANVK_SPARSE_CAP_MB`; explicit zero init if Test A/B fail; read-only SRV scope, whole-resource dirty tracking if writable (no per-tile bits); AFBC off + compute swizzle D3D12 64 KiB tile <-> Mali 16x16 u-interleaved; timeline-safe async queue, no mid-frame `MEM_COMMIT` shrink (reclaim only at destroy or zero-tile idle).
+Gemini 4 Neon proposal plus Round 3 consensus findings. This is the only governing plan. Full detail: worklogs/g615-dxvk/sparse-kbase-2026-10-27/README.md, section "Round 3 authoritative plan".
 
-Update 2026-10-27: full sparse implementation is a TODO (user: "make sparse full impl as todo with research"); research in worklogs/g615-dxvk/sparse-kbase-2026-10-27/README.md, TODO note at top of docs/KBASE-SPARSE-FEASIBILITY.md. Only the S0 PanProbe `sparse_kbase` gate test is being added now.
+- **Decoupled.** FL 12_0 does not wait on sparse. Non-tiled titles get native FL 12_0 via Phase 0 + per-title overrides. Sparse work is CSF v10-v14 only; JM v6/v7/v9 get Phase 0 + overrides only.
+- **Phase 0 (all arches):** robustness2 (`robustImageAccess2` + `nullDescriptor`; v10 RIA2 GPU-emulated, patch 184, do not re-gate); `VK_EXT_mutable_descriptor_type` + binding tier 2/3 limits; SM 6.2+ (float16/int16, `VK_KHR_shader_float_controls`, subgroups); opt-in per-title override profiles, never global (Wine vkd3d 1.18 `VKD3D_CAPS_OVERRIDE=feature_level=12.0`, vkd3d-proton `VKD3D_FEATURE_LEVEL=12_0`).
+- **Phase 0 (v6/v7, required before Phase 0 is complete there):** min/max sampler filter emulation (`samplerFilterMinmax` / `filterMinmaxSingleComponentFormats`, native only at `PAN_ARCH >= 10`, so v9 too); typed UAV loads for all 18 FL 12_0 formats (`shaderStorageImageReadWithoutFormat`); storage images per stage 32->64.
+- **Phase 1 census:** run with the FL 12_0 + Tier 2 probe shim active (census-only, never shipped) to catch dynamic engine branching. Log reserved-resource and tile-mapping calls, `CheckAccessFullyMapped` / DXIL residency feedback, `CreatePlacedResource` on reserved heaps, heap aliasing. Buckets: A non-tiled; B1 opportunistic tiled use with working fallback (ships like A, does not count for 3B); B2 hard-required read-only SRV streaming; C true Tier 2/aliasing (out of scope); D non-sparse failures. Audit whether vkd3d allows `CreateReservedResource` with `sparseResidencyAliased=false`.
+- **Phase 2 S0-GPU (CSF v10/v11 + v14):** Test A = separate GPU READ and GPU WRITE at 60 MiB in a fresh 64 MiB `GROW_ON_GPF` region; record `used_pages` delta, fault latency, context survival. Test B recycled-pool zero leak. Test C shrink latency under 60 FPS load. Test D mip-tail footprint, plus evaluation of reverse-mip layout (mip tail at offset 0) and split mip-tail BO (separate committed BO) to decouple tail residency from mip 0.
+- **Decision tree.** kbase contiguous-prefix GPF growth is expected kernel behaviour. Path 3A (archive S1-S6, ship Phase 0 + overrides) triggers **only** on (1) CSG fatal fault / context death in Test A, or (2) census finds <2 Bucket B2 titles. Prefix growth (Test A) or pool zero leak (Test B) does not kill 3B: it bans `GROW_ON_GPF` and switches 3B to explicit eager pre-commit or explicit GPU zeroing.
+- **Path 3B (bounded SRV-first shadow sparse):** context caps of 256 MiB committed bytes (`PANVK_SPARSE_CAP_MB`, and heap budget) **and** 4,096 kbase regions (`PANVK_SPARSE_MAX_REGIONS`); over either -> `VK_ERROR_OUT_OF_DEVICE_MEMORY`. Without a mip-tail mitigation, first mip-tail bind charges full virtual size. Transfer writes (`CopyTextureRegion` / `CopyTiles`, CPU-known bounds) use per-tile dirty bits; shader UAV/RT/DS writes use whole-resource dirty. Never skip copy-in for host-visible memory. Rebind of a dirty tile to new memory writes back to old memory before copy-in. AFBC off; compute swizzle D3D12 64 KiB standard tile <-> Mali 16x16 u-interleaved, BC1-7 and RGBA8 first; investigate strided copy where standard swizzle is reported false. Timeline-safe async bind queue, no mid-frame `MEM_COMMIT` shrink.
+- **Reclaim:** only at destroy or zero-tile idle = zero bound tiles for N >= 60 consecutive frames AND last submit fence signaled. Resource / memory destruction drains the deferred uncommit worker before freeing kbase regions.
+- **Withdrawn (tombstone):** dummy zero sink, path (b). `MEM_ALIAS` cannot be FIXED, so a sink never sits at a tile VA. Do not plan around it.
+
+## Struck: superseded history
+
+- ~~2026-10-27 order: v6/v7 storage images 32->64; FL 12_0 override; sparse via MEM_ALIAS + sink page on v6-v11; PanProbe/PanPlay FL tests.~~ Sink approach withdrawn; storage images moved into Phase 0.
+- ~~Round 1 (2026-11-20, 4.7/10) bullets: JM v6/v7/v9 eager sparse regions; GPF growth or dummy sink chosen by S0; per-tile dirty bits for all writes; fence-gated uncommit worker; order S-Pre -> census -> S0 -> S1-S6.~~ Replaced in full by the Round 3 plan above.
