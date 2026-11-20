@@ -2,18 +2,120 @@
 
 2026-10-27. Research + design only. No kernel changes (stock phones, no root).
 Revised 2026-11-20 after Review Council Round 1 (4.7/10, 9 models); see
-"Council Round 1 corrections" below.
+"Council Round 1 corrections" below. Superseded where it conflicts by the
+**Round 3 authoritative plan** (Gemini 4 Neon proposal, adopted 2026-11-20),
+which is the next section.
 Goal: real Vulkan sparse residency on the Android ARM DDK (`/dev/mali0`, the
 `kbase` UAPI). The honest capability this can reach is **Tiled Resources
 "Tier 1-minus-Aliased"**, not conformant Tier 2. Feature level 12_0 is reported
-only through an opt-in, per-title override (see below). Scope: JM v6 (G72),
-v7 (G52), v9 (G78); CSF v10 (G710), v11 (G715/G615), v12-v14.
+only through an opt-in, per-title override (see below). FL 12_0 enablement is
+**decoupled** from sparse residency. Sparse scope: **CSF v10-v14 only**
+(v10 G710, v11 G715/G615, v12-v14). JM v6 (G72), v7 (G52), v9 (G78) are out of
+scope for sparse work; they get FL 12_0 only through Phase 0 + overrides.
+
+---
+
+## Round 3 authoritative plan (2026-11-20)
+
+Source: Gemini 4 Neon, Council Round 3 proposal. This section is the plan of
+record. Where any later section (Round 1 corrections, Executive summary,
+design, Q3 staged plan) conflicts with it, this section wins. Later sections
+stay as design reference for Path 3B only.
+
+### Goals
+
+1. **Decouple FL 12_0 from sparse residency emulation.** FL 12_0 for titles
+   that do not use tiled resources does not wait on any sparse stage.
+2. **Ship native FL 12_0 for non-tiled titles now**, via Phase 0 (S-Pre) plus
+   per-title override profiles. No sparse code is needed for these titles.
+3. **Narrow hardware scope for any sparse work to CSF v10-v14.** JM v9 is
+   dropped (with v6/v7). JM arches get Phase 0 and overrides only.
+
+### Phase 0 - S-Pre (ships first, no sparse dependency)
+
+- **robustness2:** `robustImageAccess2` + `nullDescriptor` on all arches
+  (v10 `robustImageAccess2` is GPU-emulated, patch 184; do not re-gate).
+- **Descriptors:** `VK_EXT_mutable_descriptor_type`; descriptor limits that meet
+  resource binding tier 2/3 (vkd3d's binding-tier derivation).
+- **SM 6.2+ float controls:** `shaderFloat16` / `shaderInt16`,
+  `VK_KHR_shader_float_controls` (fp16/fp32 denorm preserve/flush, rounding
+  modes), subgroup operations required by SM 6.x wave intrinsics.
+- **Per-title override profiles** for Bucket A titles (see Phase 1), opt-in in
+  PanPlay, never global:
+  - Wine vkd3d 1.18: `VKD3D_CAPS_OVERRIDE=feature_level=12.0`
+  - vkd3d-proton: `VKD3D_FEATURE_LEVEL=12_0`
+
+### Phase 1 - Title census and vkd3d audit
+
+Log `CreateReservedResource`, `UpdateTileMappings`, `CopyTileMappings`,
+`GetResourceTiling` per target title. Classify each title:
+
+| Bucket | Meaning | Treatment |
+|--------|---------|-----------|
+| **A** | Non-tiled: probes FL 12_0, never creates reserved resources | Phase 0 + override profile |
+| **B** | Narrow read-only SRV streaming: reserved textures sampled as SRV, tiles mapped/unmapped, no aliasing, no UAV/RT writes to reserved resources | Candidate for Path 3B |
+| **C** | True Tier 2 / aliasing: `CopyTileMappings` or multiple tiles mapped to the same heap offset, writes to reserved resources that need per-tile semantics | Out of scope on kbase; runs at 11_1 or listed unsupported |
+| **D** | Fails for non-sparse reasons | Tracked as ordinary driver bugs, outside this plan |
+
+**vkd3d audit:** check whether vkd3d-proton (and Wine vkd3d) allow
+`CreateReservedResource` when `sparseResidencyAliased=false`, with and without
+the FL override. If vkd3d rejects it, Bucket B needs either a vkd3d-side
+change or is reclassified; record the exact code path.
+
+### Phase 2 - S0-GPU hardware reality gate (CSF v10/v11 and v14)
+
+Run on real hardware. Each test records `used_pages` (kbase region commit /
+`mem_profile`) before and after.
+
+- **Test A - prefix commit and fault survival.** One 64 MiB `GROW_ON_GPF`
+  region. GPU touches offset 60 MiB only. Pass: the context survives (no group
+  fault, no `DEVICE_LOST`, next submit succeeds). Record whether `used_pages`
+  grows by one page/tile or by ~60 MiB (prefix explosion).
+- **Test B - recycled pool zero-leak.** Free a region filled with a pattern,
+  allocate and commit a new one, GPU-read it. Pass: no pattern bytes visible
+  (pool pages come back zeroed).
+- **Test C - concurrent shrink latency.** Under a 60 FPS GPU load, shrink a
+  region with `MEM_COMMIT`. Record frame-time spikes and shrink latency. Fail:
+  stalls or faults in the concurrent workload.
+- **Test D - mip-tail footprint.** One image with packed mip tail on a single
+  `kbase_va_region`. Bind only the mip tail. Record the physical footprint
+  (expected: prefix up to the mip-tail offset).
+
+### Phase 3 - Branching execution
+
+**Path 3A (default).** Taken if the census finds fewer than 2 Bucket B titles,
+or S0-GPU shows prefix explosion (Test A) or CSG faults. S1-S6 are archived
+permanently. FL 12_0 = Phase 0 + per-title overrides. Bucket B/C titles run at
+11_1 or are listed unsupported.
+
+**Path 3B (bounded SRV-first shadow sparse).** Taken only if Bucket B justifies
+it (2+ titles) and S0-GPU passes. Rules:
+
+- **Budget.** kbase commit is prefix-only, so on the first mip-tail bind charge
+  the full virtual image size against `PANVK_SPARSE_CAP_MB` (and the heap
+  budget). Over cap: `VK_ERROR_OUT_OF_DEVICE_MEMORY`.
+- **Zero init.** If Test A or Test B fails, zero new backing explicitly; do not
+  rely on GPF-grown pages or pool zeroing ("GPF magic").
+- **No fake per-tile dirty tracking.** Scope is read-only SRV streaming. If a
+  reserved resource is ever writable (UAV/RT/DS/copy destination), use
+  whole-resource dirty tracking, not per-tile bits.
+- **Layout.** AFBC disabled for every sparse image (mandatory). A compute
+  shader swizzles between the D3D12 64 KiB standard tile layout and Mali 16x16
+  u-interleaved 2D layout on copy-in/copy-out.
+- **Queue.** Timeline-semaphore-safe async bind queue. No mid-frame
+  `MEM_COMMIT` shrink; reclaim backing only at resource destruction or at an
+  idle boundary where the resource has zero bound tiles.
 
 ---
 
 ## Council Round 1 corrections (2026-11-20)
 
 These rules override anything later in this file that conflicts with them.
+The Round 3 authoritative plan above overrides these rules. In particular:
+JM v6/v7/v9 are out of sparse scope (item 2 applies to v14 only), per-tile
+dirty bits (item 4) are replaced by Path 3B's whole-resource rule, the
+deferred uncommit worker becomes reclaim-at-destroy/idle only, and the order in
+item 5 becomes Phase 0 -> Phase 1 -> Phase 2 -> Phase 3A/3B.
 
 1. **Specification integrity.** No global override, PanPlay default, or driver
    cap claims conformant Tiled Resources Tier 2. The kbase UAPI cannot give
@@ -379,6 +481,11 @@ GPU kill-switch gate. If neither passes, CSF falls back to eager backing.
 | SPT | 128 KiB for a 64 GiB window |
 
 ### Staged plan (~10-14 weeks, in this order)
+
+Superseded by the Round 3 authoritative plan. S1-S6 below run only on Path 3B
+(CSF v10-v14, Bucket B titles); on Path 3A they are archived. S-Pre = Phase 0,
+Census = Phase 1, S0-GPU = Phase 2. S6 (JM extras) is not sparse work and
+moves out of this plan.
 
 | Stage | What | Effort |
 |-------|------|--------|
