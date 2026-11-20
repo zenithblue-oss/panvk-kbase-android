@@ -1,0 +1,96 @@
+From 120b0b89329f6b7b4d2329811c1e979e5bff0338 Mon Sep 17 00:00:00 2001
+From: abhay-byte <abhay02delhi@gmail.com>
+Date: Sat, 31 Oct 2026 20:07:10 +0530
+Subject: [PATCH] vulkan/runtime: temporary SYNC_FD import into import-only
+ sync types
+
+On panvk kbase JM (arch < 10) the CPU sync type can import a sync_file
+but not export one, so get_semaphore_sync_type() and
+get_fence_sync_type() find no type for SYNC_FD. A temporary SYNC_FD
+import into a semaphore or fence then called vk_sync_create() with a
+NULL type and crashed at address 0. vk_common_AcquireImageANDROID()
+always takes this path, so Android WSI apps crashed on v6-v9 (GitHub
+issue #18, TB336FU G57).
+
+When no type is found for a SYNC_FD import, use the permanent payload's
+type if it can import a sync_file (fd -1 still signals it). Any other
+missing type now returns VK_ERROR_INVALID_EXTERNAL_HANDLE. Drivers that
+find a type (CSF, every DRM driver) take the same path as before.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/vulkan/runtime/vk_fence.c     | 15 ++++++++++++++-
+ src/vulkan/runtime/vk_semaphore.c | 17 +++++++++++++++--
+ 2 files changed, 29 insertions(+), 3 deletions(-)
+
+diff --git a/src/vulkan/runtime/vk_fence.c b/src/vulkan/runtime/vk_fence.c
+index 8e43ea09e10..7cf8b58d07f 100644
+--- a/src/vulkan/runtime/vk_fence.c
++++ b/src/vulkan/runtime/vk_fence.c
+@@ -365,6 +365,17 @@ vk_common_ImportFenceFdKHR(VkDevice _device,
+       const struct vk_sync_type *sync_type =
+          get_fence_sync_type(device->physical, handle_type);
+ 
++      /* A sync type that can import but not export a sync_file (panvk on
++       * kbase JM) is not found above: import into the permanent type.
++       */
++      if (sync_type == NULL &&
++          handle_type == VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT &&
++          fence->permanent.type->import_sync_file)
++         sync_type = fence->permanent.type;
++
++      if (sync_type == NULL)
++         return vk_error(fence, VK_ERROR_INVALID_EXTERNAL_HANDLE);
++
+       VkResult result = vk_sync_create(device, sync_type, 0 /* flags */,
+                                        0 /* initial_value */, &temporary);
+       if (result != VK_SUCCESS)
+@@ -374,7 +385,9 @@ vk_common_ImportFenceFdKHR(VkDevice _device,
+    } else {
+       sync = &fence->permanent;
+    }
+-   assert(handle_type & vk_sync_fence_handle_types(sync->type));
++   assert((handle_type & vk_sync_fence_handle_types(sync->type)) ||
++          (handle_type == VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT &&
++           sync->type->import_sync_file));
+ 
+    VkResult result;
+    switch (pImportFenceFdInfo->handleType) {
+diff --git a/src/vulkan/runtime/vk_semaphore.c b/src/vulkan/runtime/vk_semaphore.c
+index 534eaa76457..23146989ca2 100644
+--- a/src/vulkan/runtime/vk_semaphore.c
++++ b/src/vulkan/runtime/vk_semaphore.c
+@@ -568,6 +568,17 @@ vk_common_ImportSemaphoreFdKHR(VkDevice _device,
+       const struct vk_sync_type *sync_type =
+          get_semaphore_sync_type(device->physical, semaphore->type, handle_type);
+ 
++      /* A sync type that can import but not export a sync_file (panvk on
++       * kbase JM) is not found above: import into the permanent type.
++       */
++      if (sync_type == NULL &&
++          handle_type == VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT &&
++          semaphore->permanent.type->import_sync_file)
++         sync_type = semaphore->permanent.type;
++
++      if (sync_type == NULL)
++         return vk_error(semaphore, VK_ERROR_INVALID_EXTERNAL_HANDLE);
++
+       VkResult result = vk_sync_create(device, sync_type, 0 /* flags */,
+                                        0 /* initial_value */, &temporary);
+       if (result != VK_SUCCESS)
+@@ -577,8 +588,10 @@ vk_common_ImportSemaphoreFdKHR(VkDevice _device,
+    } else {
+       sync = &semaphore->permanent;
+    }
+-   assert(handle_type &
+-          vk_sync_semaphore_handle_types(sync->type, semaphore->type));
++   assert((handle_type &
++           vk_sync_semaphore_handle_types(sync->type, semaphore->type)) ||
++          (handle_type == VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT &&
++           sync->type->import_sync_file));
+ 
+    VkResult result;
+    switch (pImportSemaphoreFdInfo->handleType) {
+-- 
+2.56.0
+

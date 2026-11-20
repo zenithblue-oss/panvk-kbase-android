@@ -1,10 +1,320 @@
 # Real sparse residency on stock kbase (Mali v6-v14) - feasibility and design
 
 2026-10-27. Research + design only. No kernel changes (stock phones, no root).
+Revised 2026-11-20 after Review Council Round 1 (4.7/10, 9 models); see
+"Council Round 1 corrections" below. Revised again 2026-11-20 after Council
+Round 3 (7.83/10 mean, 9 models): the Round 3 consensus findings are folded
+into the **Round 3 authoritative plan** (next section). That section is the
+only plan of record. Every later section is design reference for Path 3B and
+yields to it where they conflict.
 Goal: real Vulkan sparse residency on the Android ARM DDK (`/dev/mali0`, the
-`kbase` UAPI) so vkd3d-proton can expose D3D12 tiled resources tier 2 and PanVK
-can reach feature level 12_0. Scope: JM v6 (G72), v7 (G52), v9 (G78); CSF v10
-(G710), v11 (G715/G615), v12-v14.
+`kbase` UAPI). The honest capability this can reach is **Tiled Resources
+"Tier 1-minus-Aliased"**, not conformant Tier 2. Feature level 12_0 is reported
+only through an opt-in, per-title override (see below). FL 12_0 enablement is
+**decoupled** from sparse residency. Sparse scope: **CSF v10-v14 only**
+(v10 G710, v11 G715/G615, v12-v14). JM v6 (G72), v7 (G52), v9 (G78) are out of
+scope for sparse work; they get FL 12_0 only through Phase 0 + overrides.
+
+---
+
+## Round 3 authoritative plan (2026-11-20)
+
+Source: Gemini 4 Neon Council Round 3 proposal, amended with the Round 3
+consensus findings (7.83/10 mean across 9 models). This section is the plan
+of record. Where any later section (Round 1 corrections, Executive summary,
+design, Q2, Q3 staged plan) conflicts with it, this section wins.
+
+### Goals
+
+1. **Decouple FL 12_0 from sparse residency emulation.** FL 12_0 for titles
+   that do not use tiled resources does not wait on any sparse stage.
+2. **Ship native FL 12_0 for non-tiled titles now**, via Phase 0 (S-Pre) plus
+   per-title override profiles. No sparse code is needed for these titles.
+3. **Narrow hardware scope for any sparse work to CSF v10-v14.** JM v9 is
+   dropped (with v6/v7). JM arches get Phase 0 and overrides only.
+
+### Scope: FL 12_0 only; FL 12_1 deferred
+
+FL 12_1 needs Rasterizer Ordered Views (`fragmentShaderPixelInterlock`) and
+Conservative Rasterization Tier 1. Both are **deferred to a separate
+investigation on a separate branch**. Neither blocks FL 12_0, and no Phase in
+this plan depends on them. FL 12_2 stays out of scope.
+
+### Phase 0 - S-Pre (ships first, no sparse dependency)
+
+All arches:
+
+- **robustness2:** `robustImageAccess2` + `nullDescriptor` on all arches
+  (v10 `robustImageAccess2` is GPU-emulated, patch 184; do not re-gate).
+- **Descriptors:** `VK_EXT_mutable_descriptor_type`; descriptor limits that meet
+  resource binding tier 2/3 (vkd3d's binding-tier derivation).
+- **SM 6.2+ float controls:** `shaderFloat16` / `shaderInt16`,
+  `VK_KHR_shader_float_controls` (fp16/fp32 denorm preserve/flush, rounding
+  modes), subgroup operations required by SM 6.x wave intrinsics.
+- **Per-title override profiles** for Bucket A titles (see Phase 1), opt-in in
+  PanPlay, never global:
+  - Wine vkd3d 1.18: `VKD3D_CAPS_OVERRIDE=feature_level=12.0`
+  - vkd3d-proton: `VKD3D_FEATURE_LEVEL=12_0`
+
+Legacy Bifrost v6/v7 (non-sparse FL 12_0 prerequisites; Phase 0 is not
+complete on v6/v7 until all three land):
+
+- **Min/max sampler filtering:** emulate `samplerFilterMinmax` and
+  `filterMinmaxSingleComponentFormats` (D3D12 `MIN_`/`MAX_` filter reductions).
+  These are native only at `PAN_ARCH >= 10`; v9 needs the same emulation.
+- **Typed UAV loads:** `shaderStorageImageReadWithoutFormat` with load support
+  for all 18 formats that D3D12 requires for typed UAV loads at FL 12_0.
+- **Storage images per stage:** raise `maxPerStageDescriptorStorageImages`
+  (and the matching update-after-bind limit) from 32 to 64.
+
+### Phase 1 - Title census and vkd3d audit
+
+**Census conditions.** Run each target title with an **FL 12_0 + Tiled
+Resources Tier 2 probe shim** active. Many engines branch at runtime on the
+reported feature level and tiled tier, so a census at 11_1 under-reports
+tiled-resource use. The shim is census-only instrumentation: it never ships in
+a PanPlay profile and never reaches a user build.
+
+**Logged per title:**
+
+- `CreateReservedResource`, `UpdateTileMappings`, `CopyTileMappings`,
+  `CopyTiles`, `GetResourceTiling`.
+- `CheckFeatureSupport` queries for the tiled tier and feature level.
+- Residency feedback: DXIL `CheckAccessFullyMapped` on sample/load results
+  (scan shaders at `CreatePipelineState` time).
+- `CreatePlacedResource` on heaps that also back reserved resources.
+- Heap aliasing: more than one placed or tile-mapped resource covering the
+  same heap range.
+
+**Buckets:**
+
+| Bucket | Meaning | Treatment |
+|--------|---------|-----------|
+| **A** | Non-tiled: probes FL 12_0, never creates reserved resources | Phase 0 + override profile |
+| **B1** | Opportunistic: uses reserved resources when the shim reports Tier 2, but has a verified non-tiled fallback that it selects when tiled resources are not reported | Profile that drives the fallback path; counts as Bucket A for shipping. Does **not** count toward the Path 3B threshold |
+| **B2** | Hard-required narrow read-only SRV streaming: reserved textures sampled as SRV, tiles mapped/unmapped, no aliasing, no UAV/RT writes to reserved resources, and no working fallback | Candidate for Path 3B |
+| **C** | True Tier 2 / aliasing: `CopyTileMappings`, multiple tiles mapped to the same heap offset, placed + reserved aliasing, or writes that need per-tile semantics | Out of scope on kbase; runs at 11_1 or listed unsupported |
+| **D** | Fails for non-sparse reasons | Tracked as ordinary driver bugs, outside this plan |
+
+A title that calls `CheckAccessFullyMapped` on reserved resources is B2 at
+best: the SPT can answer it, but only on Path 3B.
+
+**vkd3d audit:** check whether vkd3d-proton (and Wine vkd3d) allow
+`CreateReservedResource` when `sparseResidencyAliased=false`, with and without
+the FL override. If vkd3d rejects it, Bucket B2 needs either a vkd3d-side
+change or is reclassified; record the exact code path.
+
+### Phase 2 - S0-GPU hardware reality gate (CSF v10/v11 and v14)
+
+Run on real hardware. Each test records `used_pages` (kbase region commit /
+`mem_profile`) before and after.
+
+**Expected kernel behaviour.** kbase grows a `GROW_ON_GPF` region as a
+**contiguous prefix**: a fault at offset X backs every page from the current
+backed end up to X (`MEM_COMMIT` and GPF growth both work from the end,
+`mem_linux.c:2217-2260`). Prefix growth in Test A is therefore expected and is
+**not** a kill condition. It only decides the Path 3B backing mechanism (see
+Decision tree).
+
+- **Test A - prefix commit and fault survival.** One 64 MiB `GROW_ON_GPF`
+  region, nothing committed. Two separate runs, each in a fresh region:
+  - **A-READ:** the GPU reads (texel fetch) at offset 60 MiB only.
+  - **A-WRITE:** the GPU writes (storage store) at offset 60 MiB only.
+
+  Record per run: `used_pages` delta (one 64 KiB tile, or ~60 MiB prefix),
+  fault-service latency (submit to fence signal, minus a resident baseline),
+  read result (A-READ: must be 0), and context state. Pass: the context
+  survives (no CSG fatal fault, no `DEVICE_LOST`, the next submit succeeds).
+- **Test B - recycled pool zero-leak.** Free a region filled with a pattern,
+  allocate and commit a new one, GPU-read it. Pass: no pattern bytes visible
+  (pool pages come back zeroed).
+- **Test C - concurrent shrink latency.** Under a 60 FPS GPU load, shrink a
+  region with `MEM_COMMIT`. Record frame-time spikes and shrink latency. Fail:
+  stalls or faults in the concurrent workload.
+- **Test D - mip-tail footprint.** One image with packed mip tail on a single
+  `kbase_va_region`. Bind only the mip tail. Record the physical footprint
+  (expected with a conventional layout: prefix up to the mip-tail offset, which
+  commits mip 0). Then evaluate both mitigations below and record their
+  footprint.
+
+**Mip-tail memory bomb mitigation (evaluated in Test D).** With mip 0 first,
+binding the packed mip tail commits the whole prefix, so a 16 MiB texture costs
+16 MiB to stream its smallest mips. Two layouts decouple mip-tail residency
+from mip 0:
+
+- **Reverse-mip layout:** place the packed mip tail at offset 0 and mip 0 at
+  the end of the image's region. The mip-tail bind then commits only the tail.
+  Needs a driver-defined layout for sparse images only (no app-visible change,
+  since D3D12 does not expose subresource offsets of reserved resources).
+- **Split mip-tail BO:** keep the packed mip tail in a separate, always
+  committed BO, and keep only full-tile mips in the sparse region. Costs one
+  extra BO and one extra descriptor plane per image.
+
+Path 3B takes the mitigation with the lower measured footprint and no Test A
+context faults. If neither works, the first mip-tail bind charges the full
+virtual image size against the cap (fallback, see Path 3B Budget).
+
+### Phase 3 - Decision tree
+
+**Path 3A (default).** Path 3A is taken **only** on one of these:
+
+1. **Test A context death:** a CSG fatal fault, group termination, or
+   `DEVICE_LOST` in A-READ or A-WRITE on any CSF target.
+2. **Census:** fewer than **2 Bucket B2** titles. B1 titles do not count.
+
+On Path 3A, S1-S6 are archived permanently. FL 12_0 = Phase 0 + per-title
+overrides. B2/C titles run at 11_1 or are listed unsupported.
+
+**Outcomes that do not kill Path 3B** (they change its mechanism):
+
+| S0-GPU result | Path 3B consequence |
+|---------------|---------------------|
+| Test A prefix growth (~60 MiB `used_pages` delta) | `GROW_ON_GPF` is banned as a residency mechanism. Backing uses explicit eager pre-commit (`MEM_COMMIT` at bind time; per-tile FIXED regions on CSF uAPI >= 1.9, whole-resource eager regions on v14) |
+| Test B pattern leak | `GROW_ON_GPF` is banned. Every newly committed tile is zeroed explicitly by the GPU on the bind queue before its first use |
+| Test C stalls or faults | No `MEM_COMMIT` shrink while the context has GPU work in flight; reclaim only at destroy or zero-tile idle (already the rule below) |
+| Test D prefix footprint | Reverse-mip or split mip-tail BO, as measured above |
+
+**Path 3B (bounded SRV-first shadow sparse).** Taken when the census finds
+2+ Bucket B2 titles and Test A shows no context death. Rules:
+
+- **Budget.** Two context-wide caps, both checked at reservation and at bind:
+  - **Bytes:** committed sparse bytes <= min(`PANVK_SPARSE_CAP_MB`, default
+    256 MiB, the sparse share of the `VK_EXT_memory_budget` heap budget).
+  - **Regions:** live sparse kbase regions <= **4,096** per context
+    (calibration knob `PANVK_SPARSE_MAX_REGIONS`). Per-tile FIXED regions on
+    CSF multiply region count; this cap keeps kernel VMA count and kbase region
+    tracking (rbtree, `reg_track`) bounded. 4,096 x 64 KiB = 256 MiB, so the
+    two caps agree at the default.
+
+  Over either cap: `VK_ERROR_OUT_OF_DEVICE_MEMORY` (D3D12 `E_OUTOFMEMORY`).
+  Without a mip-tail mitigation (Test D), the first mip-tail bind charges the
+  full virtual image size against the byte cap.
+- **Zero init.** If Test A shows prefix growth or Test B leaks, zero new
+  backing explicitly on the GPU; do not rely on GPF-grown pages or pool zeroing
+  ("GPF magic").
+- **Dirty tracking (two granularities).**
+  - **Transfer writes** (`CopyTextureRegion`, `CopyBufferRegion`, `CopyTiles`
+    into a reserved resource) have CPU-known bounds at record time. They mark
+    exactly the touched tiles dirty (per-tile bits).
+  - **Shader writes** (UAV stores/atomics, RT, depth-stencil, clear, resolve)
+    have no CPU-known bounds. They mark the **whole resource** dirty.
+  - Read-only use (SRV, copy source) marks nothing.
+- **Copy-in.** Copy-in may be skipped only when the source range is device-local,
+  not host-visible, and has never been written. A **host-visible** memory range
+  is always copied in: the CPU can write it through a mapping that the driver
+  does not observe.
+- **Rebind.** Binding a tile that is still bound and dirty to a **different**
+  memory range first writes the dirty tile back to its old memory, then copies
+  in from the new memory. Write-back always precedes copy-in on the bind queue.
+- **Layout.** AFBC disabled for every sparse image (mandatory). A compute
+  shader swizzles between the D3D12 64 KiB standard tile layout and the Mali
+  16x16 u-interleaved 2D layout on copy-in/copy-out. Formats in priority order:
+  BC1-BC7 (block-compressed streaming textures), then RGBA8 (`R8G8B8A8_UNORM`
+  / `_SRGB`, `B8G8R8A8`), then other 32 bpp, then 64/128 bpp. Where the
+  driver reports `StandardSwizzle64KBSupported = FALSE`, the tile's internal
+  layout is driver-defined, so investigate a plain strided copy (tile
+  rectangle, row pitch) in place of the standard-swizzle permutation.
+- **Queue.** Timeline-semaphore-safe async bind queue. No mid-frame
+  `MEM_COMMIT` shrink.
+- **Reclaim.** Backing is reclaimed only at resource destruction or at
+  **zero-tile idle**: the resource has had zero bound tiles for N >= 60
+  consecutive frames (N is a calibration knob) **and** the fence of the last
+  submit that referenced it has signaled.
+- **Destruction drain.** Destroying a sparse resource or freeing a
+  `VkDeviceMemory` that backs one first drains the deferred uncommit worker for
+  that resource or memory (all queued entries processed or cancelled, and their
+  fences signaled). Only then are the kbase regions freed. This prevents the
+  worker from issuing `MEM_COMMIT` on a freed region.
+
+### Withdrawn: dummy zero sink, path (b)
+
+**Tombstone (2026-11-20, Round 3).** Path (b), mapping unbound tiles to a
+shared read-only zero region through `MEM_ALIAS`, is withdrawn. `MEM_ALIAS`
+cannot be FIXED (`mem_linux.c:1759`) and is always SAME_VA on 64-bit
+(`:1794`), so a sink can never sit at a tile's VA. Any later reference to
+"path (b)", "dummy sink" or "sink path" as a non-resident read mechanism is
+dead text kept for history only. The `MEM_ALIAS` sink page described in Q1 and
+tested by PanProbe T2-T6 is a CPU-side mechanism probe, not a residency path.
+Non-resident reads on CSF come only from the S0-GPU outcome: `GROW_ON_GPF`
+growth if Tests A/B pass cleanly, otherwise explicit eager pre-commit with
+explicit GPU zeroing.
+
+---
+
+## Council Round 1 corrections (2026-11-20)
+
+These rules override anything later in this file that conflicts with them.
+The Round 3 authoritative plan above overrides these rules. In particular:
+JM v6/v7/v9 are out of sparse scope (item 2 applies to v14 only); item 3(b)
+is withdrawn (see tombstone above); per-tile dirty bits (item 4) apply only to
+transfer writes, and shader writes use whole-resource tracking; copy-in
+skipping never applies to host-visible memory; the deferred uncommit worker
+reclaims only at destroy or zero-tile idle and is drained before region free;
+and the order in item 5 becomes Phase 0 -> Phase 1 -> Phase 2 -> Phase 3A/3B.
+
+1. **Specification integrity.** No global override, PanPlay default, or driver
+   cap claims conformant Tiled Resources Tier 2. The kbase UAPI cannot give
+   `sparseResidencyAliased` (see Q1/Q2), so the honest tier is
+   **Tier 1-minus-Aliased**, and vkd3d correctly derives tier 0 from it. The
+   feature-level override is a **per-title, opt-in compatibility hack**:
+   - Wine vkd3d 1.18: `VKD3D_CAPS_OVERRIDE=feature_level=12.0`
+   - vkd3d-proton: `VKD3D_FEATURE_LEVEL=12_0`
+
+   Enable it only for a title that the census (item 5) shows probes the
+   feature level but never calls `UpdateTileMappings` / `CopyTileMappings` and
+   never aliases tiles. A title that uses tiled resources gets no override; it
+   runs at 11_1 or is listed as unsupported.
+2. **Memory budget (JM v6/v7/v9, v14).** The 16 GiB monolithic eager arena is
+   dropped. Each sparse resource gets its own SAME_VA `GROW_ON_GPF` region
+   sized to the resource (rounded to 64 KiB) and freed with it. All sparse
+   backing in one kbase context is capped (default **256 MiB**, calibration
+   knob `PANVK_SPARSE_CAP_MB`) and also capped by the heap budget
+   (`VK_EXT_memory_budget`). A reservation that would exceed either cap fails
+   with `VK_ERROR_OUT_OF_DEVICE_MEMORY` (D3D12: `E_OUTOFMEMORY` from
+   `CreateReservedResource`). The driver never over-commits silently.
+3. **CSF faults and non-resident reads.** The store filter does not cover reads.
+   TMU bilinear/aniso footprints and border taps can touch an unbound tile, and
+   on CSF a fault on unbacked memory kills the group. The S0 GPU gate (item 5)
+   must choose one of two paths on hardware:
+   - **(a) GPF growth.** Verify that a read fault on an uncommitted
+     `GROW_ON_GPF` FIXED tile is handled by kbase growth (zeroed page, no group
+     fault). The SPT stays authoritative for residency. The bind engine
+     re-uncommits grown-but-unbound tiles on the deferred worker (item 4).
+   - **(b) Dummy zero sink. [WITHDRAWN - see Round 3 tombstone; dead text.]** Map unbound tiles to a shared, read-only zero
+     region. Constraint: `MEM_ALIAS` cannot be FIXED (`mem_linux.c:1759`), so a
+     sink cannot sit at a FIXED tile VA. This path works only if the S0 gate
+     shows a usable placement. Otherwise (b) is not available.
+
+   If neither (a) nor (b) passes, CSF uses eager backing under the item 2 cap.
+   CSF uncommit does **no GPU zero fill**. kbase gives zeroed pages on recommit
+   (`mem_pool.c:313`, verified CPU-side by S0 T10d). JM tiles stay committed,
+   so JM unbind still zero-fills.
+4. **Bind sync and hot-path copies.**
+   - **Dirty tracking.** Each bound tile has a dirty bit. Submit-time marks it
+     when the resource is reachable as a write target (storage/UAV, RT, ZS,
+     copy/clear/resolve destination) in that submit. Read-only use (SRV,
+     copy source) leaves it clean. Unbind writes back only dirty tiles. Bind
+     copy-in is skipped when the source memory range has never been written.
+   - **Deferred CPU uncommit worker.** Unbind never calls `MEM_COMMIT` inline.
+     It queues `{region, tile, generation}` tagged with the bind batch's
+     signal fence. One worker thread waits on the fence, then uncommits. A
+     rebind of the same tile before the worker runs bumps the generation and
+     cancels the stale entry. `VkDeviceMemory` and region frees also wait on
+     that fence, which prevents use-after-free from in-flight GPU work.
+5. **Prerequisites and order.**
+   - **S-Pre:** `robustImageAccess2` on all arches (v10 already GPU-emulated,
+     patch 184) and SM 6.2+ float controls (`VK_KHR_shader_float_controls`:
+     fp16/fp32 denorm preserve/flush, rounding modes). These come before any
+     sparse work.
+   - **Census:** log D3D12 tiled-resource calls (`CreateReservedResource`,
+     `UpdateTileMappings`, `CopyTileMappings`, `GetResourceTiling`) per target
+     title. If no target title calls `UpdateTileMappings`, S1-S6 are
+     deprioritized and the per-title override is the whole 12_0 story.
+   - **S0 GPU kill-switch gate:** on real hardware, prove GPU read-0 from an
+     unbound tile, bilinear/border sampling across a bound/unbound tile edge,
+     and context survival (no group fault, no `DEVICE_LOST`, next submit
+     succeeds) on CSF v10/v11 and JM v9 at least. A failure stops the plan
+     before driver stages S1-S6.
 
 Sources are cited as `file:line`. kbase kernel sources are the two Pixel
 branches we can read in full: **r38p1** = `android-gs-pantah-5.10-android14`
@@ -24,8 +334,8 @@ remap and no null-PTE, so the two capabilities split:
 | Arch | Stable-VA tile (un)backing | How | `Aliased` |
 |------|----------------------------|-----|-----------|
 | v10-v13 (CSF uAPI >= 1.9) | **Yes, cheap** | `MEM_ALLOC_EX` FIXED per-64 KiB-tile `GROW_ON_GPF` region + `MEM_COMMIT` | No |
-| v6/v7/v9 (JM), v14 (no ALLOC_EX) | **Yes, eager** | one SAME_VA `GROW_ON_GPF` arena, sub-allocated, committed up-front | No |
-| all | residency / MinLod / strict-non-resident | device-global software page-table bitmap + shader lowering | - |
+| v6/v7/v9 (JM), v14 (no ALLOC_EX) | **Yes, eager, capped** | one SAME_VA `GROW_ON_GPF` region per sparse resource, committed up-front, 256 MiB context cap | No |
+| all | residency / MinLod / strict-non-resident | software page-table (SPT) bitmap + shader lowering | - |
 
 `sparseResidencyAliased` stays **false** on every arch: it needs two VAs to map
 the *same* physical tile, and kbase's only remap primitive (`MEM_ALIAS`) is
@@ -38,28 +348,36 @@ issue 237).
 **Consequence for D3D12.** vkd3d computes its tiled tier itself from the Vulkan
 caps (`device.c:8985-9007`): tier 1 and tier 2 both *require*
 `sparseResidencyAliased`, so with Aliased=false vkd3d derives **tier 0** and FL
-caps at 11_1 regardless of how much of the rest we implement. Reaching 12_0
-therefore needs the existing `VKD3D_FEATURE_LEVEL=12_0` override
-(`device.c:10035-10040`, forces tier 2) wired into a PanPlay profile, or a
-small opt-in vkd3d patch. The honest tier is 1-minus-Aliased.
+caps at 11_1 regardless of how much of the rest we implement. That derivation
+is correct and we do not patch it. The honest tier is **Tier 1-minus-Aliased**.
+FL 12_0 is reported only through an opt-in, per-title compatibility override
+(Wine vkd3d 1.18 `VKD3D_CAPS_OVERRIDE=feature_level=12.0`; vkd3d-proton
+`VKD3D_FEATURE_LEVEL=12_0`, `device.c:10035-10040`; it makes vkd3d-proton
+report tier 2 to the app, and that report is not conformant). It is
+set only for titles that probe the feature level and never call
+`UpdateTileMappings` or alias tiles. It is never a global PanPlay default.
 
 **Chosen design: "shadow-tile sparse."** Every sparse resource owns stable
 physical backing at a stable GPU VA. `vkQueueBindSparse` is turned into GPU copy
-work on the bind queue (copy-in on bind, write-back + zero on unbind) plus a
-commit/uncommit of the tile's backing. We never move a VA and never rely on a
-page-table remap. Residency/MinLod/non-resident-strict come from a device-global
-software page-table (SPT) bitmap plus NIR lowering of sparse opcodes.
+work on the bind queue (copy-in on bind, write-back of dirty tiles on unbind,
+zero-fill on JM only) plus a deferred, fence-gated commit/uncommit of the tile's
+backing. We never move a VA and never rely on a page-table remap.
+Residency/MinLod/non-resident-strict come from a software page-table (SPT)
+bitmap plus NIR lowering of sparse opcodes.
 
-**Effort: ~8-11 weeks** across 7 stages (S0-S6 below). The first device-provable
-milestone (PanProbe `sparse_kbase`) is **2-3 days** and gates the rest.
+**Effort: ~10-14 weeks** across S-Pre, census, S0 (CPU + GPU gate) and S1-S6.
+The PanProbe `sparse_kbase` CPU test exists. The S0 GPU kill-switch gate must
+pass on hardware before any driver stage starts.
 
-**Biggest risks:** (1) JM/v14 arena is eager, so VRAM = sum of live reserved
-resource sizes - a 1 GiB reserved tiled texture costs ~1 GiB even mostly
-unbound; (2) CSF per-tile regions multiply kernel region count and fault-handler
-pressure; (3) vendor variance - v14 G1-Ultra rejects `ALLOC_EX` with ENOTTY
-(`kbase_kmod.c:2870-2883` fallback), so it drops to the JM arena path; (4) the
-store-filter adds 3-4 instructions per storage write on arches lacking a null
-PTE.
+**Biggest risks:** (1) JM/v14 backing is eager, so memory = sum of live reserved
+resource sizes. The 256 MiB context cap makes large reservations fail
+(`VK_ERROR_OUT_OF_DEVICE_MEMORY`) instead of exhausting the device; (2) CSF
+non-resident reads (TMU footprints, border taps) can fault the group unless the
+S0 GPU gate proves GPF growth (else explicit eager pre-commit + GPU zeroing; the sink path is withdrawn); (3) CSF per-tile regions multiply
+kernel region count and fault-handler pressure; (4) vendor variance - v14
+G1-Ultra rejects `ALLOC_EX` with ENOTTY (`kbase_kmod.c:2870-2883` fallback), so
+it drops to the JM path; (5) the store filter adds 3-4 instructions per storage
+write on arches lacking a null PTE.
 
 ---
 
@@ -74,24 +392,42 @@ its exact tile VA (`MEM_ALLOC_EX`, `fixed_address` = tile VA,
 `core_linux.c:1032-1047`). Bind commits the tile (`MEM_COMMIT` to 16 pages,
 `mem_linux.c:2176-2262`); unbind uncommits to 0. Fresh pages are zeroed by the
 kernel pool (`mem_pool.c:313` `__GFP_ZERO`), giving correct read-0 semantics for
-free. Stray GPU access to an uncommitted tile faults; on CSF a fault on
-non-backed memory is fatal to the group, so the shader-side store filter (below)
-must prevent it, and the SPT makes residency queries honest. Memory cost ~=
-bound tiles + per-region overhead.
+free, so CSF uncommit issues **no GPU zero fill** (valid only if S0-GPU Test B
+shows no pool leak; otherwise Path 3B zeroes explicitly). A stray GPU access to an
+uncommitted tile faults. On CSF a fault on non-backed memory is fatal to the
+group unless kbase services it as `GROW_ON_GPF` growth. The store filter (below)
+covers writes only. Reads from TMU filter footprints and border taps are
+handled by `GROW_ON_GPF` growth or, failing that, explicit eager pre-commit
+with GPU zeroing, chosen by the S0 GPU gate (path (b) dummy sink is withdrawn;
+see the Round 3 tombstone). The SPT keeps residency queries
+honest. Memory cost ~= bound tiles + GPF-grown unbound tiles (until the worker
+re-uncommits them) + per-region overhead, all under the context cap.
 
 FIXED_VA zone math (verified `reg_track.h:96,102,109`): EXEC_VA base = 2^47,
 EXEC_FIXED_VA = 4 GiB above it, FIXED_VA = `[2^47 + 8 GiB, 2^48)`. Base =
 `0x8002_0000_0000`. The prototype uses R = `0x8004_0000_0000`. Requires
 `va_bits >= 48` (from `RAW_MMU_FEATURES & 0xff`).
 
-**JM v6/v7/v9 and v14 (no `MEM_ALLOC_EX`):** no FIXED, so one big SAME_VA
-`GROW_ON_GPF` "arena" region (e.g. 16 GiB VA) whose CPU=GPU VA is fixed at mmap
-time. Sparse resources are sub-allocated inside it at stable offsets. Because
-kbase grows a GROW_ON_GPF region only from the backed end upward (`mmu.c`,
-`MEM_COMMIT` shrinks/grows from the end only, `mem_linux.c:2217-2260`), we cannot
-punch holes - so JM commits **eagerly**: a reserved resource's tiles are backed
-up front. This keeps the VA stable and correct but spends real memory. v14 uses
-this path too (ALLOC_EX ENOTTY).
+**JM v6/v7/v9 and v14 (no `MEM_ALLOC_EX`):** no FIXED, so each sparse resource
+gets **its own SAME_VA `GROW_ON_GPF` region**, sized to the resource rounded to
+64 KiB. Its CPU=GPU VA is fixed at mmap time and the region is freed with the
+resource (after its last fence). There is no monolithic arena and no up-front
+16 GiB VA reservation. Because kbase grows a GROW_ON_GPF region only from the
+backed end upward (`mmu.c`, `MEM_COMMIT` shrinks/grows from the end only,
+`mem_linux.c:2217-2260`), we cannot punch holes - so JM commits **eagerly**: a
+reserved resource's tiles are backed at creation. This keeps the VA stable and
+correct but spends real memory, so it is budgeted:
+- A context-wide counter tracks committed sparse bytes (both paths).
+- Cap = min(`PANVK_SPARSE_CAP_MB`, default 256 MiB, and the sparse share of
+  the `VK_EXT_memory_budget` heap budget).
+- `vkCreateBuffer` / `vkCreateImage` with sparse flags return
+  `VK_ERROR_OUT_OF_DEVICE_MEMORY` when the reservation would exceed the cap.
+  The counter is decremented only after the region free completes.
+
+v14 uses this path too (ALLOC_EX ENOTTY). On this path the SPT is a
+per-resource bitmap that the shader reaches through the descriptor's sparse
+side data, because the regions are not contiguous. On CSF it stays one bitmap
+over the FIXED window.
 
 Why not the obvious alternatives, in short (full analysis in Q2):
 - **FIXED + re-alias at the fixed VA** - impossible: aliases can't be FIXED
@@ -112,21 +448,50 @@ The GPU queue family already advertises `SPARSE_BINDING`
 (`panvk_physical_device.c:1579`); the kbase bind-queue path is still a stub
 (`panvk_vX_device.c:443` "sparse binding queues are not implemented yet"). The
 design replaces the stub with a bind engine that, per `VkSparseMemoryBind`:
-- **bind:** commit the backing tile(s); if the bound `VkDeviceMemory` already
-  holds data, GPU-copy it into the tile; set the SPT bit.
-- **unbind:** GPU-copy the tile back to its memory object if needed, zero the
-  tile, uncommit (CSF) or leave committed (JM arena), clear the SPT bit.
+- **bind:** cancel any pending uncommit of the tile (generation bump); commit
+  the backing tile(s) if not committed; if the tile is still bound and dirty
+  against a different memory range, first write it back to the old memory;
+  then, if the new `VkDeviceMemory` range is host-visible or has ever been
+  written, GPU-copy it into the tile (never skip for host-visible ranges); set
+  the SPT bit; clear the dirty bit.
+- **unbind:** GPU-copy the tile back to its memory object **only if dirty**;
+  clear the SPT bit. CSF: queue a deferred uncommit, with no GPU zero fill
+  (recommit gives kernel-zeroed pages). JM: leave committed and GPU zero-fill
+  the tile so later reads return 0.
 - images without `INTERLEAVED_64K` (v6-v9, the modifier doesn't exist pre-v10,
   `panvk_async_bind.c:279-287`) copy tiles with image<->buffer region copies.
 
-Bind is ordered on the queue like any other submit, so no extra sync model is
-needed. Cost estimate: a 64 KiB GPU copy ~3-10 us, `MEM_COMMIT` ~15-40 us (to be
-measured by the prototype T10f), a realistic bind batch ~50-150 us.
+**Dirty tracking.** One dirty bit per bound tile. At submit, a command buffer
+that can write the resource (storage/UAV, RT, ZS, copy/clear/resolve
+destination) marks the reachable tiles dirty: exact tiles for copy regions,
+all bound tiles of the resource otherwise. Read-only use (SRV, copy source)
+does not mark tiles. A clean tile has no write-back cost on unbind.
+
+**Deferred uncommit worker.** `MEM_COMMIT` and region/memory frees never run
+inline in `vkQueueBindSparse`:
+1. Unbind appends `{region, tile, generation}` to a list tagged with the bind
+   batch's signal fence (syncobj/timeline point).
+2. One worker thread per device waits on the fence, then uncommits each entry
+   whose generation still matches.
+3. A rebind before step 2 bumps the generation, so the stale entry is dropped.
+4. `vkFreeMemory` and sparse resource destroy hold their regions until the last
+   tagged fence signals, and drain the worker's queued entries for them
+   before freeing kbase regions. This prevents use-after-free from in-flight
+   GPU work and stops the worker from committing a freed region.
+5. Per Round 3, reclaim (uncommit) runs only at destroy or zero-tile idle
+   (zero bound tiles for N >= 60 consecutive frames and the last submit fence
+   signaled), never mid-frame.
+
+Bind copies are ordered on the queue like any other submit. Only the CPU-side
+kbase calls move to the worker. Cost estimate: a 64 KiB GPU copy ~3-10 us,
+`MEM_COMMIT` ~15-40 us off the submit thread (to be measured by T10f), a
+realistic bind batch ~50-150 us before dirty skipping.
 
 ### Residency, MinLod, non-resident-strict (the SPT)
 
-A device-global **sparse page-table bitmap** over the window: 64 GiB / 64 KiB =
-1 M bits = 128 KiB. One bit per tile = resident/not. It drives three things:
+A **sparse page-table bitmap**: on CSF one bitmap over the FIXED window
+(64 GiB / 64 KiB = 1 M bits = 128 KiB); on JM/v14 one bitmap per sparse
+resource. One bit per tile = resident/not. It drives three things:
 1. **`shaderResourceResidency`** - the `OpImageSparse*` residency code is
    computed from the SPT, not from HW (Mali has no residency feedback).
 2. **`shaderResourceMinLod`** - lower via LOD query -> max -> explicit LOD /
@@ -134,7 +499,9 @@ A device-global **sparse page-table bitmap** over the window: 64 GiB / 64 KiB =
    `:685-687`), so this is a small extension.
 3. **strict non-resident (`sparseResidencyNonResidentStrict`,
    `panvk_vX_physical_device.c:1109`)** - a store/atomic window check that
-   discards writes to unbound tiles (read-0 comes free from zeroed pages).
+   discards writes to unbound tiles. Read-0 comes from zeroed pages on JM, and
+   from GPF growth or explicitly zeroed eager backing on CSF (S0 GPU gate
+   decides; the dummy sink is withdrawn).
    Fixed-function RT/ZS/clear/resolve writes can't be filtered in-shader, so they
    get a post-pass zero-fill of non-resident tiles.
 
@@ -143,7 +510,8 @@ A device-global **sparse page-table bitmap** over the window: 64 GiB / 64 KiB =
 After all stages: `sparseBinding`, `sparseResidencyBuffer`,
 `sparseResidencyImage2D`, `residencyStandard2DBlockShape` (already true,
 `:1111`), `sparseResidencyNonResidentStrict`, `shaderResourceResidency`,
-`shaderResourceMinLod` -> all true. **`sparseResidencyAliased` stays false.**
+`shaderResourceMinLod` -> all true. **`sparseResidencyAliased` stays false**,
+so the D3D12 result is Tier 1-minus-Aliased, never conformant Tier 2.
 `samplerFilterMinmax` / `filterMinmaxSingleComponentFormats` are already
 `PAN_ARCH >= 10` (`:445`, `:1229`); v6-v9 need min/max filter emulation for the
 12_0 feature set, independent of sparse.
@@ -212,17 +580,22 @@ filtering, which is the SPT's actual job.
 - **(d-CSF)** FIXED + GROW_ON_GPF per tile, `MEM_COMMIT` to (un)back. Prototype
   T10 proves alloc-at-R, RW readback, overlap-refused, free+realloc-at-same-VA,
   and the commit 16->0->16 cycle with zeroed recommit.
-- **(d-JM)** one SAME_VA GROW_ON_GPF arena; commit grows from the end only
-  (`mem_linux.c:2217`), so holes aren't possible -> eager backing. Prototype T9
-  proves the end-growth/shrink behaviour; T8 proves why munmap+recreate is not a
-  safe substitute.
+- **(d-JM)** one SAME_VA GROW_ON_GPF region per sparse resource; commit grows
+  from the end only (`mem_linux.c:2217`), so holes aren't possible -> eager
+  backing under the 256 MiB context cap. Prototype T9 proves the
+  end-growth/shrink behaviour; T8 proves why munmap+recreate is not a safe
+  substitute.
 
 **Non-resident semantics without a null PTE.** Mali has no null/sparse PTE
 (Panthor's upstream sparse support maps a dummy BO, Collabora LKML 2026). So:
-read-0 comes from zeroed fresh pages (`mem_pool.c:313`); write-discard needs the
+read-0 comes from zeroed pages (`mem_pool.c:313`) on JM; write-discard needs the
 in-shader store window check; fixed-function writes need the post-pass
-zero-fill. On CSF, an *unfiltered* stray access to an uncommitted tile is a fatal
-group fault - the filter is mandatory there, not just for strictness.
+zero-fill. On CSF, a stray access to an uncommitted tile is a fatal group fault
+unless kbase services it as GPF growth. The store filter covers writes only.
+Reads (including TMU filter footprints and border taps that cross into an
+unbound tile) need `GROW_ON_GPF` growth, proven by the S0 GPU gate. If Test A
+shows prefix growth or Test B leaks, CSF uses explicit eager pre-commit with
+GPU zeroing. (Path (b) dummy zero sink is withdrawn; see Round 3 tombstone.)
 
 ---
 
@@ -234,14 +607,14 @@ group fault - the filter is mandatory there, not just for strictness.
   per-tile backing is cheap. These are the primary targets. v10 also carries the
   current GPU-hang work - the sparse bind engine must not collide with it
   (sequence sparse work behind the hang fix).
-- **v6 (G72), v7 (G52), v9 (G78) (JM):** design works via the eager SAME_VA
-  arena. Extra 12_0 gaps unrelated to sparse: no HW min/max filter (emulate),
+- **v6 (G72), v7 (G52), v9 (G78) (JM):** design works via eager per-resource
+  SAME_VA regions under the context cap. Extra 12_0 gaps unrelated to sparse: no HW min/max filter (emulate),
   and v6/v7 need 64 storage images per stage for 11_1 (reachability table,
   `worklogs/.../d3d-feature-levels-2026-10-27`). No INTERLEAVED_64K -> image
   tiles via buffer copies.
 - **v14 (G1-Ultra, MT6993):** rejects `ALLOC_EX` (ENOTTY,
-  `kbase_kmod.c:2870`), so no FIXED -> falls back to the JM eager arena. Treat as
-  JM for sparse. Highest vendor-variance risk.
+  `kbase_kmod.c:2870`), so no FIXED -> falls back to JM eager per-resource
+  regions. Treat as JM for sparse. Highest vendor-variance risk.
 
 ### Cost estimates (to be confirmed by the prototype on-device)
 
@@ -253,17 +626,29 @@ group fault - the filter is mandatory there, not just for strictness.
 | in-shader store filter | +3-4 instr / storage write |
 | SPT | 128 KiB for a 64 GiB window |
 
-### Staged plan (~8-11 weeks)
+### Staged plan (~10-14 weeks, in this order)
+
+Superseded by the Round 3 authoritative plan. S1-S6 below run only on Path 3B
+(CSF v10-v14, Bucket B titles); on Path 3A they are archived. S-Pre = Phase 0,
+Census = Phase 1, S0-GPU = Phase 2. S6 (v6-v9 min/max emulation, typed UAV
+loads, storage images 32->64) is not sparse work: it moves into Phase 0.
 
 | Stage | What | Effort |
 |-------|------|--------|
-| **S0** | PanProbe `sparse_kbase` test (proves the primitives on real HW) | 2-3 d |
-| **S1** | bind engine + arena backing, all arches | 2-3 wk |
-| **S2** | CSF FIXED per-tile backing | ~1 wk |
+| **S-Pre** | `robustImageAccess2` on all arches (v10 GPU-emulated, patch 184) + SM 6.2+ float controls (`VK_KHR_shader_float_controls`) | 1-2 wk |
+| **Census** | log `CreateReservedResource` / `UpdateTileMappings` / `CopyTileMappings` / `GetResourceTiling` per target title; decides whether S1-S6 are needed | 1-2 d |
+| **S0-CPU** | PanProbe `sparse_kbase` test (CPU-side kbase primitives, exists) | done |
+| **S0-GPU** | **kill-switch gate**: on HW, GPU read-0 from an unbound tile, bilinear/border sampling across a bound/unbound edge, context survival; picks CSF `GROW_ON_GPF` growth or explicit eager pre-commit + GPU zeroing (sink path withdrawn). Kill = CSG fatal fault / context death in Test A | 3-5 d |
+| **S1** | bind engine (dirty tracking, deferred fence-gated uncommit worker) + per-resource SAME_VA backing + 256 MiB context cap, all arches | 2-3 wk |
+| **S2** | CSF FIXED per-tile backing, no GPU zero on uncommit, non-resident read path from S0-GPU | ~1 wk |
 | **S3** | SPT + residency + MinLod lowering | 1.5-2 wk |
 | **S4** | strict write filter + fixed-function zero-fill | 1.5-2 wk |
-| **S5** | vkd3d tier policy + PanPlay 12_0 profile | 0.5-1 d |
+| **S5** | per-title opt-in FL override in PanPlay profiles (census-listed titles only; Wine vkd3d 1.18 `VKD3D_CAPS_OVERRIDE=feature_level=12.0`, vkd3d-proton `VKD3D_FEATURE_LEVEL=12_0`); no vkd3d tier patch | 0.5-1 d |
 | **S6** | v6-v9 extras (min/max emulation, storage-image count) | 1-2 wk |
+
+The per-title override (S5) does not depend on S1-S4 and can ship right after
+the census, but only for titles that never call `UpdateTileMappings` or alias
+tiles.
 
 ### What the PanProbe `sparse_kbase` test must prove (device, S0 gate)
 
@@ -272,7 +657,7 @@ group fault - the filter is mandatory there, not just for strictness.
 3. GPU load from an uncommitted GROW_ON_GPF FIXED tile returns 0; store-then-load
    returns the store; the context survives (T10d is the CPU-side half).
 4. Per-tile uncommit isolation under concurrent access to neighbours.
-5. Arena copy-in/out is bit-exact (JM path).
+5. Per-resource region copy-in/out is bit-exact (JM path).
 6. Sink reads 0 and a write leaks to other sink entries (T2-T6 CPU half).
 7. SAME_VA re-placement reuse rate (T8) - confirms munmap+recreate is unsafe.
 8. Timings (bind batch, commit) on each arch.
@@ -392,10 +777,14 @@ commit 0 is refused, the port retries with commit 1, so an unbound tile keeps 1
 page (`16->1->16` in the log). If the uncommit is ignored (a
 `CONFIG_MALI_MEMORY_FULLY_BACKED` kernel), the result is eager-only.
 
-**Not covered by S0 here.** The plan's S0 items 2-5 need GPU access (GPU
+**Not covered by S0-CPU here.** The plan's S0 items 2-5 need GPU access (GPU
 store/load at a FIXED VA, read-0 from an uncommitted tile, neighbour isolation,
-arena copy bit-exactness). They wait for a driver-side test once the S1 bind
-engine exists. Item 9 (16384 tiles, 10k cycles) runs bounded here: 256 tiles x 8
+copy bit-exactness). They move to the **S0-GPU kill-switch gate**, which runs
+before S1, not after it. It adds boundary sampling (bilinear and border taps
+across a bound/unbound tile edge) and context survival (no group fault, no
+`DEVICE_LOST`, a follow-up submit succeeds). It needs only a minimal test-only
+driver hook that binds one FIXED `GROW_ON_GPF` region as a texture/texel buffer,
+not the S1 bind engine. Item 9 (16384 tiles, 10k cycles) runs bounded here: 256 tiles x 8
 cycles within 3 s.
 
 ### How to read the log
