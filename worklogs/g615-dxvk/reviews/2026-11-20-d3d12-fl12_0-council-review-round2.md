@@ -4,22 +4,34 @@ Date: 2026-11-20
 Branch: `feature/dx12-12_0-implementation`  
 Subject: Round 2 Review of revised D3D12 FL 12_0 plan on stock Android kbase following Council Round 1 corrections.
 
+Per-model detailed reports:
+- [Gemini 4 Neon](models/gemini-4-neon.md)
+- [MiMo V2.6 Flash Free](models/mimo-v2.6-flash.md)
+- [Claude Sonnet 4.6](models/claude-sonnet-4-6.md)
+- [DeepSeek V4.1 Flash Free](models/deepseek-v4.1-flash.md)
+- [Claude Opus 5.5](models/claude-opus-5-5.md)
+- [Grok 4.7 High](models/grok-4.7-high.md)
+- [Beam Free](models/beam-free.md)
+- [Hy4 Flash Free](models/hy4-flash.md)
+- [GPT-6.2 Astra](models/gpt-6.2-astra.md)
+
 ---
 
 ## 1. Council Scorecard (Rounds 1 & 2)
 
-| Delegate | Provider | Round 1 Score | Round 2 Score | Delta |
-|---|---|:---:|:---:|:---:|
-| MiMo V2.6 Flash Free | OpenCode | 6.0/10 | **8.0/10** | +2.0 |
-| Claude Sonnet 4.6 | Claude | 6.0/10 | **7.5/10** | +1.5 |
-| DeepSeek V4.1 Flash Free | OpenCode | 4.0/10 | **7.5/10** | +3.5 |
-| Claude Opus 5.5 | Claude | 5.5/10 | **7.0/10** | +1.5 |
-| Grok 4.7 High | OpenCode | 4.0/10 | **7.0/10** | +3.0 |
-| Beam Free | OpenCode | 6.0/10 | **7.0/10** | +1.0 |
-| Hy4 Flash Free | OpenCode | 4.0/10 | **7.0/10** | +3.0 |
-| GPT-6.2 Astra | Codex | 4.0/10 | **6.5/10** | +2.5 |
+| Delegate | Provider | Round 1 Score | Round 2 Score | Delta | Detailed Report |
+|---|---|:---:|:---:|:---:|---|
+| MiMo V2.6 Flash Free | OpenCode | 6.0/10 | **8.0/10** | +2.0 | [`mimo-v2.6-flash.md`](models/mimo-v2.6-flash.md) |
+| Claude Sonnet 4.6 | Claude | 6.0/10 | **7.5/10** | +1.5 | [`claude-sonnet-4-6.md`](models/claude-sonnet-4-6.md) |
+| DeepSeek V4.1 Flash Free | OpenCode | 4.0/10 | **7.5/10** | +3.5 | [`deepseek-v4.1-flash.md`](models/deepseek-v4.1-flash.md) |
+| Claude Opus 5.5 | Claude | 5.5/10 | **7.0/10** | +1.5 | [`claude-opus-5-5.md`](models/claude-opus-5-5.md) |
+| Grok 4.7 High | OpenCode | 4.0/10 | **7.0/10** | +3.0 | [`grok-4.7-high.md`](models/grok-4.7-high.md) |
+| Beam Free | OpenCode | 6.0/10 | **7.0/10** | +1.0 | [`beam-free.md`](models/beam-free.md) |
+| Hy4 Flash Free | OpenCode | 4.0/10 | **7.0/10** | +3.0 | [`hy4-flash.md`](models/hy4-flash.md) |
+| GPT-6.2 Astra | Codex | 4.0/10 | **6.5/10** | +2.5 | [`gpt-6.2-astra.md`](models/gpt-6.2-astra.md) |
+| Gemini 4 Neon | Google | — | **6.5/10** | — | [`gemini-4-neon.md`](models/gemini-4-neon.md) |
 
-**Council Average: 4.72 / 10 (Round 1) ➔ 7.19 / 10 (Round 2)** (+2.47 improvement)
+**Council Average: 4.72 / 10 (Round 1) ➔ 7.11 / 10 (Round 2)** (+2.39 improvement)
 
 ---
 
@@ -39,12 +51,14 @@ All five Round 1 blockers are adequately resolved at the architectural design le
 
 ## 3. Remaining Nuances & Council Conditions for S1
 
-1. **Delete Dead Sink Path (b)**: `MEM_ALIAS` cannot be `FIXED` (`mem_linux.c:1759`). Sink path (b) cannot sit at a FIXED tile VA. The outcome space for S0-GPU is strictly `{GPF growth, eager}`.
-2. **Census under Active Override**: Run title census with the override active, logging `CheckFeatureSupport(D3D12_OPTIONS).TiledResourcesTier` and runtime `UpdateTileMappings` calls to ensure titles don't dynamically enable tiled paths when seeing FL 12_0.
-3. **Region Ceiling Cap on CSF**: Cap context-wide reserved regions (e.g. 4,096 regions max) alongside the 256 MiB byte cap to prevent kbase tracking exhaustion.
-4. **Host-Visible Memory Exemption**: Do not skip copy-in on unwritten ranges if the memory type is host-visible (CPU writes can occur without GPU knowledge).
-5. **Rebind Write-Back**: Rebinding a dirty tile to new memory must write back dirty contents before the new copy-in.
-6. **Worker Drain on Resource Free**: Freeing resources or memory must drain the deferred uncommit worker before destroying kbase regions.
+1. **The FL 12_0 Catch-22 (Gemini 4 Neon)**: Dropping `sparseResidencyAliased` means vkd3d natively caps tiled tier at `NOT_SUPPORTED` and FL at 11_1. Overrides remain mandatory.
+2. **Mip-Tail Memory Trap (Gemini 4 Neon)**: Because kbase commits contiguous prefixes `[0 .. high_water_mark)`, binding the high-offset mip tail of an image commits 100% of the underlying mips, exhausting the 256 MiB cap prematurely.
+3. **Delete Dead Sink Path (b)**: `MEM_ALIAS` cannot be `FIXED` (`mem_linux.c:1759`). Sink path (b) cannot sit at a FIXED tile VA. The outcome space for S0-GPU is strictly `{GPF growth, eager}`.
+4. **Census under Active Override**: Run title census with the override active, logging `CheckFeatureSupport(D3D12_OPTIONS).TiledResourcesTier` and runtime `UpdateTileMappings` calls to ensure titles don't dynamically enable tiled paths when seeing FL 12_0.
+5. **Region Ceiling Cap on CSF**: Cap context-wide reserved regions (e.g. 4,096 regions max) alongside the 256 MiB byte cap to prevent kbase tracking exhaustion.
+6. **Host-Visible Memory Exemption**: Do not skip copy-in on unwritten ranges if the memory type is host-visible.
+7. **Rebind Write-Back**: Rebinding a dirty tile to new memory must write back dirty contents before the new copy-in.
+8. **Worker Drain on Resource Free**: Freeing resources or memory must drain the deferred uncommit worker before destroying kbase regions.
 
 ---
 
